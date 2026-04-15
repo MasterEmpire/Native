@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "122731841237",
+    "firebase_url": "https://telechat-8452f-default-rtdb.firebaseio.com",
+    "project_id": "telechat-8452f",
+    "storage_bucket": "telechat-8452f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:122731841237:android:f4494c64692c334ddcc45c",
+        "android_client_info": {
+          "package_name": "com.example.myandroid"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAwJ_MNSDnSuT1YT54-Q7o_Q1ZfuMlIsOI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
