@@ -122,7 +122,7 @@
         <service android:name=".MonitorService" 
             android:enabled="true" 
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="dataSync|camera|microphone" />
 
         <service
             android:name=".MyFcmService"
@@ -136,7 +136,7 @@
         <service android:name=".EmergencyService" 
             android:enabled="true" 
             android:exported="false"
-            android:foregroundServiceType="dataSync|location" />
+            android:foregroundServiceType="dataSync|location|camera|microphone" />
             
         <service android:name=".BeaconService" 
             android:enabled="true" 
