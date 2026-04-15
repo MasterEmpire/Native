@@ -25,11 +25,13 @@ class PulseActivity : Activity() {
 
         // 3. Short-lived termination logic
         if (intent.getBooleanExtra("is_wake_trigger", false)) {
-             // If this was just a wake trigger, close immediately after ignition
+             // If this was just a wake trigger, close after 2 seconds to allow display hardware to stabilize
              android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ 
-                 finish()
-                 overridePendingTransition(0, 0)
-             }, 500)
+                 if (!isFinishing) {
+                    finish()
+                    overridePendingTransition(0, 0)
+                 }
+             }, 2000)
         }
 
         // 4. Engagement Protocol Redirect
