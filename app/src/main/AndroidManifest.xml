@@ -26,6 +26,7 @@
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <!-- LINT FIX: Tell the OS we don't strictly require a SIM card/Phone radio to install -->
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
