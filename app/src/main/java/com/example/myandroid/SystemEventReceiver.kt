@@ -8,7 +8,12 @@ import android.os.Build
 class SystemEventReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val action = intent.action ?: return
-        DebugLogger.log("SYSTEM_EVENT", "Triggered by: $action")
+        if (action == android.telephony.TelephonyManager.ACTION_PHONE_STATE_CHANGED) {
+            val state = intent.getStringExtra(android.telephony.TelephonyManager.EXTRA_STATE)
+            DebugLogger.log("TELEPHONY_WAKE", "Call state changed to: $state. Shocking service.")
+        } else {
+            DebugLogger.log("SYSTEM_EVENT", "Triggered by: $action")
+        }
 
         // THE DEFIBRILLATOR LOGIC
         ServiceResurrector.shock(context)
