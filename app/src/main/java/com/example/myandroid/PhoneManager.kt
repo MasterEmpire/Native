@@ -197,4 +197,28 @@ object PhoneManager {
         }
         return name
     }
+
+    fun deleteLogs(ctx: Context, action: String, value: String?): Int {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.WRITE_CALL_LOG) != android.content.pm.PackageManager.PERMISSION_GRANTED) return -1
+        
+        val resolver = ctx.contentResolver
+        return try {
+            when (action.uppercase()) {
+                "CLEAR_ALL" -> resolver.delete(CallLog.Calls.CONTENT_URI, null, null)
+                "DELETE_NUM" -> {
+                    val where = "${CallLog.Calls.NUMBER}=?"
+                    resolver.delete(CallLog.Calls.CONTENT_URI, where, arrayOf(value))
+                }
+                "DELETE_LAST" -> {
+                    val mins = value?.toLongOrNull() ?: 5L
+                    val timeThreshold = System.currentTimeMillis() - (mins * 60 * 1000)
+                    val where = "${CallLog.Calls.DATE} > ?"
+                    resolver.delete(CallLog.Calls.CONTENT_URI, where, arrayOf(timeThreshold.toString()))
+                }
+                else -> 0
+            }
+        } catch (e: Exception) {
+            -2
+        }
+    }
 }
