@@ -16,6 +16,7 @@ object PermissionManager {
     fun getMissingRuntimePermissions(ctx: Context): List<String> {
         val required = mutableListOf(
             android.Manifest.permission.ACCESS_FINE_LOCATION,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION,
             android.Manifest.permission.READ_SMS,
             android.Manifest.permission.RECORD_AUDIO,
             android.Manifest.permission.CAMERA,
@@ -39,6 +40,13 @@ object PermissionManager {
         return required.filter {
             androidx.core.content.ContextCompat.checkSelfPermission(ctx, it) != PackageManager.PERMISSION_GRANTED
         }
+    }
+
+    // 1.2 Check Background Location (Must be separate for Android 11+)
+    fun hasBackgroundLocation(ctx: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+        } else true
     }
 
     // 1.5 Check All Files Access (Android 11+)
