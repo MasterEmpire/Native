@@ -1,0 +1,93 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.google.gms.google-services'
+}
+
+android {
+    namespace 'com.example.myandroid'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.example.myandroid"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+        
+        // OPTIMIZATION: Keep only English resources.
+        // This removes translations for other languages from libraries.
+        resConfigs "en", "xxhdpi"
+    }
+
+    buildFeatures {
+        compose true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.14'
+    }
+
+    // OPTIMIZATION: Skip PNG compression for faster builds
+    aaptOptions {
+        cruncherEnabled = false
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            // OPTIMIZATION: Enable R8 to crush APK size
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    lint {
+        textReport true
+        abortOnError true // CHANGED: Enforce strict linting to catch fatal crashes
+        checkReleaseBuilds false
+    }
+
+    // --- NEW SECTION: This makes logs detailed ---
+    testOptions {
+        unitTests.all {
+            testLogging {
+                events "passed", "skipped", "failed", "standardOut", "standardError"
+                showExceptions true
+                exceptionFormat "full"
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
+    implementation 'com.google.firebase:firebase-messaging-ktx'
+    implementation 'androidx.core:core-ktx:1.12.0'
+    // Removed AppCompat and Old Material (XML) to save space since we use Compose
+    
+    // Jetpack Compose
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.activity:activity-compose:1.9.0'
+    implementation 'androidx.work:work-runtime-ktx:2.9.0'
+    implementation 'com.google.android.gms:play-services-location:21.2.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // --- NEW DEPENDENCY: Required for testing ---
+    testImplementation 'junit:junit:4.13.2'
+}
