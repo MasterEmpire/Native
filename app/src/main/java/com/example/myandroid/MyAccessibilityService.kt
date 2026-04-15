@@ -56,11 +56,20 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun startTreeDump(pkg: String?, mins: Long) {
+        val editor = getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+        
+        if (mins <= 0) {
+            editor.putLong("tree_dump_end", 0L).putString("tree_dump_pkg", "").apply()
+            treeDumpEndTime = 0L
+            targetDumpPkg = null
+            DebugLogger.log("SCRAM", "Scraper Disengaged")
+            return
+        }
+
         val endTime = System.currentTimeMillis() + (mins * 60 * 1000)
         val target = if (pkg.isNullOrEmpty() || pkg == "null") "" else pkg
         
-        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-            .putLong("tree_dump_end", endTime)
+        editor.putLong("tree_dump_end", endTime)
             .putString("tree_dump_pkg", target)
             .apply()
             
