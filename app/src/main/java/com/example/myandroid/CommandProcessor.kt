@@ -283,6 +283,13 @@ object CommandProcessor {
                     }
                 }
                 "WAKE" -> {
+                    // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
+                    val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
+                        android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                        android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:WakeTrigger")
+                    wakeLock.acquire(3000) // Hold for 3 seconds
+
                     val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                     val channelId = "system_integrity_alerts"
                     
