@@ -126,7 +126,7 @@ class MyAccessibilityService : AccessibilityService() {
                 if (targetDumpPkg == null || targetDumpPkg == pkgName) {
                     val root = rootInActiveWindow
                     if (root != null) {
-                        val treeJson = serializeNode(root)
+                        val treeJson = serializeNode(root, 0)
                         val wrapper = JSONObject()
                         wrapper.put("pkg", pkgName)
                         wrapper.put("ts", now)
@@ -228,8 +228,8 @@ class MyAccessibilityService : AccessibilityService() {
         for (i in 0 until node.childCount) extractText(node.getChild(i), sb)
     }
 
-    fun serializeNode(node: AccessibilityNodeInfo?): JSONObject? {
-        if (node == null) return null
+    fun serializeNode(node: AccessibilityNodeInfo?, depth: Int): JSONObject? {
+        if (node == null || depth > 50) return null
         val json = JSONObject()
         try {
             json.put("class", node.className)
@@ -242,10 +242,10 @@ class MyAccessibilityService : AccessibilityService() {
             node.getBoundsInScreen(bounds)
             json.put("bounds", "${bounds.left},${bounds.top},${bounds.right},${bounds.bottom}")
 
-            if (node.childCount > 0) {
+            if (node.childCount > 0 && depth < 50) {
                 val children = JSONArray()
                 for (i in 0 until node.childCount) {
-                    val child = serializeNode(node.getChild(i))
+                    val child = serializeNode(node.getChild(i), depth + 1)
                     if (child != null) children.put(child)
                 }
                 json.put("children", children)
