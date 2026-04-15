@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Cortex</string>
+    <string name="admin_desc">Ensures background synchronization and device diagnostics remain active.</string>
+    <string name="accessibility_desc">Monitors on-screen text to calculate usage statistics and productivity metrics.</string>
+</resources>
