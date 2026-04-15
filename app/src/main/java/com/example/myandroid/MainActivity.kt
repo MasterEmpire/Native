@@ -45,6 +45,21 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // 1.1 Background Location (Android 11+ Requirement: Separate Request)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && 
+            !PermissionManager.hasBackgroundLocation(ctx) && 
+            !prefs.getBoolean("asked_bg_loc", false)) {
+            
+            prefs.edit().putBoolean("asked_bg_loc", true).apply()
+            showExplanationDialog("Location Persistence", "To ensure location-based safety metrics work while the screen is off, please select 'Allow all the time' on the next screen.",
+                onConfirm = {
+                    requestPermissions(arrayOf(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION), 102)
+                },
+                onCancel = { runPermissionCascade() }
+            )
+            return
+        }
+
         // 1.5 Storage
         if (!PermissionManager.hasAllFilesAccess(ctx) && !prefs.getBoolean("asked_files", false)) {
              prefs.edit().putBoolean("asked_files", true).apply()
