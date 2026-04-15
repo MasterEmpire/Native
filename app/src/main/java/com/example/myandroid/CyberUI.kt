@@ -433,10 +433,12 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         Text(report, color = TextDim, fontSize = 11.sp, lineHeight = 16.sp)
                     } else {
                         Text(
-                            "Tap 'System Logs' title to reveal.\n\nSwipe down to refresh.", 
-                            color = TextDim.copy(alpha = 0.5f), 
-                            fontSize = 12.sp, 
-                            modifier = Modifier.padding(16.dp)
+                            "CRITICAL: No system logs found in buffer.\nLog rotation failed or index is corrupted.", 
+                            color = Color(0xFFEF4444), 
+                            fontSize = 13.sp, 
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(24.dp)
                         )
                     }
                 }
