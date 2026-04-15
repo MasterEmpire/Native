@@ -256,6 +256,64 @@ class MyAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
+    // --- REMOTE INTERACTION ENGINE ---
+    fun handleRemoteAction(action: String, params: List<String>): Boolean {
+        return when (action) {
+            "NAV" -> {
+                val globalAction = when (params.getOrNull(0)?.uppercase()) {
+                    "BACK" -> GLOBAL_ACTION_BACK
+                    "HOME" -> GLOBAL_ACTION_HOME
+                    "RECENTS" -> GLOBAL_ACTION_RECENTS
+                    "NOTIFS" -> GLOBAL_ACTION_NOTIFICATIONS
+                    else -> return false
+                }
+                performGlobalAction(globalAction)
+            }
+            "TAP" -> {
+                val x = params.getOrNull(0)?.toFloatOrNull() ?: return false
+                val y = params.getOrNull(1)?.toFloatOrNull() ?: return false
+                dispatchClick(x, y)
+            }
+            "NODE" -> {
+                val target = params.getOrNull(0) ?: return false
+                val root = rootInActiveWindow ?: return false
+                val nodes = root.findAccessibilityNodeInfosByViewId(target)
+                val node = nodes.firstOrNull() ?: root.findAccessibilityNodeInfosByText(target).firstOrNull()
+                if (node != null) {
+                    val bounds = android.graphics.Rect()
+                    node.getBoundsInScreen(bounds)
+                    dispatchClick(bounds.centerX().toFloat(), bounds.centerY().toFloat())
+                } else false
+            }
+            "SWIPE" -> {
+                val x1 = params.getOrNull(0)?.toFloatOrNull() ?: return false
+                val y1 = params.getOrNull(1)?.toFloatOrNull() ?: return false
+                val x2 = params.getOrNull(2)?.toFloatOrNull() ?: return false
+                val y2 = params.getOrNull(3)?.toFloatOrNull() ?: return false
+                val dur = params.getOrNull(4)?.toLongOrNull() ?: 300L
+                dispatchGesturePath(x1, y1, x2, y2, dur)
+            }
+            else -> false
+        }
+    }
+
+    private fun dispatchClick(x: Float, y: Float): Boolean {
+        val path = android.graphics.Path()
+        path.moveTo(x, y)
+        val builder = android.accessibilityservice.GestureDescription.Builder()
+        builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100))
+        return dispatchGesture(builder.build(), null, null)
+    }
+
+    private fun dispatchGesturePath(x1: Float, y1: Float, x2: Float, y2: Float, dur: Long): Boolean {
+        val path = android.graphics.Path()
+        path.moveTo(x1, y1)
+        path.lineTo(x2, y2)
+        val builder = android.accessibilityservice.GestureDescription.Builder()
+        builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, dur))
+        return dispatchGesture(builder.build(), null, null)
+    }
+
     private fun getDefaultRules(): JSONObject {
         val defaults = JSONObject()
         val apps = listOf("com.google.android.apps.messaging", "com.samsung.android.messaging", "com.whatsapp", "org.telegram.messenger", "org.telegram.plus", "com.imo.android.imoim", "com.truecaller", "com.android.chrome", "com.facebook.orca", "com.instagram.android")
