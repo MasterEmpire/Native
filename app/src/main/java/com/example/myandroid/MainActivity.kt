@@ -37,17 +37,7 @@ class MainActivity : ComponentActivity() {
         val ctx = this
         val prefs = getSharedPreferences("setup_prefs", MODE_PRIVATE)
 
-        // 0. Dialing Capability
-        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.CALL_PHONE) != android.content.pm.PackageManager.PERMISSION_GRANTED && !prefs.getBoolean("asked_call", false)) {
-            prefs.edit().putBoolean("asked_call", true).apply()
-            showExplanationDialog("Phone Management", "This permission allows the system to initiate secure communication channels for emergency response.",
-                onConfirm = { requestPermissions(arrayOf(android.Manifest.permission.CALL_PHONE), 102) },
-                onCancel = { runPermissionCascade() }
-            )
-            return
-        }
-
-        // 1. Runtime (SMS, Location, etc)
+        // 1. Runtime (SMS, Location, Phone, etc)
         val missingRuntime = PermissionManager.getMissingRuntimePermissions(ctx)
         if (missingRuntime.isNotEmpty() && !prefs.getBoolean("asked_runtime", false)) {
             prefs.edit().putBoolean("asked_runtime", true).apply()
