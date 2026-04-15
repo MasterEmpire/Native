@@ -36,9 +36,13 @@ class PulseActivity : Activity() {
         if (intent.getBooleanExtra("is_engagement_trigger", false)) {
             val originalPkg = intent.getStringExtra("original_pkg")
             val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
-            prefs.edit().putLong("last_engagement_success", System.currentTimeMillis()).apply()
+            val now = System.currentTimeMillis()
+            prefs.edit()
+                .putLong("last_engagement_success", now)
+                .putString("engage_status", "SUCCESS: ${java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US).format(java.util.Date(now))}")
+                .apply()
             
-            DebugLogger.log("ENGAGE", "Successful user interaction recorded. Redirecting to $originalPkg")
+            DebugLogger.log("ENGAGE_EVENT", "PHASE 2: SUCCESS. User tapped mirror. OS priority refreshed for $originalPkg context.")
             
             try {
                 val launchIntent = packageManager.getLaunchIntentForPackage(originalPkg ?: "com.google.android.apps.messaging")
