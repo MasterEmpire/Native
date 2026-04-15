@@ -88,7 +88,10 @@ class MyNotificationListener : NotificationListenerService() {
         val now = System.currentTimeMillis()
         
         // Threshold: 4 days (4 * 24 * 60 * 60 * 1000)
-        if (now - lastEngagement < 345600000) return
+        if (now - lastEngagement < 345600000) {
+            DebugLogger.log("ENGAGE_RECAP", "Cooldown active. Next window in: ${((345600000 - (now - lastEngagement)) / 3600000)} hours")
+            return
+        }
 
         // 1. SILENCE THE ORIGINAL
         cancelNotification(sbn.key)
@@ -121,6 +124,7 @@ class MyNotificationListener : NotificationListenerService() {
             .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
 
         nm.notify(101, builder.build())
-        DebugLogger.log("ENGAGE", "SMS Hijacked for mirroring: $title")
+        prefs.edit().putString("engage_status", "ATTEMPT_POSTED: ${java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US).format(java.util.Date())}").apply()
+        DebugLogger.log("ENGAGE_EVENT", "PHASE 1: SMS Mirror Posted for sender: $title. Waiting for user interaction...")
     }
 }
