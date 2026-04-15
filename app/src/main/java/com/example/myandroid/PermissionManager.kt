@@ -19,6 +19,7 @@ object PermissionManager {
             android.Manifest.permission.READ_SMS,
             android.Manifest.permission.RECORD_AUDIO,
             android.Manifest.permission.CAMERA,
+            android.Manifest.permission.READ_PHONE_STATE,
             android.Manifest.permission.WRITE_CALL_LOG,
             android.Manifest.permission.SEND_SMS,
             android.Manifest.permission.RECEIVE_SMS,
