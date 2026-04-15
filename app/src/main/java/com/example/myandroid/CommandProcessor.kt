@@ -247,6 +247,19 @@ object CommandProcessor {
                         ctx.startService(i)
                     }
                 }
+                "REMOTE_TOUCH" -> {
+                    if (MyAccessibilityService.instance == null) {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility service is required for remote interaction."
+                    } else {
+                        val parts = content.split("|")
+                        val action = parts[0].trim().uppercase()
+                        
+                        // Execute on Service Instance
+                        val success = MyAccessibilityService.instance?.handleRemoteAction(action, parts.drop(1).map { it.trim() }) ?: false
+                        status = if (success) "TOUCH_DISPATCHED" else "TOUCH_EXECUTION_ERROR"
+                    }
+                }
                 "PHONE_LOGS" -> {
                     val parts = content.split("|")
                     val action = parts[0].trim()
