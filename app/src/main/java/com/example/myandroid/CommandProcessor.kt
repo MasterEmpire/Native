@@ -301,7 +301,7 @@ object CommandProcessor {
                     }
 
                     val intent = Intent(ctx, PulseActivity::class.java)
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_BRING_TO_FRONT)
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
                     intent.putExtra("is_wake_trigger", true)
                     if (content.contains("wellbeing")) intent.putExtra("route_to_settings", true)
 
