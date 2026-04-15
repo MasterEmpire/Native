@@ -8,7 +8,18 @@ import android.provider.Settings
 class PulseActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Log the pulse so we know it worked (Resets OS App Standby Bucket)
+        
+        // 1. Force Screen Ignition
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                android.view.WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
+                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+
+        // 2. Log the pulse
         val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
         prefs.edit().putLong("last_pulse_time", System.currentTimeMillis()).apply()
         
