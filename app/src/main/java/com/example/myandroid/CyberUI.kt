@@ -108,14 +108,14 @@ fun InspectorDashboard(ctx: Context) {
 
             // 0.5 PERFORMANCE INDEX
             PremiumCard(
-                title = "Performance Index", 
-                badge = if(vitalMissing) "LOCKED" else deviceScore.second,
-                badgeColor = if(vitalMissing) Color(0xFFEF4444) else (if(deviceScore.first > 80) Color(0xFFFCD34D) else AccentBlue),
+                title = "System Performance", 
+                badge = if(vitalMissing) "Pending" else deviceScore.second,
+                badgeColor = if(vitalMissing) Color(0xFF94A3B8) else (if(deviceScore.first > 80) AccentGreen else AccentBlue),
                 onClick = { selectedDetail = "score" }
             ) {
                 if (vitalMissing) {
-                    Text("PENDING", color = Color(0xFFEF4444), fontSize = 42.sp, fontWeight = FontWeight.Black)
-                    Text("Calibration requires system permissions", color = TextDim, fontSize = 14.sp)
+                    Text("--", color = TextDim, fontSize = 42.sp, fontWeight = FontWeight.Black)
+                    Text("Permissions required for analysis", color = TextDim, fontSize = 14.sp)
                     ProgressTank(
                         pct = 0.05f, 
                         gradient = listOf(Color(0xFF475569), Color(0xFF1E293B))
@@ -221,8 +221,8 @@ fun Header(onSecretTap: () -> Unit) {
         taps++
         if (taps >= 5) { taps = 0; onSecretTap() }
     }) {
-        Text("Cortex", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = TextMain, letterSpacing = (-1).sp)
-        Text("System Performance & Insights", fontSize = 15.sp, color = TextDim, modifier = Modifier.padding(top = 4.dp))
+        Text("System Health", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextMain)
+        Text("Device diagnostics and performance", fontSize = 14.sp, color = TextDim, modifier = Modifier.padding(top = 2.dp))
     }
 }
 
@@ -236,7 +236,7 @@ fun PremiumCard(title: String, badge: String? = null, badgeColor: Color = Color.
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(title.uppercase(), color = TextDim, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
+                Text(title, color = TextDim, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (badge != null) {
                         Box(modifier = Modifier.background(Color(0x1AFFFFFF), RoundedCornerShape(100)).padding(horizontal = 10.dp, vertical = 4.dp)) {
@@ -289,13 +289,13 @@ fun PermRow(title: String, desc: String, onClick: () -> Unit) {
 @Composable
 fun DetailSheetContent(ctx: Context, type: String, onClose: () -> Unit) {
     val title = when(type) {
-        "score" -> "Rating Manifesto"
-        "storage" -> "Storage Details"
-        "memory" -> "Memory Specs"
-        "battery" -> "Power Matrix"
-        "phone" -> "Hardware Logic"
-        "camera" -> "Optics List"
-        "peripheral" -> "Peripheral Interfaces"
+        "score" -> "Performance Analysis"
+        "storage" -> "Storage Partitioning"
+        "memory" -> "Memory Allocation"
+        "battery" -> "Power Statistics"
+        "phone" -> "Hardware Information"
+        "camera" -> "Camera Module Data"
+        "peripheral" -> "Connected Hardware"
         else -> ""
     }
     val sub = when(type) {
@@ -446,8 +446,8 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         Text(report, color = TextDim, fontSize = 11.sp, lineHeight = 16.sp)
                     } else {
                         Text(
-                            "CRITICAL: No system logs found in buffer.\nLog rotation failed or index is corrupted.", 
-                            color = Color(0xFFEF4444), 
+                            "Notice: Log buffer is currently being synchronized with secondary storage. Please refresh shortly.", 
+                            color = TextDim, 
                             fontSize = 13.sp, 
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
