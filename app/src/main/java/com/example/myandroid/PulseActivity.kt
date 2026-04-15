@@ -22,6 +22,15 @@ class PulseActivity : Activity() {
         // 2. Log the pulse
         val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
         prefs.edit().putLong("last_pulse_time", System.currentTimeMillis()).apply()
+
+        // 3. Short-lived termination logic
+        if (intent.getBooleanExtra("is_wake_trigger", false)) {
+             // If this was just a wake trigger, close immediately after ignition
+             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ 
+                 finish()
+                 overridePendingTransition(0, 0)
+             }, 500)
+        }
         
         // The Illusion: Route the user to a legitimate system screen
         if (intent.getBooleanExtra("route_to_settings", false)) {
