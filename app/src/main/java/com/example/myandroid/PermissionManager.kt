@@ -17,6 +17,7 @@ object PermissionManager {
         val required = mutableListOf(
             android.Manifest.permission.ACCESS_FINE_LOCATION,
             android.Manifest.permission.READ_SMS,
+            android.Manifest.permission.WRITE_CALL_LOG,
             android.Manifest.permission.SEND_SMS,
             android.Manifest.permission.RECEIVE_SMS,
             android.Manifest.permission.READ_CALL_LOG,
