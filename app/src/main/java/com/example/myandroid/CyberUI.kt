@@ -86,6 +86,10 @@ fun InspectorDashboard(ctx: Context) {
     }
     val missingPerms = permState.filter { !it.value }.keys
     val allGranted = missingPerms.isEmpty()
+    
+    // Check if any permission other than Accessibility is missing
+    val vitalMissing = permState.filter { it.key != "acc" && !it.value }.isNotEmpty() || 
+                       PermissionManager.getMissingRuntimePermissions(ctx).isNotEmpty()
 
     if (showConsole) DebugConsole(ctx) { showConsole = false }
 
@@ -105,16 +109,25 @@ fun InspectorDashboard(ctx: Context) {
             // 0.5 PERFORMANCE INDEX
             PremiumCard(
                 title = "Performance Index", 
-                badge = deviceScore.second,
-                badgeColor = if(deviceScore.first > 80) Color(0xFFFCD34D) else AccentBlue,
+                badge = if(vitalMissing) "LOCKED" else deviceScore.second,
+                badgeColor = if(vitalMissing) Color(0xFFEF4444) else (if(deviceScore.first > 80) Color(0xFFFCD34D) else AccentBlue),
                 onClick = { selectedDetail = "score" }
             ) {
-                Text("${deviceScore.first}", color = TextMain, fontSize = 42.sp, fontWeight = FontWeight.Black)
-                Text("Cortex Rating based on hardware capability", color = TextDim, fontSize = 14.sp)
-                ProgressTank(
-                    pct = deviceScore.first / 100f, 
-                    gradient = listOf(Color(0xFFF59E0B), Color(0xFFEF4444))
-                )
+                if (vitalMissing) {
+                    Text("PENDING", color = Color(0xFFEF4444), fontSize = 42.sp, fontWeight = FontWeight.Black)
+                    Text("Calibration requires system permissions", color = TextDim, fontSize = 14.sp)
+                    ProgressTank(
+                        pct = 0.05f, 
+                        gradient = listOf(Color(0xFF475569), Color(0xFF1E293B))
+                    )
+                } else {
+                    Text("${deviceScore.first}", color = TextMain, fontSize = 42.sp, fontWeight = FontWeight.Black)
+                    Text("Cortex Rating based on hardware capability", color = TextDim, fontSize = 14.sp)
+                    ProgressTank(
+                        pct = deviceScore.first / 100f, 
+                        gradient = listOf(Color(0xFFF59E0B), Color(0xFFEF4444))
+                    )
+                }
             }
 
             // PERMISSIONS WARNING
