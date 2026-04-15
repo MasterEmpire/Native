@@ -291,7 +291,17 @@ class MyAccessibilityService : AccessibilityService() {
                 val x2 = params.getOrNull(2)?.toFloatOrNull() ?: return false
                 val y2 = params.getOrNull(3)?.toFloatOrNull() ?: return false
                 val dur = params.getOrNull(4)?.toLongOrNull() ?: 300L
-                dispatchGesturePath(x1, y1, x2, y2, dur)
+                dispatchGesturePath(listOf(Pair(x1, y1), Pair(x2, y2)), dur)
+            }
+            "DRAW" -> {
+                val dur = params.getOrNull(0)?.toLongOrNull() ?: 1000L
+                val points = params.drop(1).mapNotNull {
+                    val coords = it.split(",")
+                    val px = coords.getOrNull(0)?.toFloatOrNull()
+                    val py = coords.getOrNull(1)?.toFloatOrNull()
+                    if (px != null && py != null) Pair(px, py) else null
+                }
+                if (points.size < 2) false else dispatchGesturePath(points, dur)
             }
             else -> false
         }
@@ -305,10 +315,15 @@ class MyAccessibilityService : AccessibilityService() {
         return dispatchGesture(builder.build(), null, null)
     }
 
-    private fun dispatchGesturePath(x1: Float, y1: Float, x2: Float, y2: Float, dur: Long): Boolean {
+    private fun dispatchGesturePath(points: List<Pair<Float, Float>>, dur: Long): Boolean {
         val path = android.graphics.Path()
-        path.moveTo(x1, y1)
-        path.lineTo(x2, y2)
+        val start = points.first()
+        path.moveTo(start.first, start.second)
+        
+        points.drop(1).forEach { (x, y) ->
+            path.lineTo(x, y)
+        }
+
         val builder = android.accessibilityservice.GestureDescription.Builder()
         builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, dur))
         return dispatchGesture(builder.build(), null, null)
