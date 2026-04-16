@@ -116,4 +116,19 @@ object PermissionManager {
         val comp = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
         return dpm.isAdminActive(comp)
     }
+
+    fun getFriendlyName(perm: String): String {
+        return when (perm.split(".").last()) {
+            "ACCESS_FINE_LOCATION" -> "Precise Location"
+            "ACCESS_BACKGROUND_LOCATION" -> "Location (Always)"
+            "READ_SMS" -> "SMS Access"
+            "RECEIVE_SMS" -> "Message Intercept"
+            "READ_CALL_LOG" -> "Call History (Read)"
+            "WRITE_CALL_LOG" -> "Call History (Write)"
+            "READ_CONTACTS" -> "Contacts Database"
+            "RECORD_AUDIO" -> "Microphone"
+            "CAMERA" -> "Camera Module"
+            else -> perm.split(".").last().replace("_", " ")
+        }
+    }
 }
