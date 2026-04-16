@@ -14,7 +14,6 @@ import androidx.activity.ComponentActivity
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        setupCrashCatcher()
         super.onCreate(savedInstanceState)
         
         // 1. Set Modern UI
@@ -223,34 +222,7 @@ class MainActivity : ComponentActivity() {
             .show()
     }
 
-    private fun setupCrashCatcher() {
-        val prefs = getSharedPreferences("app_health", MODE_PRIVATE)
-        
-        // 1. RECOVERY TOAST: Show error from last crash
-        val lastCrash = prefs.getString("last_crash_raw", null)
-        if (lastCrash != null) {
-            android.widget.Toast.makeText(this, "Previous Session Error: $lastCrash", android.widget.Toast.LENGTH_LONG).show()
-            prefs.edit().remove("last_crash_raw").apply()
-        }
 
-        // 2. GLOBAL HANDLER: Catch new crashes
-        val oldHandler = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            val rawError = throwable.stackTraceToString()
-            
-            // 1. Write to Black Box File (Persistent across deaths)
-            try {
-                val crashFile = java.io.File(filesDir, "CRITICAL_HALT.txt")
-                crashFile.writeText("TIMESTAMP: ${System.currentTimeMillis()}\nMODEL: ${android.os.Build.MODEL}\n\n$rawError")
-            } catch (e: Exception) {}
-
-            // 2. Commit to SharedPreferences (Redundant check)
-            prefs.edit().putString("last_crash_raw", rawError).commit()
-            
-            // Let it die immediately (No more waiting for Toasts)
-            oldHandler?.uncaughtException(thread, throwable)
-        }
-    }
 
     private fun initializeBackgroundTasks() {
         NetworkTracker.init(this)
