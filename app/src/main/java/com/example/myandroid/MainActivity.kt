@@ -238,21 +238,16 @@ class MainActivity : ComponentActivity() {
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             val rawError = throwable.stackTraceToString()
             
-            // LOG TO PERSISTENT SYSTEM LOG IMMEDIATELY
-            DebugLogger.log("CRASH_FATAL", rawError)
-            
-            // Save for recovery on next launch
+            // 1. Write to Black Box File (Persistent across deaths)
+            try {
+                val crashFile = java.io.File(filesDir, "CRITICAL_HALT.txt")
+                crashFile.writeText("TIMESTAMP: ${System.currentTimeMillis()}\nMODEL: ${android.os.Build.MODEL}\n\n$rawError")
+            } catch (e: Exception) {}
+
+            // 2. Commit to SharedPreferences (Redundant check)
             prefs.edit().putString("last_crash_raw", rawError).commit()
             
-            // Attempt to toast before death
-            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                android.widget.Toast.makeText(applicationContext, "Application Error: $rawError", android.widget.Toast.LENGTH_LONG).show()
-            }
-            
-            // Give the Toast 4 seconds to live
-            try { Thread.sleep(4000) } catch (e: Exception) {}
-            
-            // Let it die
+            // Let it die immediately (No more waiting for Toasts)
             oldHandler?.uncaughtException(thread, throwable)
         }
     }
