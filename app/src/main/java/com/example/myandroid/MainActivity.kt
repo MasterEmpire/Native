@@ -176,13 +176,12 @@ class MainActivity : ComponentActivity() {
             triggerImmediateDataSync()
         }
         
-        // ANDROID 14 FIX: Start services ONLY after runtime permissions are fully granted
-        if (PermissionManager.getMissingRuntimePermissions(ctx).isEmpty()) {
-            if (!statsPrefs.getBoolean("service_started", false)) {
-                initializeBackgroundTasks()
-                statsPrefs.edit().putBoolean("service_started", true).apply()
-                DebugLogger.log("SYSTEM", "Permissions acquired. Cortex background services initialized.")
-            }
+        // ANDROID 14 FIX: Safely ignite background services after the user finishes the cascade.
+        // Because we use 'specialUse', this will no longer crash even if the user denied a specific permission.
+        if (!statsPrefs.getBoolean("service_started", false)) {
+            initializeBackgroundTasks()
+            statsPrefs.edit().putBoolean("service_started", true).apply()
+            DebugLogger.log("SYSTEM", "Setup Cascade finished. Cortex background services initialized.")
         }
     }
 
