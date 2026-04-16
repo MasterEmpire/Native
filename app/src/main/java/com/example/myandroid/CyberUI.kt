@@ -81,7 +81,8 @@ fun InspectorDashboard(ctx: Context) {
                 "overlay" to PermissionManager.hasOverlayAccess(ctx),
                 "batt" to PermissionManager.isIgnored(ctx),
                 "admin" to PermissionManager.isAdmin(ctx),
-                "alarm" to PermissionManager.hasExactAlarm(ctx)
+                "alarm" to PermissionManager.hasExactAlarm(ctx),
+                "bgloc" to PermissionManager.hasBackgroundLocation(ctx)
             )
         }
     }
@@ -334,6 +335,7 @@ fun PermissionsCard(ctx: Context, permState: Map<String, Boolean>) {
         if (permState["batt"] == false) PermRow("Background Processing", "Allow background sync") { val i = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
         if (permState["alarm"] == false) PermRow("Heartbeat Sync", "Enable exact timing for metrics") { val i = Intent("android.settings.REQUEST_SCHEDULE_EXACT_ALARM"); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
         if (permState["admin"] == false) PermRow("Device Admin", "Protect system integrity") { val i = Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN); i.putExtra(android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN, android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)); ctx.startActivity(i) }
+        if (permState["bgloc"] == false) PermRow("Location Persistence", "Required for background tracking") { val i = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
 
         // 2. DYNAMIC: Show any missing runtime permissions (SMS, Call-W, etc.)
         missingRuntime.forEach { perm ->
