@@ -9,6 +9,8 @@ import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
+import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
 
 class BeaconService : Service() {
 
