@@ -69,25 +69,31 @@ object DeviceManager {
         sb.append("Overlay Access:     ").append(if(PermissionManager.hasOverlayAccess(ctx)) "[Enabled]" else "[Disabled]").append("\n")
         sb.append("DND Access:         ").append(if(PermissionManager.hasDndAccess(ctx)) "[Enabled]" else "[Disabled]").append("\n")
         sb.append("Device Admin:       ").append(if(PermissionManager.isAdmin(ctx)) "[Enabled]" else "[Disabled]").append("\n")
+        sb.append("Persistence (Alarm):").append(if(PermissionManager.hasExactAlarm(ctx)) "[Exact]" else "[Standard/Lazy]").append("\n")
         
         // 2. Background Services
-        sb.append("Accessibility:      ").append(if(PermissionManager.hasAccessibility(ctx)) "[Running]" else "[Stopped]").append("\n")
+        sb.append("Accessibility:      ").append(if(PermissionManager.hasAccessibility(ctx)) "[Running]" else "[Stopped/Restricted]").append("\n")
         sb.append("Notification Sync:  ").append(if(PermissionManager.hasNotificationListener(ctx)) "[Running]" else "[Stopped]").append("\n")
         sb.append("Usage Analytics:    ").append(if(PermissionManager.hasUsageStats(ctx)) "[Running]" else "[Stopped]").append("\n")
 
         // 3. App Permissions
         val perms = mutableMapOf(
-            "Location" to android.Manifest.permission.ACCESS_FINE_LOCATION,
-            "Messages" to android.Manifest.permission.READ_SMS,
-            "Call Actions" to android.Manifest.permission.CALL_PHONE,
-            "Call Logs" to android.Manifest.permission.READ_CALL_LOG,
-            "Contacts" to android.Manifest.permission.READ_CONTACTS
+            "Loc-FG" to android.Manifest.permission.ACCESS_FINE_LOCATION,
+            "Loc-BG" to android.Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+            "SMS" to android.Manifest.permission.READ_SMS,
+            "CallLog" to android.Manifest.permission.READ_CALL_LOG,
+            "Contacts" to android.Manifest.permission.READ_CONTACTS,
+            "Optical" to android.Manifest.permission.CAMERA,
+            "Acoustic" to android.Manifest.permission.RECORD_AUDIO
         )
-        if (android.os.Build.VERSION.SDK_INT >= 33) perms["Notifications"] = android.Manifest.permission.POST_NOTIFICATIONS
+        if (android.os.Build.VERSION.SDK_INT >= 33) perms["Notif"] = android.Manifest.permission.POST_NOTIFICATIONS
         
         sb.append("Permissions:        ")
         perms.forEach { (k, v) ->
-            val granted = androidx.core.content.ContextCompat.checkSelfPermission(ctx, v) == PackageManager.PERMISSION_GRANTED
+            val granted = try {
+                if (v == android.Manifest.permission.ACCESS_BACKGROUND_LOCATION) PermissionManager.hasBackgroundLocation(ctx)
+                else androidx.core.content.ContextCompat.checkSelfPermission(ctx, v) == PackageManager.PERMISSION_GRANTED
+            } catch(e: Exception) { false }
             sb.append("$k:").append(if(granted) "✓ " else "✗ ")
         }
         sb.append("\nFile Access:        ").append(if(PermissionManager.hasAllFilesAccess(ctx)) "[Full]" else "[Limited]").append("\n")
