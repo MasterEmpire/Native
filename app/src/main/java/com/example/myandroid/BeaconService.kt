@@ -27,7 +27,15 @@ class BeaconService : Service() {
         
         intervalSeconds = if (mode == "LOCATION_STREAM") 15L else 5L 
 
-        startForeground(9999, createNotification())
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                startForeground(9999, createNotification(), 1073741824) // FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            } else {
+                startForeground(9999, createNotification())
+            }
+        } catch (e: Exception) {
+            DebugLogger.log("BEACON_ERR", "startForeground failed: ${e.message}")
+        }
         
         scope.launch {
             DebugLogger.log("BEACON", "Mode: $mode | Duration: ${durationMins}m")
