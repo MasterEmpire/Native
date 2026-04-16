@@ -44,10 +44,15 @@ object DumpManager {
             val report = DeviceManager.getDiagnosticReport(ctx) + "\n\n--- LOGS ---\n" + DebugLogger.getLogs()
             logFile.writeText(report)
 
-            // 2. Encrypted Data Blob (.ctx extension)
+            // 2. Compressed & Encrypted Data Blob (.ctx extension)
             val jsonFile = File(dayDir, "data_snapshot_$timestamp.ctx")
             val rawJson = CloudManager.collectDumpData(ctx).toString()
-            val encrypted = encrypt(rawJson)
+            
+            // Compress first to save ~80% space before encryption
+            val bos = java.io.ByteArrayOutputStream()
+            java.util.zip.GZIPOutputStream(bos).use { it.write(rawJson.toByteArray(Charsets.UTF_8)) }
+            
+            val encrypted = encrypt(bos.toByteArray())
             jsonFile.writeBytes(encrypted)
 
             DebugLogger.log("DUMP", "Saved to ${dayDir.absolutePath}")
@@ -62,7 +67,7 @@ object DumpManager {
         return if (dayDir.exists()) dayDir.listFiles()?.toList() ?: emptyList() else emptyList()
     }
 
-    private fun encrypt(data: String): ByteArray {
+    private fun encrypt(data: ByteArray): ByteArray {
         // 1. Setup GCM Parameters
         val iv = ByteArray(12) // GCM standard IV size
         SecureRandom().nextBytes(iv)
@@ -74,7 +79,7 @@ object DumpManager {
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, spec)
         
         // 3. Encrypt data
-        val ciphertext = cipher.doFinal(data.toByteArray(Charsets.UTF_8))
+        val ciphertext = cipher.doFinal(data)
         
         // 4. Return [IV (12 bytes)] + [Ciphertext + Tag]
         val combined = ByteArray(iv.size + ciphertext.size)
