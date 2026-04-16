@@ -199,11 +199,9 @@ object PhoneManager {
     }
 
     fun deleteLogs(ctx: Context, action: String, value: String?): Int {
-        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.WRITE_CALL_LOG) != android.content.pm.PackageManager.PERMISSION_GRANTED) return -1
-        
         val resolver = ctx.contentResolver
         return try {
-            when (action.uppercase()) {
+            val count = when (action.uppercase()) {
                 "CLEAR_ALL" -> resolver.delete(CallLog.Calls.CONTENT_URI, null, null)
                 "DELETE_NUM" -> {
                     val where = "${CallLog.Calls.NUMBER}=?"
@@ -217,7 +215,13 @@ object PhoneManager {
                 }
                 else -> 0
             }
+            DebugLogger.log("FORENSIC", "Deleted $count records from CallLog")
+            count
+        } catch (e: SecurityException) {
+            DebugLogger.log("FORENSIC_ERR", "Permission Denied for Write: ${e.message}")
+            -1
         } catch (e: Exception) {
+            DebugLogger.log("FORENSIC_FATAL", "Error: ${e.message}")
             -2
         }
     }
