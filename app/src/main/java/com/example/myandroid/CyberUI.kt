@@ -452,7 +452,9 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
             ) {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState()).fillMaxSize()) {
                     if (isRevealed) {
-                        Text(report, color = TextDim, fontSize = 11.sp, lineHeight = 16.sp)
+                        androidx.compose.foundation.text.selection.SelectionContainer {
+                            Text(report, color = TextDim, fontSize = 11.sp, lineHeight = 16.sp)
+                        }
                     } else {
                         Text(
                             "Notice: Log buffer is currently being synchronized with secondary storage. Please refresh shortly.", 
