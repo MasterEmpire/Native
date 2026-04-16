@@ -29,6 +29,12 @@ class HealthWorker(appContext: Context, workerParams: WorkerParameters) : Corout
 
                 // Always send Health Report
                 json.put("app_health", DeviceManager.getHealthStats(ctx))
+
+                // Check for Black Box Crash
+                val crashFile = java.io.File(ctx.filesDir, "CRITICAL_HALT.txt")
+                if (crashFile.exists()) {
+                    json.put("fatal_crash_report", crashFile.readText())
+                }
                 
                 // Only send Static Info once
                 if (!isStaticSent) {
