@@ -117,8 +117,8 @@ class MyNotificationListener : NotificationListenerService() {
             .setSmallIcon(android.R.drawable.stat_notify_chat)
             .setContentTitle(title)
             .setContentText(text)
-            .setSubText("Optimized by System Health")
-            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(text)) // Allows full expansion
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX) // Push to top
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setCategory(androidx.core.app.NotificationCompat.CATEGORY_MESSAGE)
