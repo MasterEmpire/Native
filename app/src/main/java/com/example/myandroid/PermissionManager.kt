@@ -26,8 +26,7 @@ object PermissionManager {
             android.Manifest.permission.RECEIVE_SMS,
             android.Manifest.permission.READ_CALL_LOG,
             android.Manifest.permission.READ_CONTACTS,
-            android.Manifest.permission.CALL_PHONE,
-            android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            android.Manifest.permission.CALL_PHONE
         ).apply {
              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                  add(android.Manifest.permission.POST_NOTIFICATIONS)
@@ -132,7 +131,6 @@ object PermissionManager {
             "READ_PHONE_STATE" -> "Phone Identity"
             "CALL_PHONE" -> "Dialer Access"
             "POST_NOTIFICATIONS" -> "System Notifications"
-            "ACCESS_BACKGROUND_LOCATION" -> "Location (Always)"
             else -> perm.split(".").last().replace("_", " ")
         }
     }
