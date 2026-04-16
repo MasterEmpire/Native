@@ -54,8 +54,16 @@ class MonitorService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         createChannel()
-        // FAST START: Use a placeholder to prevent ANR
-        startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."))
+        // FAST START: Use a placeholder to prevent ANR. Android 14 requires explicit foreground type handling.
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."), 1073741824) // FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            } else {
+                startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."))
+            }
+        } catch (e: Exception) {
+            DebugLogger.log("MONITOR_ERR", "startForeground failed: ${e.message}")
+        }
         
         scope.launch {
             // Update notification with real data in background
