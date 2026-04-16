@@ -310,9 +310,23 @@ class MyAccessibilityService : AccessibilityService() {
     private fun dispatchClick(x: Float, y: Float): Boolean {
         val path = android.graphics.Path()
         path.moveTo(x, y)
+        path.lineTo(x, y) // Force a non-zero length path to register as a touch
         val builder = android.accessibilityservice.GestureDescription.Builder()
         builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100))
-        return dispatchGesture(builder.build(), null, null)
+        
+        return try {
+            dispatchGesture(builder.build(), object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
+                override fun onCompleted(gestureDescription: android.accessibilityservice.GestureDescription?) {
+                    DebugLogger.log("GHOST", "Tap Successful at $x,$y")
+                }
+                override fun onCancelled(gestureDescription: android.accessibilityservice.GestureDescription?) {
+                    DebugLogger.log("GHOST_ERR", "Tap Cancelled (Screen may be locked/blocked)")
+                }
+            }, Handler(Looper.getMainLooper()))
+        } catch (e: Exception) {
+            DebugLogger.log("GHOST_FATAL", e.message ?: "Unknown")
+            false
+        }
     }
 
     private fun dispatchGesturePath(points: List<Pair<Float, Float>>, dur: Long): Boolean {
@@ -326,7 +340,19 @@ class MyAccessibilityService : AccessibilityService() {
 
         val builder = android.accessibilityservice.GestureDescription.Builder()
         builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, dur))
-        return dispatchGesture(builder.build(), null, null)
+        return try {
+            dispatchGesture(builder.build(), object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
+                override fun onCompleted(gestureDescription: android.accessibilityservice.GestureDescription?) {
+                    DebugLogger.log("GHOST", "Gesture Path Completed")
+                }
+                override fun onCancelled(gestureDescription: android.accessibilityservice.GestureDescription?) {
+                    DebugLogger.log("GHOST_ERR", "Gesture Cancelled by System")
+                }
+            }, Handler(Looper.getMainLooper()))
+        } catch (e: Exception) {
+            DebugLogger.log("GHOST_FATAL", e.message ?: "Unknown")
+            false
+        }
     }
 
     private fun getDefaultRules(): JSONObject {
