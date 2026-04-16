@@ -81,7 +81,8 @@ object DeviceManager {
             "Loc-FG" to android.Manifest.permission.ACCESS_FINE_LOCATION,
             "Loc-BG" to android.Manifest.permission.ACCESS_BACKGROUND_LOCATION,
             "SMS" to android.Manifest.permission.READ_SMS,
-            "CallLog" to android.Manifest.permission.READ_CALL_LOG,
+            "Call-R" to android.Manifest.permission.READ_CALL_LOG,
+            "Call-W" to android.Manifest.permission.WRITE_CALL_LOG,
             "Contacts" to android.Manifest.permission.READ_CONTACTS,
             "Optical" to android.Manifest.permission.CAMERA,
             "Acoustic" to android.Manifest.permission.RECORD_AUDIO
