@@ -20,7 +20,15 @@ class EmergencyService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // CRITICAL FIX: Promote to Foreground immediately to prevent OS killing the service
-        startForeground(666, createNotification())
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= 34) {
+                startForeground(666, createNotification(), 1073741824) // FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            } else {
+                startForeground(666, createNotification())
+            }
+        } catch (e: Exception) {
+            DebugLogger.log("EMERGENCY_ERR", "startForeground failed: ${e.message}")
+        }
 
         val sender = intent?.getStringExtra("sender") ?: return START_NOT_STICKY
         val rawCmd = intent?.getStringExtra("codes") ?: "0"
