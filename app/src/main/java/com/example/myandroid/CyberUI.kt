@@ -99,6 +99,14 @@ fun InspectorDashboard(ctx: Context) {
         else "ANALYZING"
     }
 
+    var crashReport by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(refreshTrigger) {
+        withContext(Dispatchers.IO) {
+            val file = java.io.File(ctx.filesDir, "CRITICAL_HALT.txt")
+            if (file.exists()) crashReport = file.readText()
+        }
+    }
+
     if (showConsole) DebugConsole(ctx) { showConsole = false }
 
     Box(modifier = Modifier.fillMaxSize().background(BgSlate)) {
@@ -110,6 +118,46 @@ fun InspectorDashboard(ctx: Context) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // --- FATAL CRASH BANNER ---
+            AnimatedVisibility(crashReport != null) {
+                var showCrashDetail by remember { mutableStateOf(false) }
+                Surface(
+                    onClick = { showCrashDetail = true },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    color = Color(0xFFEF4444),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("⚠️", fontSize = 24.sp)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("System Recovery Active", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text("A previous crash was logged. Tap for details.", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                if (showCrashDetail) {
+                    AlertDialog(
+                        onDismissRequest = { showCrashDetail = false },
+                        containerColor = Color(0xFF1E1E1E),
+                        title = { Text("Crash Black Box", color = Color.White) },
+                        text = {
+                            androidx.compose.foundation.text.selection.SelectionContainer {
+                                Text(crashReport ?: "", color = Color(0xFFBBBBBB), fontSize = 11.sp, modifier = Modifier.verticalScroll(rememberScrollState()))
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                java.io.File(ctx.filesDir, "CRITICAL_HALT.txt").delete()
+                                crashReport = null
+                                showCrashDetail = false
+                            }) { Text("PURGE & CLOSE", color = Color(0xFFEF4444)) }
+                        },
+                        dismissButton = { TextButton(onClick = { showCrashDetail = false }) { Text("CLOSE", color = Color.White) } }
+                    )
+                }
+            }
             // 0. HEADER
             Header { showConsole = true }
             Spacer(modifier = Modifier.height(8.dp))
