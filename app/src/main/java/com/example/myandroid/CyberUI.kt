@@ -340,8 +340,15 @@ fun PermissionsCard(ctx: Context, permState: Map<String, Boolean>) {
         // 2. DYNAMIC: Show any missing runtime permissions (SMS, Call-W, etc.)
         missingRuntime.forEach { perm ->
             PermRow(PermissionManager.getFriendlyName(perm), "Grant required runtime access") { 
-                // For runtime perms, we re-trigger the cascade logic in MainActivity by just opening it
-                val i = Intent(ctx, MainActivity::class.java); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); ctx.startActivity(i) 
+                // FIX: Reset the flag so MainActivity triggers the system prompt again
+                ctx.getSharedPreferences("setup_prefs", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("asked_runtime", false)
+                    .apply()
+
+                val i = Intent(ctx, MainActivity::class.java)
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                ctx.startActivity(i) 
             }
         }
     }
