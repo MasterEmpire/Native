@@ -94,10 +94,11 @@ fun InspectorDashboard(ctx: Context) {
     val missingRuntime = PermissionManager.getMissingRuntimePermissions(ctx)
     val vitalMissing = missingVitalSpecial.isNotEmpty() || missingRuntime.isNotEmpty()
     
-    val pendingLabel = remember(vitalMissing, missingVitalSpecial, missingRuntime) {
-        if (missingRuntime.isNotEmpty()) "Pending: ${PermissionManager.getFriendlyName(missingRuntime.first())}"
-        else if (missingVitalSpecial.isNotEmpty()) "Pending: ${missingVitalSpecial.keys.first().uppercase()}"
-        else "ANALYZING"
+    val pendingLabel = if (vitalMissing) "REQUIRED" else "ANALYZING"
+    val specificMissing = remember(vitalMissing, missingVitalSpecial, missingRuntime) {
+        if (missingRuntime.isNotEmpty()) PermissionManager.getFriendlyName(missingRuntime.first())
+        else if (missingVitalSpecial.isNotEmpty()) missingVitalSpecial.keys.first().uppercase()
+        else ""
     }
 
     var crashReport by remember { mutableStateOf<String?>(null) }
@@ -167,12 +168,29 @@ fun InspectorDashboard(ctx: Context) {
     PremiumCard(
         title = "System Performance", 
         badge = if(vitalMissing) pendingLabel else deviceScore.second,
-        badgeColor = if(vitalMissing) Color(0xFF94A3B8) else (if(deviceScore.first > 80) AccentGreen else AccentBlue),
-        onClick = { selectedDetail = "score" }
+        badgeColor = if(vitalMissing) Color(0xFFFCD34D) else (if(deviceScore.first > 80) AccentGreen else AccentBlue),
+        onClick = {
+            if (vitalMissing) {
+                val setupPrefs = ctx.getSharedPreferences("setup_prefs", Context.MODE_PRIVATE)
+                if (missingRuntime.isNotEmpty()) {
+                    setupPrefs.edit().putBoolean("asked_runtime", false).apply()
+                } else if (missingVitalSpecial.isNotEmpty()) {
+                    val key = missingVitalSpecial.keys.first()
+                    setupPrefs.edit().putBoolean("asked_$key", false).apply()
+                }
+                val i = Intent(ctx, MainActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                }
+                ctx.startActivity(i)
+            } else {
+                selectedDetail = "score"
+            }
+        }
     ) {
         if (vitalMissing) {
             Text("--", color = TextDim, fontSize = 42.sp, fontWeight = FontWeight.Black)
-            Text("Grant all vital permissions to unlock hardware rating", color = TextDim, fontSize = 14.sp)
+            Text("Pending: $specificMissing", color = Color(0xFFFCD34D), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            Text("Tap to grant required access", color = TextDim, fontSize = 12.sp)
                     ProgressTank(
                         pct = 0.05f, 
                         gradient = listOf(Color(0xFF475569), Color(0xFF1E293B))
