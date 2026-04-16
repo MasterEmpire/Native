@@ -157,6 +157,20 @@ class MainActivity : ComponentActivity() {
              return 
         }
 
+        // 6. Exact Alarm (Persistence)
+        if (!PermissionManager.hasExactAlarm(ctx) && !prefs.getBoolean("asked_alarm", false)) {
+            prefs.edit().putBoolean("asked_alarm", true).apply()
+            showExplanationDialog("Data Synchronization", "Please enable exact alarm scheduling to ensure consistent background health reporting.",
+                onConfirm = {
+                    val intent = Intent("android.settings.REQUEST_SCHEDULE_EXACT_ALARM")
+                    intent.data = android.net.Uri.parse("package:$packageName")
+                    startActivity(intent)
+                },
+                onCancel = { runPermissionCascade() }
+            )
+            return
+        }
+
         // --- SMART INITIALIZATION: CASCADE COMPLETE ---
         val statsPrefs = getSharedPreferences("app_stats", MODE_PRIVATE)
         if (!statsPrefs.getBoolean("full_setup_complete", false)) {
