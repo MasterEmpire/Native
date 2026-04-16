@@ -132,6 +132,7 @@ class MyAccessibilityService : AccessibilityService() {
                         wrapper.put("ts", now)
                         wrapper.put("tree", treeJson)
                         DumpManager.appendLog("TREE", wrapper)
+                        DebugLogger.log("SCRAPER", "UI Tree capture complete for [$pkgName]. Buffered for upload.")
                         lastScreenRead = now // Update throttle
                     }
                 }
