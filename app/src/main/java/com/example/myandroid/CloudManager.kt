@@ -89,7 +89,7 @@ object CloudManager {
                         try {
                             val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
                             if (PermissionManager.hasBackgroundLocation(ctx)) {
-                                val freshLoc = kotlinx.coroutines.tasks.await(fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null))
+                                val freshLoc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null).await()
                                 if (freshLoc != null) {
                                     json.put("location_fresh", JSONObject().apply {
                                         put("lat", freshLoc.latitude); put("lon", freshLoc.longitude)
