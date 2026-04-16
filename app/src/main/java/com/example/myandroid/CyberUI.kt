@@ -527,7 +527,7 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         }
                     } else {
                         Text(
-                            "Notice: Log buffer is currently being synchronized with secondary storage. Please refresh shortly.", 
+                            "No logs yet.", 
                             color = TextDim, 
                             fontSize = 13.sp, 
                             fontWeight = FontWeight.Bold,
