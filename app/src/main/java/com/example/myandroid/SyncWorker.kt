@@ -90,7 +90,9 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
                     uploadedCount++
                 }
             }
-            if (uploadedCount > 0) DebugLogger.log("SYNC_WORKER", "Uploaded $uploadedCount offline chunks.")
+            if (uploadedCount > 0) {
+                DebugLogger.log("CLOUD", "Successfully uploaded $uploadedCount data chunks (UI Tree/Logs) to vault.")
+            }
 
             CloudManager.uploadData(ctx, listOf("ALL"))
             DebugLogger.log("SYNC_WORKER", "Periodic Sync completed successfully")
