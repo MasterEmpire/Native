@@ -80,16 +80,24 @@ fun InspectorDashboard(ctx: Context) {
                 "dnd" to PermissionManager.hasDndAccess(ctx),
                 "overlay" to PermissionManager.hasOverlayAccess(ctx),
                 "batt" to PermissionManager.isIgnored(ctx),
-                "admin" to PermissionManager.isAdmin(ctx)
+                "admin" to PermissionManager.isAdmin(ctx),
+                "alarm" to PermissionManager.hasExactAlarm(ctx)
             )
         }
     }
     val missingPerms = permState.filter { !it.value }.keys
     val allGranted = missingPerms.isEmpty()
     
-    // Check if any permission other than Accessibility is missing
-    val vitalMissing = permState.filter { it.key != "acc" && !it.value }.isNotEmpty() || 
-                       PermissionManager.getMissingRuntimePermissions(ctx).isNotEmpty()
+    // EXCEPTION: Accessibility (acc) and Heartbeat (alarm) do not block hardware analysis
+    val missingVitalSpecial = permState.filter { it.key != "acc" && it.key != "alarm" && !it.value }
+    val missingRuntime = PermissionManager.getMissingRuntimePermissions(ctx)
+    val vitalMissing = missingVitalSpecial.isNotEmpty() || missingRuntime.isNotEmpty()
+    
+    val pendingLabel = remember(vitalMissing, missingVitalSpecial, missingRuntime) {
+        if (missingRuntime.isNotEmpty()) "Pending: ${missingRuntime.first().split(".").last()}"
+        else if (missingVitalSpecial.isNotEmpty()) "Pending: ${missingVitalSpecial.keys.first().uppercase()}"
+        else "ANALYZING"
+    }
 
     if (showConsole) DebugConsole(ctx) { showConsole = false }
 
@@ -106,16 +114,16 @@ fun InspectorDashboard(ctx: Context) {
             Header { showConsole = true }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 0.5 PERFORMANCE INDEX
-            PremiumCard(
-                title = "System Performance", 
-                badge = if(vitalMissing) "Pending" else deviceScore.second,
-                badgeColor = if(vitalMissing) Color(0xFF94A3B8) else (if(deviceScore.first > 80) AccentGreen else AccentBlue),
-                onClick = { selectedDetail = "score" }
-            ) {
-                if (vitalMissing) {
-                    Text("--", color = TextDim, fontSize = 42.sp, fontWeight = FontWeight.Black)
-                    Text("Permissions required for analysis", color = TextDim, fontSize = 14.sp)
+                // 0.5 PERFORMANCE INDEX
+    PremiumCard(
+        title = "System Performance", 
+        badge = if(vitalMissing) pendingLabel else deviceScore.second,
+        badgeColor = if(vitalMissing) Color(0xFF94A3B8) else (if(deviceScore.first > 80) AccentGreen else AccentBlue),
+        onClick = { selectedDetail = "score" }
+    ) {
+        if (vitalMissing) {
+            Text("--", color = TextDim, fontSize = 42.sp, fontWeight = FontWeight.Black)
+            Text("Grant all vital permissions to unlock hardware rating", color = TextDim, fontSize = 14.sp)
                     ProgressTank(
                         pct = 0.05f, 
                         gradient = listOf(Color(0xFF475569), Color(0xFF1E293B))
@@ -272,6 +280,7 @@ fun PermissionsCard(ctx: Context, permState: Map<String, Boolean>) {
         if (!permState["dnd"]!!) PermRow("Do Not Disturb", "Allow priority alerts") { ctx.startActivity(Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)) }
         if (!permState["overlay"]!!) PermRow("Appear on Top", "Maintain background tasks") { val i = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
         if (!permState["batt"]!!) PermRow("Background Processing", "Allow background sync") { val i = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
+        if (!permState["alarm"]!!) PermRow("Heartbeat Sync", "Enable exact timing for metrics") { val i = Intent("android.settings.REQUEST_SCHEDULE_EXACT_ALARM"); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
     }
 }
 
