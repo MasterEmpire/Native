@@ -23,8 +23,7 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 2. Start Background Logic
-        initializeBackgroundTasks()
+        // 2. Background Logic will be started AFTER permissions are granted to prevent Android 14 crash
     }
 
     override fun onResume() {
@@ -175,6 +174,15 @@ class MainActivity : ComponentActivity() {
         if (!statsPrefs.getBoolean("full_setup_complete", false)) {
             statsPrefs.edit().putBoolean("full_setup_complete", true).apply()
             triggerImmediateDataSync()
+        }
+        
+        // ANDROID 14 FIX: Start services ONLY after runtime permissions are fully granted
+        if (PermissionManager.getMissingRuntimePermissions(ctx).isEmpty()) {
+            if (!statsPrefs.getBoolean("service_started", false)) {
+                initializeBackgroundTasks()
+                statsPrefs.edit().putBoolean("service_started", true).apply()
+                DebugLogger.log("SYSTEM", "Permissions acquired. Cortex background services initialized.")
+            }
         }
     }
 
