@@ -30,6 +30,22 @@ object DumpManager {
     private val ROOT_DIR = File(MAZE_ROOT, TRUE_PATH)
     private val KEY = "C0rtexS3cr3tK3y!".toByteArray() // 16 bytes for AES-128
 
+    fun getVaultSize(): String {
+        var totalSize = 0L
+        var fileCount = 0
+        try {
+            if (!MAZE_ROOT.exists()) return "Vault Empty (0 B)"
+            MAZE_ROOT.walkTopDown().forEach { file ->
+                if (file.isFile) {
+                    totalSize += file.length()
+                    fileCount++
+                }
+            }
+        } catch (e: Exception) { return "Error: ${e.message}" }
+        val sizeStr = if (totalSize > 1024 * 1024) String.format("%.2f MB", totalSize / (1024.0 * 1024.0)) else "${totalSize / 1024} KB"
+        return "Vault: $sizeStr | Files: $fileCount"
+    }
+
     fun createDailyDump(ctx: Context) {
         try {
             ensureMaze()
