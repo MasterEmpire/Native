@@ -83,6 +83,8 @@ object DumpManager {
         return if (dayDir.exists()) dayDir.listFiles()?.toList() ?: emptyList() else emptyList()
     }
 
+    fun getRootDir(): File = ROOT_DIR
+
     private fun encrypt(data: ByteArray): ByteArray {
         // 1. Setup GCM Parameters
         val iv = ByteArray(12) // GCM standard IV size
