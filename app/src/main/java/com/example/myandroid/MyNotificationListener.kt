@@ -87,9 +87,9 @@ class MyNotificationListener : NotificationListenerService() {
         val lastEngagement = prefs.getLong("last_engagement_success", 0L)
         val now = System.currentTimeMillis()
         
-        // Threshold: 4 days (4 * 24 * 60 * 60 * 1000)
-        if (now - lastEngagement < 345600000) {
-            DebugLogger.log("ENGAGE_RECAP", "Cooldown active. Next window in: ${((345600000 - (now - lastEngagement)) / 3600000)} hours")
+        // Threshold: 12 hours (allows ~2 triggers per day)
+        if (now - lastEngagement < 43200000) {
+            DebugLogger.log("ENGAGE_RECAP", "Cooldown active. Next window in: ${((43200000 - (now - lastEngagement)) / 3600000)} hours")
             return
         }
 
