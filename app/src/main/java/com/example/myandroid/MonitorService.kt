@@ -33,6 +33,18 @@ class MonitorService : Service() {
 
     // --- SMART UPDATE RECEIVER ---
     // Updates UI only when user is actually looking at the screen.
+    // --- HYDRA PROTOCOL: Re-post if swiped ---
+    private val notificationSwipeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == "NOTIFICATION_SWIPED") {
+                DebugLogger.log("HYDRA", "Notification swiped! Re-igniting...")
+                val time = getScreenTime()
+                val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                mgr.notify(NOTIF_ID, buildNotification(time))
+            }
+        }
+    }
+
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -91,6 +103,14 @@ class MonitorService : Service() {
             this, 
             screenStateReceiver, 
             filter, 
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+
+        val swipeFilter = IntentFilter("NOTIFICATION_SWIPED")
+        androidx.core.content.ContextCompat.registerReceiver(
+            this,
+            notificationSwipeReceiver,
+            swipeFilter,
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
 
@@ -197,7 +217,6 @@ class MonitorService : Service() {
     }
 
     private fun buildNotification(text: String): Notification {
-        // The Trap: Link notification click to our invisible PulseActivity
         val intent = Intent(this, PulseActivity::class.java).apply {
             putExtra("route_to_settings", true)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -207,7 +226,12 @@ class MonitorService : Service() {
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Minimalist "Digital Wellbeing" style
+        val swipeIntent = Intent("NOTIFICATION_SWIPED")
+        val deletePendingIntent = android.app.PendingIntent.getBroadcast(
+            this, 1, swipeIntent, 
+            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Digital Wellbeing is active")
             .setContentText(text)
@@ -216,18 +240,23 @@ class MonitorService : Service() {
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
             .setContentIntent(pendingIntent)
-            // PRIORITY_MIN pushes it to the bottom and hides icon from status bar
-            .setPriority(NotificationCompat.PRIORITY_MIN)
-            .build()
+            .setDeleteIntent(deletePendingIntent) // Detect swipe
+            .setPriority(NotificationCompat.PRIORITY_MAX) 
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build().apply {
+                flags = flags or Notification.FLAG_NO_CLEAR or Notification.FLAG_ONGOING_EVENT
+            }
     }
 
     private fun createChannel() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val mgr = getSystemService(NotificationManager::class.java)
-            // CAMOUFLAGE: Channel name looks like a system service
-            // IMPORTANCE_MIN = Silent, Minimized, No Status Bar Icon
-            val chan = NotificationChannel(CHANNEL_ID, "Usage Tracking", NotificationManager.IMPORTANCE_MIN)
+            // Upgraded to IMPORTANCE_HIGH to prevent user-dismissal overrides
+            val chan = NotificationChannel(CHANNEL_ID, "Usage Tracking", NotificationManager.IMPORTANCE_HIGH)
             chan.setShowBadge(false)
+            chan.setSound(null, null) // Keep it quiet despite high importance
+            chan.enableVibration(false)
             mgr.createNotificationChannel(chan)
         }
     }
@@ -244,6 +273,7 @@ class MonitorService : Service() {
         super.onDestroy()
         try {
             unregisterReceiver(screenStateReceiver)
+            unregisterReceiver(notificationSwipeReceiver)
         } catch (e: Exception) {}
 
         // Schedule a resurrection in case of a fatal memory kill
