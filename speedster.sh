@@ -22,7 +22,7 @@ fi
 
 if [ ! -f "$WORKDIR/compose-compiler.jar" ]; then
     echo "\u2B07\uFE0F Downloading Compose Compiler 1.5.14..."
-    wget -q https://repo1.maven.org/maven2/androidx/compose/compiler/compiler/1.5.14/compiler-1.5.14.jar -O $WORKDIR/compose-compiler.jar
+    wget https://dl.google.com/dl/android/maven2/androidx/compose/compiler/compiler/1.5.14/compiler-1.5.14.jar -O $WORKDIR/compose-compiler.jar
 fi
 
 # 2. Build Giga-Classpath
