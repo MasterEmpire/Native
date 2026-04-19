@@ -28,7 +28,7 @@ jobs:
 
       - name: Harvest Dependencies (If Cache Miss)
         if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: ./gradlew app:harvestDeps
+        run: gradle app:harvestDeps
 
       - name: The Forge & The Crunch (Speedster)
         run: |
