@@ -1,0 +1,42 @@
+name: Cortex Speedster Test
+
+on:
+  workflow_dispatch: # Manual trigger only
+
+jobs:
+  build-hot-payload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Restore Armory Cache
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: app/build/harvested_libs
+          key: armory-libs-${{ hashFiles('app/build.gradle') }}
+
+      - name: Harvest Dependencies (If Cache Miss)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: ./gradlew app:harvestDeps
+
+      - name: The Forge & The Crunch (Speedster)
+        run: |
+          chmod +x speedster.sh
+          ./speedster.sh
+
+      - name: Upload Dex Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hot-reload-dex
+          path: dynamic_build/dex/classes.dex
