@@ -90,3 +90,30 @@ dependencies {
     // --- NEW DEPENDENCY: Required for testing ---
     testImplementation 'junit:junit:4.13.2'
 }
+
+// --- PHASE 1: THE ARMORY (HARVEST DEPENDENCIES) ---
+tasks.register('harvestDeps') {
+    doLast {
+        def outputDir = file("${buildDir}/harvested_libs")
+        outputDir.mkdirs()
+
+        configurations.releaseRuntimeClasspath.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+            def file = artifact.file
+            if (file.name.endsWith('.aar')) {
+                // Extract classes.jar from inside the AAR
+                copy {
+                    from zipTree(file)
+                    into outputDir
+                    include "classes.jar"
+                    rename "classes.jar", "${artifact.name}-${artifact.moduleVersion.id.version}.jar"
+                }
+            } else if (file.name.endsWith('.jar')) {
+                copy {
+                    from file
+                    into outputDir
+                }
+            }
+        }
+        println "\u2694\uFE0F ARMORY STOCKED: Dependencies harvested to $outputDir"
+    }
+}
