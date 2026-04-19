@@ -14,7 +14,7 @@ mkdir -p $CLASSES_DIR
 mkdir -p $DEX_DIR
 
 # 1. Download Tools if missing
-if[ ! -d "$KOTLIN_DIR" ]; then
+if [ ! -d "$KOTLIN_DIR" ]; then
     echo "\u2B07\uFE0F Downloading Kotlin Compiler 1.9.24..."
     wget -q https://github.com/JetBrains/kotlin/releases/download/v1.9.24/kotlin-compiler-1.9.24.zip -O $WORKDIR/kotlin.zip
     unzip -q $WORKDIR/kotlin.zip -d $WORKDIR/
