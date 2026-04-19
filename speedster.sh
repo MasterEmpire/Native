@@ -20,9 +20,9 @@ if [ ! -d "$KOTLIN_DIR" ]; then
     unzip -q $WORKDIR/kotlin.zip -d $WORKDIR/
 fi
 
-if [ ! -f "$WORKDIR/compose-compiler.jar" ]; then
+if[ ! -f "$WORKDIR/compose-compiler.jar" ]; then
     echo "\u2B07\uFE0F Downloading Compose Compiler 1.5.14..."
-    wget https://dl.google.com/dl/android/maven2/androidx/compose/compiler/compiler/1.5.14/compiler-1.5.14.jar -O $WORKDIR/compose-compiler.jar
+    wget https://dl.google.com/dl/android/maven2/androidx/compose/compiler/compiler-hosted/1.5.14/compiler-hosted-1.5.14.jar -O $WORKDIR/compose-compiler.jar
 fi
 
 # 2. Build Giga-Classpath
