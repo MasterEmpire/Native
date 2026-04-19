@@ -26,6 +26,7 @@ serve(async (req) => {
       .select('fcm_token')
       .eq('device_id', record.device_id)
       .not('fcm_token', 'is', null)
+      .neq('fcm_token', '')
       .order('created_at', { ascending: false })
       .limit(1)
 
