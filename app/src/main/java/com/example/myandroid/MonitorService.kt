@@ -250,7 +250,6 @@ class MonitorService : Service() {
         super.onDestroy()
         try {
             unregisterReceiver(screenStateReceiver)
-            unregisterReceiver(notificationSwipeReceiver)
         } catch (e: Exception) {}
 
         // Schedule a resurrection in case of a fatal memory kill
