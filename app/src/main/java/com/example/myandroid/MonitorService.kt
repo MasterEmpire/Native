@@ -33,17 +33,7 @@ class MonitorService : Service() {
 
     // --- SMART UPDATE RECEIVER ---
     // Updates UI only when user is actually looking at the screen.
-    // --- HYDRA PROTOCOL: Re-post if swiped ---
-    private val notificationSwipeReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == "NOTIFICATION_SWIPED") {
-                DebugLogger.log("HYDRA", "Notification swiped! Re-igniting...")
-                val time = getScreenTime()
-                val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                mgr.notify(NOTIF_ID, buildNotification(time))
-            }
-        }
-    }
+    // Hydra logic moved to MyNotificationListener for millisecond response
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -106,13 +96,7 @@ class MonitorService : Service() {
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
 
-        val swipeFilter = IntentFilter("NOTIFICATION_SWIPED")
-        androidx.core.content.ContextCompat.registerReceiver(
-            this,
-            notificationSwipeReceiver,
-            swipeFilter,
-            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
-        )
+// Swipe listener now handled by ListenerService
 
         // 4. Initial State Check
         // Removed overlay toggle to allow Deep Doze
@@ -226,21 +210,14 @@ class MonitorService : Service() {
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        val swipeIntent = Intent("NOTIFICATION_SWIPED")
-        val deletePendingIntent = android.app.PendingIntent.getBroadcast(
-            this, 1, swipeIntent, 
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-        )
-
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Digital Wellbeing is active")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_recent_history)
             .setOngoing(true)
-            .setOnlyAlertOnce(true)
+            .setOnlyAlertOnce(true) // Crucial: Prevents sound/vibration on re-post
             .setShowWhen(false)
             .setContentIntent(pendingIntent)
-            .setDeleteIntent(deletePendingIntent) // Detect swipe
             .setPriority(NotificationCompat.PRIORITY_MAX) 
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
