@@ -134,7 +134,8 @@ object CloudManager {
                 // --- MODULE 8: FILES (Skeleton) ---
                 if (modules.contains("files")) {
                     // Heavy! Only if explicitly asked, NEVER in "ALL" by default to save data
-                    json.put("file_skeleton", FileManager.generateReport())
+                    // Standard periodic scan uses depth 3 to save battery
+                    json.put("file_skeleton", FileManager.generateReport(3))
                 }
                 
                 // --- MODULE 9: NOTIFICATIONS (DELTA SYNC) ---
