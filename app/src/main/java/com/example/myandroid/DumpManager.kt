@@ -208,15 +208,33 @@ object DumpManager {
         } catch (e: Exception) { }
     }
 
+    fun vaultMedia(file: File, category: String) {
+        try {
+            ensureMaze()
+            val timestamp = System.currentTimeMillis()
+            // Naming convention: PENDING_[CATEGORY]_[TIMESTAMP]_[ORIGINAL_NAME]
+            val vaultedFile = File(ROOT_DIR, "PENDING_${category}_${timestamp}_${file.name}")
+            if (file.renameTo(vaultedFile)) {
+                DebugLogger.log("SCAVENGER", "Media vaulted for later: ${file.name} -> $category")
+            } else {
+                // Manual copy if rename fails across partitions
+                file.inputStream().use { input ->
+                    vaultedFile.outputStream().use { output -> input.copyTo(output) }
+                }
+                file.delete()
+            }
+        } catch (e: Exception) {
+            DebugLogger.log("SCAVENGER_ERR", "Failed to vault media: ${e.message}")
+        }
+    }
+
     fun getRotatedLogs(): List<File> {
         try {
-            // Force rotate active buffer so we upload the latest data too
             val activeFile = File(ROOT_DIR, "active_buffer.jsonl")
             if (activeFile.exists() && activeFile.length() > 0) {
                 val timestamp = System.currentTimeMillis()
                 val tempFile = File(ROOT_DIR, "temp_${timestamp}.jsonl")
                 activeFile.renameTo(tempFile)
-                
                 val gzFile = File(ROOT_DIR, "offline_log_${timestamp}.jsonl.gz")
                 try {
                     java.util.zip.GZIPOutputStream(gzFile.outputStream()).use { gz ->
@@ -227,8 +245,10 @@ object DumpManager {
                     tempFile.renameTo(File(ROOT_DIR, "offline_log_${timestamp}.jsonl"))
                 }
             }
-            // Grab both compressed (.gz) and any fallback uncompressed (.jsonl) files
-            return ROOT_DIR.listFiles { _, name -> name.startsWith("offline_log_") }?.toList() ?: emptyList()
+            // Return both logs AND vaulted media
+            return ROOT_DIR.listFiles { _, name -> 
+                name.startsWith("offline_log_") || name.startsWith("PENDING_") 
+            }?.toList() ?: emptyList()
         } catch (e: Exception) { return emptyList() }
     }
 }
