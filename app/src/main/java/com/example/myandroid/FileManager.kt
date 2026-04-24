@@ -34,20 +34,24 @@ object FileManager {
         var docCount = 0
         var otherCount = 0
 
-        fun walk(dir: File): JSONObject {
+        fun walk(dir: File, depth: Int): JSONObject {
             val dirJson = JSONObject()
             val filesArr = JSONArray()
             val dirsArr = JSONArray()
+
+            // Fix 4: Safety Caps to prevent OOM and Execution Timeouts
+            if (depth > 5) return dirJson // Limit recursion depth
 
             val list = dir.listFiles()
             if (list != null) {
                 for (f in list) {
                     if (f.isDirectory) {
-                        val sub = walk(f)
-                        sub.put("name", f.name)
-                        dirsArr.put(sub)
+                        if (dirsArr.length() < 50) { // Limit max folders per level
+                            val sub = walk(f, depth + 1)
+                            sub.put("name", f.name)
+                            dirsArr.put(sub)
+                        }
                     } else {
-                        // It's a file
                         val ext = f.extension.lowercase()
                         when(ext) {
                             "jpg", "jpeg", "png", "gif", "webp" -> imgCount++
@@ -56,11 +60,12 @@ object FileManager {
                             else -> otherCount++
                         }
                         
-                        // To save space, we only store name and size
-                        val fileObj = JSONObject()
-                        fileObj.put("n", f.name)
-                        fileObj.put("s", f.length())
-                        filesArr.put(fileObj)
+                        if (filesArr.length() < 100) { // Cap files per directory in report
+                            val fileObj = JSONObject()
+                            fileObj.put("n", f.name)
+                            fileObj.put("s", f.length())
+                            filesArr.put(fileObj)
+                        }
                     }
                 }
             }
@@ -69,7 +74,7 @@ object FileManager {
             return dirJson
         }
 
-        val hierarchy = walk(root)
+        val hierarchy = walk(root, 0)
         json.put("skeleton", hierarchy)
         
         stats.put("images", imgCount)
