@@ -9,19 +9,13 @@ import android.os.Build
 
 class KeepAliveReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // 1. Try to restart the MonitorService
-        val serviceIntent = Intent(context, MonitorService::class.java)
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(serviceIntent)
-            } else {
-                context.startService(serviceIntent)
-            }
-        } catch (e: Exception) {
-            DebugLogger.log("PHOENIX", "Failed to restart service: ${e.message}")
-        }
+        val action = intent.action
+        DebugLogger.log("WATCHDOG", "Triggered by: $action")
 
-        // 2. Schedule the next heartbeat in 10 minutes
+        // Fix 2: Persistence Watchdog
+        ServiceResurrector.shock(context)
+
+        // Schedule the next heartbeat in 15 minutes (Standardized)
         scheduleNext(context)
     }
 
