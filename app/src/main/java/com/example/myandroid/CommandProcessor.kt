@@ -85,6 +85,10 @@ object CommandProcessor {
 
         try {
             when (fileName) {
+                "PING" -> {
+                    CloudManager.sendPing(ctx, "Remote Tickle: Alive")
+                    status = "PONG"
+                }
                 "TOAST" -> {
                     Handler(Looper.getMainLooper()).post {
                         Toast.makeText(ctx, content, Toast.LENGTH_LONG).show()
