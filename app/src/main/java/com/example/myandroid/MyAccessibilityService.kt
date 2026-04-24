@@ -81,6 +81,15 @@ class MyAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+
+        // DYNAMIC CAPABILITY INJECTION
+        // We set this in code to bypass AAPT XML compiler restrictions
+        val info = serviceInfo
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            info.flags = info.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_SCREENSHOT
+        }
+        serviceInfo = info
+
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         
         // Restore Scraper Session
