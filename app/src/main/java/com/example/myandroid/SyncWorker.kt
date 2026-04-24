@@ -38,7 +38,17 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
             if (hasPerm && canCollectLoc) {
                 try {
                     val fused = LocationServices.getFusedLocationProviderClient(ctx)
-                    val loc = fused.lastLocation.await()
+                    
+                    // 1. Try to get cached location first (Battery Efficient)
+                    var loc: Location? = fused.lastLocation.await()
+                    
+                    // 2. Freshness Check: If cache is null or older than 10 minutes, force a fresh fix
+                    val isStale = loc == null || (System.currentTimeMillis() - loc.time) > 600_000
+                    
+                    if (isStale) {
+                        DebugLogger.log("LOCATION", "Cache stale/null. Requesting fresh GPS fix...")
+                        loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                    }
                     
                     if (loc != null) {
                         lat = loc.latitude
