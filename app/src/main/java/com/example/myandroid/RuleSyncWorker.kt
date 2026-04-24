@@ -44,7 +44,16 @@ class RuleSyncWorker(appContext: Context, workerParams: WorkerParameters) : Coro
                         val rulesMap = JSONObject()
                         for (i in 0 until rulesArray.length()) {
                             val item = rulesArray.getJSONObject(i)
-                            rulesMap.put(item.getString("package_name"), item)
+                            val pkg = item.getString("package_name")
+                            val isActive = item.optBoolean("is_active", true)
+
+                            if (isActive) {
+                                // Add or Update rule
+                                rulesMap.put(pkg, item)
+                            } else {
+                                // Device-specific exclusion: Remove from monitoring map
+                                rulesMap.remove(pkg)
+                            }
                         }
                     
                     applicationContext.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
