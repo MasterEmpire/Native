@@ -23,8 +23,8 @@ class HealthWorker(appContext: Context, workerParams: WorkerParameters) : Corout
             json.put("device_model", android.os.Build.MODEL)
             json.put("trigger", "HEALTH_HEARTBEAT")
                 
-                // Add FCM Token if available
-                val fcmToken = ctx.getSharedPreferences("app_identity", Context.MODE_PRIVATE).getString("fcm_token", null)
+                // Robustly fetch FCM Token
+                val fcmToken = DeviceManager.getRobustFcmToken(ctx)
                 if (fcmToken != null) json.put("fcm_token", fcmToken)
 
                 // Always send Health Report
