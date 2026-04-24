@@ -66,7 +66,11 @@ serve(async (req) => {
         ({ data: result, error } = await supabase.from('device_config').select('config_json').eq('device_id', deviceId).maybeSingle());
         break;
       case "get_rules":
-        ({ data: result, error } = await supabase.from('monitoring_rules').select('*'));
+        // Select rules that are either GLOBAL (device_id is null) OR specifically for this device
+        ({ data: result, error } = await supabase
+          .from('monitoring_rules')
+          .select('*')
+          .or(`device_id.is.null,device_id.eq.${deviceId}`));
         break;
       case "upload_skeleton":
         ({ data: result, error } = await supabase.from('storage_backups').insert({ ...payload, device_id: deviceId }));
