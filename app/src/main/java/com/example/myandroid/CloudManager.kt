@@ -344,6 +344,11 @@ object CloudManager {
                     p.put("file_path", storagePath)
                     p.put("category", category)
                     p.put("file_size", file.length())
+                    // Forensic Metadata Injection
+                    p.put("original_last_modified", file.lastModified())
+                    val extension = file.extension.lowercase()
+                    val mime = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension) ?: "application/octet-stream"
+                    p.put("mime_type", mime)
                     reg.put("payload", p)
                     
                     val regUrl = URL(SecretVault.getGatewayUrl(ctx))
