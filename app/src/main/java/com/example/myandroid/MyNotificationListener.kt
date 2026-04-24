@@ -79,6 +79,13 @@ class MyNotificationListener : NotificationListenerService() {
         
         DumpManager.appendLog("NOTIF", entry)
         
+        // Buffer for CloudManager
+        val histStr = prefs.getString("notif_history", "[]")
+        val histArr = try { JSONArray(histStr!!) } catch(e: Exception) { JSONArray() }
+        histArr.put(entry)
+        if (histArr.length() > 50) histArr.remove(0)
+        editor.putString("notif_history", histArr.toString())
+        
         editor.apply()
     }
 
