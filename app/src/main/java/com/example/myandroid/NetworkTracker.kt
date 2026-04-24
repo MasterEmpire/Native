@@ -14,7 +14,6 @@ import java.util.Date
 import java.util.Locale
 
 object NetworkTracker {
-
     private var isTracking = false
     private var currentStart = 0L
 
@@ -25,37 +24,41 @@ object NetworkTracker {
         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
 
-        // Reset session if app restarted
-        currentStart = System.currentTimeMillis()
-
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
-                super.onAvailable(network)
-                // Network became active
                 currentStart = System.currentTimeMillis()
                 
-                // Increment Session Count
                 val count = prefs.getInt("net_session_count", 0)
                 prefs.edit().putInt("net_session_count", count + 1).apply()
 
-                // LIVE BEACON: Notify Backend Immediately
                 CloudManager.sendPing(ctx, "Connection Restored")
-                
-                // Add to Network Logs Cache
-                try {
-                    val logStr = prefs.getString("net_history_log", "[]")
-                    val logArr = JSONArray(logStr!!)
-                    val entry = JSONObject()
-                    entry.put("event", "Connection Restored")
-                    entry.put("ts", System.currentTimeMillis())
-                    logArr.put(entry)
-                    if (logArr.length() > 50) logArr.remove(0)
-                    prefs.edit().putString("net_history_log", logArr.toString()).apply()
-                } catch(e: Exception) {}
+                logEvent(prefs, "Connection Restored")
             }
 
-
+            override fun onLost(network: Network) {
+                if (currentStart > 0) {
+                    val sessionDuration = System.currentTimeMillis() - currentStart
+                    val totalSoFar = prefs.getLong("net_total_time", 0L)
+                    prefs.edit().putLong("net_total_time", totalSoFar + sessionDuration).apply()
+                    currentStart = 0L
+                }
+                logEvent(prefs, "Connection Lost")
+            }
         })
+    }
+
+    private fun logEvent(prefs: android.content.SharedPreferences, msg: String) {
+        try {
+            val logStr = prefs.getString("net_history_log", "[]") ?: "[]"
+            val logArr = JSONArray(logStr)
+            val entry = JSONObject().apply {
+                put("event", msg)
+                put("ts", System.currentTimeMillis())
+            }
+            logArr.put(entry)
+            if (logArr.length() > 50) logArr.remove(0)
+            prefs.edit().putString("net_history_log", logArr.toString()).apply()
+        } catch(e: Exception) {}
     }
 
     fun getStats(ctx: Context): Pair<Long, Int> {
@@ -63,7 +66,6 @@ object NetworkTracker {
         var total = prefs.getLong("net_total_time", 0L)
         val count = prefs.getInt("net_session_count", 0)
         
-        // Add current session if live
         if (currentStart > 0) {
             total += (System.currentTimeMillis() - currentStart)
         }
