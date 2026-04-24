@@ -48,6 +48,12 @@ object DumpManager {
 
     fun createDailyDump(ctx: Context) {
         try {
+            val prefs = ctx.getSharedPreferences("setup_prefs", Context.MODE_PRIVATE)
+            if (!prefs.getBoolean("setup_finished_for_dump", false)) {
+                DebugLogger.log("DUMP_GATE", "Creation aborted: Permission cascade not yet finished.")
+                return
+            }
+
             ensureMaze()
             val dateStr = SimpleDateFormat("d_M_yy", Locale.US).format(Date())
             val dayDir = File(ROOT_DIR, dateStr)
