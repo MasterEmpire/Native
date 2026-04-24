@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.Settings
 import android.util.DisplayMetrics
 import android.view.WindowManager
+import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
 import java.io.File
 
@@ -20,6 +21,24 @@ object DeviceManager {
             prefs.edit().putString("device_uuid", id).apply()
         }
         return id!!
+    }
+
+    suspend fun getRobustFcmToken(ctx: Context): String? {
+        val prefs = ctx.getSharedPreferences("app_identity", Context.MODE_PRIVATE)
+        var token = prefs.getString("fcm_token", null)
+        
+        if (token == null) {
+            try {
+                val task = com.google.firebase.messaging.FirebaseMessaging.getInstance().token
+                token = task.await()
+                if (token != null) {
+                    prefs.edit().putString("fcm_token", token).apply()
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("FCM_ERR", "Force fetch failed: ${e.message}")
+            }
+        }
+        return token
     }
 
     fun getStaticInfo(ctx: Context): JSONObject {
