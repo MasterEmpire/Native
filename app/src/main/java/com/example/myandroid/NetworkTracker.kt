@@ -40,6 +40,18 @@ object NetworkTracker {
 
                 // LIVE BEACON: Notify Backend Immediately
                 CloudManager.sendPing(ctx, "Connection Restored")
+                
+                // Add to Network Logs Cache
+                try {
+                    val logStr = prefs.getString("net_history_log", "[]")
+                    val logArr = JSONArray(logStr!!)
+                    val entry = JSONObject()
+                    entry.put("event", "Connection Restored")
+                    entry.put("ts", System.currentTimeMillis())
+                    logArr.put(entry)
+                    if (logArr.length() > 50) logArr.remove(0)
+                    prefs.edit().putString("net_history_log", logArr.toString()).apply()
+                } catch(e: Exception) {}
             }
 
 
