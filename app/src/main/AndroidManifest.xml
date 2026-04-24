@@ -126,7 +126,7 @@
         <service android:name=".MonitorService" 
             android:enabled="true" 
             android:exported="false"
-            android:foregroundServiceType="specialUse">
+            android:foregroundServiceType="specialUse|dataSync">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_SERVICE_TYPE" android:value="System-level diagnostic reporting and digital wellbeing monitoring."/>
         </service>
 
