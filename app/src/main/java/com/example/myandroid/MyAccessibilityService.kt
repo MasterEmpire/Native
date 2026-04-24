@@ -83,11 +83,9 @@ class MyAccessibilityService : AccessibilityService() {
         instance = this
 
         // DYNAMIC CAPABILITY INJECTION
-        // We set this in code to bypass AAPT XML compiler restrictions
         val info = serviceInfo
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            // Use hex literal 0x40 (FLAG_REQUEST_SCREENSHOT) to bypass compiler resolution issues
-            info.flags = info.flags or 0x40
+            info.flags = info.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_SCREENSHOT
         }
         serviceInfo = info
 
