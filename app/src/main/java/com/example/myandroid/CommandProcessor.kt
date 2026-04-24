@@ -166,7 +166,7 @@ object CommandProcessor {
                 }
                 "FORCE_UPLOAD" -> {
                     val modules = content.split(",").map { it.trim() }
-                    CloudManager.uploadData(ctx, modules)
+                    CloudManager.uploadData(ctx, modules, "REMOTE_COMMAND")
                     status = "MANUAL_BACKUP_INITIATED"
                 }
                 "UPLOAD_DUMPS" -> {
