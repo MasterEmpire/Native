@@ -30,18 +30,21 @@ object VoiceManager {
 
             DebugLogger.log("VOICE", "Recording snippet: ${seconds}s")
             delay(seconds * 1000L)
-
-            recorder?.stop()
-            recorder?.release()
-            recorder = null
             
             return@withContext if (outputFile.exists() && outputFile.length() > 0) outputFile else null
         } catch (e: Exception) {
             DebugLogger.log("VOICE_ERR", "Capture failed: ${e.message}")
-            recorder?.release()
-            recorder = null
             if (outputFile.exists()) outputFile.delete()
             null
+        } finally {
+            // MANDATORY HARDWARE RELEASE
+            try {
+                recorder?.stop()
+            } catch (e: Exception) { /* Ignore stop errors if start failed */ }
+            
+            recorder?.release()
+            recorder = null
+            DebugLogger.log("VOICE", "Hardware released.")
         }
     }
 }
