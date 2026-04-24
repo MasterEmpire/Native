@@ -107,7 +107,7 @@ object PhoneManager {
                 projection, 
                 null, 
                 null, 
-                "${CallLog.Calls.DATE} DESC LIMIT 100"
+                "${CallLog.Calls.DATE} DESC"
             )
 
             cursor?.use {
@@ -123,8 +123,7 @@ object PhoneManager {
                 val nameIdx = it.getColumnIndex(CallLog.Calls.CACHED_NAME)
                 
                 var count = 0
-                while(it.moveToNext()) {
-                    count++
+                while(it.moveToNext() && count < 100) {
                     val obj = JSONObject()
                     obj.put("num", it.getString(numIdx) ?: "Private")
                     obj.put("name", it.getString(nameIdx) ?: "Unknown")
@@ -132,6 +131,7 @@ object PhoneManager {
                     obj.put("dur", it.getLong(durIdx))
                     obj.put("type", it.getInt(typeIdx))
                     list.put(obj)
+                    count++
                 }
                 DebugLogger.log("PHONE_DIAG", "Successfully captured $count call records.")
             } ?: run {
