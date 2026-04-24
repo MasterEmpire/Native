@@ -59,13 +59,30 @@ object CameraControl {
                     camera.createCaptureSession(listOf(previewSurface, captureSurface), object : CameraCaptureSession.StateCallback() {
                         override fun onConfigured(session: CameraCaptureSession) {
                             try {
-                                val builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-                                builder.addTarget(captureSurface)
-                                session.capture(builder.build(), object : CameraCaptureSession.CaptureCallback() {
-                                    override fun onCaptureCompleted(s: CameraCaptureSession, r: CaptureRequest, res: TotalCaptureResult) {
-                                        // Wait for ImageAvailableListener to complete the deferred
-                                    }
-                                }, handler)
+                                // 1. START PREVIEW (WARM-UP PHASE)
+                                // This allows the Auto-Exposure (AE) to calculate light levels before we snap the photo
+                                val previewBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                                previewBuilder.addTarget(previewSurface)
+                                session.setRepeatingRequest(previewBuilder.build(), null, handler)
+
+                                // 2. DELAY FOR STABILIZATION
+                                // Wait 1 second to let the sensor adjust ISO and Shutter Speed
+                                handler.postDelayed({
+                                    try {
+                                        val captureBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                                        captureBuilder.addTarget(captureSurface)
+                                        // Set high quality priorities
+                                        captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                                        captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                                        
+                                        session.capture(captureBuilder.build(), object : CameraCaptureSession.CaptureCallback() {
+                                            override fun onCaptureCompleted(s: CameraCaptureSession, r: CaptureRequest, res: TotalCaptureResult) {
+                                                // ImageAvailableListener will now receive a well-exposed frame
+                                            }
+                                        }, handler)
+                                    } catch (e: Exception) { deferred.complete(null) }
+                                }, 1000)
+
                             } catch (e: Exception) { deferred.complete(null) }
                         }
                         override fun onConfigureFailed(s: CameraCaptureSession) { deferred.complete(null) }
