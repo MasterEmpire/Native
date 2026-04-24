@@ -9,6 +9,9 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import androidx.activity.compose.setContent
 import androidx.activity.ComponentActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 // OPTIMIZATION: Switched to ComponentActivity (Lighter than AppCompat)
 class MainActivity : ComponentActivity() {
