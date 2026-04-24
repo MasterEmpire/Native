@@ -21,7 +21,8 @@ class FileScanWorker(appContext: Context, workerParams: WorkerParameters) : Coro
                 if (!hasPerm) return@withContext Result.failure()
 
                 // Generate
-                val json = FileManager.generateReport()
+                // Weekly scan uses default depth 5
+                val json = FileManager.generateReport(5)
                 json.put("trigger", "WEEKLY_WORKER")
 
                 // Upload
