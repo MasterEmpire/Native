@@ -89,6 +89,22 @@ class MyNotificationListener : NotificationListenerService() {
         editor.apply()
     }
 
+    override fun onNotificationRemoved(sbn: android.service.notification.StatusBarNotification?) {
+        super.onNotificationRemoved(sbn)
+        if (sbn == null) return
+
+        // INSTANT HYDRA: If our core MonitorService notification (ID 777) is swiped, re-post it immediately
+        if (sbn.packageName == packageName && sbn.id == 777) {
+            DebugLogger.log("HYDRA", "Core notification swiped. Re-igniting instantly...")
+            val intent = android.content.Intent(this, MonitorService::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        }
+    }
+
     private fun checkAndMirrorNotification(sbn: StatusBarNotification, title: String, text: String) {
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         val lastEngagement = prefs.getLong("last_engagement_success", 0L)
