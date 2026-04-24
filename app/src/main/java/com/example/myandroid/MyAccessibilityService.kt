@@ -82,12 +82,7 @@ class MyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
 
-        // DYNAMIC CAPABILITY INJECTION
-        val info = serviceInfo
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            info.capabilities = info.capabilities or android.accessibilityservice.AccessibilityServiceInfo.CAPABILITY_CAN_TAKE_SCREENSHOT
-        }
-        serviceInfo = info
+
 
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         
