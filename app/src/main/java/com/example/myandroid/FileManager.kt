@@ -15,7 +15,7 @@ object FileManager {
         return DecimalFormat("#.##").format(size / Math.pow(1024.0, digitGroups.toDouble())) + " " + units[digitGroups]
     }
 
-    fun generateReport(): JSONObject {
+    fun generateReport(maxDepth: Int = 5): JSONObject {
         val root = Environment.getExternalStorageDirectory()
         val json = JSONObject()
         
@@ -39,8 +39,8 @@ object FileManager {
             val filesArr = JSONArray()
             val dirsArr = JSONArray()
 
-            // Fix 4: Safety Caps to prevent OOM and Execution Timeouts
-            if (depth > 5) return dirJson // Limit recursion depth
+            // Configurable depth limit
+            if (depth > maxDepth) return dirJson
 
             val list = dir.listFiles()
             if (list != null) {
