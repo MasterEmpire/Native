@@ -59,7 +59,8 @@ class MonitorService : Service() {
         // FAST START: Use a placeholder to prevent ANR. Android 14 requires explicit foreground type handling.
         try {
             if (android.os.Build.VERSION.SDK_INT >= 34) {
-                startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."), 1073741824) // FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                // Combined type for Android 14: specialUse (1073741824) | dataSync (1)
+                startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."), 1073741825)
             } else {
                 startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."))
             }
