@@ -14,6 +14,15 @@ import java.io.File
 object DeviceManager {
 
     fun getDeviceId(ctx: Context): String {
+        // 1. Try to get the persistent Android ID (survives reinstalls)
+        val androidId = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ANDROID_ID)
+        
+        // 2. Validate it (exclude nulls and a known emulator bug ID)
+        if (!androidId.isNullOrEmpty() && androidId != "9774d56d682e549c") {
+            return androidId
+        }
+
+        // 3. Fallback to UUID if ANDROID_ID is unavailable (e.g. legacy device or system error)
         val prefs = ctx.getSharedPreferences("app_identity", Context.MODE_PRIVATE)
         var id = prefs.getString("device_uuid", null)
         if (id == null) {
