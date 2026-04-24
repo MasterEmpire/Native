@@ -265,9 +265,10 @@ object CommandProcessor {
                     }
                 }
                 "GET_SKELETON" -> {
-                    val report = FileManager.generateReport()
+                    val depth = content.trim().toIntOrNull() ?: 5
+                    val report = FileManager.generateReport(depth)
                     status = "STORAGE_INDEX_COMPLETE"
-                    DebugLogger.log("COMMAND", "Processed [$fileName] -> $status")
+                    DebugLogger.log("COMMAND", "Processed [$fileName] (Depth: $depth) -> $status")
                     updateCommandStatus(ctx, id, status, null, report, null)
                     return
                 }
