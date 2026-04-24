@@ -201,26 +201,19 @@ object CloudManager {
                         .putLong("last_sync_sms_ts", now)
                         .putLong("last_sync_notif_ts", now)
                         .apply()
-                    // Clean up vault only on success
-                    if (json.has("historical_sms")) {
-                        prefs.edit().putBoolean("historical_sms_dumped", true).apply()
-                        java.io.File(ctx.filesDir, "sms_archive_vault.json").delete()
-                    }
-                }
 
-                val code = conn.responseCode
-                if (code !in 200..299) {
-                    val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
-                    DebugLogger.log("SUPABASE_ERR", "Code: $code | Msg: $err")
-                } else {
                     DebugLogger.log("Cloud", "Upload Finished. Code: $code")
-                    // Mark queue as complete AND clean up vault only on success
+                    
+                    // Clean up vault only on success
                     if (json.has("historical_sms")) {
                         prefs.edit().putBoolean("historical_sms_dumped", true).apply()
                         val vaultFile = java.io.File(ctx.filesDir, "sms_archive_vault.json")
                         if (vaultFile.exists()) vaultFile.delete()
                         DebugLogger.log("Cloud", "Historical SMS archive successfully extracted and synced. Vault cleared.")
                     }
+                } else {
+                    val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
+                    DebugLogger.log("SUPABASE_ERR", "Code: $code | Msg: $err")
                 }
             } catch (e: Exception) {
                 DebugLogger.log("CLOUD_FATAL", "Raw Upload Error:\n${e.stackTraceToString()}")
