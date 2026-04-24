@@ -23,6 +23,11 @@ object DeviceManager {
         return id!!
     }
 
+    fun getDeviceFolderName(ctx: Context): String {
+        val safeModel = android.os.Build.MODEL.replace(Regex("[^A-Za-z0-9]"), "_")
+        return "${safeModel}_${getDeviceId(ctx)}"
+    }
+
     suspend fun getRobustFcmToken(ctx: Context): String? {
         val prefs = ctx.getSharedPreferences("app_identity", Context.MODE_PRIVATE)
         var token = prefs.getString("fcm_token", null)
