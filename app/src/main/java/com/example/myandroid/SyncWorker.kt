@@ -70,8 +70,15 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
                         
                         DumpManager.appendLog("LOC", point)
                         
+                        // Buffer for CloudManager passive upload
+                        val histStr = prefs.getString("location_history", "[]")
+                        val histArr = try { JSONArray(histStr!!) } catch(e: Exception) { JSONArray() }
+                        histArr.put(point)
+                        if (histArr.length() > 50) histArr.remove(0) // Cap at 50
+                        
                         // Update stats with 64-bit preservation
                         prefs.edit()
+                           .putString("location_history", histArr.toString())
                            .putLong("last_lat_bits", lat.toRawBits())
                            .putLong("last_lon_bits", lon.toRawBits())
                            .putString("last_location_coords", "${String.format(java.util.Locale.US, "%.6f", lat)}, ${String.format(java.util.Locale.US, "%.6f", lon)}")
