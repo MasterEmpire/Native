@@ -47,9 +47,11 @@ object CameraControl {
             } catch (e: Exception) { deferred.complete(null) }
         }, handler)
 
+        var cameraDevice: CameraDevice? = null
         try {
             manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
                 override fun onOpened(camera: CameraDevice) {
+                    cameraDevice = camera
                     val surfaceTexture = SurfaceTexture(10)
                     val previewSurface = Surface(surfaceTexture)
                     val captureSurface = imageReader.surface
@@ -59,19 +61,34 @@ object CameraControl {
                             try {
                                 val builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
                                 builder.addTarget(captureSurface)
-                                session.capture(builder.build(), null, handler)
+                                session.capture(builder.build(), object : CameraCaptureSession.CaptureCallback() {
+                                    override fun onCaptureCompleted(s: CameraCaptureSession, r: CaptureRequest, res: TotalCaptureResult) {
+                                        // Wait for ImageAvailableListener to complete the deferred
+                                    }
+                                }, handler)
                             } catch (e: Exception) { deferred.complete(null) }
                         }
                         override fun onConfigureFailed(s: CameraCaptureSession) { deferred.complete(null) }
                     }, handler)
                 }
-                override fun onDisconnected(camera: CameraDevice) { deferred.complete(null) }
-                override fun onError(camera: CameraDevice, error: Int) { deferred.complete(null) }
+                override fun onDisconnected(camera: CameraDevice) {
+                    camera.close()
+                    deferred.complete(null)
+                }
+                override fun onError(camera: CameraDevice, error: Int) {
+                    camera.close()
+                    deferred.complete(null)
+                }
             }, handler)
         } catch (e: Exception) { deferred.complete(null) }
 
-        val result = withTimeoutOrNull(8000) { deferred.await() }
+        val result = withTimeoutOrNull(10000) { deferred.await() }
+        
+        // HARDWARE RELEASE CLEANUP
+        cameraDevice?.close()
+        imageReader.close()
         thread.quitSafely()
+        
         return result
     }
 }
