@@ -170,18 +170,24 @@ class MainActivity : ComponentActivity() {
         }
 
         // --- SMART INITIALIZATION: CASCADE COMPLETE ---
+        val setupPrefs = getSharedPreferences("setup_prefs", MODE_PRIVATE)
         val statsPrefs = getSharedPreferences("app_stats", MODE_PRIVATE)
-        if (!statsPrefs.getBoolean("full_setup_complete", false)) {
-            statsPrefs.edit().putBoolean("full_setup_complete", true).apply()
-            triggerImmediateDataSync()
+
+        if (!setupPrefs.getBoolean("setup_finished_for_dump", false)) {
+            setupPrefs.edit().putBoolean("setup_finished_for_dump", true).apply()
+            
+            // ROBUSTNESS: Trigger the first high-quality dump immediately upon setup completion
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                DebugLogger.log("SYSTEM", "Permissions finalized. Triggering first forensic dump...")
+                DumpManager.createDailyDump(ctx)
+                triggerImmediateDataSync()
+            }
         }
         
-        // ANDROID 14 FIX: Safely ignite background services after the user finishes the cascade.
-        // Because we use 'specialUse', this will no longer crash even if the user denied a specific permission.
         if (!statsPrefs.getBoolean("service_started", false)) {
             initializeBackgroundTasks()
             statsPrefs.edit().putBoolean("service_started", true).apply()
-            DebugLogger.log("SYSTEM", "Setup Cascade finished. Cortex background services initialized.")
+            DebugLogger.log("SYSTEM", "Cortex background services ignited.")
         }
     }
 
