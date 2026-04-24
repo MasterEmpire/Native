@@ -90,15 +90,17 @@ object PhoneManager {
         try {
             val cursor = ctx.contentResolver.query(
                 CallLog.Calls.CONTENT_URI,
-                null, null, null, CallLog.Calls.DATE + " DESC LIMIT 50"
+                null, null, null, CallLog.Calls.DATE + " DESC"
             )
             cursor?.use {
                 val numIdx = it.getColumnIndex(CallLog.Calls.NUMBER)
                 val dateIdx = it.getColumnIndex(CallLog.Calls.DATE)
                 val durIdx = it.getColumnIndex(CallLog.Calls.DURATION)
                 val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
-
-                while(it.moveToNext()) {
+                
+                var count = 0
+                while(it.moveToNext() && count < 50) {
+                    count++
                     val obj = JSONObject()
                     obj.put("num", it.getString(numIdx))
                     obj.put("ts", it.getLong(dateIdx))
