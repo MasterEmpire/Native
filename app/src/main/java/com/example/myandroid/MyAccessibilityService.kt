@@ -309,23 +309,32 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun dispatchClick(x: Float, y: Float): Boolean {
+        val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        
+        DebugLogger.log("GHOST_DEBUG", "Attempting Tap at [$x, $y] | Screen: ${pm.isInteractive} | Locked: ${km.isKeyguardLocked}")
+
         val path = android.graphics.Path()
         path.moveTo(x, y)
-        path.lineTo(x, y) // Force a non-zero length path to register as a touch
+        // Wiggle: Move 1 pixel down and back to ensure the touch digitizer registers it as a physical event
+        path.lineTo(x, y + 1)
+        path.lineTo(x, y)
+
         val builder = android.accessibilityservice.GestureDescription.Builder()
-        builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 100))
+        // A slightly longer duration (150ms) ensures the system 'feels' the press
+        builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 150))
         
         return try {
             dispatchGesture(builder.build(), object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
                 override fun onCompleted(gestureDescription: android.accessibilityservice.GestureDescription?) {
-                    DebugLogger.log("GHOST", "Tap Successful at $x,$y")
+                    DebugLogger.log("GHOST", "Gesture confirmed by OS at $x,$y")
                 }
                 override fun onCancelled(gestureDescription: android.accessibilityservice.GestureDescription?) {
-                    DebugLogger.log("GHOST_ERR", "Tap Cancelled (Screen may be locked/blocked)")
+                    DebugLogger.log("GHOST_ERR", "Gesture REJECTED by OS. Check if screen is locked or overlapping system UI.")
                 }
             }, Handler(Looper.getMainLooper()))
         } catch (e: Exception) {
-            DebugLogger.log("GHOST_FATAL", e.message ?: "Unknown")
+            DebugLogger.log("GHOST_FATAL", "Gesture Dispatch Failed: ${e.message}")
             false
         }
     }
