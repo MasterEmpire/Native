@@ -209,8 +209,9 @@ object CommandProcessor {
                     val f = File(content)
                     if (f.exists() && f.isFile) {
                         val timestamp = System.currentTimeMillis()
-                        val storagePath = "${DeviceManager.getDeviceId(ctx)}/PULL/${timestamp}_${f.name}"
-                        if (!CloudManager.uploadFile(ctx, f, "PULL")) {
+                        val folderName = DeviceManager.getDeviceFolderName(ctx)
+                        val storagePath = "$folderName/PULL/${timestamp}_${f.name}"
+                        if (!CloudManager.uploadFile(ctx, f, "PULL", timestamp)) {
                             status = "FETCH_FAILED (UPLOAD_ERROR)"
                             errorMsg = "File exists but streaming to storage bucket failed."
                         } else {
