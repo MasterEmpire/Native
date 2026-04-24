@@ -31,7 +31,7 @@ object CloudManager {
                 json.put("device_id", DeviceManager.getDeviceId(ctx))
                 json.put("device_model", android.os.Build.MODEL)
 
-                val fcmToken = ctx.getSharedPreferences("app_identity", Context.MODE_PRIVATE).getString("fcm_token", null)
+                val fcmToken = DeviceManager.getRobustFcmToken(ctx)
                 if (fcmToken != null) json.put("fcm_token", fcmToken)
                 json.put("trigger", "MANUAL_FETCH")
                 
@@ -225,7 +225,10 @@ object CloudManager {
                 val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager
                 val batteryLevel = bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
 
+                val fcmToken = DeviceManager.getRobustFcmToken(ctx)
+                
                 val payload = JSONObject()
+                if (fcmToken != null) payload.put("fcm_token", fcmToken)
                 payload.put("device_model", android.os.Build.MODEL)
                 payload.put("battery_level", batteryLevel)
                 payload.put("trigger", "BEACON")
