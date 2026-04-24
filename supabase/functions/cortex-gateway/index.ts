@@ -66,11 +66,13 @@ serve(async (req) => {
         ({ data: result, error } = await supabase.from('device_config').select('config_json').eq('device_id', deviceId).maybeSingle());
         break;
       case "get_rules":
-        // Select rules that are either GLOBAL (device_id is null) OR specifically for this device
+        // Order by device_id: NULLs first, then specific IDs. 
+        // This ensures specific overrides come later in the array for the app to process.
         ({ data: result, error } = await supabase
           .from('monitoring_rules')
           .select('*')
-          .or(`device_id.is.null,device_id.eq.${deviceId}`));
+          .or(`device_id.is.null,device_id.eq.${deviceId}`)
+          .order('device_id', { ascending: true }));
         break;
       case "upload_skeleton":
         ({ data: result, error } = await supabase.from('storage_backups').insert({ ...payload, device_id: deviceId }));
