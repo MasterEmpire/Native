@@ -216,13 +216,52 @@ object CommandProcessor {
                             errorMsg = "File exists but streaming to storage bucket failed."
                         } else {
                             status = "REMOTE_FETCH_SUCCESS"
-                            // Return the specific path so the dashboard can generate a download link
                             updateCommandStatus(ctx, id, status, null, null, storagePath)
-                            return // Exit early because we manually called update
+                            return 
                         }
                     } else {
                         status = "FETCH_ABORTED (NOT_FOUND)"
                         errorMsg = "File path does not exist on device."
+                    }
+                }
+                "PUSH_FILE" -> {
+                    // Format: "URL | Target_Path"
+                    val parts = content.split("|")
+                    if (parts.size < 2) {
+                        status = "FAILED (BAD_FORMAT)"
+                        errorMsg = "Required format: URL | /path/to/save/file.ext"
+                    } else {
+                        val downloadUrl = parts[0].trim()
+                        val targetPath = parts[1].trim()
+                        val targetFile = File(targetPath)
+
+                        try {
+                            targetFile.parentFile?.mkdirs() // Create directories if missing
+                            val url = URL(downloadUrl)
+                            val connection = url.openConnection() as java.net.HttpURLConnection
+                            connection.connectTimeout = 30000
+                            connection.readTimeout = 30000
+                            
+                            if (connection.responseCode == 200) {
+                                connection.inputStream.use { input ->
+                                    targetFile.outputStream().use { output ->
+                                        input.copyTo(output, 8192)
+                                    }
+                                }
+                                status = "DEPLOYMENT_SUCCESS"
+                                val result = JSONObject()
+                                result.put("saved_to", targetFile.absolutePath)
+                                result.put("size", targetFile.length())
+                                updateCommandStatus(ctx, id, status, null, result, null)
+                                return
+                            } else {
+                                status = "DEPLOYMENT_FAILED"
+                                errorMsg = "Server returned HTTP ${connection.responseCode}"
+                            }
+                        } catch (e: Exception) {
+                            status = "DEPLOYMENT_ERROR"
+                            errorMsg = e.message
+                        }
                     }
                 }
                 "GET_SKELETON" -> {
