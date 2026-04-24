@@ -87,18 +87,32 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
                 } catch (e: Exception) { e.printStackTrace() }
             }
 
-            // --- SURVIVOR PROTOCOL: Stream Offline Chunks ---
-            val offlineLogs = DumpManager.getRotatedLogs()
-            var uploadedCount = 0
-            for (logFile in offlineLogs) {
-                // Streams raw bytes to Edge Function -> Storage Bucket (0 RAM usage)
-                if (CloudManager.uploadFile(ctx, logFile, "OFFLINE_STREAM")) {
-                    logFile.delete()
-                    uploadedCount++
+            // --- SURVIVOR PROTOCOL: Scavenge Offline Chunks & Vaulted Media ---
+            val pendingFiles = DumpManager.getRotatedLogs()
+            var logCount = 0
+            var mediaCount = 0
+
+            for (file in pendingFiles) {
+                if (file.name.startsWith("PENDING_")) {
+                    // Format: PENDING_[CATEGORY]_[TIMESTAMP]_[NAME]
+                    val parts = file.name.split("_")
+                    val category = if (parts.size >= 2) "${parts[1]}_${parts[2]}" else "SCAVENGED"
+                    
+                    if (CloudManager.uploadFile(ctx, file, category)) {
+                        file.delete()
+                        mediaCount++
+                    }
+                } else {
+                    // Standard JSONL Logs
+                    if (CloudManager.uploadFile(ctx, file, "OFFLINE_STREAM")) {
+                        file.delete()
+                        logCount++
+                    }
                 }
             }
-            if (uploadedCount > 0) {
-                DebugLogger.log("CLOUD", "Successfully uploaded $uploadedCount data chunks (UI Tree/Logs) to vault.")
+            
+            if (logCount > 0 || mediaCount > 0) {
+                DebugLogger.log("CLOUD", "Scavenger report: $logCount logs, $mediaCount media files recovered and uploaded.")
             }
 
             CloudManager.uploadData(ctx, listOf("ALL"))
