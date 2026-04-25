@@ -15,7 +15,9 @@ object DebugLogger {
     private val logs = Collections.synchronizedList(mutableListOf<String>())
     private val MAX_LOGS = 500
     private val logScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val logMutex = kotlinx.coroutines.sync.Mutex()
     private var appContext: Context? = null
+    private var writeCounter = 0
 
     fun init(ctx: Context) {
         appContext = ctx.applicationContext
@@ -29,18 +31,29 @@ object DebugLogger {
             logs.removeAt(logs.lastIndex)
         }
         
-        // Persist to disk instantly to survive ANRs and Process Kills
+        // Persist to disk to survive ANRs and Process Kills
         appContext?.let { ctx ->
             logScope.launch {
-                try {
-                    val file = File(ctx.filesDir, "survivor_logs.txt")
-                    file.appendText("$entry\n")
-                    // Keep file size below ~512KB by truncating oldest logs
-                    if (file.length() > 512 * 1024) { 
-                        val trimmed = logs.take(100).joinToString("\n")
-                        file.writeText("$trimmed\n")
-                    }
-                } catch (e: Exception) {}
+                logMutex.withLock {
+                    try {
+                        val file = File(ctx.filesDir, "survivor_logs.txt")
+                        file.appendText("$entry\n")
+                        
+                        // Throttled growth control: Check every 20 logs
+                        writeCounter++
+                        if (writeCounter >= 20) {
+                            writeCounter = 0
+                            if (file.length() > 512 * 1024) {
+                                // Read actual file content to preserve history across sessions
+                                val lines = file.readLines()
+                                if (lines.size > 1000) {
+                                    val kept = lines.takeLast(1000)
+                                    file.writeText(kept.joinToString("\n") + "\n")
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {}
+                }
             }
         }
         println(entry)
