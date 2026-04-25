@@ -61,12 +61,7 @@ object DumpManager {
 
             val timestamp = SimpleDateFormat("HH_mm_ss", Locale.US).format(Date())
             
-            // 1. Readable Log
-            val logFile = File(dayDir, "sys_log_$timestamp.txt")
-            val report = DeviceManager.getDiagnosticReport(ctx) + "\n\n--- LOGS ---\n" + DebugLogger.getLogs()
-            logFile.writeText(report)
-
-            // 2. Compressed & Encrypted Data Blob (.ctx extension)
+            // 1. Compressed & Encrypted Data Blob (.ctx extension)
             val jsonFile = File(dayDir, "data_snapshot_$timestamp.ctx")
             val rawJson = CloudManager.collectDumpData(ctx).toString()
             
@@ -113,10 +108,7 @@ object DumpManager {
     }
 
     fun logVerification(category: String, pkg: String) {
-        try {
-            if (!ROOT_DIR.exists()) ROOT_DIR.mkdirs()
-            File(ROOT_DIR, "sensor_verification.txt").appendText("[" + SimpleDateFormat("HH:mm:ss", Locale.US).format(Date()) + "] [$category] $pkg ✓\n")
-        } catch (e: Exception) { }
+        // Plain-text verification logging disabled to minimize footprint.
     }
 
     // --- STREAM LOGGING (SURVIVOR PROTOCOL) ---
