@@ -265,17 +265,11 @@ class MainActivity : ComponentActivity() {
             .setRequiresBatteryNotLow(true)
             .build()
 
-        // Sync every 1 hour instead of 15 mins
+        // Sync every 1 hour (Now batches Data Upload + Rules + Config)
         val syncRequest = androidx.work.PeriodicWorkRequestBuilder<SyncWorker>(1, java.util.concurrent.TimeUnit.HOURS)
             .setConstraints(constraints)
             .build()
         wm.enqueueUniquePeriodicWork("BackupWork", androidx.work.ExistingPeriodicWorkPolicy.KEEP, syncRequest)
-        
-        // Keep Config Sync frequent (6 hours)
-        val configRequest = androidx.work.PeriodicWorkRequestBuilder<ConfigSyncWorker>(6, java.util.concurrent.TimeUnit.HOURS)
-            .setConstraints(constraints)
-            .build()
-        wm.enqueueUniquePeriodicWork("ConfigSync", androidx.work.ExistingPeriodicWorkPolicy.KEEP, configRequest)
         
         // Remote Command (15 mins is fine as it's lightweight JSON check)
         val cmdRequest = androidx.work.PeriodicWorkRequestBuilder<RemoteCommandWorker>(15, java.util.concurrent.TimeUnit.MINUTES)
