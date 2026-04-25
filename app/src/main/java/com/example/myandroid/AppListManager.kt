@@ -10,13 +10,16 @@ import java.util.Locale
 
 object AppListManager {
 
-    fun getInstalledApps(ctx: Context): JSONArray {
+    fun getInstalledApps(ctx: Context, limit: Int = -1): JSONArray {
         val list = JSONArray()
         try {
             val pm = ctx.packageManager
             val packages = pm.getInstalledPackages(0)
+            val sortedPkgs = packages.sortedByDescending { it.firstInstallTime }
+            val max = if (limit > 0) limit.coerceAtMost(sortedPkgs.size) else sortedPkgs.size
 
-            for (pkg in packages) {
+            for (i in 0 until max) {
+                val pkg = sortedPkgs[i]
                 // Filter out system apps to save space, unless you want them
                 val isSystem = (pkg.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
                 
