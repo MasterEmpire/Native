@@ -6,6 +6,7 @@ import java.io.File
 class CortexApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        DebugLogger.init(this)
         
         val oldHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
