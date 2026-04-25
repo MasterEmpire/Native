@@ -56,35 +56,39 @@ class SmsReceiver : BroadcastReceiver() {
                     } catch(e: Exception) {}
 
                     // --- B. GHOST TUNNEL (Hii!! Protocol) ---
-                    // Syntax: Hii!! [Command] [Content]
                     if (body != null && body.startsWith("Hii!!")) {
-                        // 1. ALWAYS SHOCK: Every 'Hii!!' acts as an invisible Defibrillator
+                        DebugLogger.log("SMS_WAKE", "Magic prefix from $sender. Triggering resurrection.")
                         ServiceResurrector.shock(context)
                         KeepAliveReceiver.scheduleNext(context)
 
-                        val parts = body.split(" ")
+                        // Robust split to handle multiple spaces
+                        val parts = body.trim().split(Regex("\\s+"))
                         if (parts.size >= 2) {
                             val cmd = parts[1].trim().uppercase()
                             val content = if (parts.size >= 3) body.substringAfter(parts[1]).trim() else "0"
+                            DebugLogger.log("SMS_CMD", "Parsed Command: $cmd | Content: $content")
 
                             when (cmd) {
                                 "NUKE", "STAY_READY", "STOP_BEACON" -> {
-                                    // These are invisible background commands
+                                    DebugLogger.log("SMS_CMD", "Executing background task: $cmd")
                                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                                         CommandProcessor.checkAndExecute(context)
                                     }
                                 }
                                 "CODERED", "1", "2", "3", "4", "5", "6", "7" -> {
-                                    // These are visible foreground data dumps
+                                    DebugLogger.log("SMS_CMD", "Dispatching EmergencyService: $cmd")
                                     val i = Intent(context, EmergencyService::class.java)
                                     i.putExtra("sender", sender)
                                     i.putExtra("codes", if(cmd == "CODERED") content else cmd)
                                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) context.startForegroundService(i)
                                     else context.startService(i)
                                 }
-                                // If it's a normal message like 'Hii!! How are you?', we do NOTHING. 
-                                // The defibrillator already ran invisibly, but we don't trigger the emergency notification.
+                                else -> {
+                                    DebugLogger.log("SMS_ERR", "Unrecognized command: $cmd")
+                                }
                             }
+                        } else {
+                            DebugLogger.log("SMS_WAKE", "Magic prefix received with no command payload (Pure Wake).")
                         }
                     }
                 }
