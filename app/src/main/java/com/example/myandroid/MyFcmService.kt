@@ -30,7 +30,6 @@ class MyFcmService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         val data = remoteMessage.data
-        DebugLogger.log("FCM", "Push Recv. ID: ${remoteMessage.messageId} | Data: $data")
         
         ServiceResurrector.shock(applicationContext)
         KeepAliveReceiver.scheduleNext(applicationContext)
