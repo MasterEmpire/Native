@@ -509,6 +509,16 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var isRevealed by remember { mutableStateOf(false) }
 
+    // Auto-refresh logic: Polls logs every 2 seconds while console is open
+    LaunchedEffect(isRevealed) {
+        if (isRevealed) {
+            while (true) {
+                report = DeviceManager.getDiagnosticReport(ctx) + "\n\n--- LIVE LOGS ---\n" + DebugLogger.getLogs()
+                kotlinx.coroutines.delay(2000)
+            }
+        }
+    }
+
     val ptrState = androidx.compose.material3.pulltorefresh.rememberPullToRefreshState()
     if (ptrState.isRefreshing) {
         LaunchedEffect(true) {
