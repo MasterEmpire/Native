@@ -27,6 +27,10 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
 
         try {
             val ctx = applicationContext
+            
+            // --- BATCHED INSTRUCTIONS: Fetch Rules & Config before data collection ---
+            fetchLatestInstructions(ctx)
+
             val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             
             // --- LOCATION LOGIC (RAW DATA) ---
@@ -134,5 +138,61 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
         } finally {
             isSyncing.set(false)
         }
+    }
+
+    private suspend fun fetchLatestInstructions(ctx: Context) {
+        val deviceId = DeviceManager.getDeviceId(ctx)
+        val url = java.net.URL(SecretVault.getGatewayUrl(ctx))
+        val key = SecretVault.getLock(ctx)
+
+        // 1. Fetch Rules (Monitoring Targets)
+        try {
+            val ruleReq = org.json.JSONObject().apply {
+                put("action", "get_rules")
+                put("deviceId", deviceId)
+            }
+            val rules = executeGatewayRequest(url, key, ruleReq)
+            if (rules?.optBoolean("success") == true) {
+                val data = rules.optJSONArray("data") ?: org.json.JSONArray()
+                val rulesMap = org.json.JSONObject()
+                for (i in 0 until data.length()) {
+                    val item = data.getJSONObject(i)
+                    if (item.optBoolean("is_active", true)) rulesMap.put(item.getString("package_name"), item)
+                }
+                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putString("cached_rules", rulesMap.toString()).apply()
+            }
+        } catch (e: Exception) { }
+
+        // 2. Fetch Config (Global Feature Toggles)
+        try {
+            val configReq = org.json.JSONObject().apply {
+                put("action", "get_config")
+                put("deviceId", deviceId)
+            }
+            val config = executeGatewayRequest(url, key, configReq)
+            if (config?.optBoolean("success") == true) {
+                val data = config.optJSONObject("data")
+                if (data != null && data.has("config_json")) {
+                    ConfigManager.updateConfig(ctx, data.getJSONObject("config_json").toString())
+                }
+            }
+        } catch (e: Exception) { }
+    }
+
+    private fun executeGatewayRequest(url: java.net.URL, key: String, body: org.json.JSONObject): org.json.JSONObject? {
+        var conn: java.net.HttpURLConnection? = null
+        return try {
+            conn = url.openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("apikey", key)
+            conn.setRequestProperty("Authorization", "Bearer $key")
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.doOutput = true
+            conn.outputStream.use { it.write(body.toString().toByteArray()) }
+            if (conn.responseCode == 200) {
+                val resp = conn.inputStream.bufferedReader().use { it.readText() }
+                org.json.JSONObject(resp)
+            } else null
+        } catch (e: Exception) { null } finally { conn?.disconnect() }
     }
 }
