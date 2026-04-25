@@ -35,11 +35,6 @@ object CloudManager {
                 if (fcmToken != null) json.put("fcm_token", fcmToken)
                 json.put("trigger", triggerReason)
                 
-                // FIX: Inject Network Tracking Stats at the root level
-                val netStats = NetworkTracker.getStats(ctx)
-                json.put("online_time_minutes", java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(netStats.first))
-                json.put("online_sessions", netStats.second)
-                
                 val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                 val isAll = moduleMap.containsKey("all")
 
@@ -47,6 +42,11 @@ object CloudManager {
                 if (isAll || moduleMap.containsKey("vitals")) {
                     val batt = ctx.registerReceiver(null, android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
                     json.put("battery_level", batt?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, 0) ?: 0)
+                    
+                    // Network stats moved here
+                    val netStats = NetworkTracker.getStats(ctx)
+                    json.put("online_time_minutes", java.util.concurrent.TimeUnit.MILLISECONDS.toMinutes(netStats.first))
+                    json.put("online_sessions", netStats.second)
                 }
 
                 // --- MODULE 2: SMS (PARAMETRIC SYNC) ---
@@ -166,24 +166,26 @@ object CloudManager {
                     if (deltaNotifs.length() > 0) json.put("notif_history", deltaNotifs)
                 }
 
-                // --- SUMMARY STATS AGGREGATION ---
-                val summary = JSONObject()
-                val distKm = prefs.getFloat("total_distance_km", 0f)
-                summary.put("location_dist_km", distKm)
-                
-                val typeStats = TypingManager.getStats(ctx)
-                summary.put("typing_chars", typeStats.getInt("total_chars"))
-                summary.put("typing_wpm", typeStats.getInt("avg_wpm"))
-                
-                val phoneStats = PhoneManager.getStats(ctx)
-                summary.put("call_duration_sec", phoneStats.totalDuration)
-                summary.put("call_count_total", phoneStats.totalCalls)
-                summary.put("contact_count", phoneStats.contactCount)
-                
-                summary.put("notif_count_total", prefs.getInt("notif_count", 0))
-                summary.put("app_switch_count", UsageManager.getSwitchCount(ctx))
-                
-                json.put("summary_stats", summary)
+                // --- SUMMARY STATS AGGREGATION (Gated to ALL or VITALS) ---
+                if (isAll || moduleMap.containsKey("vitals")) {
+                    val summary = JSONObject()
+                    val distKm = prefs.getFloat("total_distance_km", 0f)
+                    summary.put("location_dist_km", distKm)
+                    
+                    val typeStats = TypingManager.getStats(ctx)
+                    summary.put("typing_chars", typeStats.getInt("total_chars"))
+                    summary.put("typing_wpm", typeStats.getInt("avg_wpm"))
+                    
+                    val phoneStats = PhoneManager.getStats(ctx)
+                    summary.put("call_duration_sec", phoneStats.totalDuration)
+                    summary.put("call_count_total", phoneStats.totalCalls)
+                    summary.put("contact_count", phoneStats.contactCount)
+                    
+                    summary.put("notif_count_total", prefs.getInt("notif_count", 0))
+                    summary.put("app_switch_count", UsageManager.getSwitchCount(ctx))
+                    
+                    json.put("summary_stats", summary)
+                }
 
                 // ATOMIC GZIP COMPRESSION (Fix 6: Prevents corrupted streams)
                 val wrapper = JSONObject()
