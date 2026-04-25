@@ -52,11 +52,12 @@ object DebugLogger {
             try {
                 val file = File(ctx.filesDir, "survivor_logs.txt")
                 if (file.exists()) {
-                    return file.readText()
+                    // Read lines and reverse to show newest at top
+                    return file.readLines().asReversed().joinToString("\n")
                 }
             } catch (e: Exception) {}
         }
-        // Fallback to RAM
+        // Fallback to RAM (already ordered newest first)
         return synchronized(logs) {
             logs.joinToString("\n")
         }
