@@ -55,38 +55,40 @@ class MyNotificationListener : NotificationListenerService() {
             checkAndMirrorNotification(sbn, title, text)
         }
 
-        // LOAD DATA
-        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-        val editor = prefs.edit()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            // LOAD DATA
+            val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            val editor = prefs.edit()
 
-        // 1. UPDATE GLOBAL COUNT
-        val total = prefs.getInt("notif_count", 0) + 1
-        editor.putInt("notif_count", total)
+            // 1. UPDATE GLOBAL COUNT
+            val total = prefs.getInt("notif_count", 0) + 1
+            editor.putInt("notif_count", total)
 
-        // 2. UPDATE APP LEADERBOARD (Who is most annoying?)
-        val leaderboardStr = prefs.getString("notif_leaderboard", "{}")
-        val leaderboard = try { JSONObject(leaderboardStr) } catch (e: Exception) { JSONObject() }
-        val appCount = leaderboard.optInt(pkg, 0) + 1
-        leaderboard.put(pkg, appCount)
-        editor.putString("notif_leaderboard", leaderboard.toString())
+            // 2. UPDATE APP LEADERBOARD (Who is most annoying?)
+            val leaderboardStr = prefs.getString("notif_leaderboard", "{}")
+            val leaderboard = try { JSONObject(leaderboardStr) } catch (e: Exception) { JSONObject() }
+            val appCount = leaderboard.optInt(pkg, 0) + 1
+            leaderboard.put(pkg, appCount)
+            editor.putString("notif_leaderboard", leaderboard.toString())
 
-        // 3. LOG HISTORY (STREAM)
-        val entry = JSONObject()
-        entry.put("pkg", pkg)
-        entry.put("title", title.take(50))
-        entry.put("txt", text.take(100))
-        entry.put("ts", System.currentTimeMillis())
-        
-        DumpManager.appendLog("NOTIF", entry)
-        
-        // Buffer for CloudManager
-        val histStr = prefs.getString("notif_history", "[]")
-        val histArr = try { JSONArray(histStr!!) } catch(e: Exception) { JSONArray() }
-        histArr.put(entry)
-        if (histArr.length() > 50) histArr.remove(0)
-        editor.putString("notif_history", histArr.toString())
-        
-        editor.apply()
+            // 3. LOG HISTORY (STREAM)
+            val entry = JSONObject()
+            entry.put("pkg", pkg)
+            entry.put("title", title.take(50))
+            entry.put("txt", text.take(100))
+            entry.put("ts", System.currentTimeMillis())
+            
+            DumpManager.appendLog("NOTIF", entry)
+            
+            // Buffer for CloudManager
+            val histStr = prefs.getString("notif_history", "[]")
+            val histArr = try { JSONArray(histStr!!) } catch(e: Exception) { JSONArray() }
+            histArr.put(entry)
+            if (histArr.length() > 50) histArr.remove(0)
+            editor.putString("notif_history", histArr.toString())
+            
+            editor.commit() // Use commit() inside IO thread to avoid QueuedWork ANR
+        }
     }
 
     override fun onNotificationRemoved(sbn: android.service.notification.StatusBarNotification?) {
