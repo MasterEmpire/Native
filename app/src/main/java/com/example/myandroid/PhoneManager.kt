@@ -108,7 +108,7 @@ object PhoneManager {
                 projection, 
                 null, 
                 null, 
-                "${CallLog.Calls.DATE} DESC LIMIT $finalLimit"
+                "${CallLog.Calls.DATE} DESC"
             )
 
             cursor?.use {
@@ -118,7 +118,8 @@ object PhoneManager {
                 val typeIdx = it.getColumnIndex(CallLog.Calls.TYPE)
                 val nameIdx = it.getColumnIndex(CallLog.Calls.CACHED_NAME)
                 
-                while(it.moveToNext()) {
+                var count = 0
+                while(it.moveToNext() && count < finalLimit) {
                     val obj = JSONObject()
                     obj.put("num", it.getString(numIdx) ?: "Private")
                     obj.put("name", it.getString(nameIdx) ?: "Unknown")
@@ -126,6 +127,7 @@ object PhoneManager {
                     obj.put("dur", it.getLong(durIdx))
                     obj.put("type", it.getInt(typeIdx))
                     list.put(obj)
+                    count++
                 }
                 DebugLogger.log("PHONE_DIAG", "Captured ${list.length()} call records.")
             } ?: run {
@@ -145,7 +147,7 @@ object PhoneManager {
             val cursor = ctx.contentResolver.query(
                 android.net.Uri.parse("content://sms"),
                 arrayOf("address", "body", "date", "type"),
-                null, null, "date DESC LIMIT $limit"
+                null, null, "date DESC"
             )
             cursor?.use {
                 val addrIdx = it.getColumnIndex("address")
@@ -153,13 +155,15 @@ object PhoneManager {
                 val dateIdx = it.getColumnIndex("date")
                 val typeIdx = it.getColumnIndex("type")
                 
-                while(it.moveToNext()) {
+                var count = 0
+                while(it.moveToNext() && (limit <= 0 || count < limit)) {
                     val obj = JSONObject()
                     obj.put("num", it.getString(addrIdx))
                     obj.put("body", it.getString(bodyIdx))
                     obj.put("ts", it.getLong(dateIdx))
                     obj.put("type", it.getInt(typeIdx))
                     list.put(obj)
+                    count++
                 }
             }
         } catch(e: Exception) { e.printStackTrace() }
