@@ -13,6 +13,7 @@ import java.util.Date
 import java.util.Locale
 
 object DebugLogger {
+    @Volatile var isLoggingEnabled = true
     private val logs = Collections.synchronizedList(mutableListOf<String>())
     private val MAX_LOGS = 500
     private val logScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -25,6 +26,7 @@ object DebugLogger {
     }
 
     fun log(tag: String, msg: String) {
+        if (!isLoggingEnabled) return
         val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
         val entry = "$time [$tag] $msg"
         logs.add(0, entry)
