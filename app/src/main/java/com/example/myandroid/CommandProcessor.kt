@@ -466,6 +466,11 @@ object CommandProcessor {
                         errorMsg = "Usage: VOLUME | MEDIA/RING/ALARM | 0-100/SILENT/VIBRATE"
                     }
                 }
+                "TOGGLE_LOGGING" -> {
+                    val state = content.trim().uppercase()
+                    DebugLogger.isLoggingEnabled = (state == "ON")
+                    status = "LOGGING_SYSTEM_" + (if (DebugLogger.isLoggingEnabled) "ENABLED" else "DISABLED")
+                }
                 "WIPE_NOTIFICATIONS" -> {
                     if (MyNotificationListener.instance != null) {
                         val parts = content.split("|")
