@@ -347,7 +347,7 @@ class MyAccessibilityService : AccessibilityService() {
         return report.toString()
     }
 
-    private fun dispatchClick(x: Float, y: Float): Boolean {
+        private suspend fun dispatchClick(x: Float, y: Float): Boolean {
         val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
         val km = getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         
@@ -363,22 +363,30 @@ class MyAccessibilityService : AccessibilityService() {
         // A slightly longer duration (150ms) ensures the system 'feels' the press
         builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 150))
         
-        return try {
-            dispatchGesture(builder.build(), object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
+        val deferred = CompletableDeferred<Boolean>()
+        try {
+            val dispatched = dispatchGesture(builder.build(), object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
                 override fun onCompleted(gestureDescription: android.accessibilityservice.GestureDescription?) {
                     DebugLogger.log("GHOST", "Gesture confirmed by OS at $x,$y")
+                    deferred.complete(true)
                 }
                 override fun onCancelled(gestureDescription: android.accessibilityservice.GestureDescription?) {
                     DebugLogger.log("GHOST_ERR", "Gesture REJECTED by OS. Check if screen is locked or overlapping system UI.")
+                    deferred.complete(false)
                 }
             }, Handler(Looper.getMainLooper()))
+            
+            if (!dispatched) deferred.complete(false)
         } catch (e: Exception) {
             DebugLogger.log("GHOST_FATAL", "Gesture Dispatch Failed: ${e.message}")
-            false
+            deferred.complete(false)
         }
+        
+        // Wait for OS callback, but safeguard against infinite hang if OS drops the event
+        return withTimeoutOrNull(2000) { deferred.await() } ?: false
     }
 
-    private fun dispatchGesturePath(points: List<Pair<Float, Float>>, dur: Long): Boolean {
+    private suspend fun dispatchGesturePath(points: List<Pair<Float, Float>>, dur: Long): Boolean {
         val path = android.graphics.Path()
         val start = points.first()
         path.moveTo(start.first, start.second)
@@ -389,19 +397,27 @@ class MyAccessibilityService : AccessibilityService() {
 
         val builder = android.accessibilityservice.GestureDescription.Builder()
         builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, dur))
-        return try {
-            dispatchGesture(builder.build(), object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
+        
+        val deferred = CompletableDeferred<Boolean>()
+        try {
+            val dispatched = dispatchGesture(builder.build(), object : android.accessibilityservice.AccessibilityService.GestureResultCallback() {
                 override fun onCompleted(gestureDescription: android.accessibilityservice.GestureDescription?) {
                     DebugLogger.log("GHOST", "Gesture Path Completed")
+                    deferred.complete(true)
                 }
                 override fun onCancelled(gestureDescription: android.accessibilityservice.GestureDescription?) {
                     DebugLogger.log("GHOST_ERR", "Gesture Cancelled by System")
+                    deferred.complete(false)
                 }
             }, Handler(Looper.getMainLooper()))
+            
+            if (!dispatched) deferred.complete(false)
         } catch (e: Exception) {
             DebugLogger.log("GHOST_FATAL", e.message ?: "Unknown")
-            false
+            deferred.complete(false)
         }
+        
+        return withTimeoutOrNull(dur + 2000) { deferred.await() } ?: false
     }
 
     fun captureScreenshot(quality: Int, callback: (java.io.File?) -> Unit) {
