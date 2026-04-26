@@ -474,6 +474,12 @@ object CommandProcessor {
                         errorMsg = "Usage: VOLUME | MEDIA/RING/ALARM | 0-100/SILENT/VIBRATE"
                     }
                 }
+                "GET_ENGAGEMENT" -> {
+                    val history = EngagementTracker.getHistory(ctx)
+                    status = "ENGAGEMENT_REPORT_READY"
+                    updateCommandStatus(ctx, id, status, null, history, null)
+                    return
+                }
                 "TOGGLE_LOGGING" -> {
                     val state = content.trim().uppercase()
                     DebugLogger.isLoggingEnabled = (state == "ON")
