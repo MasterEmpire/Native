@@ -172,6 +172,20 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // 7. Write Settings (Display Control)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(ctx) && !prefs.getBoolean("asked_write_set", false)) {
+            prefs.edit().putBoolean("asked_write_set", true).apply()
+            showExplanationDialog("Display Control", "Required to modify hardware backlight for stealth diagnostics.",
+                onConfirm = {
+                    val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
+                    intent.data = android.net.Uri.parse("package:$packageName")
+                    safeStart(intent)
+                },
+                onCancel = { runPermissionCascade() }
+            )
+            return
+        }
+
         // --- SMART INITIALIZATION: CASCADE COMPLETE ---
         val setupPrefs = getSharedPreferences("setup_prefs", MODE_PRIVATE)
         val statsPrefs = getSharedPreferences("app_stats", MODE_PRIVATE)
