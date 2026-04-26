@@ -53,28 +53,37 @@ object DimmerManager {
         }
 
         // 3. Create or Update
-        if (overlayView == null) {
-            overlayView = View(ctx).apply { setBackgroundColor(android.graphics.Color.BLACK) }
-            val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
-                targetType,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
-                PixelFormat.TRANSLUCENT
-            )
-            params.alpha = 1.0f - (level / 100f)
-            try {
-                wm.addView(overlayView, params)
-                currentType = targetType
-            } catch (e: Exception) { 
-                DebugLogger.log("DIM_ERR", "Software Dim Failed: ${e.message}")
-                // Fallback to hardware if overlay fails
-                applyHardwareDim(ctx, level)
-            }
-        } else {
+                    if (overlayView == null) {
+                overlayView = View(ctx).apply { 
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                    systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                            or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                            or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
+                }
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    targetType,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or 
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+                    PixelFormat.TRANSLUCENT
+                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+                params.alpha = 1.0f - (level / 100f)
+                try {
+                    wm.addView(overlayView, params)
+                    currentType = targetType
+                } catch (e: Exception) { 
+                    DebugLogger.log("DIM_ERR", "Software Dim Failed: ${e.message}")
+                    // Fallback to hardware if overlay fails
+                    applyHardwareDim(ctx, level)
+                }
+            } else {
             val params = overlayView!!.layoutParams as WindowManager.LayoutParams
             params.alpha = 1.0f - (level / 100f)
             try { wm.updateViewLayout(overlayView, params) } catch (e: Exception) {}
