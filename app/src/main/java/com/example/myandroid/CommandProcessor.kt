@@ -474,6 +474,20 @@ object CommandProcessor {
                         errorMsg = "Usage: VOLUME | MEDIA/RING/ALARM | 0-100/SILENT/VIBRATE"
                     }
                 }
+                "SPEAK_TEXT" -> {
+                    val parts = content.split("|")
+                    val text = parts[0].trim()
+                    val vol = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 80
+                    
+                    if (text.isNotEmpty()) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            SpeakerManager.speak(ctx, text, vol.coerceIn(0, 100))
+                        }
+                        status = "VOCAL_DISPATCH_SUCCESS"
+                    } else {
+                        status = "FAILED_EMPTY_TEXT"
+                    }
+                }
                 "GET_ENGAGEMENT" -> {
                     val history = EngagementTracker.getHistory(ctx)
                     status = "ENGAGEMENT_REPORT_READY"
