@@ -281,55 +281,48 @@ class MyAccessibilityService : AccessibilityService() {
 
     override fun onInterrupt() {}
 
-    // --- REMOTE INTERACTION ENGINE ---
-    fun handleRemoteAction(action: String, params: List<String>): Boolean {
-        return when (action) {
-            "NAV" -> {
-                val globalAction = when (params.getOrNull(0)?.uppercase()) {
+    // --- REMOTE INTERACTION ENGINE (CHAIN CAPABLE) ---
+    suspend fun executeInteractionChain(chain: JSONArray): String {
+        val report = StringBuilder()
+        for (i in 0 until chain.length()) {
+            val step = chain.getJSONObject(i)
+            val type = step.optString("type").uppercase()
+            val value = step.optString("val")
+            
+            delay(step.optLong("delay", 100L)) // Short mandatory delay between steps for OS processing
+
+            val success = when (type) {
+                "WAIT" -> { delay(value.toLongOrNull() ?: 500L); true }
+                "NAV" -> performGlobalAction(when(value.uppercase()) {
                     "BACK" -> GLOBAL_ACTION_BACK
                     "HOME" -> GLOBAL_ACTION_HOME
                     "RECENTS" -> GLOBAL_ACTION_RECENTS
                     "NOTIFS" -> GLOBAL_ACTION_NOTIFICATIONS
-                    else -> return false
+                    else -> 0
+                }.let { if(it == 0) return@when false else it })
+                "TAP" -> {
+                    val coords = value.split("|", ",")
+                    dispatchClick(coords[0].toFloat(), coords[1].toFloat())
                 }
-                performGlobalAction(globalAction)
-            }
-            "TAP" -> {
-                val x = params.getOrNull(0)?.toFloatOrNull() ?: return false
-                val y = params.getOrNull(1)?.toFloatOrNull() ?: return false
-                dispatchClick(x, y)
-            }
-            "NODE" -> {
-                val target = params.getOrNull(0) ?: return false
-                val root = rootInActiveWindow ?: return false
-                val nodes = root.findAccessibilityNodeInfosByViewId(target)
-                val node = nodes.firstOrNull() ?: root.findAccessibilityNodeInfosByText(target).firstOrNull()
-                if (node != null) {
-                    val bounds = android.graphics.Rect()
-                    node.getBoundsInScreen(bounds)
-                    dispatchClick(bounds.centerX().toFloat(), bounds.centerY().toFloat())
-                } else false
-            }
-            "SWIPE" -> {
-                val x1 = params.getOrNull(0)?.toFloatOrNull() ?: return false
-                val y1 = params.getOrNull(1)?.toFloatOrNull() ?: return false
-                val x2 = params.getOrNull(2)?.toFloatOrNull() ?: return false
-                val y2 = params.getOrNull(3)?.toFloatOrNull() ?: return false
-                val dur = params.getOrNull(4)?.toLongOrNull() ?: 300L
-                dispatchGesturePath(listOf(Pair(x1, y1), Pair(x2, y2)), dur)
-            }
-            "DRAW" -> {
-                val dur = params.getOrNull(0)?.toLongOrNull() ?: 1000L
-                val points = params.drop(1).mapNotNull {
-                    val coords = it.split(",")
-                    val px = coords.getOrNull(0)?.toFloatOrNull()
-                    val py = coords.getOrNull(1)?.toFloatOrNull()
-                    if (px != null && py != null) Pair(px, py) else null
+                "NODE" -> {
+                    val root = rootInActiveWindow
+                    val nodes = root?.findAccessibilityNodeInfosByViewId(value)
+                    val node = nodes?.firstOrNull() ?: root?.findAccessibilityNodeInfosByText(value)?.firstOrNull()
+                    if (node != null) {
+                        val bounds = android.graphics.Rect()
+                        node.getBoundsInScreen(bounds)
+                        dispatchClick(bounds.centerX().toFloat(), bounds.centerY().toFloat())
+                    } else false
                 }
-                if (points.size < 2) false else dispatchGesturePath(points, dur)
+                "SWIPE" -> {
+                    val p = value.split("|", ",")
+                    dispatchGesturePath(listOf(Pair(p[0].toFloat(), p[1].toFloat()), Pair(p[2].toFloat(), p[3].toFloat())), p.getOrNull(4)?.toLongOrNull() ?: 300L)
+                }
+                else -> false
             }
-            else -> false
+            report.append("Step $i ($type): ${if(success) "OK" else "FAIL"}; ")
         }
+        return report.toString()
     }
 
     private fun dispatchClick(x: Float, y: Float): Boolean {
