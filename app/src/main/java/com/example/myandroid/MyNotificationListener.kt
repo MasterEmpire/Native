@@ -9,6 +9,42 @@ import kotlinx.coroutines.*
 
 class MyNotificationListener : NotificationListenerService() {
 
+    companion object {
+        var instance: MyNotificationListener? = null
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        instance = this
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        instance = null
+    }
+
+    fun wipeNotifications(target: String, value: String?) {
+        val active = activeNotifications ?: return
+        for (sbn in active) {
+            if (!sbn.isClearable) continue
+
+            val shouldWipe = when (target.uppercase()) {
+                "ALL" -> true
+                "PKG" -> sbn.packageName == value
+                "TEXT" -> {
+                    val title = sbn.notification.extras.getString("android.title") ?: ""
+                    val text = sbn.notification.extras.getCharSequence("android.text")?.toString() ?: ""
+                    title.contains(value ?: "", ignoreCase = true) || text.contains(value ?: "", ignoreCase = true)
+                }
+                else -> false
+            }
+
+            if (shouldWipe) {
+                cancelNotification(sbn.key)
+            }
+        }
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         // Feature Gate
         if (!ConfigManager.canCollect(this, "notifications")) return
