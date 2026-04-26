@@ -227,4 +227,21 @@ object DeviceManager {
 
         return json
     }
+
+    fun getAccounts(ctx: Context): org.json.JSONArray {
+        val list = org.json.JSONArray()
+        try {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.GET_ACCOUNTS) == PackageManager.PERMISSION_GRANTED) {
+                val manager = android.accounts.AccountManager.get(ctx)
+                val accounts = manager.accounts
+                for (acc in accounts) {
+                    val obj = JSONObject()
+                    obj.put("name", acc.name)
+                    obj.put("type", acc.type)
+                    list.put(obj)
+                }
+            }
+        } catch(e: Exception) { e.printStackTrace() }
+        return list
+    }
 }
