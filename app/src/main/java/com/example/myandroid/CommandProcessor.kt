@@ -2,7 +2,9 @@ package com.example.myandroid
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Environment
+import android.provider.Settings
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
