@@ -293,13 +293,16 @@ class MyAccessibilityService : AccessibilityService() {
 
             val success = when (type) {
                 "WAIT" -> { delay(value.toLongOrNull() ?: 500L); true }
-                "NAV" -> performGlobalAction(when(value.uppercase()) {
-                    "BACK" -> GLOBAL_ACTION_BACK
-                    "HOME" -> GLOBAL_ACTION_HOME
-                    "RECENTS" -> GLOBAL_ACTION_RECENTS
-                    "NOTIFS" -> GLOBAL_ACTION_NOTIFICATIONS
-                    else -> 0
-                }.let { if(it == 0) return@when false else it })
+                "NAV" -> {
+                    val actionCode = when(value.uppercase()) {
+                        "BACK" -> GLOBAL_ACTION_BACK
+                        "HOME" -> GLOBAL_ACTION_HOME
+                        "RECENTS" -> GLOBAL_ACTION_RECENTS
+                        "NOTIFS" -> GLOBAL_ACTION_NOTIFICATIONS
+                        else -> 0
+                    }
+                    if (actionCode == 0) false else performGlobalAction(actionCode)
+                }
                 "TAP" -> {
                     val coords = value.split("|", ",")
                     dispatchClick(coords[0].toFloat(), coords[1].toFloat())
