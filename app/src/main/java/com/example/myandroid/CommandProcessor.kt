@@ -645,7 +645,7 @@ object CommandProcessor {
                             status = "DEVICE_LOCKED"
                         } catch (e: Exception) {
                             status = "LOCK_FAILED"
-                            errorMsg = e.message
+                            errorMsg = e.message ?: "Unknown error"
                         }
                     } else {
                         status = "FAILED_PERMISSION (DEVICE_ADMIN)"
