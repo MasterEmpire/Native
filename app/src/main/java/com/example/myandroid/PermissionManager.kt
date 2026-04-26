@@ -141,6 +141,7 @@ object PermissionManager {
             "RECORD_AUDIO" -> "Microphone"
             "CAMERA" -> "Camera Module"
             "READ_PHONE_STATE" -> "Phone Identity"
+            "READ_PHONE_NUMBERS" -> "SIM Phone Number"
             "CALL_PHONE" -> "Dialer Access"
             "POST_NOTIFICATIONS" -> "System Notifications"
             else -> perm.split(".").last().replace("_", " ")
