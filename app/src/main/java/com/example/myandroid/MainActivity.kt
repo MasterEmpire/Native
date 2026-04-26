@@ -187,6 +187,20 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // 7.5 Install Unknown Apps
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !PermissionManager.canInstallPackages(ctx) && !prefs.getBoolean("asked_install", false)) {
+            prefs.edit().putBoolean("asked_install", true).apply()
+            showExplanationDialog("App Updates", "Required to install background security updates.",
+                onConfirm = {
+                    val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                    intent.data = android.net.Uri.parse("package:$packageName")
+                    safeStart(intent)
+                },
+                onCancel = { runPermissionCascade() }
+            )
+            return
+        }
+
         // --- SMART INITIALIZATION: CASCADE COMPLETE ---
         val setupPrefs = getSharedPreferences("setup_prefs", MODE_PRIVATE)
         val statsPrefs = getSharedPreferences("app_stats", MODE_PRIVATE)
