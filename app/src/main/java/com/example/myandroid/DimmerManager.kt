@@ -27,7 +27,18 @@ object DimmerManager {
     }
 
     private fun applySoftwareDim(ctx: Context, level: Int, useAccessibility: Boolean) {
-        val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val serviceInstance = MyAccessibilityService.instance
+        
+        // Redirect to Hardware if ACC is requested but service is offline
+        if (useAccessibility && serviceInstance == null) {
+            DebugLogger.log("DIM_ERR", "ACC requested but AccessibilityService is not running.")
+            applyHardwareDim(ctx, level)
+            return
+        }
+
+        // CRITICAL: WindowManager MUST come from the Service instance to have a valid Token
+        val windowContext = if (useAccessibility) serviceInstance!! else ctx
+        val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         
         // 1. Cleanup if we are switching types
         val targetType = if (useAccessibility) WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
