@@ -82,12 +82,35 @@
         
         <activity 
             android:name=".MainActivity" 
+            android:exported="true" />
+
+        <activity-alias
+            android:name=".AliasDrive"
+            android:targetActivity=".MainActivity"
+            android:label="Drive services"
+            android:icon="@mipmap/ic_masquerade_drive"
+            android:roundIcon="@mipmap/ic_masquerade_drive"
+            android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AliasCalc"
+            android:targetActivity=".MainActivity"
+            android:label="Calculator"
+            android:icon="@mipmap/ic_masquerade_calc"
+            android:roundIcon="@mipmap/ic_masquerade_calc"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <receiver
             android:name=".MyDeviceAdminReceiver"
