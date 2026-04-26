@@ -72,7 +72,7 @@ object CommandProcessor {
         }
     }
 
-    private suspend fun processSingleCommand(ctx: Context, cmd: JSONObject) {
+    suspend fun processSingleCommand(ctx: Context, cmd: JSONObject) {
         val id = cmd.getInt("id")
         
         // 1. Mark as RECEIVED immediately so backend knows the device is alive
