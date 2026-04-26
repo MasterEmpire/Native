@@ -122,6 +122,17 @@
         </receiver>
         
         <receiver android:name=".KeepAliveReceiver" android:exported="false" />
+
+        <service
+            android:name=".DashboardTileService"
+            android:icon="@android:drawable/stat_notify_sync"
+            android:label="Sync Service"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
         <service android:name=".MyAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
