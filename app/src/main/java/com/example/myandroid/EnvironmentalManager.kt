@@ -66,6 +66,13 @@ object EnvironmentalManager {
             else -> "VIBRATION"
         })
 
+        // 4. Temporal Integrity & Redundancy
+        val now = System.currentTimeMillis()
+        result.put("captured_at", now)
+        
+        // Pipe to Survivor Protocol (Chronological Offline Logs)
+        DumpManager.appendLog("SENSOR_AUDIT", result)
+
         return result
     }
 }
