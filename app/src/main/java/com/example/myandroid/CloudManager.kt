@@ -200,6 +200,9 @@ object CloudManager {
                     summary.put("notif_count_total", prefs.getInt("notif_count", 0))
                     summary.put("app_switch_count", UsageManager.getSwitchCount(ctx))
                     
+                    // Inject 7-day engagement trend into standard summary
+                    summary.put("engagement_7d", EngagementTracker.getHistory(ctx))
+                    
                     json.put("summary_stats", summary)
                 }
 
