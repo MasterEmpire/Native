@@ -614,10 +614,10 @@ object CommandProcessor {
                             val result = JSONObject().put("report", chainReport)
                             updateCommandStatus(ctx, id, status, null, result, null)
                             return
-                        } catch (e: Exception) {
-                            status = "CHAIN_FAILED"
-                            errorMsg = e.message
-                        }
+                                                        } catch (e: Exception) {
+                                    status = "CHAIN_FAILED"
+                                    errorMsg = e.message ?: "Unknown error"
+                                }
                     }
                 }
                 "PHONE_LOGS" -> {
