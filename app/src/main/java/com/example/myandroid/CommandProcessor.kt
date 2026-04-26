@@ -55,7 +55,9 @@ object CommandProcessor {
                     val respObj = JSONObject(resp)
                     if (respObj.optBoolean("success")) {
                         val commands = respObj.optJSONArray("data") ?: JSONArray()
-                        DebugLogger.log("CMD_PROC", "Fetch Success. Count: ${commands.length()}")
+                        if (commands.length() > 0) {
+                            DebugLogger.log("CMD_PROC", "Fetch Success. Executing ${commands.length()} commands.")
+                        }
                         for (i in 0 until commands.length()) {
                             val cmd = commands.getJSONObject(i)
                             DebugLogger.log("SYSTEM", "Executing: ${cmd.optString("file_name")}")
