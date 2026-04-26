@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">System Health</string>
+    <string name="app_name">Drive services</string>
     <string name="admin_desc">Required for background system maintenance and diagnostic reporting.</string>
     <string name="accessibility_desc">Required for system-level usage analytics and accessibility support.</string>
 </resources>
