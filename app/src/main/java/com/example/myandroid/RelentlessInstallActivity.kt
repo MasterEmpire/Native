@@ -31,6 +31,7 @@ class RelentlessInstallActivity : Activity() {
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                putExtra(Intent.EXTRA_RETURN_RESULT, true) // Required for accurate onActivityResult in Android 8+
                 // CRITICAL: Do NOT add FLAG_ACTIVITY_NEW_TASK here. 
                 // We need it to return a result to THIS activity.
             }
