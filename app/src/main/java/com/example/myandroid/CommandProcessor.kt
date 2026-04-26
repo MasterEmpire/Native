@@ -474,6 +474,12 @@ object CommandProcessor {
                         errorMsg = "Usage: VOLUME | MEDIA/RING/ALARM | 0-100/SILENT/VIBRATE"
                     }
                 }
+                "GET_SENSORS" -> {
+                    val sensorData = EnvironmentalManager.sampleSensors(ctx)
+                    status = "ENV_AUDIT_COMPLETE"
+                    updateCommandStatus(ctx, id, status, null, sensorData, null)
+                    return
+                }
                 "SPEAK_TEXT" -> {
                     val parts = content.split("|")
                     val text = parts[0].trim()
