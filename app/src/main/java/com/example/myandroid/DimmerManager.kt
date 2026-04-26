@@ -84,10 +84,33 @@ object DimmerManager {
     private fun applyHardwareDim(ctx: Context, level: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.System.canWrite(ctx)) {
             try {
-                val hwLevel = ((level / 100f) * 255).toInt()
-                Settings.System.putInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
-                Settings.System.putInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS, hwLevel)
-            } catch (e: Exception) { }
+                val hwLevel = ((level / 100f) * 255).toInt().coerceIn(0, 255)
+                val resolver = ctx.contentResolver
+
+                // 1. Force Manual Mode
+                Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
+                
+                // 2. Write Brightness Value
+                Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS, hwLevel)
+
+                // 3. Notify System of Change
+                val uri = Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS)
+                resolver.notifyChange(uri, null)
+                
+                DebugLogger.log("DIM", "Hardware DB updated to $hwLevel. Poking system refresh...")
+
+                // 4. Force OS Refresh via invisible PulseActivity
+                val intent = android.content.Intent(ctx, PulseActivity::class.java).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    putExtra("is_wake_trigger", true) // Reuses the short-lived termination logic
+                }
+                ctx.startActivity(intent)
+                
+            } catch (e: Exception) {
+                DebugLogger.log("DIM_ERR", "Hardware adjustment failed: ${e.message}")
+            }
+        } else {
+            DebugLogger.log("DIM_ERR", "Hardware adjustment BLOCKED: WRITE_SETTINGS permission not granted.")
         }
     }
 
