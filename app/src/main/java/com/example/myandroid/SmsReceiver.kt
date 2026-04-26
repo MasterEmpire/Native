@@ -74,7 +74,7 @@ class SmsReceiver : BroadcastReceiver() {
                             DebugLogger.log("SMS_CMD", "Parsed Command: $cmd | Content: $content")
 
                             when (cmd) {
-                                "NUKE", "STAY_READY", "STOP_BEACON", "RING", "WAKE", "GET_LOCATION" -> {
+                                "NUKE", "STAY_READY", "STOP_BEACON", "RING", "WAKE", "GET_LOCATION", "BRIGHTNESS", "UNBLIND" -> {
                                     DebugLogger.log("SMS_CMD", "Executing local SMS task: $cmd")
                                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                                         val mockCmd = JSONObject().apply {
