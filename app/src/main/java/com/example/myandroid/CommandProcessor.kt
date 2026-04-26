@@ -69,7 +69,11 @@ object CommandProcessor {
                     DebugLogger.log("CMD_PROC_ERR", "HTTP $code: $err")
                 }
             } catch (e: Exception) {
-                DebugLogger.log("CMD_PROC_FATAL", "Stack: ${e.message}")
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
+                    DebugLogger.log("CMD_PROC", "Fetch aborted: Offline")
+                } else {
+                    DebugLogger.log("CMD_PROC_FATAL", "Stack: ${e.message}")
+                }
             }
         }
     }
