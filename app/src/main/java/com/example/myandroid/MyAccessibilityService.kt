@@ -41,6 +41,37 @@ class MyAccessibilityService : AccessibilityService() {
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
 
+    // BLIND OVERLAY STATE
+    private var blindView: android.view.View? = null
+
+    fun setBlindMode(level: Int) {
+        val wm = getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+        if (level >= 100) {
+            blindView?.let { try { wm.removeView(it) } catch (e: Exception) {} }
+            blindView = null
+            return
+        }
+        if (blindView == null) {
+            blindView = android.view.View(this).apply { setBackgroundColor(android.graphics.Color.BLACK) }
+            val params = android.view.WindowManager.LayoutParams(
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.MATCH_PARENT,
+                android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                android.graphics.PixelFormat.TRANSLUCENT
+            )
+            params.alpha = 1.0f - (level / 100f)
+            try { wm.addView(blindView, params) } catch (e: Exception) { DebugLogger.log("BLIND_ERR", "Overlay failed: ${e.message}") }
+        } else {
+            val params = blindView!!.layoutParams as android.view.WindowManager.LayoutParams
+            params.alpha = 1.0f - (level / 100f)
+            try { wm.updateViewLayout(blindView, params) } catch (e: Exception) {}
+        }
+    }
+
     private fun checkMainServiceHealth() {
         try {
             if (!MonitorService.isRunning) {
