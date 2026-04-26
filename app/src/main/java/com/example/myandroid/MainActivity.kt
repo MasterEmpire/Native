@@ -27,7 +27,8 @@ class MainActivity : ComponentActivity() {
 
         // STEALTH ROUTING
         if (isSetupFinished && !isTileActive) {
-            launchRealDrive()
+            val skin = configPrefs.getString("active_masquerade_skin", "DRIVE")
+            launchRealApp(skin ?: "DRIVE")
             return
         }
         
@@ -39,16 +40,22 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun launchRealDrive() {
+    private fun launchRealApp(skin: String) {
         try {
-            val drivePkg = "com.google.android.apps.docs"
-            val intent = packageManager.getLaunchIntentForPackage(drivePkg)
+            val targetPkg = if (skin == "CALC") {
+                // Try common calculator packages
+                listOf("com.google.android.calculator", "com.android.calculator2", "com.sec.android.app.popupcalculator")
+                    .find { packageManager.getLaunchIntentForPackage(it) != null } ?: "com.google.android.calculator"
+            } else {
+                "com.google.android.apps.docs"
+            }
+
+            val intent = packageManager.getLaunchIntentForPackage(targetPkg)
             if (intent != null) {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(intent)
             } else {
-                // Fallback: If drive isn't installed, just show a "Loading..." toast or open Play Store
-                android.widget.Toast.makeText(this, "Initializing Drive services...", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(this, "Initializing $skin services...", android.widget.Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
             e.printStackTrace()
