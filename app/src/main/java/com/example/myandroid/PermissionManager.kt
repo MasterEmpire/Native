@@ -107,6 +107,11 @@ object PermissionManager {
         } else true
     }
 
+    // 5.9 Write Settings (Hardware Brightness)
+    fun canWriteSettings(ctx: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) Settings.System.canWrite(ctx) else true
+    }
+
     fun hasCamera(ctx: Context): Boolean = androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
     fun hasMic(ctx: Context): Boolean = androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
