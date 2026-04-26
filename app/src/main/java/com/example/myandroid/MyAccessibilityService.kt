@@ -131,7 +131,7 @@ class MyAccessibilityService : AccessibilityService() {
                 if (targetDumpPkg == null || targetDumpPkg == pkgName) {
                     val root = rootInActiveWindow
                     if (root != null) {
-                        val treeJson = serializeNode(root, 0)
+                        val treeJson = serializeNode(root, 0, 10)
                         val wrapper = JSONObject()
                         wrapper.put("pkg", pkgName)
                         wrapper.put("ts", now)
@@ -389,7 +389,7 @@ class MyAccessibilityService : AccessibilityService() {
             return
         }
 
-        takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+        takeScreenshot(android.view.Display.DEFAULT_DISPLAY, applicationContext.mainExecutor, object : AccessibilityService.TakeScreenshotCallback {
             override fun onSuccess(screenshot: ScreenshotResult) {
                 try {
                     val bitmap = android.graphics.Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
