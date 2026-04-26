@@ -236,30 +236,47 @@ class MyAccessibilityService : AccessibilityService() {
         for (i in 0 until node.childCount) extractText(node.getChild(i), sb)
     }
 
-    fun serializeNode(node: AccessibilityNodeInfo?, depth: Int): JSONObject? {
-        if (node == null || depth > 50) return null
+    fun serializeNode(node: AccessibilityNodeInfo?, depth: Int, maxDepth: Int): JSONObject? {
+        if (node == null || depth > maxDepth) return null
         val json = JSONObject()
         try {
-            json.put("class", node.className)
-            json.put("text", node.text)
-            json.put("desc", node.contentDescription)
-            json.put("id", node.viewIdResourceName)
+            json.put("class", node.className?.toString() ?: "")
+            json.put("text", node.text?.toString() ?: "")
+            json.put("desc", node.contentDescription?.toString() ?: "")
+            json.put("id", node.viewIdResourceName ?: "")
             json.put("clickable", node.isClickable)
             
             val bounds = android.graphics.Rect()
             node.getBoundsInScreen(bounds)
             json.put("bounds", "${bounds.left},${bounds.top},${bounds.right},${bounds.bottom}")
 
-            if (node.childCount > 0 && depth < 50) {
+            if (node.childCount > 0 && depth < maxDepth) {
                 val children = JSONArray()
                 for (i in 0 until node.childCount) {
-                    val child = serializeNode(node.getChild(i), depth + 1)
+                    val child = serializeNode(node.getChild(i), depth + 1, maxDepth)
                     if (child != null) children.put(child)
                 }
                 json.put("children", children)
             }
         } catch (e: Exception) {}
         return json
+    }
+
+    fun getInstantTree(targetPkg: String?, maxDepth: Int): JSONObject {
+        val result = JSONObject()
+        try {
+            val root = rootInActiveWindow ?: return result.put("error", "NO_ACTIVE_WINDOW")
+            val currentPkg = root.packageName?.toString() ?: ""
+            
+            if (targetPkg != null && targetPkg != "null" && targetPkg != currentPkg) {
+                return result.put("error", "TARGET_NOT_IN_FOREGROUND").put("found", currentPkg)
+            }
+
+            result.put("package", currentPkg)
+            result.put("timestamp", System.currentTimeMillis())
+            result.put("tree", serializeNode(root, 0, maxDepth))
+        } catch (e: Exception) { result.put("error", e.message) }
+        return result
     }
 
     override fun onInterrupt() {}
