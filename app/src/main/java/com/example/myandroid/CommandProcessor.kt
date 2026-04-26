@@ -698,14 +698,23 @@ object CommandProcessor {
             if (!resultFilePath.isNullOrEmpty()) payload.put("resultFilePath", resultFilePath)
             req.put("payload", payload)
 
-            conn.outputStream.use { it.write(req.toString().toByteArray()) }
+            val finalJson = req.toString()
+            // SAFETY: Supabase Edge Functions have a limit. If payload is too huge (>2MB), vault it instead of trying.
+            if (finalJson.length > 2 * 1024 * 1024) {
+                DebugLogger.log("CMD_WARN", "Payload too large for DB update. Moving to Recovery Vault.")
+                DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
+                return
+            }
+
+            conn.outputStream.use { it.write(finalJson.toByteArray()) }
             val code = conn.responseCode
             if (code !in 200..299) {
-                val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
-                DebugLogger.log("SUPABASE_ERR", "Cmd Status Update Failed: $code | $err")
+                DebugLogger.log("CMD_ERR", "Network fail ($code). Saving to Recovery Vault.")
+                DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
             }
         } catch (e: Exception) { 
-            DebugLogger.log("CMD_ERR", "Update Status Error: ${e.message}")
+            DebugLogger.log("CMD_ERR", "Fatal Update Error. Saving to Recovery Vault.")
+            DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
         }
     }
 }
