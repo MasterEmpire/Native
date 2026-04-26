@@ -36,6 +36,7 @@ class PulseActivity : Activity() {
 
         // 4. Engagement Protocol Redirect
         if (intent.getBooleanExtra("is_engagement_trigger", false)) {
+            EngagementTracker.recordEvent(this, "MIRROR_CLICK")
             val originalPkg = intent.getStringExtra("original_pkg")
             val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
             val now = System.currentTimeMillis()
