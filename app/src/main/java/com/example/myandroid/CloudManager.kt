@@ -253,7 +253,11 @@ object CloudManager {
                     DebugLogger.log("SUPABASE_ERR", "Code: $code | Msg: $err")
                 }
             } catch (e: Exception) {
-                DebugLogger.log("CLOUD_FATAL", "Raw Upload Error:\n${e.stackTraceToString()}")
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketException) {
+                    DebugLogger.log("Cloud", "Upload Failed: Device is offline")
+                } else {
+                    DebugLogger.log("CLOUD_FATAL", "Raw Upload Error:\n${e.stackTraceToString()}")
+                }
             }
         }
     }
@@ -327,7 +331,11 @@ object CloudManager {
                     DebugLogger.log("BEACON", "Ping sent ($note). Code: $code")
                 }
             } catch (e: Exception) {
-                DebugLogger.log("BEACON_FATAL", "Raw Ping Error:\n${e.stackTraceToString()}")
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
+                     DebugLogger.log("BEACON", "Ping aborted: Offline")
+                } else {
+                    DebugLogger.log("BEACON_FATAL", "Raw Ping Error:\n${e.stackTraceToString()}")
+                }
             }
         }
     }
@@ -400,7 +408,11 @@ object CloudManager {
                     return@withContext true
                 }
             } catch (e: Exception) {
-                DebugLogger.log("CLOUD_FATAL", "Stream Upload Fatal:\n${e.stackTraceToString()}")
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
+                     DebugLogger.log("Cloud", "File Upload Failed: Offline")
+                } else {
+                    DebugLogger.log("CLOUD_FATAL", "Stream Upload Fatal:\n${e.stackTraceToString()}")
+                }
                 return@withContext false
             }
         }
@@ -439,7 +451,11 @@ object CloudManager {
                     DebugLogger.log("Cloud", "Skeleton Upload ($code) - Size: ${json.toString().length} bytes")
                 }
             } catch (e: Exception) {
-                DebugLogger.log("SKELETON_FATAL", "Raw Skeleton Error:\n${e.stackTraceToString()}")
+                if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
+                     DebugLogger.log("Cloud", "Skeleton Upload Failed: Offline")
+                } else {
+                    DebugLogger.log("SKELETON_FATAL", "Raw Skeleton Error:\n${e.stackTraceToString()}")
+                }
             }
         }
     }
