@@ -479,32 +479,23 @@ object CommandProcessor {
                     }
                 }
                 "BRIGHTNESS" -> {
-                    val level = content.trim().toIntOrNull() ?: 100
-                    val safeLevel = level.coerceIn(0, 100)
-                    if (MyAccessibilityService.instance != null) {
-                        Handler(Looper.getMainLooper()).post { MyAccessibilityService.instance?.setBlindMode(safeLevel) }
-                        status = "BLIND_OVERLAY_APPLIED ($safeLevel%)"
-                    } else {
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.System.canWrite(ctx)) {
-                            val hwLevel = ((safeLevel / 100f) * 255).toInt()
-                            android.provider.Settings.System.putInt(ctx.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
-                            android.provider.Settings.System.putInt(ctx.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS, hwLevel)
-                            status = "HARDWARE_BRIGHTNESS_SET ($safeLevel%)"
-                        } else {
-                            status = "FAILED_PERMISSION (WRITE_SETTINGS)"
-                            errorMsg = "Overlay unavailable and Write Settings denied."
-                        }
+                    val parts = content.split("|")
+                    val level = parts.getOrNull(0)?.trim()?.toIntOrNull() ?: 100
+                    val method = parts.getOrNull(1)?.trim()?.uppercase() ?: "OVERLAY"
+                    
+                    Handler(Looper.getMainLooper()).post {
+                        DimmerManager.applyDim(ctx, level, method)
                     }
+                    status = "BRIGHTNESS_ADJUSTED ($level% via $method)"
                 }
                 "UNBLIND" -> {
-                    if (MyAccessibilityService.instance != null) {
-                        Handler(Looper.getMainLooper()).post { MyAccessibilityService.instance?.setBlindMode(100) }
-                        status = "BLIND_OVERLAY_REMOVED"
+                    Handler(Looper.getMainLooper()).post {
+                        DimmerManager.removeOverlay(ctx)
+                        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.System.canWrite(ctx)) {
+                            Settings.System.putInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
+                        }
                     }
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.System.canWrite(ctx)) {
-                        android.provider.Settings.System.putInt(ctx.contentResolver, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE, android.provider.Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
-                        if (!status.contains("REMOVED")) status = "DISPLAY_RESTORED"
-                    }
+                    status = "DISPLAY_RESTORED"
                 }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
