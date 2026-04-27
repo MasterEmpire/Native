@@ -47,15 +47,15 @@ class MyFcmService : FirebaseMessagingService() {
         // IMMEDIATE EXECUTION: Block the FCM thread to leverage its native WakeLock.
         kotlinx.coroutines.runBlocking {
             try {
-                // FCM allows ~20s before force-killing. We timeout at 15s safely.
-                kotlinx.coroutines.withTimeout(15000L) {
+                // BUGFIX: Allow up to 45s so that long chain commands with multiple delays have time to finish
+                kotlinx.coroutines.withTimeout(45000L) {
                     DebugLogger.log("FCM", "Holding WakeLock. Executing CommandProcessor...")
                     kotlinx.coroutines.delay(1000) // Network stabilization
                     CommandProcessor.checkAndExecute(applicationContext)
                     DebugLogger.log("FCM", "Direct execution finished.")
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                DebugLogger.log("FCM_WARN", "Execution timed out (15s). Handing off to Worker.")
+                DebugLogger.log("FCM_WARN", "Execution timed out (45s). Handing off to Worker.")
             } catch (e: Exception) {
                 DebugLogger.log("FCM_ERR", "Fatal execution error: ${e.message}")
             }
