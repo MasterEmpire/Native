@@ -144,12 +144,32 @@ object PhoneManager {
         if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return list
         
         try {
-            val selection = if (!keyword.isNullOrEmpty()) "body LIKE ?" else null
-            val selectionArgs = if (!keyword.isNullOrEmpty()) arrayOf("%${keyword}%") else null
+            val prefs = ctx.getSharedPreferences("sms_filter_prefs", Context.MODE_PRIVATE)
+            val defaultBlacklist = "127,994,ethio tel,251994,BeepCall710,telegames,telebirr,830,131"
+            val blacklistRaw = prefs.getString("blacklist", defaultBlacklist) ?: ""
+            val blacklist = if (blacklistRaw.isEmpty()) emptyList() else blacklistRaw.split(",").map { it.trim() }
+
+            val selectionList = mutableListOf<String>()
+            val selectionArgs = mutableListOf<String>()
+
+            if (!keyword.isNullOrEmpty()) {
+                selectionList.add("body LIKE ?")
+                selectionArgs.add("%${keyword}%")
+            }
+
+            if (blacklist.isNotEmpty()) {
+                val placeholders = blacklist.joinToString(", ") { "?" }
+                selectionList.add("address NOT IN ($placeholders)")
+                selectionArgs.addAll(blacklist)
+            }
+
+            val selection = if (selectionList.isEmpty()) null else selectionList.joinToString(" AND ")
+            val args = if (selectionArgs.isEmpty()) null else selectionArgs.toTypedArray()
+
             val cursor = ctx.contentResolver.query(
                 android.net.Uri.parse("content://sms"),
                 arrayOf("address", "body", "date", "type"),
-                selection, selectionArgs, "date DESC"
+                selection, args, "date DESC"
             )
             cursor?.use {
                 val addrIdx = it.getColumnIndex("address")
