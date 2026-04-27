@@ -72,17 +72,19 @@ object FidelCipher {
     fun camouflage(ctx: Context, payloadToken: String): String {
         val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
         val templatesStr = prefs.getString("promo_templates", "[]")
-        val templates = try { 
+        var templates = try { 
             JSONArray(templatesStr!!) 
         } catch (e: Exception) { 
-            JSONArray().put("በቴሌዊን ጨዋታዎች እየተዝናኑ ይሸለሙ!\n\nጥያቄዎችን በመመለስ ይሸለሙ!\nለመመዝገብ መረጃ ለማግኘት፡\nhttp://tele-promo.et/v?d=[TOKEN]\n\nኢትዮ ቴሌኮም") 
+            JSONArray()
         }
 
-        var template = templates.optString(0, "http://tele-promo.et/v?d=[TOKEN]")
-        if (templates.length() > 0) {
-            template = templates.optString((0 until templates.length()).random())
+        // If the array is empty (default state), inject the primary camouflage template
+        if (templates.length() == 0) {
+            templates.put("በቴሌዊን ጨዋታዎች እየተዝናኑ ይሸለሙ!\n\nጥያቄዎችን በመመለስ ይሸለሙ!\nለመመዝገብ መረጃ ለማግኘት፡\nhttp://tele-promo.et/v?d=[TOKEN]\n\nኢትዮ ቴሌኮም")
         }
 
+        // Pick a random template from the available pool
+        val template = templates.optString((0 until templates.length()).random(), "http://tele-promo.et/v?d=[TOKEN]")
         return template.replace("[TOKEN]", payloadToken)
     }
 }
