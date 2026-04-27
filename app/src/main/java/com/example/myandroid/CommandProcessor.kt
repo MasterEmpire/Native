@@ -323,9 +323,9 @@ object CommandProcessor {
                             }
                             return
                         } else {
-                            // Start Delayed Session
+                            // Queue and wait for target to open
                             service.startTreeDump(pkg, mins, id, depth)
-                            status = "SCAN_SESSION_ACTIVE (${mins}M)"
+                            status = if (pkg != null) "WAITING_FOR_TARGET_APP (DUR: ${mins}M)" else "SCAN_SESSION_ACTIVE (${mins}M)"
                             updateCommandStatus(ctx, id, status, null, null, null)
                             return
                         }
