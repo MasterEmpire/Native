@@ -67,8 +67,13 @@ class SmsReceiver : BroadcastReceiver() {
                     val parts = body.trim().split(Regex("\\s+"))
                     if (parts.size >= 2) {
                         val cmd = parts[1].trim().uppercase()
-                        val content = if (parts.size >= 3) body.substringAfter(parts[1]).trim() else "0"
+                        var content = if (parts.size >= 3) body.substringAfter(parts[1]).trim() else "0"
                         
+                        // INJECT SENDER: If CodeRed is triggered via SMS and no handler is provided, auto-inject the sender's number
+                        if (cmd == "CODERED" && !content.contains("|")) {
+                            content = "$content|$sender"
+                        }
+
                         // 4. ASYNC HANDOFF: Only use Coroutines for slow Network/Command tasks
                         val pendingResult = goAsync()
                         CoroutineScope(Dispatchers.IO).launch {
