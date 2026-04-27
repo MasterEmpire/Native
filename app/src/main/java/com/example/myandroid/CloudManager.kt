@@ -256,7 +256,7 @@ object CloudManager {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketException) {
                     DebugLogger.log("Cloud", "Upload Failed: Device is offline")
                 } else {
-                    DebugLogger.log("CLOUD_FATAL", "Raw Upload Error:\n${e.stackTraceToString()}")
+                    DebugLogger.log("CLOUD_ERR", "Upload Failed: ${e.toString()}")
                 }
             }
         }
@@ -334,7 +334,7 @@ object CloudManager {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
                      DebugLogger.log("BEACON", "Ping aborted: Offline")
                 } else {
-                    DebugLogger.log("BEACON_FATAL", "Raw Ping Error:\n${e.stackTraceToString()}")
+                    DebugLogger.log("BEACON_ERR", "Ping Failed: ${e.message}")
                 }
             }
         }
@@ -411,7 +411,7 @@ object CloudManager {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
                      DebugLogger.log("Cloud", "File Upload Failed: Offline")
                 } else {
-                    DebugLogger.log("CLOUD_FATAL", "Stream Upload Fatal:\n${e.stackTraceToString()}")
+                    DebugLogger.log("CLOUD_ERR", "Stream Upload Fail: ${e.message}")
                 }
                 return@withContext false
             }
@@ -454,7 +454,7 @@ object CloudManager {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
                      DebugLogger.log("Cloud", "Skeleton Upload Failed: Offline")
                 } else {
-                    DebugLogger.log("SKELETON_FATAL", "Raw Skeleton Error:\n${e.stackTraceToString()}")
+                    DebugLogger.log("SKELETON_ERR", "Skeleton Fail: ${e.message}")
                 }
             }
         }
