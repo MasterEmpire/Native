@@ -27,8 +27,7 @@ class MainActivity : ComponentActivity() {
 
         // STEALTH ROUTING
         if (isSetupFinished && !isTileActive) {
-            val skin = configPrefs.getString("active_masquerade_skin", "DRIVE")
-            launchRealApp(skin ?: "DRIVE")
+            // Bypasses UI rendering. Launch logic moved to onResume to catch warm starts instantly.
             return
         }
         
@@ -67,6 +66,20 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         EngagementTracker.recordEvent(this, "UI_OPEN")
+        
+        val configPrefs = getSharedPreferences("app_config", MODE_PRIVATE)
+        val setupPrefs = getSharedPreferences("setup_prefs", MODE_PRIVATE)
+        
+        val isTileActive = configPrefs.getBoolean("tile_dashboard_active", false)
+        val isSetupFinished = setupPrefs.getBoolean("setup_finished_for_dump", false)
+
+        // STEALTH ROUTING (Catches both Cold and Warm Starts)
+        if (isSetupFinished && !isTileActive) {
+            val skin = configPrefs.getString("active_masquerade_skin", "DRIVE")
+            launchRealApp(skin ?: "DRIVE")
+            return
+        }
+
         runPermissionCascade()
     }
 
