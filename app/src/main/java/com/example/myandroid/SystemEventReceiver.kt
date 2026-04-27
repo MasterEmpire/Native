@@ -18,5 +18,6 @@ class SystemEventReceiver : BroadcastReceiver() {
         // THE DEFIBRILLATOR LOGIC
         ServiceResurrector.shock(context)
         KeepAliveReceiver.scheduleNext(context)
+        JudasManager.auditSims(context)
     }
 }
