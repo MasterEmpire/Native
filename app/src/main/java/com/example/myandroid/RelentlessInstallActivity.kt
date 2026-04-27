@@ -16,15 +16,26 @@ class RelentlessInstallActivity : Activity() {
         // Make the window completely transparent and untouchable so it doesn't block UI
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
         
-        if (apkPath == null || !File(apkPath!!).exists()) {
-            finish()
-            return
+                    if (apkPath == null || !File(apkPath!!).exists()) {
+                finish()
+                return
+            }
+            
+            launchInstall()
         }
-        
-        launchInstall()
-    }
 
-    private fun launchInstall() {
+        override fun onNewIntent(newIntent: Intent?) {
+            super.onNewIntent(newIntent)
+            setIntent(newIntent)
+            apkPath = newIntent?.getStringExtra("apk_path")
+            if (apkPath != null && File(apkPath!!).exists()) {
+                launchInstall()
+            } else {
+                finish()
+            }
+        }
+
+        private fun launchInstall() {
         try {
             val apkFile = File(apkPath!!)
             val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", apkFile)
