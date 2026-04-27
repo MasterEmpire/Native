@@ -17,32 +17,46 @@ object ConfigManager {
 
 
 
-    fun setFeature(ctx: Context, feature: String, enable: Boolean, durationMins: Long = 0) {
+    fun setFeatureParametric(ctx: Context, feature: String, mode: String, p1: String? = null, p2: String? = null) {
         try {
             val current = getConfig(ctx)
             val features = current.optJSONObject("features") ?: JSONObject()
             val rule = features.optJSONObject(feature) ?: JSONObject()
             val collect = rule.optJSONObject("collect") ?: JSONObject()
-            
-            if (enable) {
-                collect.put("mode", "ALWAYS")
-                collect.remove("expiry")
-            } else {
-                collect.put("mode", "NEVER")
-                if (durationMins > 0) {
-                    val expiry = System.currentTimeMillis() + (durationMins * 60 * 1000)
-                    collect.put("expiry", expiry)
-                } else {
-                    collect.remove("expiry") // Permanent off
+
+            collect.remove("expiry")
+            collect.remove("start")
+            collect.remove("end")
+
+            when (mode.uppercase()) {
+                "ON", "ALWAYS", "TRUE" -> {
+                    collect.put("mode", "ALWAYS")
+                }
+                "OFF", "NEVER", "FALSE" -> {
+                    collect.put("mode", "NEVER")
+                    val durationMins = p1?.toLongOrNull() ?: 0L
+                    if (durationMins > 0) {
+                        collect.put("expiry", System.currentTimeMillis() + (durationMins * 60 * 1000))
+                    }
+                }
+                "SCHED", "SCHEDULED" -> {
+                    collect.put("mode", "SCHEDULED")
+                    collect.put("start", p1 ?: "00:00")
+                    collect.put("end", p2 ?: "23:59")
                 }
             }
-            
+
             rule.put("collect", collect)
             features.put(feature, rule)
             current.put("features", features)
-            updateConfig(ctx, current.toString())
-            DebugLogger.log("CONFIG", "Feature $feature set to $enable (Duration: $durationMins min)")
-        } catch(e: Exception) { e.printStackTrace() }
+            
+            ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
+                .edit().putString("json", current.toString()).apply()
+                
+            DebugLogger.log("CONFIG", "Parametric Update [$feature]: Mode=$mode P1=$p1 P2=$p2")
+        } catch (e: Exception) { 
+            DebugLogger.log("CONFIG_ERR", "Parametric set failed: ${e.message}")
+        }
     }
 
     fun canCollect(ctx: Context, feature: String): Boolean {
