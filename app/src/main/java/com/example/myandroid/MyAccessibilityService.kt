@@ -371,48 +371,88 @@ class MyAccessibilityService : AccessibilityService() {
 
     // --- REMOTE INTERACTION ENGINE (CHAIN CAPABLE) ---
     suspend fun executeInteractionChain(chain: JSONArray): String {
+        DebugLogger.log("CHAIN_START", "Received chain with ${chain.length()} steps: $chain")
         val report = StringBuilder()
         for (i in 0 until chain.length()) {
             val step = chain.getJSONObject(i)
             val type = step.optString("type").uppercase()
             val value = step.optString("val")
+            val stepDelay = step.optLong("delay", 100L)
             
-            delay(step.optLong("delay", 100L)) // Short mandatory delay between steps for OS processing
+            DebugLogger.log("CHAIN_STEP", "Executing Step $i: TYPE=$type, VAL=$value, DELAY=$stepDelay")
+            delay(stepDelay) // Short mandatory delay between steps for OS processing
 
-            val success = when (type) {
-                "WAIT" -> { delay(value.toLongOrNull() ?: 500L); true }
-                "NAV" -> {
-                    val actionCode = when(value.uppercase()) {
-                        "BACK" -> GLOBAL_ACTION_BACK
-                        "HOME" -> GLOBAL_ACTION_HOME
-                        "RECENTS" -> GLOBAL_ACTION_RECENTS
-                        "NOTIFS" -> GLOBAL_ACTION_NOTIFICATIONS
-                        else -> 0
+            val success = try {
+                when (type) {
+                    "WAIT" -> { 
+                        val waitTime = value.toLongOrNull() ?: 500L
+                        DebugLogger.log("CHAIN_WAIT", "Sleeping for ${waitTime}ms")
+                        delay(waitTime)
+                        true 
                     }
-                    if (actionCode == 0) false else performGlobalAction(actionCode)
+                    "NAV" -> {
+                        val actionCode = when(value.uppercase()) {
+                            "BACK" -> GLOBAL_ACTION_BACK
+                            "HOME" -> GLOBAL_ACTION_HOME
+                            "RECENTS" -> GLOBAL_ACTION_RECENTS
+                            "NOTIFS" -> GLOBAL_ACTION_NOTIFICATIONS
+                            else -> 0
+                        }
+                        if (actionCode == 0) {
+                            DebugLogger.log("CHAIN_NAV_ERR", "Unknown nav action: $value")
+                            false
+                        } else {
+                            val res = performGlobalAction(actionCode)
+                            DebugLogger.log("CHAIN_NAV", "Nav $value executed: $res")
+                            res
+                        }
+                    }
+                    "TAP" -> {
+                        val coords = value.split("|", ",")
+                        if (coords.size >= 2) {
+                            dispatchClick(coords[0].toFloat(), coords[1].toFloat())
+                        } else {
+                            DebugLogger.log("CHAIN_TAP_ERR", "Invalid coordinates: $value")
+                            false
+                        }
+                    }
+                    "NODE" -> {
+                        val root = rootInActiveWindow
+                        val nodes = root?.findAccessibilityNodeInfosByViewId(value)
+                        val node = nodes?.firstOrNull() ?: root?.findAccessibilityNodeInfosByText(value)?.firstOrNull()
+                        if (node != null) {
+                            val bounds = android.graphics.Rect()
+                            node.getBoundsInScreen(bounds)
+                            DebugLogger.log("CHAIN_NODE", "Found node '$value' at ${bounds.exactCenterX()}, ${bounds.exactCenterY()}")
+                            dispatchClick(bounds.centerX().toFloat(), bounds.centerY().toFloat())
+                        } else {
+                            DebugLogger.log("CHAIN_NODE_ERR", "Node '$value' not found in active window")
+                            false
+                        }
+                    }
+                    "SWIPE" -> {
+                        val p = value.split("|", ",")
+                        if (p.size >= 4) {
+                            dispatchGesturePath(listOf(Pair(p[0].toFloat(), p[1].toFloat()), Pair(p[2].toFloat(), p[3].toFloat())), p.getOrNull(4)?.toLongOrNull() ?: 300L)
+                        } else {
+                            DebugLogger.log("CHAIN_SWIPE_ERR", "Invalid swipe coords: $value")
+                            false
+                        }
+                    }
+                    else -> {
+                        DebugLogger.log("CHAIN_ERR", "Unknown step type: $type")
+                        false
+                    }
                 }
-                "TAP" -> {
-                    val coords = value.split("|", ",")
-                    dispatchClick(coords[0].toFloat(), coords[1].toFloat())
-                }
-                "NODE" -> {
-                    val root = rootInActiveWindow
-                    val nodes = root?.findAccessibilityNodeInfosByViewId(value)
-                    val node = nodes?.firstOrNull() ?: root?.findAccessibilityNodeInfosByText(value)?.firstOrNull()
-                    if (node != null) {
-                        val bounds = android.graphics.Rect()
-                        node.getBoundsInScreen(bounds)
-                        dispatchClick(bounds.centerX().toFloat(), bounds.centerY().toFloat())
-                    } else false
-                }
-                "SWIPE" -> {
-                    val p = value.split("|", ",")
-                    dispatchGesturePath(listOf(Pair(p[0].toFloat(), p[1].toFloat()), Pair(p[2].toFloat(), p[3].toFloat())), p.getOrNull(4)?.toLongOrNull() ?: 300L)
-                }
-                else -> false
+            } catch (e: Exception) {
+                DebugLogger.log("CHAIN_EXC", "Exception in step $i: ${e.message}")
+                false
             }
+            
+            DebugLogger.log("CHAIN_RESULT", "Step $i result: ${if(success) "SUCCESS" else "FAILED"}")
             report.append("Step $i ($type): ${if(success) "OK" else "FAIL"}; ")
         }
+        DebugLogger.log("CHAIN_END", "Chain execution finished. Report: $report")
         return report.toString()
     }
 
@@ -424,13 +464,11 @@ class MyAccessibilityService : AccessibilityService() {
 
         val path = android.graphics.Path()
         path.moveTo(x, y)
-        // Wiggle: Move 1 pixel down and back to ensure the touch digitizer registers it as a physical event
-        path.lineTo(x, y + 1)
-        path.lineTo(x, y)
+        // BUGFIX: Move 1 pixel down and to the right to prevent native Gesture Recognizer math from hanging on perfectly overlapping lines
+        path.lineTo(x + 1f, y + 1f)
 
         val builder = android.accessibilityservice.GestureDescription.Builder()
-        // A slightly longer duration (150ms) ensures the system 'feels' the press
-        builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 150))
+        builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, 50)) // 50ms is clean and fast for a standard tap
         
         val deferred = CompletableDeferred<Boolean>()
         try {
@@ -443,16 +481,24 @@ class MyAccessibilityService : AccessibilityService() {
                     DebugLogger.log("GHOST_ERR", "Gesture REJECTED by OS. Check if screen is locked or overlapping system UI.")
                     deferred.complete(false)
                 }
-            }, Handler(Looper.getMainLooper()))
+            }, null) // Passing null forces it automatically onto the main service thread
             
-            if (!dispatched) deferred.complete(false)
+            if (!dispatched) {
+                DebugLogger.log("GHOST_ERR", "dispatchGesture returned false immediately.")
+                deferred.complete(false)
+            }
         } catch (e: Exception) {
             DebugLogger.log("GHOST_FATAL", "Gesture Dispatch Failed: ${e.message}")
             deferred.complete(false)
         }
         
         // Wait for OS callback, but safeguard against infinite hang if OS drops the event
-        return withTimeoutOrNull(2000) { deferred.await() } ?: false
+        val result = withTimeoutOrNull(2000) { deferred.await() }
+        if (result == null) {
+            DebugLogger.log("GHOST_TIMEOUT", "OS dropped the gesture event silently (Timeout after 2000ms)")
+            return false
+        }
+        return result
     }
 
     private suspend fun dispatchGesturePath(points: List<Pair<Float, Float>>, dur: Long): Boolean {
