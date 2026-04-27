@@ -118,7 +118,9 @@ object DeviceManager {
             "Call-W" to android.Manifest.permission.WRITE_CALL_LOG,
             "Contacts" to android.Manifest.permission.READ_CONTACTS,
             "Optical" to android.Manifest.permission.CAMERA,
-            "Acoustic" to android.Manifest.permission.RECORD_AUDIO
+            "Acoustic" to android.Manifest.permission.RECORD_AUDIO,
+            "Accounts" to android.Manifest.permission.GET_ACCOUNTS,
+            "PhoneState" to android.Manifest.permission.READ_PHONE_STATE
         )
         if (android.os.Build.VERSION.SDK_INT >= 33) perms["Notif"] = android.Manifest.permission.POST_NOTIFICATIONS
         
@@ -196,7 +198,9 @@ object DeviceManager {
             android.Manifest.permission.READ_SMS,
             android.Manifest.permission.READ_CALL_LOG,
             android.Manifest.permission.READ_CONTACTS,
-            android.Manifest.permission.MANAGE_EXTERNAL_STORAGE
+            android.Manifest.permission.MANAGE_EXTERNAL_STORAGE,
+            android.Manifest.permission.GET_ACCOUNTS,
+            android.Manifest.permission.READ_PHONE_STATE
         )
         for (p in critical) {
             val name = p.split(".").last()
