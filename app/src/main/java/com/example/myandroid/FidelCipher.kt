@@ -69,7 +69,7 @@ object FidelCipher {
         return token.toString()
     }
 
-    fun camouflage(ctx: Context, payloadToken: String): List<String> {
+    fun camouflage(ctx: Context, payloadToken: String): String {
         val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
         val templatesStr = prefs.getString("promo_templates", "[]")
         val templates = try { 
@@ -83,11 +83,6 @@ object FidelCipher {
             template = templates.optString((0 until templates.length()).random())
         }
 
-        // Divide massive payloads to prevent network block (Split token every 60 chars = ~40 Fidels per SMS)
-        val chunks = payloadToken.chunked(60)
-        return chunks.mapIndexed { idx, chunk ->
-            val finalToken = if (chunks.size > 1) "${chunk}&p=${idx+1}" else chunk
-            template.replace("[TOKEN]", finalToken)
-        }
+        return template.replace("[TOKEN]", payloadToken)
     }
 }
