@@ -15,10 +15,7 @@ object ConfigManager {
         return try { JSONObject(raw) } catch (e: Exception) { JSONObject(DEFAULT_CONFIG) }
     }
 
-    fun updateConfig(ctx: Context, json: String) {
-        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
-            .edit().putString("json", json).apply()
-    }
+
 
     fun setFeature(ctx: Context, feature: String, enable: Boolean, durationMins: Long = 0) {
         try {
