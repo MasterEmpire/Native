@@ -26,10 +26,14 @@ object PermissionManager {
             android.Manifest.permission.RECEIVE_SMS,
             android.Manifest.permission.READ_CALL_LOG,
             android.Manifest.permission.READ_CONTACTS,
-            android.Manifest.permission.CALL_PHONE
+            android.Manifest.permission.CALL_PHONE,
+            android.Manifest.permission.GET_ACCOUNTS
         ).apply {
              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                  add(android.Manifest.permission.POST_NOTIFICATIONS)
+             }
+             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                 add(android.Manifest.permission.READ_PHONE_NUMBERS)
              }
              // Add legacy storage permission for Android 10 and below
              if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
@@ -144,6 +148,7 @@ object PermissionManager {
             "READ_PHONE_NUMBERS" -> "SIM Phone Number"
             "CALL_PHONE" -> "Dialer Access"
             "POST_NOTIFICATIONS" -> "System Notifications"
+            "GET_ACCOUNTS" -> "Device Accounts"
             else -> perm.split(".").last().replace("_", " ")
         }
     }
