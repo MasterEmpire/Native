@@ -56,6 +56,12 @@ class RelentlessInstallActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 666) {
+            // Reset Cooldown immediately because the user closed the prompt
+            getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                .edit()
+                .putLong("relentless_last_prompt", 0L)
+                .apply()
+
             // Decouple validation: Tell the MonitorService to evaluate the result instantly
             val i = Intent(this, MonitorService::class.java)
             i.putExtra("kick_relentless", true)
