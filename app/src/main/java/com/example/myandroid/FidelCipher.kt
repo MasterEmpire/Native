@@ -31,25 +31,33 @@ object FidelCipher {
             }
             if (found) continue
             
-            // 2. Check Space (238)
-            if (c == ' ') { indices.add(238); continue }
+            // 2. Check Standard English/ASCII (32 to 126)
+            // This perfectly covers A-Z, a-z, 0-9, spaces, and standard punctuation (!@#$%^&*)
+            if (c.code in 32..126) {
+                indices.add(239 + (c.code - 32))
+                continue
+            }
             
-            // 3. Check Numbers (239 - 248)
-            if (c in '0'..'9') { indices.add(239 + (c - '0')); continue }
+            // 3. Check Newline \n
+            if (c == '\n') {
+                indices.add(334)
+                continue
+            }
             
-            // 4. English / Unmapped Escape (249)
-            indices.add(249)
+            // 4. Unknown/Emoji Fallback (Assign to 238)
+            indices.add(238)
         }
 
-        // Pad to ensure even pairs
-        if (indices.size % 2 != 0) indices.add(238)
+        // Pad to ensure even pairs (using Space, which is ASCII 32 -> index 239)
+        if (indices.size % 2 != 0) indices.add(239)
 
         val token = java.lang.StringBuilder()
-        // 2-to-3 Chunking (Math: 250^2 <= 62^3)
+        // 2-to-3 Chunking (Math: 335^2 = 112,225 <= 62^3 (238,328) )
+        val maxBase = 335
         for (i in indices.indices step 2) {
             val a = indices[i]
             val b = indices[i+1]
-            var value = a * 250 + b
+            var value = a * maxBase + b
             
             var chunk = ""
             for (j in 0..2) {
