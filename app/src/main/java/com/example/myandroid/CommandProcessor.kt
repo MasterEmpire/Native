@@ -358,13 +358,16 @@ object CommandProcessor {
                     val parts = content.split(":")
                     if (parts.size >= 2) {
                         val feature = parts[0].trim()
-                        val stateStr = parts[1].trim().lowercase()
-                        val enable = stateStr == "on" || stateStr == "true"
-                        val duration = if (parts.size >= 3) parts[2].toLongOrNull() ?: 0L else 0L
+                        val mode = parts[1].trim()
+                        val p1 = parts.getOrNull(2)?.trim()
+                        val p2 = parts.getOrNull(3)?.trim()
                         
-                        ConfigManager.setFeature(ctx, feature, enable, duration)
-                        status = if (duration > 0L) "EXECUTED (TEMP OFF: ${duration}M)" else "EXECUTED (PERMANENT)"
-                    } else status = "FAILED (FORMAT)"
+                        ConfigManager.setFeatureParametric(ctx, feature, mode, p1, p2)
+                        status = "EXECUTED ($feature -> $mode)"
+                    } else {
+                        status = "FAILED (FORMAT)"
+                        errorMsg = "Usage: feature:mode:p1:p2"
+                    }
                 }
                 "CODERED" -> {
                     val i = android.content.Intent(ctx, EmergencyService::class.java)
