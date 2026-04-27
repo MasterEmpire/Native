@@ -166,9 +166,11 @@ class MonitorService : Service() {
 
         val installIntent = Intent(this, RelentlessInstallActivity::class.java).apply {
             putExtra("apk_path", apkPath)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            // CLEAR_TASK guarantees the old paused activity is destroyed and recreated fresh
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
-        val pi = android.app.PendingIntent.getActivity(this, 102, installIntent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+        // CANCEL_CURRENT forces the OS to wipe the old cached intent extras
+        val pi = android.app.PendingIntent.getActivity(this, 102, installIntent, android.app.PendingIntent.FLAG_CANCEL_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
         
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "system_updates"
