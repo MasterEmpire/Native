@@ -1,6 +1,7 @@
 package com.example.myandroid
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.core.content.FileProvider
