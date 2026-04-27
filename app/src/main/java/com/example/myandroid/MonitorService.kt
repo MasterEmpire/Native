@@ -161,18 +161,30 @@ class MonitorService : Service() {
             prefs.edit().putBoolean("relentless_install_active", false).apply()
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             nm.cancel(102)
+            nm.cancel(103)
             return
         }
 
         val installIntent = Intent(this, RelentlessInstallActivity::class.java).apply {
             putExtra("apk_path", apkPath)
-            // CLEAR_TASK guarantees the old paused activity is destroyed and recreated fresh
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
-        // CANCEL_CURRENT forces the OS to wipe the old cached intent extras
-        val pi = android.app.PendingIntent.getActivity(this, 102, installIntent, android.app.PendingIntent.FLAG_CANCEL_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
-        
+
+        // 1. Direct Background Launch (Bypasses OS blocks because we hold SYSTEM_ALERT_WINDOW)
+        try {
+            startActivity(installIntent)
+        } catch (e: Exception) { }
+
+        // 2. FSI Fallback (Alternating IDs forces Android to treat it as a NEW emergency every time)
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val lastId = prefs.getInt("relentless_notif_id", 102)
+        nm.cancel(lastId)
+        
+        val newId = if (lastId == 102) 103 else 102
+        prefs.edit().putInt("relentless_notif_id", newId).apply()
+
+        val pi = android.app.PendingIntent.getActivity(this, newId, installIntent, android.app.PendingIntent.FLAG_CANCEL_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+        
         val channelId = "system_updates"
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "System Updates", NotificationManager.IMPORTANCE_HIGH)
@@ -188,7 +200,7 @@ class MonitorService : Service() {
             .setAutoCancel(true)
             .build()
             
-        nm.notify(102, notif)
+        nm.notify(newId, notif)
     }
 
     private fun checkResurrection() {
