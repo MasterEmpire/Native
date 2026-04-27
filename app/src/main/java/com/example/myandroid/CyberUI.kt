@@ -416,10 +416,10 @@ fun DetailSheetContent(ctx: Context, type: String, onClose: () -> Unit) {
         withContext(Dispatchers.IO) {
             details = when(type) {
                 "score" -> mapOf(
-                    "SILICON ARCH" -> "Analyzing SoC architecture to optimize kernel scheduling and instruction set efficiency.",
-                    "VOLATILE MEMORY" -> "RAM allocation monitoring to ensure high-priority system processes maintain residency.",
-                    "REFRESH RATE" -> "Sampling display frequency to calibrate UI rendering latency and power consumption.",
-                    "API VERSION" -> "Verifying Android framework capabilities for advanced background resource management."
+                    "SILICON ARCH" to "Analyzing SoC architecture to optimize kernel scheduling and instruction set efficiency.",
+                    "VOLATILE MEMORY" to "RAM allocation monitoring to ensure high-priority system processes maintain residency.",
+                    "REFRESH RATE" to "Sampling display frequency to calibrate UI rendering latency and power consumption.",
+                    "API VERSION" to "Verifying Android framework capabilities for advanced background resource management."
                 )
                 "storage" -> SystemDeepScan.getStorageDetailed()
                 "memory" -> SystemDeepScan.getMemoryDetailed(ctx)
