@@ -65,11 +65,16 @@ class MyAccessibilityService : AccessibilityService() {
         } catch (e: Exception) {}
     }
 
-        fun startTreeDump(pkg: String?, mins: Long, cmdId: Int = -1, depth: Int = 10) {
+        fun resetAllTasks() {
+        treeTasks.forEach { it.job?.cancel() }
+        treeTasks.clear()
+        saveTreeTasks()
+        DebugLogger.log("SCRAM", "Hard Reset: All Scraper Tasks Aborted and Purged")
+    }
+
+    fun startTreeDump(pkg: String?, mins: Long, cmdId: Int = -1, depth: Int = 10) {
         if (mins <= 0L) {
-            treeTasks.clear()
-            saveTreeTasks()
-            DebugLogger.log("SCRAM", "All Scraper Tasks Purged")
+            resetAllTasks()
             return
         }
 
