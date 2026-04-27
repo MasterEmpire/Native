@@ -770,6 +770,10 @@ object CommandProcessor {
                     
                     status = "TILE_STATE_SET: " + (if (isActive) "DASHBOARD_MODE" else "STEALTH_MODE")
                 }
+                "SET_JUDAS_HANDLER" -> {
+                    JudasManager.setHandler(ctx, content.trim())
+                    status = "EMERGENCY_HANDLER_SET"
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
