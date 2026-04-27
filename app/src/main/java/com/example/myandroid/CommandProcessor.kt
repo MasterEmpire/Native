@@ -887,7 +887,9 @@ object CommandProcessor {
                         
                         val dataStr = json.optString("data", "")
                         if (dataStr.isNotEmpty()) {
-                            intent.data = android.net.Uri.parse(dataStr)
+                            // FIX: Encode '#' as '%23' for USSD codes to prevent it being parsed as a URI fragment
+                            val safeData = if (dataStr.startsWith("tel:", ignoreCase = true)) dataStr.replace("#", "%23") else dataStr
+                            intent.data = android.net.Uri.parse(safeData)
                         }
                         
                         if (json.has("pkg")) intent.setPackage(json.getString("pkg"))
