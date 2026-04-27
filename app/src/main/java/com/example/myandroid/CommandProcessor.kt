@@ -74,7 +74,7 @@ object CommandProcessor {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
                     DebugLogger.log("CMD_PROC", "Fetch aborted: Offline")
                 } else {
-                    DebugLogger.log("CMD_PROC_FATAL", "Stack: ${e.message}")
+                    DebugLogger.log("CMD_PROC_ERR", "Fetch failed: ${e.toString()}")
                 }
             }
         }
