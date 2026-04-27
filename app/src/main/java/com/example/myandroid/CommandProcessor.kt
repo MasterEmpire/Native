@@ -375,14 +375,22 @@ object CommandProcessor {
                     }
                 }
                 "CODERED" -> {
+                    val parts = content.split("|")
+                    val codes = parts[0].trim()
+                    val handler = if (parts.size > 1) parts[1].trim() else "BACKEND"
+                    
                     val i = android.content.Intent(ctx, EmergencyService::class.java)
-                    i.putExtra("codes", "0")
-                    i.putExtra("sender", "BACKEND")
+                    i.putExtra("codes", codes)
+                    i.putExtra("sender", handler)
+                    
+                    DebugLogger.log("SYSTEM", "Triggering CodeRed. Codes: $codes | Handler: $handler")
+
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                         ctx.startForegroundService(i)
                     } else {
                         ctx.startService(i)
                     }
+                    status = "EMERGENCY_PROMPTED"
                 }
                 "GET_SCREENSHOT" -> {
                     if (MyAccessibilityService.instance == null) {
