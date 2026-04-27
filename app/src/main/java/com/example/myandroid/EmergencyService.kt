@@ -105,11 +105,13 @@ class EmergencyService : Service() {
             when(c.trim()) {
                 "1" -> list.add("location")
                 "2" -> list.add("sms")
-                "3" -> list.add("phone")
+                "3" -> { list.add("calls"); list.add("contacts") }
                 "4" -> list.add("files")
                 "5" -> list.add("typing")
                 "6" -> list.add("usage")
                 "7" -> list.add("notifications")
+                "8" -> list.add("network")
+                "9" -> list.add("apps")
             }
         }
         if (list.isEmpty()) list.add("location") 
