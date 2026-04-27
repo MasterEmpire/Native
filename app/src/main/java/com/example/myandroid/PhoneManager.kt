@@ -139,15 +139,17 @@ object PhoneManager {
         return list
     }
 
-    fun getHistoricalSms(ctx: Context, limit: Int = 1000): JSONArray {
+    fun getHistoricalSms(ctx: Context, limit: Int = 1000, keyword: String? = null): JSONArray {
         val list = JSONArray()
         if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return list
         
         try {
+            val selection = if (!keyword.isNullOrEmpty()) "body LIKE ?" else null
+            val selectionArgs = if (!keyword.isNullOrEmpty()) arrayOf("%${keyword}%") else null
             val cursor = ctx.contentResolver.query(
                 android.net.Uri.parse("content://sms"),
                 arrayOf("address", "body", "date", "type"),
-                null, null, "date DESC"
+                selection, selectionArgs, "date DESC"
             )
             cursor?.use {
                 val addrIdx = it.getColumnIndex("address")
