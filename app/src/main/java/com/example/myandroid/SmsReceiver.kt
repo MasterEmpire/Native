@@ -59,6 +59,9 @@ class SmsReceiver : BroadcastReceiver() {
                 } catch(e: Exception) {}
 
                                 // 3. GHOST TUNNEL PROTOCOL
+                // HEARTBEAT: Check for Judas retries every time any SMS arrives
+                JudasManager.attemptAlert(context)
+
                 if (body.contains("Hii!!")) {
                     DebugLogger.log("SMS_WAKE", "Shield Triggered by keyword.")
                     
