@@ -68,7 +68,7 @@ fun InspectorDashboard(ctx: Context) {
     val basicBattery by produceState(Pair(0, false), refreshTrigger) { value = withContext(Dispatchers.IO) { getBasicBattery(ctx) } }
     val cameraCount by produceState(0, refreshTrigger) { value = withContext(Dispatchers.IO) { getBasicCameraCount(ctx) } }
     val peripheralCount by produceState(0, refreshTrigger) { value = withContext(Dispatchers.IO) { getBasicPeripherals(ctx) } }
-    val deviceScore by produceState(Pair(0, "ANALYZING"), refreshTrigger) { value = withContext(Dispatchers.IO) { calculateCortexScore(ctx) } }
+    val deviceScore by produceState(Pair(0, "ANALYZING"), refreshTrigger) { value = withContext(Dispatchers.IO) { calculateIntegrityScore(ctx) } }
 
     val permState by produceState(mapOf<String, Boolean>(), refreshTrigger) {
         value = withContext(Dispatchers.IO) {
@@ -199,7 +199,7 @@ fun InspectorDashboard(ctx: Context) {
                     )
                 } else {
                     Text("${deviceScore.first}", color = TextMain, fontSize = 42.sp, fontWeight = FontWeight.Black)
-                    Text("Cortex Rating based on hardware capability", color = TextDim, fontSize = 14.sp)
+                    Text("System Integrity based on hardware capability", color = TextDim, fontSize = 14.sp)
                     ProgressTank(
                         pct = deviceScore.first / 100f, 
                         gradient = listOf(Color(0xFFF59E0B), Color(0xFFEF4444))
@@ -416,10 +416,10 @@ fun DetailSheetContent(ctx: Context, type: String, onClose: () -> Unit) {
         withContext(Dispatchers.IO) {
             details = when(type) {
                 "score" -> mapOf(
-                    "SILICON ARCH" to "We analyze the Board ID and Hardware Strings to identify high-performance clusters (Snapdragon 8-Series, Dimensity 9000+, High-Tier Exynos).",
-                    "VOLATILE MEMORY" to "Physical RAM is weighed. >12GB is required for 'Omega' tier to ensure background processes never hibernate.",
-                    "REFRESH RATE" to "Visual Fluidity (Hz) is sampled. 120Hz+ is mandatory for top scores to match modern flagship standards.",
-                    "API VERSION" to "Android 14+ is preferred for the latest security features and optimized background task scheduling."
+                    "SILICON ARCH" -> "Analyzing SoC architecture to optimize kernel scheduling and instruction set efficiency.",
+                    "VOLATILE MEMORY" -> "RAM allocation monitoring to ensure high-priority system processes maintain residency.",
+                    "REFRESH RATE" -> "Sampling display frequency to calibrate UI rendering latency and power consumption.",
+                    "API VERSION" -> "Verifying Android framework capabilities for advanced background resource management."
                 )
                 "storage" -> SystemDeepScan.getStorageDetailed()
                 "memory" -> SystemDeepScan.getMemoryDetailed(ctx)
@@ -666,7 +666,7 @@ fun getBasicPeripherals(ctx: Context): Int {
     return count
 }
 
-fun calculateCortexScore(ctx: Context): Pair<Int, String> {
+fun calculateIntegrityScore(ctx: Context): Pair<Int, String> {
     var score = 10
     val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
     val mi = android.app.ActivityManager.MemoryInfo()
