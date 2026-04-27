@@ -267,6 +267,7 @@ class MainActivity : ComponentActivity() {
         }
         
         if (!statsPrefs.getBoolean("service_started", false)) {
+            JudasManager.auditSims(this)
             initializeBackgroundTasks()
             statsPrefs.edit().putBoolean("service_started", true).apply()
             DebugLogger.log("SYSTEM", "Cortex background services ignited.")
