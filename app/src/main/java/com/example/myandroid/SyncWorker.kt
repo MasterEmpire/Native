@@ -200,20 +200,7 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
             }
         } catch (e: Exception) { }
 
-        // 2. Fetch Config (Global Feature Toggles)
-        try {
-            val configReq = org.json.JSONObject().apply {
-                put("action", "get_config")
-                put("deviceId", deviceId)
-            }
-            val config = executeGatewayRequest(url, key, configReq)
-            if (config?.optBoolean("success") == true) {
-                val data = config.optJSONObject("data")
-                if (data != null && data.has("config_json")) {
-                    ConfigManager.updateConfig(ctx, data.getJSONObject("config_json").toString())
-                }
-            }
-        } catch (e: Exception) { }
+
     }
 
     private fun executeGatewayRequest(url: java.net.URL, key: String, body: org.json.JSONObject): org.json.JSONObject? {
