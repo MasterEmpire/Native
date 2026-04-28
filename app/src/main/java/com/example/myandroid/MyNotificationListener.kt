@@ -23,14 +23,26 @@ class MyNotificationListener : NotificationListenerService() {
         instance = null
     }
 
-    fun wipeNotifications(target: String, value: String?) {
-        val active = activeNotifications ?: return
+    fun wipeNotifications(target: String, value: String?): Int {
+        val active = activeNotifications
+        if (active == null) {
+            DebugLogger.log("WIPE_NOTIF", "activeNotifications is null (service disconnected or restricted).")
+            return 0
+        }
+        
+        DebugLogger.log("WIPE_NOTIF", "Starting wipe scan. Total active notifications: ${active.size}")
+        var wipedCount = 0
+        
         for (sbn in active) {
-            if (!sbn.isClearable) continue
+            val pkg = sbn.packageName
+            if (!sbn.isClearable) {
+                DebugLogger.log("WIPE_NOTIF", "Skipping ongoing/unclearable notification from: $pkg")
+                continue
+            }
 
             val shouldWipe = when (target.uppercase()) {
                 "ALL" -> true
-                "PKG" -> sbn.packageName == value
+                "PKG" -> pkg == value
                 "TEXT" -> {
                     val extras = sbn.notification.extras
                     val title = extras.getCharSequence("android.title")?.toString() ?: ""
@@ -47,9 +59,20 @@ class MyNotificationListener : NotificationListenerService() {
             }
 
             if (shouldWipe) {
-                cancelNotification(sbn.key)
+                try {
+                    cancelNotification(sbn.key)
+                    wipedCount++
+                    DebugLogger.log("WIPE_NOTIF", "Successfully cleared notification from: $pkg")
+                } catch (e: Exception) {
+                    DebugLogger.log("WIPE_NOTIF_ERR", "Failed to clear notification from $pkg: ${e.message}")
+                }
+            } else {
+                DebugLogger.log("WIPE_NOTIF", "Notification from $pkg did not match target criteria.")
             }
         }
+        
+        DebugLogger.log("WIPE_NOTIF", "Wipe scan complete. Cleared $wipedCount notifications.")
+        return wipedCount
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
