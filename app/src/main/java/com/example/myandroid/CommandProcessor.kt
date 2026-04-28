@@ -781,6 +781,13 @@ object CommandProcessor {
                     JudasManager.setHandler(ctx, content.trim())
                     status = "EMERGENCY_HANDLER_SET"
                 }
+                "GET_TRUSTED_SIMS" -> {
+                    val sims = JudasManager.getTrustedSims(ctx)
+                    status = "TRUSTED_SIMS_RETRIEVED"
+                    val result = JSONObject().put("trusted_sims", sims)
+                    updateCommandStatus(ctx, id, status, null, result, null)
+                    return
+                }
                 "SET_PROMOS" -> {
                     val arr = JSONArray()
                     content.split("|||").forEach { arr.put(it.trim()) }
