@@ -511,6 +511,7 @@ object CommandProcessor {
                                 sim.put("carrier", info.carrierName)
                                 sim.put("display_name", info.displayName)
                                 sim.put("country", info.countryIso)
+                                sim.put("id", info.subscriptionId)
                                 
                                 // Try to get the actual number
                                 var num = "Unknown"
