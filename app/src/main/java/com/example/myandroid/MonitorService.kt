@@ -82,6 +82,15 @@ class MonitorService : Service() {
             checkRelentlessInstall()
         }
 
+        // 1.5 Media Projection Delegate
+        if (intent?.action == "ACTION_START_RECORDING") {
+            val resultCode = intent.getIntExtra("resultCode", 0)
+            val data = intent.getParcelableExtra<Intent>("data")
+            if (data != null) {
+                ScreenRecordManager.startRecording(this, resultCode, data)
+            }
+        }
+
         // 2. Start Logic Loop
         startLoop()
         
