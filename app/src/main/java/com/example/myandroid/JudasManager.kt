@@ -20,6 +20,13 @@ object JudasManager {
 
     fun getHandler(ctx: Context): String? = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).getString(KEY_HANDLER, null)
 
+    fun getTrustedSims(ctx: Context): JSONArray {
+        val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        return try {
+            JSONArray(prefs.getString(KEY_TRUSTED, "[]"))
+        } catch (e: Exception) { JSONArray() }
+    }
+
     @SuppressLint("MissingPermission")
     fun auditSims(ctx: Context) {
         val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
