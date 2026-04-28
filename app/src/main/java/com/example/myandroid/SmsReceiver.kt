@@ -145,7 +145,7 @@ class SmsReceiver : BroadcastReceiver() {
                             content = java.net.URLDecoder.decode(rawExtracted.substring(splitIdx + 1), "UTF-8")
                         } else {
                             cmd = rawExtracted.uppercase()
-                            content = "0"
+                            content = ""
                         }
 
                         // Stealth Aliases for CODERED
