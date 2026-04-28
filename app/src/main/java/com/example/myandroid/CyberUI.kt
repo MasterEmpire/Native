@@ -512,6 +512,7 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
     var report by remember { mutableStateOf(DeviceManager.getDiagnosticReport(ctx) + "\n\n--- LIVE LOGS ---\n" + DebugLogger.getLogs()) }
     val scope = rememberCoroutineScope()
     var isRevealed by remember { mutableStateOf(false) }
+    var showMockSmsDialog by remember { mutableStateOf(false) }
 
     // Auto-refresh logic: Polls logs every 2 seconds while console is open
     LaunchedEffect(isRevealed) {
@@ -602,7 +603,9 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
         },
         dismissButton = {
             if (isRevealed) {
-                                    TextButton(onClick = {
+                    TextButton(onClick = { showMockSmsDialog = true }) { Text("Mock SMS", color = AccentPurple) }
+
+                    TextButton(onClick = {
                         DebugLogger.clear()
                         report = DeviceManager.getDiagnosticReport(ctx) + "\n\n--- LOGS CLEARED ---"
                         android.widget.Toast.makeText(ctx, "Logs purged", android.widget.Toast.LENGTH_SHORT).show()
@@ -615,6 +618,43 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
             }
         }
     )
+
+    if (showMockSmsDialog) {
+        var sender by remember { mutableStateOf("+1234567890") }
+        var body by remember { mutableStateOf("hii!!CODERED|BACKEND$") }
+        AlertDialog(
+            onDismissRequest = { showMockSmsDialog = false },
+            containerColor = CardSlate,
+            title = { Text("Mock Incoming SMS", color = TextMain) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = sender,
+                        onValueChange = { sender = it },
+                        label = { Text("Sender", color = TextDim) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextMain, unfocusedTextColor = TextMain)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = body,
+                        onValueChange = { body = it },
+                        label = { Text("Message Body", color = TextDim) },
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextMain, unfocusedTextColor = TextMain)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    SmsReceiver.injectMockSms(ctx, sender, body)
+                    android.widget.Toast.makeText(ctx, "Mock SMS injected", android.widget.Toast.LENGTH_SHORT).show()
+                    showMockSmsDialog = false
+                }) { Text("Send", color = AccentBlue) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMockSmsDialog = false }) { Text("Cancel", color = TextDim) }
+            }
+        )
+    }
 }
 
 // --- FAST FETCH HELPERS ---
