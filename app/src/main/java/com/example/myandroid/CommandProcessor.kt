@@ -924,15 +924,26 @@ object CommandProcessor {
                         errorMsg = "Accessibility service is offline."
                     } else {
                         try {
-                            val chain = if (content.trim().startsWith("[")) {
-                                JSONArray(content)
+                            val trimmed = content.trim()
+                            var initialDelay = 0L
+                            val chain = if (trimmed.startsWith("{")) {
+                                val obj = JSONObject(trimmed)
+                                initialDelay = obj.optLong("delay", 0L)
+                                obj.optJSONArray("chain") ?: JSONArray()
+                            } else if (trimmed.startsWith("[")) {
+                                JSONArray(trimmed)
                             } else {
                                 // Legacy Fallback Converter
-                                val parts = content.split("|")
+                                val parts = trimmed.split("|")
                                 JSONArray().put(JSONObject().apply {
                                     put("type", parts[0].trim())
                                     put("val", parts.getOrNull(1)?.trim() ?: "")
                                 })
+                            }
+                            
+                            if (initialDelay > 0) {
+                                DebugLogger.log("CHAIN_START", "Applying initial delay of ${initialDelay}ms")
+                                kotlinx.coroutines.delay(initialDelay)
                             }
                             
                             val chainReport = MyAccessibilityService.instance?.executeInteractionChain(chain)
