@@ -299,10 +299,10 @@ object CloudManager {
                 payload.put("trigger", "BEACON")
                 payload.put("note", note)
                 
-                extraData?.keys()?.forEach { key -> payload.put(key, extraData.get(key)) }
-                
                 val summary = JSONObject()
                 summary.put("status", "ONLINE")
+                // FIX: Put extra data inside the JSONB summary_stats column to prevent SQL schema crashes
+                extraData?.keys()?.forEach { key -> summary.put(key, extraData.get(key)) }
                 payload.put("summary_stats", summary)
 
                 val wrapper = JSONObject()
