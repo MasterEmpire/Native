@@ -741,7 +741,13 @@ object CommandProcessor {
                 "ADD_AUTO_SWIPE" -> {
                     val parts = content.split("|")
                     if (parts.size >= 2) {
-                        val type = parts[0].trim().lowercase() // pkgs, keywords, senders
+                        val rawType = parts[0].trim().lowercase()
+                        val type = when (rawType) {
+                            "pkg", "package" -> "pkgs"
+                            "keyword", "kw" -> "keywords"
+                            "sender", "num", "number" -> "senders"
+                            else -> rawType
+                        }
                         val newVal = parts[1].trim()
                         val aPrefs = ctx.getSharedPreferences("auto_swipe_prefs", Context.MODE_PRIVATE)
                         val existing = aPrefs.getString(type, "") ?: ""
