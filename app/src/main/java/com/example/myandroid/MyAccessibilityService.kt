@@ -439,6 +439,22 @@ class MyAccessibilityService : AccessibilityService() {
                             false
                         }
                     }
+                    "PATH" -> {
+                        val p = value.split("|", ",")
+                        if (p.size >= 4) {
+                            val points = mutableListOf<Pair<Float, Float>>()
+                            val hasDuration = p.size % 2 != 0
+                            val limit = if (hasDuration) p.size - 1 else p.size
+                            for (j in 0 until limit step 2) {
+                                points.add(Pair(p[j].toFloat(), p[j+1].toFloat()))
+                            }
+                            val duration = if (hasDuration) p.last().toLongOrNull() ?: 1000L else 1000L
+                            dispatchGesturePath(points, duration)
+                        } else {
+                            DebugLogger.log("CHAIN_PATH_ERR", "Invalid path coords. Need pairs of X,Y: $value")
+                            false
+                        }
+                    }
                     "INTENT" -> {
                         try {
                             val json = JSONObject(value)
