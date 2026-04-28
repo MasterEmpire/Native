@@ -390,6 +390,48 @@ class MyAccessibilityService : AccessibilityService() {
                         delay(waitTime)
                         true 
                     }
+                    "WAKE" -> {
+                        val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
+                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                            android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:ChainWake")
+                        wakeLock.acquire(3000)
+
+                        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        val channelId = "system_integrity_alerts"
+                        
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            val channel = android.app.NotificationChannel(channelId, "System Integrity", android.app.NotificationManager.IMPORTANCE_HIGH)
+                            channel.setSound(null, null)
+                            channel.enableVibration(false)
+                            nm.createNotificationChannel(channel)
+                        }
+
+                        val intent = android.content.Intent(applicationContext, PulseActivity::class.java).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION or android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                            putExtra("is_wake_trigger", true)
+                            if (value.contains("wellbeing", ignoreCase = true)) putExtra("route_to_settings", true)
+                        }
+
+                        val pendingIntent = android.app.PendingIntent.getActivity(
+                            applicationContext, 99, intent, 
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+
+                        val builder = androidx.core.app.NotificationCompat.Builder(applicationContext, channelId)
+                            .setSmallIcon(android.R.drawable.ic_menu_info_details)
+                            .setContentTitle("System Update")
+                            .setContentText("Synchronizing system health parameters...")
+                            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                            .setCategory(androidx.core.app.NotificationCompat.CATEGORY_ALARM)
+                            .setFullScreenIntent(pendingIntent, true)
+                            .setAutoCancel(true)
+                            .setTimeoutAfter(3000)
+
+                        nm.notify(99, builder.build())
+                        DebugLogger.log("CHAIN_WAKE", "Strong FSI Wake lock dispatched")
+                        true
+                    }
                     "NAV" -> {
                         val actionCode = when(value.uppercase()) {
                             "BACK" -> GLOBAL_ACTION_BACK
