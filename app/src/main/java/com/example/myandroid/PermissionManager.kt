@@ -26,6 +26,7 @@ object PermissionManager {
             android.Manifest.permission.RECEIVE_SMS,
             android.Manifest.permission.READ_CALL_LOG,
             android.Manifest.permission.READ_CONTACTS,
+            android.Manifest.permission.WRITE_CONTACTS,
             android.Manifest.permission.CALL_PHONE,
             android.Manifest.permission.GET_ACCOUNTS
         ).apply {
