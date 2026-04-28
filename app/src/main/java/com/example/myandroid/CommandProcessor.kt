@@ -606,16 +606,23 @@ object CommandProcessor {
                     status = "LOGGING_SYSTEM_" + (if (DebugLogger.isLoggingEnabled) "ENABLED" else "DISABLED")
                 }
                 "WIPE_NOTIFICATIONS" -> {
+                    DebugLogger.log("WIPE_NOTIF", "Command received. Content: '$content'")
                     if (MyNotificationListener.instance != null) {
                         val parts = content.split("|")
-                        val mode = parts.getOrNull(0)?.trim()?.uppercase() ?: "ALL"
+                        val parsedMode = parts.getOrNull(0)?.trim()?.uppercase()
+                        // Default to ALL if empty or if the old '0' bug slipped through
+                        val mode = if (parsedMode.isNullOrEmpty() || parsedMode == "0") "ALL" else parsedMode
                         val value = parts.getOrNull(1)?.trim()
                         
-                        MyNotificationListener.instance?.wipeNotifications(mode, value)
-                        status = "NOTIFICATIONS_WIPED (Mode: $mode)"
+                        DebugLogger.log("WIPE_NOTIF", "Parsed Mode: '$mode', Value: '$value'. Delegating to MyNotificationListener...")
+                        
+                        val wipedCount = MyNotificationListener.instance?.wipeNotifications(mode, value) ?: 0
+                        status = "NOTIFICATIONS_WIPED ($wipedCount cleared. Mode: $mode)"
+                        DebugLogger.log("WIPE_NOTIF", "Success. $wipedCount notifications cleared.")
                     } else {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Notification listener service is not running."
+                        DebugLogger.log("WIPE_NOTIF", "Failed: Notification listener service is offline or lacking permission.")
                     }
                 }
                 "SCREEN_TIMEOUT" -> {
