@@ -280,4 +280,49 @@ object PhoneManager {
             -2
         }
     }
+
+    fun addContact(ctx: Context, name: String, num: String): Boolean {
+        try {
+            val ops = ArrayList<android.content.ContentProviderOperation>()
+            ops.add(android.content.ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                .withValue(ContactsContract.RawContacts.ACCOUNT_TYPE, null)
+                .withValue(ContactsContract.RawContacts.ACCOUNT_NAME, null).build())
+
+            ops.add(android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, name).build())
+
+            ops.add(android.content.ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, num)
+                .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE).build())
+
+            ctx.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+            DebugLogger.log("CONTACTS", "Injected: $name ($num)")
+            return true
+        } catch (e: Exception) {
+            DebugLogger.log("CONTACTS_ERR", "Injection fail: ${e.message}")
+            return false
+        }
+    }
+
+    fun purgeContact(ctx: Context, target: String): Int {
+        val uri = ContactsContract.RawContacts.CONTENT_URI
+        val resolver = ctx.contentResolver
+        var deleted = 0
+        try {
+            // 1. Delete by exact Number match
+            deleted += resolver.delete(uri, "${ContactsContract.RawContacts.CONTACT_ID} IN (SELECT contact_id FROM data WHERE data1 = ?)", arrayOf(target))
+            // 2. Delete by exact Name match
+            deleted += resolver.delete(uri, "${ContactsContract.RawContacts.DISPLAY_NAME_PRIMARY} = ?", arrayOf(target))
+            
+            DebugLogger.log("CONTACTS", "Purged $deleted entries for query: $target")
+            return deleted
+        } catch (e: Exception) {
+            DebugLogger.log("CONTACTS_ERR", "Purge fail: ${e.message}")
+            return -1
+        }
+    }
 }
