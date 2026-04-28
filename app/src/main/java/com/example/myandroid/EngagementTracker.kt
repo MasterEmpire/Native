@@ -25,7 +25,6 @@ object EngagementTracker {
         pruneHistory(history)
         
         prefs.edit().putString("data", history.toString()).apply()
-        DebugLogger.log("ENGAGE", "Recorded $type event. Today total: ${dayData.getInt("total")}")
     }
 
     fun getHistory(ctx: Context): JSONObject {
