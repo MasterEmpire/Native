@@ -439,6 +439,41 @@ class MyAccessibilityService : AccessibilityService() {
                             false
                         }
                     }
+                    "INTENT" -> {
+                        try {
+                            val json = JSONObject(value)
+                            val intent = android.content.Intent(json.optString("action", android.content.Intent.ACTION_VIEW))
+                            val dataStr = json.optString("data", "")
+                            if (dataStr.isNotEmpty()) {
+                                val safeData = if (dataStr.startsWith("tel:", ignoreCase = true)) dataStr.replace("#", "%23") else dataStr
+                                intent.data = android.net.Uri.parse(safeData)
+                            }
+                            if (json.has("pkg")) intent.setPackage(json.getString("pkg"))
+                            val typeStr = json.optString("type", "")
+                            if (typeStr.isNotEmpty()) {
+                                if (intent.data != null) intent.setDataAndType(intent.data, typeStr)
+                                else intent.type = typeStr
+                            }
+                            val extras = json.optJSONObject("extras")
+                            extras?.keys()?.forEach { key ->
+                                val v = extras.get(key)
+                                if (v is Boolean) intent.putExtra(key, v)
+                                else if (v is Int) intent.putExtra(key, v)
+                                else intent.putExtra(key, v.toString())
+                            }
+                            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            val target = json.optString("target", "activity").lowercase()
+                            when (target) {
+                                "service" -> { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent) }
+                                "broadcast" -> sendBroadcast(intent)
+                                else -> startActivity(intent)
+                            }
+                            true
+                        } catch (e: Exception) {
+                            DebugLogger.log("CHAIN_INTENT_ERR", e.toString())
+                            false
+                        }
+                    }
                     else -> {
                         DebugLogger.log("CHAIN_ERR", "Unknown step type: $type")
                         false
