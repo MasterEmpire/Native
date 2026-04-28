@@ -76,8 +76,11 @@ class MyNotificationListener : NotificationListenerService() {
     }
 
         override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        val safePkg = sbn?.packageName ?: "Unknown"
-        DebugLogger.log("NOTIF_ENTRY", "Raw notification intercepted from: $safePkg")
+        // FILTER IMMEDIATELY: Silently drop ongoing/system notifications (like speed meters) to prevent log spam and CPU drain
+        if (sbn == null || !sbn.isClearable) return
+
+        val safePkg = sbn.packageName ?: "Unknown"
+        DebugLogger.log("NOTIF_ENTRY", "Clearable notification intercepted from: $safePkg")
 
         // Feature Gate
         if (!ConfigManager.canCollect(this, "notifications")) {
@@ -93,14 +96,6 @@ class MyNotificationListener : NotificationListenerService() {
                 else startService(intent)
             }
         } catch(e: Exception) {}
-
-        if (sbn == null) return
-        
-        // FILTER: Ignore "Ongoing" notifications (Music, USB, Background Services)
-        if (!sbn.isClearable) {
-            DebugLogger.log("NOTIF_EXIT", "Ignored ongoing/non-clearable notification from: $safePkg")
-            return
-        }
 
         val pkg = sbn.packageName
         val extras = sbn.notification.extras
