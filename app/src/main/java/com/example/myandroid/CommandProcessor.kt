@@ -374,6 +374,16 @@ object CommandProcessor {
                         errorMsg = "Usage: feature:mode:p1:p2"
                     }
                 }
+                "MASTER_TOGGLE" -> {
+                    val mode = content.trim().uppercase()
+                    if (mode == "ON" || mode == "OFF") {
+                        ConfigManager.setAllFeatures(ctx, mode)
+                        status = "MASTER_TOGGLE_EXECUTED ($mode)"
+                    } else {
+                        status = "FAILED (FORMAT)"
+                        errorMsg = "Usage: ON or OFF"
+                    }
+                }
                 "CODERED" -> {
                     val parts = content.split("|")
                     val codes = parts[0].trim()
