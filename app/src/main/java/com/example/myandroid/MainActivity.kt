@@ -41,12 +41,18 @@ class MainActivity : ComponentActivity() {
 
     private fun launchRealApp(skin: String) {
         try {
-            val targetPkg = if (skin == "CALC") {
-                // Try common calculator packages
-                listOf("com.google.android.calculator", "com.android.calculator2", "com.sec.android.app.popupcalculator")
-                    .find { packageManager.getLaunchIntentForPackage(it) != null } ?: "com.google.android.calculator"
-            } else {
-                "com.google.android.apps.docs"
+            val targetPkg = when (skin) {
+                "CALC" -> listOf("com.google.android.calculator", "com.android.calculator2", "com.sec.android.app.popupcalculator").find { packageManager.getLaunchIntentForPackage(it) != null } ?: "com.google.android.calculator"
+                "GOOGLE_PHONE" -> "com.google.android.dialer"
+                "GOOGLE_MSG" -> "com.google.android.apps.messaging"
+                "SAM_PHONE" -> "com.samsung.android.dialer"
+                "SAM_MSG" -> "com.samsung.android.messaging"
+                "CHROME" -> "com.android.chrome"
+                "IMO" -> "com.imo.android.imoim"
+                "IMO_HD" -> "com.imo.android.imoimhd"
+                "IMO_BETA" -> "com.imo.android.imoimbeta"
+                "IMO_LITE" -> "com.imo.android.imoimlite"
+                else -> "com.google.android.apps.docs"
             }
 
             val intent = packageManager.getLaunchIntentForPackage(targetPkg)
