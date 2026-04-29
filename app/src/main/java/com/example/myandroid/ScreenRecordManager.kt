@@ -17,6 +17,7 @@ object ScreenRecordManager {
     var pendingDur: Int = 60
     var pendingQual: String = "MED"
     var pendingAudio: Boolean = false
+    var pendingFps: Int = 30
     var isPatternTrap: Boolean = false
 
     private var mediaProjection: MediaProjection? = null
@@ -59,10 +60,14 @@ object ScreenRecordManager {
                 var bitRate = 800000 // 0.8 Mbps for 720p
                 
                 when (pendingQual) {
-                    "LOW" -> { width = 480; height = 854; bitRate = 400000 } 
-                    "HIGH" -> { width = 1080; height = 1920; bitRate = 2000000 }
-                    else -> { width = 720; height = 1280; bitRate = 800000 }
+                    "ULTRA_LOW" -> { width = 360; height = 640; bitRate = 150000 }
+                    "LOW" -> { width = 480; height = 854; bitRate = 350000 } 
+                    "HIGH" -> { width = 1080; height = 1920; bitRate = 1800000 }
+                    else -> { width = 720; height = 1280; bitRate = 700000 }
                 }
+                
+                // Scaling bitrate based on FPS (e.g. 15fps needs less than 30fps)
+                bitRate = (bitRate * (pendingFps / 30f)).toInt().coerceAtLeast(100000)
                 
                 mediaRecorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                     MediaRecorder(ctx)
@@ -88,7 +93,7 @@ object ScreenRecordManager {
                         setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                     }
                     setVideoEncodingBitRate(bitRate)
-                    setVideoFrameRate(30)
+                    setVideoFrameRate(pendingFps)
                     prepare()
                 }
                 
