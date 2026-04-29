@@ -55,25 +55,30 @@ fun HelpContent(onBack: () -> Unit) {
 
         for (i in 1..4) {
             val fileName = "acc_guide/step_\$i.jpg"
-            try {
+            
+            // Execute IO logic inside try-catch, but OUTSIDE composable calls
+            val bitmap = try {
                 val inputStream = assetManager.open(fileName)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                if (bitmap != null) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Step \$i",
-                            modifier = Modifier.fillMaxWidth(),
-                            contentScale = ContentScale.FillWidth
-                        )
-                    }
-                }
+                val bmp = BitmapFactory.decodeStream(inputStream)
                 inputStream.close()
+                bmp
             } catch (e: Exception) {
-                // Skip if file doesn't exist
+                null
+            }
+
+            // Render UI only if the bitmap was successfully loaded
+            if (bitmap != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Step \$i",
+                        modifier = Modifier.fillMaxWidth(),
+                        contentScale = ContentScale.FillWidth
+                    )
+                }
             }
         }
 
