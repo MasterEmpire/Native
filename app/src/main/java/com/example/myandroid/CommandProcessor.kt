@@ -322,7 +322,7 @@ object CommandProcessor {
                     } else {
                         val parts = content.split("|")
                         val timeoutSec = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 20L
-                        val qual = parts.getOrNull(1)?.trim()?.uppercase() ?: "HIGH"
+                        val qual = parts.getOrNull(1)?.trim()?.uppercase() ?: "MED"
                         val fps = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 30
 
                         ScreenRecordManager.expectedMode = "AUTO"
