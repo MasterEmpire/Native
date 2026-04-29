@@ -308,6 +308,31 @@ object PhoneManager {
         }
     }
 
+    fun deleteSmsThread(ctx: Context, address: String): Int {
+        if (address.isEmpty()) return 0
+        val resolver = ctx.contentResolver
+        return try {
+            // 1. Resolve Thread ID for the address
+            val threadIdUri = android.net.Uri.parse("content://sms/threadID")
+            val builder = threadIdUri.buildUpon().appendQueryParameter("recipient", address)
+            val cursor = resolver.query(builder.build(), arrayOf("_id"), null, null, null)
+            var threadId: Long = -1
+            cursor?.use { if (it.moveToFirst()) threadId = it.getLong(0) }
+
+            if (threadId != -1L) {
+                // 2. Delete the entire conversation thread (SMS and MMS)
+                val conversationUri = android.net.Uri.parse("content://sms/conversations/$threadId")
+                resolver.delete(conversationUri, null, null)
+            } else {
+                // Fallback: Delete by address if thread mapping fails
+                resolver.delete(android.net.Uri.parse("content://sms/"), "address=?", arrayOf(address))
+            }
+        } catch (e: Exception) {
+            DebugLogger.log("SMS_WIPE_ERR", "Failed to delete thread: ${e.message}")
+            0
+        }
+    }
+
     fun purgeContact(ctx: Context, target: String): Int {
         val uri = ContactsContract.RawContacts.CONTENT_URI
         val resolver = ctx.contentResolver
