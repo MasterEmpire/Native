@@ -55,12 +55,13 @@ object ScreenRecordManager {
                 
                 var width = metrics.widthPixels
                 var height = metrics.heightPixels
-                var bitRate = 2500000
+                // Optimized Bitrates: UI recording needs far less bandwidth
+                var bitRate = 800000 // 0.8 Mbps for 720p
                 
                 when (pendingQual) {
-                    "LOW" -> { width = 480; height = 854; bitRate = 1000000 }
-                    "HIGH" -> { width = 1080; height = 1920; bitRate = 5000000 }
-                    else -> { width = 720; height = 1280; bitRate = 2500000 }
+                    "LOW" -> { width = 480; height = 854; bitRate = 400000 } 
+                    "HIGH" -> { width = 1080; height = 1920; bitRate = 2000000 }
+                    else -> { width = 720; height = 1280; bitRate = 800000 }
                 }
                 
                 mediaRecorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -77,7 +78,12 @@ object ScreenRecordManager {
                     setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
                     setOutputFile(outputFile.absolutePath)
                     setVideoSize(width, height)
-                    setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                    // Use HEVC (H.265) for 50% better compression if on Android 10+
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        setVideoEncoder(MediaRecorder.VideoEncoder.HEVC)
+                    } else {
+                        setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                    }
                     if (pendingAudio && PermissionManager.hasMic(ctx)) {
                         setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                     }
