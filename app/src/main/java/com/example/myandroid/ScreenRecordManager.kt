@@ -19,6 +19,7 @@ object ScreenRecordManager {
     var pendingAudio: Boolean = false
     var pendingFps: Int = 30
     var isPatternTrap: Boolean = false
+    var patternSuccessTimeoutMs: Long = 20000L
 
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
