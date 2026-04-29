@@ -22,21 +22,11 @@ object DefaultSmsManager {
         }
 
         try {
-            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val roleManager = ctx.getSystemService(RoleManager::class.java)
-                roleManager?.createRequestRoleIntent(RoleManager.ROLE_SMS)
-            } else {
-                Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT).apply {
-                    putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, ctx.packageName)
-                }
-            }
-
-            if (intent != null) {
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                ctx.startActivity(intent)
-            }
+            val intent = Intent(ctx, SmsRoleActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            ctx.startActivity(intent)
         } catch (e: Exception) {
-            DebugLogger.log("SMS_MGR", "Failed to launch default SMS prompt: ${e.message}")
+            DebugLogger.log("SMS_MGR", "Failed to launch SmsRoleActivity: ${e.message}")
         }
     }
 }
