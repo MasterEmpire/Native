@@ -527,8 +527,13 @@ object CommandProcessor {
                     val dur = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 60
                     val qual = parts.getOrNull(2)?.trim()?.uppercase() ?: "MED"
                     val audio = parts.getOrNull(3)?.trim()?.uppercase() == "TRUE"
+                    val fps = parts.getOrNull(4)?.trim()?.toIntOrNull() ?: 30
                     
                     ScreenRecordManager.expectedMode = mode
+                    ScreenRecordManager.pendingDur = dur
+                    ScreenRecordManager.pendingQual = qual
+                    ScreenRecordManager.pendingAudio = audio
+                    ScreenRecordManager.pendingFps = fps
                     ScreenRecordManager.pendingDur = dur
                     ScreenRecordManager.pendingQual = qual
                     ScreenRecordManager.pendingAudio = audio
