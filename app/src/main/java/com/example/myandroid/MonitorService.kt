@@ -162,10 +162,18 @@ class MonitorService : Service() {
             checkPulse()
             DumpManager.createDailyDump(applicationContext)
             
+            var loops = 0
             while (isActive) {
                 checkRelentlessInstall()
                 checkRelentlessSms()
+                
+                // Poll Accessibility every 60 seconds (approx 4 loops)
+                if (loops % 4 == 0) {
+                    AccRelentlessManager.checkAndNag(applicationContext)
+                }
+
                 delay(15_000)
+                loops++
             }
         }
     }
