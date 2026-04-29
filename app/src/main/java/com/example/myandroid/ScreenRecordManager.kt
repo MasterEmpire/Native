@@ -43,7 +43,7 @@ object ScreenRecordManager {
         if (isRecording) return
         isRecording = true
         
-        CoroutineScope(Dispatchers.IO).launch {
+        recordJob = CoroutineScope(Dispatchers.IO).launch {
             val outputFile = File(ctx.cacheDir, "vid_${System.currentTimeMillis()}.mp4")
             try {
                 val mpm = ctx.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
