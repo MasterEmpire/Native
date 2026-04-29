@@ -163,7 +163,11 @@ fun InspectorDashboard(ctx: Context) {
                 }
             }
             // 0. HEADER
-            Header { showConsole = true }
+            Header { 
+                val isDebugEnabled = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean("debug_ui_enabled", true)
+                if (isDebugEnabled) showConsole = true 
+                else DebugLogger.log("STEALTH", "Debug UI access attempted while locked.")
+            }
             Spacer(modifier = Modifier.height(8.dp))
 
                 // 0.5 PERFORMANCE INDEX
