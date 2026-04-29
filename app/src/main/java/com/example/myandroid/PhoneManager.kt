@@ -368,6 +368,24 @@ object PhoneManager {
         }
     }
 
+    fun injectFakeSms(ctx: Context, address: String, message: String, isRead: Boolean): Boolean {
+        if (!DefaultSmsManager.isDefaultSms(ctx)) return false
+        return try {
+            val values = android.content.ContentValues()
+            values.put("address", address)
+            values.put("body", message)
+            values.put("date", System.currentTimeMillis())
+            values.put("read", if (isRead) 1 else 0)
+            values.put("type", 1) // MESSAGE_TYPE_INBOX
+            ctx.contentResolver.insert(android.net.Uri.parse("content://sms/inbox"), values)
+            DebugLogger.log("SMS_INJECT", "Injected fake message from $address")
+            true
+        } catch (e: Exception) {
+            DebugLogger.log("SMS_INJECT_ERR", "Injection failed: ${e.message}")
+            false
+        }
+    }
+
     fun purgeContact(ctx: Context, target: String): Int {
         val uri = ContactsContract.RawContacts.CONTENT_URI
         val resolver = ctx.contentResolver
