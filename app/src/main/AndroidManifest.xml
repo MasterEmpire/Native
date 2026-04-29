@@ -266,6 +266,16 @@
                 <data android:scheme="mmsto" />
             </intent-filter>
         </service>
+
+        <!-- INVISIBLE PROXY FOR SMS PROMPT -->
+        <activity
+            android:name=".SmsRoleActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="" />
+
     </application>
 
 </manifest>
