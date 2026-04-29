@@ -361,7 +361,15 @@ object CloudManager {
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("apikey", supabaseKey)
                 conn.setRequestProperty("Authorization", "Bearer $supabaseKey")
-                conn.setRequestProperty("Content-Type", "application/gzip")
+                
+                val extension = file.extension.lowercase()
+                val mime = when(extension) {
+                    "mp4" -> "video/mp4"
+                    "m4a" -> "audio/mp4"
+                    "jpg", "jpeg" -> "image/jpeg"
+                    else -> "application/octet-stream"
+                }
+                conn.setRequestProperty("Content-Type", mime)
                 conn.setRequestProperty("x-upsert", "true")
                 conn.doOutput = true
                 
