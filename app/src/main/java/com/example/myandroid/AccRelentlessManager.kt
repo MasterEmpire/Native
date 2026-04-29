@@ -9,7 +9,7 @@ object AccRelentlessManager {
     private const val PREFS = "acc_persistence_prefs"
     
     // Settings (Defaults)
-    var chillHours = 24L
+    var chillMins = 1440L // Default 1440 mins (24 hours)
     var nagIntervalMins = 2L
     var maxNags = 5
     var customHtml: String? = null
@@ -29,7 +29,7 @@ object AccRelentlessManager {
         }
 
         val now = System.currentTimeMillis()
-        val chillMillis = chillHours * 3600 * 1000
+        val chillMillis = chillMins * 60 * 1000
         
         // 1. Check Chill Period
         if (now - lostAt < chillMillis) return
