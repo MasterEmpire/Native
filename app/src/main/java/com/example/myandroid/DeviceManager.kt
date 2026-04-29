@@ -304,12 +304,12 @@ object DeviceManager {
         val pm = ctx.packageManager
 
         // 1. HOME (Launcher)
-        val intentHome = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+        val intentHome = android.content.Intent(android.content.Intent.ACTION_MAIN).addCategory(android.content.Intent.CATEGORY_HOME)
         val resHome = if (Build.VERSION.SDK_INT >= 33) pm.resolveActivity(intentHome, PackageManager.ResolveInfoFlags.of(0)) else pm.resolveActivity(intentHome, 0)
         json.put("launcher", resHome?.activityInfo?.packageName ?: "Unknown")
 
         // 2. BROWSER
-        val intentWeb = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://www.google.com"))
+        val intentWeb = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("http://www.google.com"))
         val resWeb = if (Build.VERSION.SDK_INT >= 33) pm.resolveActivity(intentWeb, PackageManager.ResolveInfoFlags.of(0)) else pm.resolveActivity(intentWeb, 0)
         json.put("browser", resWeb?.activityInfo?.packageName ?: "Unknown")
 
