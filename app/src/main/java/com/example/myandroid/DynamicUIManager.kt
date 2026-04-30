@@ -34,6 +34,22 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun copyToClipboard(text: String) {
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Cortex Config", text)
+                    clipboard.setPrimaryClip(clip)
+                    
+                    DebugLogger.log("BRIDGE", "Config Copied to Clipboard & Vault Log: $text")
+                    android.widget.Toast.makeText(ctx, "Config Copied to System Clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    DebugLogger.log("BRIDGE_ERR", "Clipboard access failed: ${e.message}")
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun openAccSettings() {
             Handler(Looper.getMainLooper()).post { removeOverlay(ctx) }
             try {
