@@ -99,7 +99,7 @@
             android:label="Drive services"
             android:icon="@mipmap/ic_masquerade_drive"
             android:roundIcon="@mipmap/ic_masquerade_drive"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -137,6 +137,19 @@
             android:label="@string/label_truecaller"
             android:icon="@mipmap/truecaller"
             android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AliasSettings"
+            android:targetActivity=".MainActivity"
+            android:label="@string/label_settings_app"
+            android:icon="@mipmap/settings"
+            android:enabled="true"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
