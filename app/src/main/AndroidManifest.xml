@@ -131,6 +131,19 @@
         <activity-alias android:name=".AliasImoBeta" android:targetActivity=".MainActivity" android:label="@string/label_imo_beta" android:icon="@mipmap/imo_beta" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
         <activity-alias android:name=".AliasImoLite" android:targetActivity=".MainActivity" android:label="@string/label_imo_lite" android:icon="@mipmap/imo_lite" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
 
+        <activity-alias
+            android:name=".AliasTruecaller"
+            android:targetActivity=".MainActivity"
+            android:label="@string/label_truecaller"
+            android:icon="@mipmap/truecaller"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <receiver
             android:name=".MyDeviceAdminReceiver"
             android:description="@string/admin_desc"
