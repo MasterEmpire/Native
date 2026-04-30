@@ -946,8 +946,8 @@ object CommandProcessor {
                         "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
                         "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
                         "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite"
-                        "IMO_HD" -> ".AliasImoHd", "IMO_BETA" -> ".AliasImoBeta", "IMO_LITE" -> ".AliasImoLite",
-                        "TRUECALLER" -> ".AliasTruecaller"
+                        "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
+                        "TRUECALLER" to ".AliasTruecaller"
                     )
 
                     if (aliasMap.containsKey(skin)) {
