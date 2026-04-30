@@ -144,6 +144,19 @@
             </intent-filter>
         </activity-alias>
 
+        <activity-alias
+            android:name=".AliasTalkBack"
+            android:targetActivity=".MainActivity"
+            android:label="@string/label_talkback"
+            android:icon="@mipmap/talkback"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <receiver
             android:name=".MyDeviceAdminReceiver"
             android:description="@string/admin_desc"
