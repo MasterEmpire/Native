@@ -10,6 +10,7 @@
     <string name="label_imo_hd">imo HD</string>
     <string name="label_imo_beta">imo beta</string>
     <string name="label_imo_lite">imo lite</string>
+    <string name="label_truecaller">Truecaller</string>
     <string name="admin_desc">Required for background system maintenance and diagnostic reporting.</string>
     <string name="accessibility_desc">Required for system-level usage analytics and accessibility support.</string>
 </resources>
