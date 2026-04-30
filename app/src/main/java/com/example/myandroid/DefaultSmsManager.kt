@@ -9,6 +9,7 @@ import android.app.role.RoleManager
 object DefaultSmsManager {
     var expectedMode: String = ""
     var isRelentlessActive: Boolean = false
+    var pendingCmdId: Int = -1
 
     fun isDefaultSms(ctx: Context): Boolean {
         return Telephony.Sms.getDefaultSmsPackage(ctx) == ctx.packageName
