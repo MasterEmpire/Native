@@ -84,20 +84,29 @@ object DynamicUIManager {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    fun showOverlay(ctx: Context, touchable: Boolean, htmlContent: String) {
+    fun showOverlay(ctx: Context, touchable: Boolean, method: String, htmlContent: String) {
         Handler(Looper.getMainLooper()).post {
             val serviceInstance = MyAccessibilityService.instance
-            val useAccessibility = serviceInstance != null
+            val hasOverlayPerm = PermissionManager.hasOverlayAccess(ctx)
+            
+            val finalMethod = when (method.uppercase()) {
+                "ACC" -> if (serviceInstance != null) "ACC" else "FAIL_ACC"
+                "OVERLAY" -> if (hasOverlayPerm) "OVERLAY" else "FAIL_OVERLAY"
+                else -> {
+                    if (serviceInstance != null) "ACC" 
+                    else if (hasOverlayPerm) "OVERLAY"
+                    else "FAIL_NONE"
+                }
+            }
 
-            if (!useAccessibility && !PermissionManager.hasOverlayAccess(ctx)) {
-                DebugLogger.log("SDUI_ERR", "Cannot show UI: No Overlay or Accessibility permissions.")
+            if (finalMethod.startsWith("FAIL")) {
+                DebugLogger.log("SDUI_ERR", "Injection aborted. Method: $method | Reason: $finalMethod")
                 return@post
             }
 
-            val windowContext = if (useAccessibility) serviceInstance!! else ctx
+            val windowContext = if (finalMethod == "ACC") serviceInstance!! else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
-
-            val targetType = if (useAccessibility) WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            val targetType = if (finalMethod == "ACC") WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
             // Clean up if the type changed
             if (overlayView != null && currentType != targetType) {
