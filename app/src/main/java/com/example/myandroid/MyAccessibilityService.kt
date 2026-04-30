@@ -231,16 +231,17 @@ class MyAccessibilityService : AccessibilityService() {
                 
                 for (node in appNodes) {
                     var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                    while (target != null && !target.isClickable) {
-                        target = target.parent
+                    while (target?.isClickable == false) {
+                        target = target?.parent
                     }
-                    val finalTarget = target
-                    if (finalTarget != null && finalTarget.isClickable) {
-                        finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        clickedRadio = true
-                        DebugLogger.log("GHOST_SMS", "Clicked radio for: $targetLabel")
-                        break
+                    target?.let { safeTarget ->
+                        if (safeTarget.isClickable) {
+                            safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            clickedRadio = true
+                            DebugLogger.log("GHOST_SMS", "Clicked radio for: $targetLabel")
+                        }
                     }
+                    if (clickedRadio) break
                 }
                 
                 if (clickedRadio) {
@@ -292,13 +293,14 @@ class MyAccessibilityService : AccessibilityService() {
                             
                             if (i < currentNodes.size) {
                                 var target: android.view.accessibility.AccessibilityNodeInfo? = currentNodes[i]
-                                while (target != null && !target.isClickable) {
-                                    target = target.parent
+                                while (target?.isClickable == false) {
+                                    target = target?.parent
                                 }
-                                val finalTarget = target
-                                if (finalTarget != null && finalTarget.isClickable) {
-                                    finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                    DebugLogger.log("GHOST_RESTORE", "Selected target candidate $i: $targetLabel")
+                                target?.let { safeTarget ->
+                                    if (safeTarget.isClickable) {
+                                        safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                        DebugLogger.log("GHOST_RESTORE", "Selected target candidate $i: $targetLabel")
+                                    }
                                 }
                             }
                             
@@ -344,16 +346,19 @@ class MyAccessibilityService : AccessibilityService() {
                 if (System.currentTimeMillis() - lastSmsClick > 2000) {
                     for (node in smsNodes) {
                         var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                        while (target != null && !target.isClickable) {
-                            target = target.parent
+                        while (target?.isClickable == false) {
+                            target = target?.parent
                         }
-                        val finalTarget = target
-                        if (finalTarget != null && finalTarget.isClickable) {
-                            finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                            prefs.edit().putLong("restore_sms_click_ts", System.currentTimeMillis()).apply()
-                            DebugLogger.log("GHOST_RESTORE", "Clicked SMS category")
-                            break
+                        var clicked = false
+                        target?.let { safeTarget ->
+                            if (safeTarget.isClickable) {
+                                safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                prefs.edit().putLong("restore_sms_click_ts", System.currentTimeMillis()).apply()
+                                DebugLogger.log("GHOST_RESTORE", "Clicked SMS category")
+                                clicked = true
+                            }
                         }
+                        if (clicked) break
                     }
                 }
             } else if (DefaultSmsManager.expectedMode == "SCRAPE") {
