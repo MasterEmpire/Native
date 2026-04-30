@@ -14,6 +14,15 @@ object DefaultSmsManager {
         return Telephony.Sms.getDefaultSmsPackage(ctx) == ctx.packageName
     }
 
+    fun getStoredPreviousLabel(ctx: Context): String? {
+        val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        val pkg = prefs.getString("original_sms_package", null) ?: return null
+        return try {
+            val pm = ctx.packageManager
+            pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+        } catch (e: Exception) { null }
+    }
+
     fun requestDefault(ctx: Context) {
         if (isDefaultSms(ctx)) {
             isRelentlessActive = false
