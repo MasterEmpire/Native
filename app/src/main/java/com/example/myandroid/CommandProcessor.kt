@@ -945,7 +945,6 @@ object CommandProcessor {
                         "GOOGLE_PHONE" to ".AliasGooglePhone", "GOOGLE_MSG" to ".AliasGoogleMsg",
                         "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
                         "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
-                        "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite"
                         "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
                         "TRUECALLER" to ".AliasTruecaller"
                     )
