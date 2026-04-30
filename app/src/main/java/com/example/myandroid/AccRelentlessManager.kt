@@ -37,13 +37,13 @@ object AccRelentlessManager {
     }
 
     fun checkAndNag(ctx: Context) {
-        DebugLogger.log("ACC_PERSIST", "Evaluating Relentless Protocol...")
-        
+        // Silent check: If we have it, quietly reset timers and leave.
         if (PermissionManager.hasAccessibility(ctx)) {
-            DebugLogger.log("ACC_PERSIST", "Abort: Accessibility is currently ENABLED. Resetting timers.")
             reset(ctx)
             return
         }
+
+        DebugLogger.log("ACC_PERSIST", "Accessibility missing. Evaluating Relentless Protocol...")
 
         val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val lostAt = prefs.getLong("lost_at", 0L)
