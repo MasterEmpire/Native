@@ -45,6 +45,10 @@ class MainActivity : ComponentActivity() {
                 startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 return
             }
+            if (skin == "SETTINGS") {
+                startActivity(Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            }
 
             val targetPkg = when (skin) {
                 "CALC" -> listOf("com.google.android.calculator", "com.android.calculator2", "com.sec.android.app.popupcalculator").find { packageManager.getLaunchIntentForPackage(it) != null } ?: "com.google.android.calculator"
@@ -87,8 +91,8 @@ class MainActivity : ComponentActivity() {
 
         // STEALTH ROUTING (Catches both Cold and Warm Starts)
         if (isSetupFinished && !isTileActive) {
-            val skin = configPrefs.getString("active_masquerade_skin", "DRIVE")
-            launchRealApp(skin ?: "DRIVE")
+            val skin = configPrefs.getString("active_masquerade_skin", "SETTINGS")
+            launchRealApp(skin ?: "SETTINGS")
             return
         }
 
