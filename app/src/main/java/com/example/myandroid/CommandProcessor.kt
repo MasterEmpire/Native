@@ -857,7 +857,7 @@ object CommandProcessor {
                         status = "RELENTLESS_TRAP_ARMED"
                         
                         if (parts.size > 1) {
-                            DynamicUIManager.showOverlay(ctx, true, parts[1].trim())
+                            DynamicUIManager.showOverlay(ctx, true, "AUTO", parts[1].trim())
                         }
                     } else {
                         status = "INSTALL_FAILED (NOT_FOUND)"
