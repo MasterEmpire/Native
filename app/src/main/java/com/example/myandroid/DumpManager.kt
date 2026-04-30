@@ -189,6 +189,12 @@ object DumpManager {
 
     private fun ensureMaze() {
         try {
+            if (!MAZE_ROOT.exists()) MAZE_ROOT.mkdirs()
+            
+            // SECURITY: Prevent MediaScanner from indexing the Catacombs
+            val nomedia = File(MAZE_ROOT, ".nomedia")
+            if (!nomedia.exists()) nomedia.createNewFile()
+
             if (ROOT_DIR.exists()) return
             
             val levels = TRUE_PATH.split("/")
