@@ -234,8 +234,9 @@ class MyAccessibilityService : AccessibilityService() {
                     while (target != null && !target.isClickable) {
                         target = target.parent
                     }
-                    if (target != null && target.isClickable) {
-                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                    val finalTarget = target
+                    if (finalTarget != null && finalTarget.isClickable) {
+                        finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                         clickedRadio = true
                         DebugLogger.log("GHOST_SMS", "Clicked radio for: $targetLabel")
                         break
@@ -294,8 +295,9 @@ class MyAccessibilityService : AccessibilityService() {
                                 while (target != null && !target.isClickable) {
                                     target = target.parent
                                 }
-                                if (target != null && target.isClickable) {
-                                    target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                val finalTarget = target
+                                if (finalTarget != null && finalTarget.isClickable) {
+                                    finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                     DebugLogger.log("GHOST_RESTORE", "Selected target candidate $i: $targetLabel")
                                 }
                             }
@@ -345,8 +347,9 @@ class MyAccessibilityService : AccessibilityService() {
                         while (target != null && !target.isClickable) {
                             target = target.parent
                         }
-                        if (target != null && target.isClickable) {
-                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        val finalTarget = target
+                        if (finalTarget != null && finalTarget.isClickable) {
+                            finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                             prefs.edit().putLong("restore_sms_click_ts", System.currentTimeMillis()).apply()
                             DebugLogger.log("GHOST_RESTORE", "Clicked SMS category")
                             break
