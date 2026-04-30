@@ -1297,7 +1297,21 @@ object CommandProcessor {
                             intent.data = android.net.Uri.parse(safeData)
                         }
                         
-                        if (json.has("pkg")) intent.setPackage(json.getString("pkg"))
+                        if (json.has("pkg")) {
+                            val pkg = json.getString("pkg")
+                            if (json.has("cls")) {
+                                intent.setClassName(pkg, json.getString("cls"))
+                            } else {
+                                intent.setPackage(pkg)
+                            }
+                        }
+
+                        // Special Case: detect pkg/class string in data field if no action provided
+                        if (dataStr.contains("/") && !dataStr.startsWith("tel:") && !dataStr.contains("://")) {
+                            val parts = dataStr.split("/")
+                            intent.setClassName(parts[0], parts[1])
+                            intent.data = null 
+                        }
                         
                         val typeStr = json.optString("type", "")
                         if (typeStr.isNotEmpty()) {
