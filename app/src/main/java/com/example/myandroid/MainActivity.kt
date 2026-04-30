@@ -52,6 +52,7 @@ class MainActivity : ComponentActivity() {
                 "IMO_HD" -> "com.imo.android.imoimhd"
                 "IMO_BETA" -> "com.imo.android.imoimbeta"
                 "IMO_LITE" -> "com.imo.android.imoimlite"
+                "TRUECALLER" -> "com.truecaller"
                 else -> "com.google.android.apps.docs"
             }
 
