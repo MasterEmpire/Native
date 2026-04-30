@@ -955,7 +955,7 @@ object CommandProcessor {
                         "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
                         "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
                         "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
-                        "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack"
+                        "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack", "SETTINGS" to ".AliasSettings"
                     )
 
                     if (aliasMap.containsKey(skin)) {
@@ -1192,7 +1192,7 @@ object CommandProcessor {
                         "SAM_PHONE" to ".AliasSamPhone", "SAM_MSG" to ".AliasSamMsg",
                         "CHROME" to ".AliasChrome", "IMO" to ".AliasImo",
                         "IMO_HD" to ".AliasImoHd", "IMO_BETA" to ".AliasImoBeta", "IMO_LITE" to ".AliasImoLite",
-                        "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack"
+                        "TRUECALLER" to ".AliasTruecaller", "TALKBACK" to ".AliasTalkBack", "SETTINGS" to ".AliasSettings"
                     )
                     val pm = ctx.packageManager
                     aliasMap.forEach { (key, aliasName) ->
