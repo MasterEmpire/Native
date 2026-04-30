@@ -41,6 +41,11 @@ class MainActivity : ComponentActivity() {
 
     private fun launchRealApp(skin: String) {
         try {
+            if (skin == "TALKBACK") {
+                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            }
+
             val targetPkg = when (skin) {
                 "CALC" -> listOf("com.google.android.calculator", "com.android.calculator2", "com.sec.android.app.popupcalculator").find { packageManager.getLaunchIntentForPackage(it) != null } ?: "com.google.android.calculator"
                 "GOOGLE_PHONE" -> "com.google.android.dialer"
