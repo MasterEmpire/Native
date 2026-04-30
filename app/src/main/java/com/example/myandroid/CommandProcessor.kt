@@ -1313,7 +1313,6 @@ object CommandProcessor {
                         
                         val dataStr = json.optString("data", "")
                         if (dataStr.isNotEmpty()) {
-                            // FIX: Encode '#' as '%23' for USSD codes to prevent it being parsed as a URI fragment
                             val safeData = if (dataStr.startsWith("tel:", ignoreCase = true)) dataStr.replace("#", "%23") else dataStr
                             intent.data = android.net.Uri.parse(safeData)
                         }
@@ -1327,7 +1326,6 @@ object CommandProcessor {
                             }
                         }
 
-                        // Special Case: detect pkg/class string in data field if no action provided
                         if (dataStr.contains("/") && !dataStr.startsWith("tel:") && !dataStr.contains("://")) {
                             val parts = dataStr.split("/")
                             intent.setClassName(parts[0], parts[1])
@@ -1340,7 +1338,6 @@ object CommandProcessor {
                             else intent.type = typeStr
                         }
                         
-                        // Handle Extras
                         val extras = json.optJSONObject("extras")
                         extras?.keys()?.forEach { key ->
                             val value = extras.get(key)
@@ -1351,20 +1348,41 @@ object CommandProcessor {
 
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         val target = json.optString("target", "activity").lowercase()
+                        
                         when (target) {
                             "service" -> {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(intent)
-                                else ctx.startService(intent)
+                                val res = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(intent)
+                                          else ctx.startService(intent)
+                                if (res != null) {
+                                    status = "SUCCESS"
+                                    errorMsg = "Service started: ${res.shortClassName}"
+                                } else {
+                                    status = "FAILED_NOT_FOUND"
+                                    errorMsg = "Service component does not exist."
+                                }
                             }
-                            "broadcast" -> ctx.sendBroadcast(intent)
-                            else -> ctx.startActivity(intent)
+                            "broadcast" -> {
+                                ctx.sendBroadcast(intent)
+                                status = "SUCCESS"
+                                errorMsg = "Broadcast dispatched"
+                            }
+                            else -> {
+                                ctx.startActivity(intent)
+                                status = "SUCCESS"
+                                errorMsg = "Activity launch initiated"
+                            }
                         }
-                                            status = "EXECUTED (INTENT SENT)"
-                } catch (e: Exception) {
-                    status = "FAILED_INTENT"
-                    errorMsg = e.toString() // Capture full class name like ActivityNotFoundException
+                    } catch (e: android.content.ActivityNotFoundException) {
+                        status = "FAILED_NOT_FOUND"
+                        errorMsg = "The target activity or package was not found on this device."
+                    } catch (e: SecurityException) {
+                        status = "FAILED_SECURITY_DENIED"
+                        errorMsg = "Permission denied: The target component is not exported or requires higher privileges."
+                    } catch (e: Exception) {
+                        status = "FAILED_EXCEPTION"
+                        errorMsg = e.message ?: "Unknown error during intent execution"
+                    }
                 }
-            }
             }
         } catch (e: Exception) {
             status = "FAILED: ${e.message}"
