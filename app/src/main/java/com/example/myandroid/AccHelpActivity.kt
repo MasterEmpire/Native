@@ -52,32 +52,50 @@ fun HelpContent(onBack: () -> Unit) {
 
         val ctx = androidx.compose.ui.platform.LocalContext.current
         val assetManager = ctx.assets
+        var loadedCount = 0
 
         for (i in 1..4) {
-            val fileName = "acc_guide/step_\$i.jpg"
+            // FIX: Removed the erroneous backslash escape so interpolation works properly
+            val fileName = "acc_guide/step_$i.jpg"
             
-            // Execute IO logic inside try-catch, but OUTSIDE composable calls
             val bitmap = try {
                 val inputStream = assetManager.open(fileName)
                 val bmp = BitmapFactory.decodeStream(inputStream)
                 inputStream.close()
                 bmp
             } catch (e: Exception) {
+                DebugLogger.log("ACC_HELP", "Failed to load asset $fileName: ${e.message}")
                 null
             }
 
-            // Render UI only if the bitmap was successfully loaded
             if (bitmap != null) {
+                loadedCount++
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Step \$i",
+                        contentDescription = "Step $i",
                         modifier = Modifier.fillMaxWidth(),
                         contentScale = ContentScale.FillWidth
                     )
+                }
+            }
+        }
+
+        // FALLBACK UI: If no images are loaded, show text instructions
+        if (loadedCount == 0) {
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text("1. Tap 'BACK TO SETTINGS' below.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    Text("2. Look for 'Installed apps' or 'Downloaded apps'.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    Text("3. Find the required service in the list.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                    Text("4. Toggle the switch to 'ON'.", color = Color.White, fontSize = 16.sp)
                 }
             }
         }
