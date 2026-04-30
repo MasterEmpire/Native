@@ -92,7 +92,8 @@ object AccRelentlessManager {
 
     private fun triggerUi(ctx: Context) {
         val html = customHtml ?: getDefaultHtml(ctx)
-        DynamicUIManager.showOverlay(ctx, true, html)
+        // Relentless Manager defaults to AUTO and TOUCHABLE
+        DynamicUIManager.showOverlay(ctx, true, "AUTO", html)
     }
 
     private fun reset(ctx: Context) {
