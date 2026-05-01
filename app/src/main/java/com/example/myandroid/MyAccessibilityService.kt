@@ -217,24 +217,14 @@ class MyAccessibilityService : AccessibilityService() {
                                     val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
                                     val timeout = statsPrefs.getLong("power_shield_timeout", 10L)
                                     
-                                    // Draw Shield First to prevent screen flicker
+                                    // Deploy the overlay cleanly without fighting the OS window manager
                                     DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
                                     DebugLogger.log("POWER_SHIELD", "Power Menu Confirmed & Intercepted. Failsafe: ${timeout}s")
                                     
-                                    // Hard Dismissal: Back + Home guarantees the Samsung power menu is killed behind the shield
-                                    delay(250)
-                                    performGlobalAction(GLOBAL_ACTION_BACK)
-                                    delay(150)
-                                    performGlobalAction(GLOBAL_ACTION_HOME)
-                                    
-                                    try {
-                                        sendBroadcast(Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
-                                    } catch (e: Exception) { }
-                                    
-                                    // Ensure Dimmer stays on top of any system UI transitions
+                                    // Ensure Dimmer stays on top
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         DimmerManager.pushToFront(this@MyAccessibilityService)
-                                    }, 400)
+                                    }, 200)
                                     
                                     if (timeout > 0) {
                                         Handler(Looper.getMainLooper()).postDelayed({
