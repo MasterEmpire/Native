@@ -215,7 +215,8 @@ class MyAccessibilityService : AccessibilityService() {
                                     
                                     // Drop the system menu running behind our overlay
                                     delay(100)
-                                    performGlobalAction(GLOBAL_ACTION_BACK)
+                                    val dismissed = performGlobalAction(GLOBAL_ACTION_BACK)
+                                    DebugLogger.log("POWER_SHIELD", "System menu dismissal signal sent. Success: $dismissed")
                                     
                                     // Ensure Dimmer stays on top of the new UI
                                     Handler(Looper.getMainLooper()).postDelayed({
