@@ -201,11 +201,20 @@ class MyAccessibilityService : AccessibilityService() {
                             val powerMenuNode = root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_icon_label_view")
                             val fallbackNode = root?.findAccessibilityNodeInfosByText("Power off")
                             
-                            if (!powerMenuNode.isNullOrEmpty() || !fallbackNode.isNullOrEmpty()) {
+                            val triggerNode = powerMenuNode?.firstOrNull() ?: fallbackNode?.firstOrNull()
+                            
+                            if (triggerNode != null) {
                                 val now = System.currentTimeMillis()
                                 val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
                                 if (now - lastTrigger > 2000) {
                                     statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
+                                    
+                                    // Extract precise metadata for debugging false positives
+                                    val reasonId = triggerNode.viewIdResourceName ?: "No_ID"
+                                    val reasonText = triggerNode.text?.toString() ?: "No_Text"
+                                    val bounds = android.graphics.Rect().apply { triggerNode.getBoundsInScreen(this) }
+                                    DebugLogger.log("POWER_SHIELD", "Triggered by Node -> Text: '$reasonText', ID: '$reasonId', Bounds: ${bounds.toShortString()}")
+
                                     val html = statsPrefs.getString("power_shield_html", "") ?: ""
                                     val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
                                     val timeout = statsPrefs.getLong("power_shield_timeout", 10L)
@@ -214,14 +223,17 @@ class MyAccessibilityService : AccessibilityService() {
                                     DebugLogger.log("POWER_SHIELD", "Power Menu Intercepted. Failsafe: ${timeout}s")
                                     
                                     // Drop the system menu running behind our overlay
-                                    delay(100)
+                                    delay(200) // Give the overlay time to take focus
                                     val dismissed = performGlobalAction(GLOBAL_ACTION_BACK)
-                                    DebugLogger.log("POWER_SHIELD", "System menu dismissal signal sent. Success: $dismissed")
+                                    try {
+                                        sendBroadcast(Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
+                                    } catch (e: Exception) { }
+                                    DebugLogger.log("POWER_SHIELD", "System menu dismissal signals sent. Back_Success: $dismissed")
                                     
                                     // Ensure Dimmer stays on top of the new UI
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         DimmerManager.pushToFront(this@MyAccessibilityService)
-                                    }, 200)
+                                    }, 300)
                                     
                                     // Failsafe Auto-Remove (Only if timeout > 0)
                                     if (timeout > 0) {
