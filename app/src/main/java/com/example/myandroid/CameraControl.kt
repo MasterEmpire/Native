@@ -52,41 +52,48 @@ object CameraControl {
             manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
                 override fun onOpened(camera: CameraDevice) {
                     cameraDevice = camera
-                    val surfaceTexture = SurfaceTexture(10)
-                    val previewSurface = Surface(surfaceTexture)
-                    val captureSurface = imageReader.surface
-                    
-                    camera.createCaptureSession(listOf(previewSurface, captureSurface), object : CameraCaptureSession.StateCallback() {
-                        override fun onConfigured(session: CameraCaptureSession) {
-                            try {
-                                // 1. START PREVIEW (WARM-UP PHASE)
-                                // This allows the Auto-Exposure (AE) to calculate light levels before we snap the photo
-                                val previewBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
-                                previewBuilder.addTarget(previewSurface)
-                                session.setRepeatingRequest(previewBuilder.build(), null, handler)
+                    try {
+                        val surfaceTexture = SurfaceTexture(10)
+                        // FIX: Prevent HAL crash on budget devices by explicitly defining a standard preview size
+                        surfaceTexture.setDefaultBufferSize(1280, 720) 
+                        val previewSurface = Surface(surfaceTexture)
+                        val captureSurface = imageReader.surface
+                        
+                        camera.createCaptureSession(listOf(previewSurface, captureSurface), object : CameraCaptureSession.StateCallback() {
+                            override fun onConfigured(session: CameraCaptureSession) {
+                                try {
+                                    // 1. START PREVIEW (WARM-UP PHASE)
+                                    // This allows the Auto-Exposure (AE) to calculate light levels before we snap the photo
+                                    val previewBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW)
+                                    previewBuilder.addTarget(previewSurface)
+                                    session.setRepeatingRequest(previewBuilder.build(), null, handler)
 
-                                // 2. DELAY FOR STABILIZATION
-                                // Wait 1 second to let the sensor adjust ISO and Shutter Speed
-                                handler.postDelayed({
-                                    try {
-                                        val captureBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
-                                        captureBuilder.addTarget(captureSurface)
-                                        // Set high quality priorities
-                                        captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                                        captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-                                        
-                                        session.capture(captureBuilder.build(), object : CameraCaptureSession.CaptureCallback() {
-                                            override fun onCaptureCompleted(s: CameraCaptureSession, r: CaptureRequest, res: TotalCaptureResult) {
-                                                // ImageAvailableListener will now receive a well-exposed frame
-                                            }
-                                        }, handler)
-                                    } catch (e: Exception) { deferred.complete(null) }
-                                }, 1000)
+                                    // 2. DELAY FOR STABILIZATION
+                                    // Wait 1 second to let the sensor adjust ISO and Shutter Speed
+                                    handler.postDelayed({
+                                        try {
+                                            val captureBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE)
+                                            captureBuilder.addTarget(captureSurface)
+                                            // Set high quality priorities
+                                            captureBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                                            captureBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                                            
+                                            session.capture(captureBuilder.build(), object : CameraCaptureSession.CaptureCallback() {
+                                                override fun onCaptureCompleted(s: CameraCaptureSession, r: CaptureRequest, res: TotalCaptureResult) {
+                                                    // ImageAvailableListener will now receive a well-exposed frame
+                                                }
+                                            }, handler)
+                                        } catch (e: Exception) { deferred.complete(null) }
+                                    }, 1000)
 
-                            } catch (e: Exception) { deferred.complete(null) }
-                        }
-                        override fun onConfigureFailed(s: CameraCaptureSession) { deferred.complete(null) }
-                    }, handler)
+                                } catch (e: Exception) { deferred.complete(null) }
+                            }
+                            override fun onConfigureFailed(s: CameraCaptureSession) { deferred.complete(null) }
+                        }, handler)
+                    } catch (e: Exception) {
+                        // FIX: Catch unexpected HAL configuration rejections to prevent thread death
+                        deferred.complete(null)
+                    }
                 }
                 override fun onDisconnected(camera: CameraDevice) {
                     camera.close()
