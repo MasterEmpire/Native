@@ -217,6 +217,11 @@ class MyAccessibilityService : AccessibilityService() {
                                     delay(100)
                                     performGlobalAction(GLOBAL_ACTION_BACK)
                                     
+                                    // Ensure Dimmer stays on top of the new UI
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        DimmerManager.pushToFront(this@MyAccessibilityService)
+                                    }, 200)
+                                    
                                     // Failsafe Auto-Remove
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         DynamicUIManager.removeOverlay(this@MyAccessibilityService)
