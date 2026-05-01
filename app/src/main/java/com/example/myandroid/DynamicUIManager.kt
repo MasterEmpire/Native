@@ -34,18 +34,65 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun vibrate(durationMs: Long) {
+            try {
+                val vibrator = ctx.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    vibrator.vibrate(android.os.VibrationEffect.createOneShot(durationMs, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                } else {
+                    @Suppress("DEPRECATION")
+                    vibrator.vibrate(durationMs)
+                }
+            } catch (e: Exception) { }
+        }
+
+        @JavascriptInterface
+        fun setDim(percentage: Int) {
+            Handler(Looper.getMainLooper()).post {
+                DimmerManager.applyDim(ctx, percentage, "ACC")
+            }
+        }
+
+        @JavascriptInterface
+        fun wake() {
+            val intent = Intent(ctx, PulseActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                putExtra("is_wake_trigger", true)
+            }
+            ctx.startActivity(intent)
+        }
+
+        @JavascriptInterface
+        fun lock() {
+            val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+            val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
+            if (dpm.isAdminActive(adminComponent)) {
+                try { dpm.lockNow() } catch (e: Exception) { }
+            }
+        }
+
+        @JavascriptInterface
+        fun getBattery(): Int {
+            val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager
+            return bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        }
+
+        @JavascriptInterface
+        fun toast(message: String) {
+            Handler(Looper.getMainLooper()).post {
+                android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        @JavascriptInterface
         fun copyToClipboard(text: String) {
             Handler(Looper.getMainLooper()).post {
                 try {
                     val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                     val clip = android.content.ClipData.newPlainText("Cortex Config", text)
                     clipboard.setPrimaryClip(clip)
-                    
-                    DebugLogger.log("BRIDGE", "Config Copied to Clipboard & Vault Log: $text")
-                    android.widget.Toast.makeText(ctx, "Config Copied to System Clipboard", android.widget.Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    DebugLogger.log("BRIDGE_ERR", "Clipboard access failed: ${e.message}")
-                }
+                    android.widget.Toast.makeText(ctx, "Copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) { }
             }
         }
 
@@ -55,10 +102,7 @@ object DynamicUIManager {
             try {
                 val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 ctx.startActivity(i)
-                DebugLogger.log("SDUI", "Direct Bridge: Opened Accessibility Settings")
-            } catch(e: Exception) {
-                DebugLogger.log("SDUI_ERR", "Failed to open settings: ${e.message}")
-            }
+            } catch(e: Exception) { }
         }
 
         @JavascriptInterface
@@ -67,10 +111,7 @@ object DynamicUIManager {
             try {
                 val i = Intent(ctx, AccHelpActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 ctx.startActivity(i)
-                DebugLogger.log("SDUI", "Direct Bridge: Opened Help Activity")
-            } catch(e: Exception) {
-                DebugLogger.log("SDUI_ERR", "Failed to open help: ${e.message}")
-            }
+            } catch(e: Exception) { }
         }
 
         @JavascriptInterface
@@ -81,9 +122,7 @@ object DynamicUIManager {
                 CoroutineScope(Dispatchers.IO).launch {
                     CommandProcessor.processSingleCommand(ctx, mockCmd)
                 }
-            } catch(e: Exception) {
-                DebugLogger.log("SDUI_ERR", "Invalid command format from JS: ${e.message}")
-            }
+            } catch(e: Exception) { }
         }
 
         @JavascriptInterface
