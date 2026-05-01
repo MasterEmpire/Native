@@ -222,10 +222,14 @@ class MyAccessibilityService : AccessibilityService() {
                                         DimmerManager.pushToFront(this@MyAccessibilityService)
                                     }, 200)
                                     
-                                    // Failsafe Auto-Remove
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                    }, timeout * 1000)
+                                    // Failsafe Auto-Remove (Only if timeout > 0)
+                                    if (timeout > 0) {
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                        }, timeout * 1000)
+                                    } else {
+                                        DebugLogger.log("POWER_SHIELD", "Persistent mode: No timeout scheduled.")
+                                    }
                                 }
                                 break // Target acquired, exit scan loop
                             }
