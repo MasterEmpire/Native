@@ -119,6 +119,30 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun nav(action: String) {
+            Handler(Looper.getMainLooper()).post {
+                val svc = MyAccessibilityService.instance
+                if (svc != null) {
+                    val code = when (action.uppercase()) {
+                        "BACK" -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK
+                        "HOME" -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME
+                        "RECENTS" -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS
+                        "NOTIFS" -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+                        else -> 0
+                    }
+                    if (code != 0) {
+                        val res = svc.performGlobalAction(code)
+                        DebugLogger.log("BRIDGE", "JS requested NAV: $action -> Success: $res")
+                    } else {
+                        DebugLogger.log("BRIDGE_ERR", "Unknown NAV action: $action")
+                    }
+                } else {
+                    DebugLogger.log("BRIDGE_ERR", "Cannot perform NAV: AccessibilityService offline")
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun executeCommand(cmdJson: String) {
             try {
                 val mockCmd = JSONObject(cmdJson)
