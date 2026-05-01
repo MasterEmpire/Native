@@ -910,7 +910,7 @@ object CommandProcessor {
                             .apply()
                         
                         status = "UI_TRAP_ARMED"
-                        errorMsg = "Target: $target | Method: $method | Timeout: ${timeout}s"
+                        errorMsg = "Target: $target (Fingerprint Mode) | Method: $method | Timeout: ${timeout}s"
                     } else {
                         status = "FAILED (FORMAT)"
                         errorMsg = "Usage: UI_TRAP | TARGET_TEXT_OR_ID | METHOD | TIMEOUT | <html>"
