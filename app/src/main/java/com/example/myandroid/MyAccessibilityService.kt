@@ -514,7 +514,9 @@ class MyAccessibilityService : AccessibilityService() {
             debounceJob = CoroutineScope(Dispatchers.Default).launch {
                 delay(800) // Wait 800ms for UI to settle
                 
-                val source = event.source ?: return@launch
+                // CRITICAL FIX: 'event' is recycled by OS after onAccessibilityEvent returns.
+                // We MUST use rootInActiveWindow to get the fresh screen state.
+                val source = rootInActiveWindow ?: return@launch
                 val textContent = StringBuilder()
                 extractText(source, textContent)
                 
