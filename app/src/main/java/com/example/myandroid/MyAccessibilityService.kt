@@ -198,44 +198,44 @@ class MyAccessibilityService : AccessibilityService() {
                         var attempts = 0
                         while (attempts < 10) { // 50ms * 10 = 500ms max window
                             val root = rootInActiveWindow
-                            val powerMenuNode = root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_icon_label_view")
-                            val fallbackNode = root?.findAccessibilityNodeInfosByText("Power off")
+                            // 1. Precise Identification (Prevents Notification Shade False Positives)
+                            val isSamsungMenu = !root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_item_list").isNullOrEmpty()
+                            val isAospMenu = !root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/global_actions_view").isNullOrEmpty()
                             
-                            val triggerNode = powerMenuNode?.firstOrNull() ?: fallbackNode?.firstOrNull()
+                            // 2. Heuristic fallback: The actual Power Menu almost always has both "Power off" and "Restart". The Quick Settings shade does not.
+                            val hasPowerOff = !root?.findAccessibilityNodeInfosByText("Power off").isNullOrEmpty()
+                            val hasRestart = !root?.findAccessibilityNodeInfosByText("Restart").isNullOrEmpty()
+                            val isGenericMenu = hasPowerOff && hasRestart
                             
-                            if (triggerNode != null) {
+                            if (isSamsungMenu || isAospMenu || isGenericMenu) {
                                 val now = System.currentTimeMillis()
                                 val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
                                 if (now - lastTrigger > 2000) {
                                     statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
                                     
-                                    // Extract precise metadata for debugging false positives
-                                    val reasonId = triggerNode.viewIdResourceName ?: "No_ID"
-                                    val reasonText = triggerNode.text?.toString() ?: "No_Text"
-                                    val bounds = android.graphics.Rect().apply { triggerNode.getBoundsInScreen(this) }
-                                    DebugLogger.log("POWER_SHIELD", "Triggered by Node -> Text: '$reasonText', ID: '$reasonId', Bounds: ${bounds.toShortString()}")
-
                                     val html = statsPrefs.getString("power_shield_html", "") ?: ""
                                     val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
                                     val timeout = statsPrefs.getLong("power_shield_timeout", 10L)
                                     
+                                    // Draw Shield First to prevent screen flicker
                                     DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
-                                    DebugLogger.log("POWER_SHIELD", "Power Menu Intercepted. Failsafe: ${timeout}s")
+                                    DebugLogger.log("POWER_SHIELD", "Power Menu Confirmed & Intercepted. Failsafe: ${timeout}s")
                                     
-                                    // Drop the system menu running behind our overlay
-                                    delay(200) // Give the overlay time to take focus
-                                    val dismissed = performGlobalAction(GLOBAL_ACTION_BACK)
+                                    // Hard Dismissal: Back + Home guarantees the Samsung power menu is killed behind the shield
+                                    delay(250)
+                                    performGlobalAction(GLOBAL_ACTION_BACK)
+                                    delay(150)
+                                    performGlobalAction(GLOBAL_ACTION_HOME)
+                                    
                                     try {
                                         sendBroadcast(Intent(Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
                                     } catch (e: Exception) { }
-                                    DebugLogger.log("POWER_SHIELD", "System menu dismissal signals sent. Back_Success: $dismissed")
                                     
-                                    // Ensure Dimmer stays on top of the new UI
+                                    // Ensure Dimmer stays on top of any system UI transitions
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         DimmerManager.pushToFront(this@MyAccessibilityService)
-                                    }, 300)
+                                    }, 400)
                                     
-                                    // Failsafe Auto-Remove (Only if timeout > 0)
                                     if (timeout > 0) {
                                         Handler(Looper.getMainLooper()).postDelayed({
                                             DynamicUIManager.removeOverlay(this@MyAccessibilityService)
@@ -244,7 +244,7 @@ class MyAccessibilityService : AccessibilityService() {
                                         DebugLogger.log("POWER_SHIELD", "Persistent mode: No timeout scheduled.")
                                     }
                                 }
-                                break // Target acquired, exit scan loop
+                                break
                             }
                             attempts++
                             delay(50)
