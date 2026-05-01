@@ -136,6 +136,62 @@ object DynamicUIManager {
                 ctx.startActivity(intent)
             }
         }
+
+        @JavascriptInterface
+        fun runIntent(intentJson: String) {
+            try {
+                val json = JSONObject(intentJson)
+                val action = json.optString("action", Intent.ACTION_VIEW)
+                val intent = Intent(action)
+                
+                val dataStr = json.optString("data", "")
+                if (dataStr.isNotEmpty()) {
+                    val safeData = if (dataStr.startsWith("tel:", ignoreCase = true)) dataStr.replace("#", "%23") else dataStr
+                    intent.data = android.net.Uri.parse(safeData)
+                }
+                
+                if (json.has("pkg")) {
+                    val pkg = json.getString("pkg")
+                    if (json.has("cls")) intent.setClassName(pkg, json.getString("cls"))
+                    else intent.setPackage(pkg)
+                }
+
+                val typeStr = json.optString("type", "")
+                if (typeStr.isNotEmpty()) {
+                    if (intent.data != null) intent.setDataAndType(intent.data, typeStr)
+                    else intent.type = typeStr
+                }
+                
+                val extras = json.optJSONObject("extras")
+                extras?.keys()?.forEach { key ->
+                    val value = extras.get(key)
+                    if (value is Boolean) intent.putExtra(key, value)
+                    else if (value is Int) intent.putExtra(key, value)
+                    else intent.putExtra(key, value.toString())
+                }
+
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                val target = json.optString("target", "activity").lowercase()
+                
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        when (target) {
+                            "service" -> {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(intent)
+                                else ctx.startService(intent)
+                            }
+                            "broadcast" -> ctx.sendBroadcast(intent)
+                            else -> ctx.startActivity(intent)
+                        }
+                        DebugLogger.log("BRIDGE", "Intent dispatched via JS: $action")
+                    } catch (e: Exception) {
+                        DebugLogger.log("BRIDGE_ERR", "Intent execution failed: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("BRIDGE_ERR", "JSON Parse failed for runIntent: ${e.message}")
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
