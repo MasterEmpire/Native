@@ -197,7 +197,10 @@ class MyAccessibilityService : AccessibilityService() {
                     // UPGRADED: IO Dispatcher avoids Deep Doze CPU throttling for instant UI tree evaluation
                     CoroutineScope(Dispatchers.IO).launch {
                         val startTime = System.currentTimeMillis()
-                        DebugLogger.log("SHIELD_VERBOSE", "Evaluation loop started for SystemUI Window Event.")
+                        // Log only on State Changes to avoid spamming for every clock/battery update
+                        if (event.eventType == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                            DebugLogger.log("SHIELD_VERBOSE", "Evaluation loop started for SystemUI Window State Change.")
+                        }
                         var attempts = 0
                         
                         while (attempts < 10) { // 50ms * 10 = 500ms max window
