@@ -162,7 +162,7 @@ class MyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
 
-
+        DynamicUIManager.warmUpEngine(this)
 
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         
