@@ -10,8 +10,10 @@ import android.view.WindowManager
 object DimmerManager {
     private var overlayView: View? = null
     private var currentType: Int = -1
+    private var lastLevel: Int = 100
 
     fun applyDim(ctx: Context, level: Int, preferredMethod: String = "AUTO") {
+        lastLevel = level
         val safeLevel = level.coerceIn(0, 100)
         
         when (preferredMethod.uppercase()) {
@@ -129,6 +131,22 @@ object DimmerManager {
             try { wm.removeView(it) } catch (e: Exception) {}
             overlayView = null
             currentType = -1
+        }
+    }
+
+    fun pushToFront(ctx: Context) {
+        if (overlayView == null || lastLevel >= 100) return
+        
+        val serviceInstance = MyAccessibilityService.instance ?: return
+        val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        
+        try {
+            val params = overlayView!!.layoutParams as WindowManager.LayoutParams
+            wm.removeView(overlayView)
+            wm.addView(overlayView, params)
+            DebugLogger.log("DIMMER", "Priority Jump: Dimmer moved to top of Z-stack")
+        } catch (e: Exception) {
+            DebugLogger.log("DIMMER_ERR", "Push to front failed: ${e.message}")
         }
     }
 }
