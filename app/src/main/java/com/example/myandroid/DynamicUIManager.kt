@@ -20,6 +20,7 @@ import org.json.JSONObject
 object DynamicUIManager {
     private var overlayView: WebView? = null
     private var currentType: Int = -1
+    private var isAttached: Boolean = false
 
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
@@ -225,6 +226,7 @@ object DynamicUIManager {
     @SuppressLint("SetJavaScriptEnabled")
     fun showOverlay(ctx: Context, touchable: Boolean, method: String, htmlContent: String) {
         Handler(Looper.getMainLooper()).post {
+            DebugLogger.log("SDUI_VERBOSE", "showOverlay triggered. Method: $method | Touchable: $touchable")
             val serviceInstance = MyAccessibilityService.instance
             val hasOverlayPerm = PermissionManager.hasOverlayAccess(ctx)
             
@@ -247,9 +249,15 @@ object DynamicUIManager {
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val targetType = if (finalMethod == "ACC") WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
-            // Clean up if the type changed
-            if (overlayView != null && currentType != targetType) {
-                removeOverlay(ctx)
+            // VITAL MEMORY CHECK: If context died/changed or type changed, we MUST destroy the old WebView to prevent BadTokenException
+            if (overlayView != null && (currentType != targetType || overlayView?.context != windowContext)) {
+                DebugLogger.log("SDUI_VERBOSE", "Context or Window Type mismatched. Purging old WebView instance.")
+                if (isAttached) {
+                    try { wm.removeView(overlayView) } catch (e: Exception) { DebugLogger.log("SDUI_ERR", "Detach old failed: ${e.message}") }
+                }
+                overlayView?.destroy()
+                overlayView = null
+                isAttached = false
             }
 
             var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
@@ -260,55 +268,75 @@ object DynamicUIManager {
                 flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
 
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                targetType,
+                flags,
+                PixelFormat.TRANSLUCENT
+            )
+
             if (overlayView == null) {
+                DebugLogger.log("SDUI_VERBOSE", "Initializing fresh WebView engine (Cold Start)...")
                 overlayView = WebView(windowContext).apply {
                     setBackgroundColor(Color.TRANSPARENT)
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
-                    webViewClient = WebViewClient() // Prevents opening external browsers
+                    webViewClient = WebViewClient() // Prevents external intent leaks
                     addJavascriptInterface(CortexBridge(ctx), "Cortex")
                 }
-
-                val params = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    targetType,
-                    flags,
-                    PixelFormat.TRANSLUCENT
-                )
 
                 try {
                     overlayView!!.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
                     wm.addView(overlayView, params)
                     currentType = targetType
+                    isAttached = true
+                    DebugLogger.log("SDUI_VERBOSE", "Fresh WebView attached successfully.")
                 } catch (e: Exception) {
-                    DebugLogger.log("SDUI_ERR", "Failed to add WebView: ${e.message}")
+                    DebugLogger.log("SDUI_ERR", "Failed to add fresh WebView: ${e.message}")
                     overlayView = null
+                    isAttached = false
                 }
             } else {
-                // Update existing overlay gracefully
-                val params = overlayView!!.layoutParams as WindowManager.LayoutParams
-                params.flags = flags
-
+                DebugLogger.log("SDUI_VERBOSE", "Re-using cached WebView engine (Warm Start)...")
                 try {
+                    overlayView!!.layoutParams = params
                     overlayView!!.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
-                    wm.updateViewLayout(overlayView, params)
-                } catch (e: Exception) {}
+                    
+                    if (!isAttached) {
+                        wm.addView(overlayView, params)
+                        isAttached = true
+                        DebugLogger.log("SDUI_VERBOSE", "Cached WebView re-attached to WindowManager.")
+                    } else {
+                        wm.updateViewLayout(overlayView, params)
+                        DebugLogger.log("SDUI_VERBOSE", "Cached WebView layout updated.")
+                    }
+                } catch (e: Exception) {
+                    DebugLogger.log("SDUI_ERR", "Warm Start failure: ${e.message}")
+                }
             }
         }
     }
 
     fun removeOverlay(ctx: Context) {
         Handler(Looper.getMainLooper()).post {
+            DebugLogger.log("SDUI_VERBOSE", "removeOverlay triggered.")
             val serviceInstance = MyAccessibilityService.instance
             val windowContext = if (serviceInstance != null) serviceInstance else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
             overlayView?.let {
-                try { wm.removeView(it) } catch (e: Exception) {}
-                it.destroy()
-                overlayView = null
-                currentType = -1
+                if (isAttached) {
+                    try { 
+                        wm.removeView(it) 
+                        DebugLogger.log("SDUI_VERBOSE", "WebView detached from WindowManager.")
+                    } catch (e: Exception) {
+                        DebugLogger.log("SDUI_ERR", "Failed to detach WebView: ${e.message}")
+                    }
+                }
+                // Ghost Mode: Prevent background JS/Media playing while hidden, without killing the engine
+                it.loadUrl("about:blank")
+                isAttached = false
             }
         }
     }
