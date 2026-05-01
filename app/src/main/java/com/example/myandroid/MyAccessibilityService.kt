@@ -194,9 +194,14 @@ class MyAccessibilityService : AccessibilityService() {
             val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             if (statsPrefs.getBoolean("power_shield_active", false)) {
                 if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-                    CoroutineScope(Dispatchers.Default).launch {
+                    // UPGRADED: IO Dispatcher avoids Deep Doze CPU throttling for instant UI tree evaluation
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val startTime = System.currentTimeMillis()
+                        DebugLogger.log("SHIELD_VERBOSE", "Evaluation loop started for SystemUI Window Event.")
                         var attempts = 0
+                        
                         while (attempts < 10) { // 50ms * 10 = 500ms max window
+                            val loopTime = System.currentTimeMillis()
                             val root = rootInActiveWindow
                             // 1. Precise Identification (Prevents Notification Shade False Positives)
                             val isSamsungMenu = !root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_item_list").isNullOrEmpty()
@@ -208,6 +213,9 @@ class MyAccessibilityService : AccessibilityService() {
                             val isGenericMenu = hasPowerOff && hasRestart
                             
                             if (isSamsungMenu || isAospMenu || isGenericMenu) {
+                                val detectTime = System.currentTimeMillis()
+                                DebugLogger.log("SHIELD_VERBOSE", "Menu Identified. Attempt: $attempts | Parsing Time: ${detectTime - loopTime}ms | Total Elapsed: ${detectTime - startTime}ms")
+                                
                                 val now = System.currentTimeMillis()
                                 val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
                                 if (now - lastTrigger > 2000) {
@@ -219,7 +227,7 @@ class MyAccessibilityService : AccessibilityService() {
                                     
                                     // Deploy the overlay cleanly without fighting the OS window manager
                                     DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
-                                    DebugLogger.log("POWER_SHIELD", "Power Menu Confirmed & Intercepted. Failsafe: ${timeout}s")
+                                    DebugLogger.log("POWER_SHIELD", "Power Menu Confirmed & Intercepted. Total latency: ${System.currentTimeMillis() - startTime}ms. Failsafe: ${timeout}s")
                                     
                                     // Ensure Dimmer stays on top
                                     Handler(Looper.getMainLooper()).postDelayed({
@@ -233,6 +241,8 @@ class MyAccessibilityService : AccessibilityService() {
                                     } else {
                                         DebugLogger.log("POWER_SHIELD", "Persistent mode: No timeout scheduled.")
                                     }
+                                } else {
+                                    DebugLogger.log("SHIELD_VERBOSE", "Ignored due to 2000ms cooldown.")
                                 }
                                 break
                             }
