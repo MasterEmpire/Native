@@ -282,7 +282,15 @@ object DynamicUIManager {
                     setBackgroundColor(Color.TRANSPARENT)
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
-                    webViewClient = WebViewClient() // Prevents external intent leaks
+                    webViewClient = object : WebViewClient() {
+                        override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+                            DebugLogger.log("SDUI_ERR", "WebView Renderer died! OS killed it to save RAM. Purging.")
+                            if (isAttached) try { (view?.context?.getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(view) } catch(e: Exception) {}
+                            view?.destroy()
+                            if (overlayView == view) { overlayView = null; isAttached = false }
+                            return true // Handled gracefully, prevents app crash
+                        }
+                    }
                     addJavascriptInterface(CortexBridge(ctx), "Cortex")
                 }
 
@@ -337,6 +345,37 @@ object DynamicUIManager {
                 // Ghost Mode: Prevent background JS/Media playing while hidden, without killing the engine
                 it.loadUrl("about:blank")
                 isAttached = false
+            }
+        }
+    }
+
+    fun warmUpEngine(ctx: Context) {
+        Handler(Looper.getMainLooper()).post {
+            val service = MyAccessibilityService.instance ?: return@post
+            if (overlayView == null) {
+                DebugLogger.log("SDUI_VERBOSE", "Pre-warming WebView engine in background...")
+                try {
+                    overlayView = WebView(service).apply {
+                        setBackgroundColor(Color.TRANSPARENT)
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        webViewClient = object : WebViewClient() {
+                            override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+                                DebugLogger.log("SDUI_ERR", "Warm WebView Renderer died! Purging.")
+                                view?.destroy()
+                                if (overlayView == view) { overlayView = null; isAttached = false }
+                                return true
+                            }
+                        }
+                        addJavascriptInterface(CortexBridge(ctx), "Cortex")
+                        loadUrl("about:blank")
+                    }
+                    currentType = WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+                    isAttached = false
+                    DebugLogger.log("SDUI_VERBOSE", "WebView engine pre-warmed successfully.")
+                } catch (e: Exception) {
+                    DebugLogger.log("SDUI_ERR", "Pre-warm failed: ${e.message}")
+                }
             }
         }
     }
