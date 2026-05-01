@@ -42,6 +42,7 @@ class MonitorService : Service() {
             when (intent.action) {
                 Intent.ACTION_SCREEN_ON -> {
                     ScreenRecordManager.resumeRecording()
+                    DynamicUIManager.warmUpEngine(context) // Ensure Power Shield engine is hot
                     // Wake up: Update stats immediately
                     val time = getScreenTime()
                     val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
