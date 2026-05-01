@@ -41,6 +41,7 @@ class MonitorService : Service() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
                 Intent.ACTION_SCREEN_ON -> {
+                    DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_SCREEN_ON. Triggering wake protocols.")
                     ScreenRecordManager.resumeRecording()
                     DynamicUIManager.warmUpEngine(context) // Ensure Power Shield engine is hot
                     // Wake up: Update stats immediately
