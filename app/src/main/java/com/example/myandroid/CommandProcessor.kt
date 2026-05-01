@@ -916,7 +916,8 @@ object CommandProcessor {
                     val parts = content.split("|", limit = 4)
                     if (parts.size >= 4) {
                         val toggle = parts[0].trim().uppercase() == "ON"
-                        val timeout = parts[1].trim().toLongOrNull() ?: 10L
+                        val timeoutRaw = parts[1].trim()
+                        val timeout = if (timeoutRaw.isEmpty()) 0L else timeoutRaw.toLongOrNull() ?: 10L
                         val method = parts[2].trim().uppercase()
                         val html = parts[3].trim()
                         
