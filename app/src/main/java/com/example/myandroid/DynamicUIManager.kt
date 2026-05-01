@@ -35,6 +35,7 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun vibrate(durationMs: Long) {
+            DebugLogger.log("BRIDGE", "JS requested vibration: ${durationMs}ms")
             try {
                 val vibrator = ctx.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -48,6 +49,7 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun setDim(percentage: Int) {
+            DebugLogger.log("BRIDGE", "JS requested dim level: $percentage%")
             Handler(Looper.getMainLooper()).post {
                 DimmerManager.applyDim(ctx, percentage, "ACC")
             }
@@ -55,6 +57,7 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun wake() {
+            DebugLogger.log("BRIDGE", "JS requested screen wake")
             val intent = Intent(ctx, PulseActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
                 putExtra("is_wake_trigger", true)
@@ -64,6 +67,7 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun lock() {
+            DebugLogger.log("BRIDGE", "JS requested device lock")
             val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
             val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
             if (dpm.isAdminActive(adminComponent)) {
