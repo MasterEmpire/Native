@@ -333,6 +333,9 @@ object DynamicUIManager {
             val windowContext = if (serviceInstance != null) serviceInstance else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
+            // ALWAYS remove the screen dimmer when the UI is dismissed (restores normal brightness)
+            DimmerManager.removeOverlay(ctx)
+            
             overlayView?.let {
                 if (isAttached) {
                     try { 
