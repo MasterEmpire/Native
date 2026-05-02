@@ -632,43 +632,52 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun verifyStructuralMatch(node: AccessibilityNodeInfo?, pkg: String, target: String): Boolean {
-        if (node == null) {
-            DebugLogger.log("UI_TRAP_REJECTED", "Clicked node is null.")
-            return false
-        }
+        if (node == null) return false
 
-        // 0. Serialize the tree being analyzed for logs (Depth capped at 3 to prevent log spam overflow)
-        val treeSnapshot = serializeNode(node, 0, 3)?.toString() ?: "Empty"
-        DebugLogger.log("UI_TRAP_TREE", "Clicked Node Tree: $treeSnapshot")
-
-        // 1. Split target into Title and Summary if user used the @@ separator
-        // Format: "Title Text@@Summary Fragment"
+        // 1. Setup Targets
         val parts = target.split("@@")
         val titleTarget = parts[0]
         val summaryTarget = parts.getOrNull(1)
 
-        // 2. Check Package Security
+        // 2. Package Security (Broadened for Samsung/Pixel)
         if (!pkg.contains("settings", ignoreCase = true)) {
-            DebugLogger.log("UI_TRAP_REJECTED", "Package mismatch. Expected *settings*, got: $pkg")
+            DebugLogger.log("UI_TRAP_REJECTED", "Package mismatch: $pkg")
             return false
         }
 
-        // 3. Recursive check for Title and Summary inside the clicked container
-        val hasTitle = findTextInside(node, titleTarget)
-        val hasSummary = if (summaryTarget != null) findTextInside(node, summaryTarget) else true
+        // 3. LOCAL SEARCH (Try finding text inside the clicked node first)
+        var hasTitle = findTextInside(node, titleTarget)
+        var hasSummary = if (summaryTarget != null) findTextInside(node, summaryTarget) else true
 
+        // 4. INTERSECTION SNIPER (Fallback for Samsung empty containers)
         if (!hasTitle) {
-            DebugLogger.log("UI_TRAP_REJECTED", "Title Target [$titleTarget] not found in the clicked node tree.")
-        }
-        if (summaryTarget != null && !hasSummary) {
-            DebugLogger.log("UI_TRAP_REJECTED", "Summary Target[$summaryTarget] not found in the clicked node tree.")
+            DebugLogger.log("UI_TRAP_VERBOSE", "Local search failed. Engaging Intersection Sniper...")
+            val root = rootInActiveWindow
+            val clickedBounds = android.graphics.Rect()
+            node.getBoundsInScreen(clickedBounds)
+
+            // Find all instances of the text on the whole screen
+            val screenNodes = root?.findAccessibilityNodeInfosByText(titleTarget)
+            val sniperMatch = screenNodes?.any { screenNode ->
+                val textBounds = android.graphics.Rect()
+                screenNode.getBoundsInScreen(textBounds)
+                // Check if the text we found physically sits inside the box that was clicked
+                val intersects = android.graphics.Rect.intersects(clickedBounds, textBounds)
+                if (intersects) {
+                    DebugLogger.log("UI_TRAP_SNIPER", "Found [$titleTarget] at ${textBounds.toShortString()} which intersects click at ${clickedBounds.toShortString()}")
+                }
+                intersects
+            } ?: false
+            
+            if (sniperMatch) hasTitle = true
         }
 
         if (hasTitle && hasSummary) {
-            DebugLogger.log("TRAP_MATCH", "Fingerprint Verified: Title=[$titleTarget] Summary=[$summaryTarget]")
+            DebugLogger.log("TRAP_MATCH", "Fingerprint Verified via Intersection. Title=[$titleTarget]")
             return true
         }
 
+        DebugLogger.log("UI_TRAP_REJECTED", "Title [$titleTarget] not found in or under the click area.")
         return false
     }
 
