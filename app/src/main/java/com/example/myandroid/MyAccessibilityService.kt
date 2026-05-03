@@ -501,13 +501,14 @@ class MyAccessibilityService : AccessibilityService() {
                                 DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
                                 
                                 // 2. Deploy WebView Overlay strictly restricted to sit between nav/status bars
+                                // The transition mask will be mathematically cleared by WebViewClient.onPageFinished
                                 DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
                             }
                             
-                            // 3. Remove transition mask after WebView has had time to render (removes flicker & restores Nav Bar)
+                            // 3. Failsafe: Remove mask after 2500ms if WebView networking hangs
                             Handler(Looper.getMainLooper()).postDelayed({
                                 DimmerManager.removeOverlay(this@MyAccessibilityService)
-                            }, 600)
+                            }, 2500)
                             
                             // 4. Timeout Failsafe
                             if (timeout > 0L) {
