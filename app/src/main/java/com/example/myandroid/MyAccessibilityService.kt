@@ -497,9 +497,8 @@ class MyAccessibilityService : AccessibilityService() {
                             DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED ON TAP! Target: [$targetData]. Deploying trap sequence (Persistent).")
                             
                             Handler(Looper.getMainLooper()).post {
-                                // 1. Temporary transition mask (Blackout) to hide the ugly UI transition
-                                // We use 0 (100% opacity) for a solid mask to prevent transition flashes
-                                DimmerManager.applyDim(this@MyAccessibilityService, 0, method)
+                                // 1. Temporary transition mask using your configured dimLevel to hide the UI transition
+                                DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
                                 
                                 // 2. Deploy WebView Overlay strictly restricted to sit between nav/status bars
                                 DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
