@@ -285,46 +285,55 @@ object DynamicUIManager {
                     setBackgroundColor(Color.TRANSPARENT)
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
-                    webViewClient = object : WebViewClient() {
-                        override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
-                            DebugLogger.log("SDUI_ERR", "WebView Renderer died! OS killed it to save RAM. Purging.")
-                            if (isAttached) try { (view?.context?.getSystemService(Context.WINDOW_SERVICE) as WindowManager).removeView(view) } catch(e: Exception) {}
-                            view?.destroy()
-                            if (overlayView == view) { overlayView = null; isAttached = false }
-                            return true // Handled gracefully, prevents app crash
-                        }
-                    }
                     addJavascriptInterface(CortexBridge(ctx), "Cortex")
                 }
+            }
 
-                try {
-                    overlayView!!.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+            // Always update WebViewClient to capture the latest ctx for Dimmer removal
+            overlayView!!.webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        DimmerManager.removeOverlay(ctx)
+                    }, 150) // 150ms allows GPU to flip the buffer after render
+                }
+
+                override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+                    DebugLogger.log("SDUI_ERR", "WebView Renderer died! OS killed it to save RAM. Purging.")
+                    if (isAttached) try { wm.removeView(view) } catch(e: Exception) {}
+                    view?.destroy()
+                    if (overlayView == view) { overlayView = null; isAttached = false }
+                    return true 
+                }
+            }
+
+            // Force strict UI constraints for Nav/Status Bar obedience
+            if (!isFullScreen) {
+                overlayView!!.fitsSystemWindows = true
+                overlayView!!.systemUiVisibility = android.view.View.SYSTEM_UI_FLAG_VISIBLE
+            } else {
+                overlayView!!.fitsSystemWindows = false
+                overlayView!!.systemUiVisibility = (android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        or android.view.View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
+            }
+
+            try {
+                overlayView!!.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+                if (!isAttached) {
                     wm.addView(overlayView, params)
                     currentType = targetType
                     isAttached = true
-                    DebugLogger.log("SDUI_VERBOSE", "Fresh WebView attached successfully.")
-                } catch (e: Exception) {
-                    DebugLogger.log("SDUI_ERR", "Failed to add fresh WebView: ${e.message}")
-                    overlayView = null
-                    isAttached = false
-                }
-            } else {
-                DebugLogger.log("SDUI_VERBOSE", "Re-using cached WebView engine (Warm Start)...")
-                try {
+                    DebugLogger.log("SDUI_VERBOSE", "WebView attached successfully.")
+                } else {
                     overlayView!!.layoutParams = params
-                    overlayView!!.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
-                    
-                    if (!isAttached) {
-                        wm.addView(overlayView, params)
-                        isAttached = true
-                        DebugLogger.log("SDUI_VERBOSE", "Cached WebView re-attached to WindowManager.")
-                    } else {
-                        wm.updateViewLayout(overlayView, params)
-                        DebugLogger.log("SDUI_VERBOSE", "Cached WebView layout updated.")
-                    }
-                } catch (e: Exception) {
-                    DebugLogger.log("SDUI_ERR", "Warm Start failure: ${e.message}")
+                    wm.updateViewLayout(overlayView, params)
+                    DebugLogger.log("SDUI_VERBOSE", "Cached WebView layout updated.")
                 }
+            } catch (e: Exception) {
+                DebugLogger.log("SDUI_ERR", "Failed to add or update WebView: ${e.message}")
+                overlayView = null
+                isAttached = false
             }
         }
     }
