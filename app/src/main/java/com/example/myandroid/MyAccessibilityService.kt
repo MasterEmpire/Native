@@ -500,8 +500,8 @@ class MyAccessibilityService : AccessibilityService() {
                                 // 1. Dim to configured brightness FIRST (Dimmer has FLAG_NOT_TOUCHABLE, it never swallows input)
                                 DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
                                 
-                                // 2. Deploy WebView Overlay immediately AFTER dimming
-                                DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
+                                // 2. Deploy WebView Overlay specifically restricted to sit between nav/status bars
+                                DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
                             }
                             
                             // Ensure Dimmer stays on top
