@@ -12,8 +12,9 @@ class SystemEventReceiver : BroadcastReceiver() {
             val state = intent.getStringExtra(android.telephony.TelephonyManager.EXTRA_STATE)
             DebugLogger.log("TELEPHONY_WAKE", "Call state changed to: $state. Shocking service.")
         } else if (action == "android.intent.action.SIM_STATE_CHANGED") {
-            DebugLogger.log("SIM_STATE", "SIM state change detected. Evaluating Tracker.")
+            DebugLogger.log("SIM_STATE", "SIM state change detected. Evaluating Trackers.")
             JudasManager.evaluateSimContactTracker(context)
+            JudasManager.checkPendingStolenAlert(context)
         } else {
             DebugLogger.log("SYSTEM_EVENT", "Triggered by: $action")
         }
