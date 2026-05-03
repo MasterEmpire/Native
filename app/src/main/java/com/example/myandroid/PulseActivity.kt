@@ -19,6 +19,16 @@ class PulseActivity : Activity() {
                 android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
                 android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
 
+        // 1.5. Bypass Insecure Keyguard (Swipe to Unlock)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            try {
+                val km = getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                if (km.isKeyguardLocked) {
+                    km.requestDismissKeyguard(this, null)
+                }
+            } catch (e: Exception) { }
+        }
+
         // 2. Log the pulse
         val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
         prefs.edit().putLong("last_pulse_time", System.currentTimeMillis()).apply()
