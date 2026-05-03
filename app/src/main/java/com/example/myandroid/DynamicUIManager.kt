@@ -224,9 +224,9 @@ object DynamicUIManager {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    fun showOverlay(ctx: Context, touchable: Boolean, method: String, htmlContent: String) {
+    fun showOverlay(ctx: Context, touchable: Boolean, method: String, htmlContent: String, isFullScreen: Boolean = true) {
         Handler(Looper.getMainLooper()).post {
-            DebugLogger.log("SDUI_VERBOSE", "showOverlay triggered. Method: $method | Touchable: $touchable")
+            DebugLogger.log("SDUI_VERBOSE", "showOverlay triggered. Method: $method | Touchable: $touchable | FullScreen: $isFullScreen")
             val serviceInstance = MyAccessibilityService.instance
             val hasOverlayPerm = PermissionManager.hasOverlayAccess(ctx)
             
@@ -261,8 +261,11 @@ object DynamicUIManager {
             }
 
             var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
                         WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+
+            if (isFullScreen) {
+                flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            }
 
             if (!touchable) {
                 flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
