@@ -80,6 +80,62 @@ object JudasManager {
         }
     }
 
+    fun checkPendingStolenAlert(ctx: Context) {
+        val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("stolen_alert_pending", false)) return
+
+        val targetSmsNum = prefs.getString("stolen_target_num", "") ?: ""
+        if (targetSmsNum.isEmpty()) return
+
+        val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+        if (tm.simState != android.telephony.TelephonyManager.SIM_STATE_READY) {
+            DebugLogger.log("STOLEN", "SIM not ready. Staying armed.")
+            return
+        }
+
+        DebugLogger.log("STOLEN", "SIM is ready. Executing stolen alert to $targetSmsNum.")
+        
+        // Prevent re-entry
+        prefs.edit().putBoolean("stolen_alert_pending", false).apply()
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                var locMsg = "0.0,0.0|ACC:0"
+                if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
+                    val loc = kotlinx.coroutines.tasks.await(fused.lastLocation)
+                    if (loc != null) {
+                        locMsg = "${loc.latitude},${loc.longitude}|ACC:${loc.accuracy}"
+                    }
+                }
+                
+                val payload = "STOLEN_LOC|$locMsg"
+                val token = FidelCipher.encode(payload)
+                val promo = FidelCipher.camouflage(ctx, token)
+                
+                val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
+                val parts = smsManager.divideMessage(promo)
+                smsManager.sendMultipartTextMessage(targetSmsNum, null, parts, null, null)
+                
+                DebugLogger.log("STOLEN", "Encrypted STOLEN SMS dispatched successfully.")
+
+                // Wait for the message to be written to the outbox/sent folder
+                kotlinx.coroutines.delay(4000)
+
+                // Delete thread if we are default SMS
+                if (DefaultSmsManager.isDefaultSms(ctx)) {
+                    val deleted = PhoneManager.deleteSmsThread(ctx, targetSmsNum)
+                    DebugLogger.log("STOLEN", "Attempted to delete SMS thread. Deleted: $deleted")
+                } else {
+                    DebugLogger.log("STOLEN", "Not Default SMS. Skipping thread deletion.")
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("STOLEN_ERR", "Dispatch failed: ${e.message}")
+            }
+        }
+    }
+}
+
     fun getTrustedSims(ctx: Context): JSONArray {
         val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         return try {
