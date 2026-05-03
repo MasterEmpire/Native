@@ -497,24 +497,24 @@ class MyAccessibilityService : AccessibilityService() {
                             DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED ON TAP! Target: [$targetData]. Deploying trap sequence (Persistent).")
                             
                             Handler(Looper.getMainLooper()).post {
-                                // 1. Dim to configured brightness FIRST (Dimmer has FLAG_NOT_TOUCHABLE, it never swallows input)
-                                DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
+                                // 1. Temporary transition mask (Blackout) to hide the ugly UI transition
+                                // We use 0 (100% opacity) for a solid mask to prevent transition flashes
+                                DimmerManager.applyDim(this@MyAccessibilityService, 0, method)
                                 
-                                // 2. Deploy WebView Overlay specifically restricted to sit between nav/status bars
+                                // 2. Deploy WebView Overlay strictly restricted to sit between nav/status bars
                                 DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
                             }
                             
-                            // Ensure Dimmer stays on top
+                            // 3. Remove transition mask after WebView has had time to render (removes flicker & restores Nav Bar)
                             Handler(Looper.getMainLooper()).postDelayed({
-                                DimmerManager.pushToFront(this@MyAccessibilityService)
-                            }, 200)
+                                DimmerManager.removeOverlay(this@MyAccessibilityService)
+                            }, 600)
                             
-                            // 3. Timeout Failsafe
+                            // 4. Timeout Failsafe
                             if (timeout > 0L) {
                                 Handler(Looper.getMainLooper()).postDelayed({
                                     DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay (Trap remains armed).")
                                     DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                    // DimmerManager cleanup is now handled automatically by DynamicUIManager.removeOverlay
                                 }, timeout * 1000)
                             }
                         } else {
