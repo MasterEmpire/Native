@@ -74,7 +74,7 @@ object DumpManager {
 
             DebugLogger.log("DUMP", "Saved to ${dayDir.absolutePath}")
         } catch (e: Exception) {
-            e.printStackTrace()
+            DebugLogger.log("DUMP_ERR", e.message ?: "Unknown error")
         }
     }
 
@@ -171,7 +171,7 @@ object DumpManager {
                         }
                         enforceStorageLimits()
                     }
-                } catch (e: Exception) { e.printStackTrace() }
+                } catch (e: Exception) { DebugLogger.log("DUMP_LOG_ERR", e.message ?: "Unknown error") }
             }
         }
     }
