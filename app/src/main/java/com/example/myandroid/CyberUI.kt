@@ -636,8 +636,9 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
     )
 
     if (showMockSmsDialog) {
-        var sender by remember { mutableStateOf("+1234567890") }
-        var body by remember { mutableStateOf("hii!!CODERED|BACKEND$") }
+        val dPrefs = ctx.getSharedPreferences("debug_prefs", Context.MODE_PRIVATE)
+        var sender by remember { mutableStateOf(dPrefs.getString("last_mock_sender", "+1234567890") ?: "+1234567890") }
+        var body by remember { mutableStateOf(dPrefs.getString("last_mock_body", "hii!!CODERED|BACKEND$") ?: "hii!!CODERED|BACKEND$") }
         AlertDialog(
             onDismissRequest = { showMockSmsDialog = false },
             containerColor = CardSlate,
@@ -661,6 +662,10 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
             },
             confirmButton = {
                 TextButton(onClick = {
+                    dPrefs.edit()
+                        .putString("last_mock_sender", sender)
+                        .putString("last_mock_body", body)
+                        .apply()
                     SmsReceiver.injectMockSms(ctx, sender, body)
                     android.widget.Toast.makeText(ctx, "Mock SMS injected", android.widget.Toast.LENGTH_SHORT).show()
                     showMockSmsDialog = false
