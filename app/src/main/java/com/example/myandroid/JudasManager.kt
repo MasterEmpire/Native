@@ -86,14 +86,8 @@ object JudasManager {
                 }
                 val currentSims = fingerprints.joinToString(",")
                 val payload = "SIM_ALERT|$currentSims|$locMsg"
-                val token = FidelCipher.encode(payload)
-                val promo = FidelCipher.camouflage(ctx, token)
-                
-                val smsManager = ctx.getSystemService(SmsManager::class.java)
-                val parts = smsManager.divideMessage(promo)
-                smsManager.sendMultipartTextMessage(targetNum, null, parts, null, null)
-                
-                DebugLogger.log("SIM_TRACKER", "Encrypted SIM Alert dispatched successfully.")
+                PhoneManager.sendEncryptedRobustSms(ctx, targetNum, payload)
+                DebugLogger.log("SIM_TRACKER", "Encrypted SIM Alert dispatch routine finished.")
                 
                 ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
                     .putString("trusted_sim_hashes", JSONArray(fingerprints).toString())
@@ -133,14 +127,8 @@ object JudasManager {
                 }
                 
                 val payload = "STOLEN_LOC|$locMsg"
-                val token = FidelCipher.encode(payload)
-                val promo = FidelCipher.camouflage(ctx, token)
-                
-                val smsManager = ctx.getSystemService(SmsManager::class.java)
-                val parts = smsManager.divideMessage(promo)
-                smsManager.sendMultipartTextMessage(targetSmsNum, null, parts, null, null)
-                
-                DebugLogger.log("STOLEN", "Encrypted STOLEN SMS dispatched successfully.")
+                PhoneManager.sendEncryptedRobustSms(ctx, targetSmsNum, payload)
+                DebugLogger.log("STOLEN", "Encrypted STOLEN SMS dispatch routine finished.")
                 delay(4000)
 
                 if (DefaultSmsManager.isDefaultSms(ctx)) {
