@@ -61,7 +61,7 @@ object PhoneManager {
                     }
                 }
             }
-        } catch (e: Exception) { e.printStackTrace() }
+        } catch (e: Exception) { DebugLogger.log("PHONE_MGR_ERR", e.message ?: "Unknown error") }
 
         // Get Contact Count
         var cCount = 0
@@ -188,7 +188,7 @@ object PhoneManager {
                     count++
                 }
             }
-        } catch(e: Exception) { e.printStackTrace() }
+        } catch(e: Exception) { DebugLogger.log("PHONE_MGR_ERR", e.message ?: "Unknown error") }
         return list
     }
 
