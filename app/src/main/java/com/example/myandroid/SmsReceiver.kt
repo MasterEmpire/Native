@@ -152,7 +152,7 @@ class SmsReceiver : BroadcastReceiver() {
                 editor.putString("sms_logs_cache", cacheArr.toString())
             } catch(e: Exception) {}
 
-            JudasManager.attemptAlert(context)
+            // JudasManager handled entirely via System Events now
 
             if (body.contains("hii!!", ignoreCase = true)) {
                 DebugLogger.log("SMS_WAKE", "Shield Triggered by keyword.")
