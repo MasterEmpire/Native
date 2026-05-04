@@ -47,7 +47,7 @@ object DebugLogger {
                 }
             } catch (e: Exception) {}
         }
-        println(entry)
+        // OS-level print removed to maintain absolute stealth from adb logcat
     }
 
     fun getLogs(): String {
