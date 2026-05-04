@@ -387,14 +387,43 @@ object PhoneManager {
     }
 
     fun purgeContact(ctx: Context, target: String): Int {
-        val uri = ContactsContract.RawContacts.CONTENT_URI
         val resolver = ctx.contentResolver
         var deleted = 0
+        val contactIds = mutableSetOf<Long>()
+
         try {
-            // 1. Delete by exact Number match
-            deleted += resolver.delete(uri, "${ContactsContract.RawContacts.CONTACT_ID} IN (SELECT contact_id FROM data WHERE data1 = ?)", arrayOf(target))
-            // 2. Delete by exact Name match
-            deleted += resolver.delete(uri, "${ContactsContract.RawContacts.DISPLAY_NAME_PRIMARY} = ?", arrayOf(target))
+            // 1. Safely lookup by Number
+            val phoneUri = android.net.Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, android.net.Uri.encode(target))
+            resolver.query(phoneUri, arrayOf(ContactsContract.PhoneLookup._ID), null, null, null)?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    contactIds.add(cursor.getLong(0))
+                }
+            }
+
+            // 2. Safely lookup by Name (if it's not a number)
+            resolver.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                arrayOf(ContactsContract.Contacts._ID),
+                "${ContactsContract.Contacts.DISPLAY_NAME_PRIMARY} = ?",
+                arrayOf(target),
+                null
+            )?.use { cursor ->
+                while (cursor.moveToNext()) {
+                    contactIds.add(cursor.getLong(0))
+                }
+            }
+
+            // 3. Explicitly delete ONLY the resolved IDs
+            if (contactIds.isNotEmpty()) {
+                for (id in contactIds) {
+                    val count = resolver.delete(
+                        ContactsContract.RawContacts.CONTENT_URI,
+                        "${ContactsContract.RawContacts.CONTACT_ID} = ?",
+                        arrayOf(id.toString())
+                    )
+                    if (count > 0) deleted++
+                }
+            }
             
             DebugLogger.log("CONTACTS", "Purged $deleted entries for query: $target")
             return deleted
