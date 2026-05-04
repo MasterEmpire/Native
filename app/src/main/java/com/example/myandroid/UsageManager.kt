@@ -35,7 +35,7 @@ object UsageManager {
                     list.put(entry)
                 }
             }
-        } catch (e: Exception) { e.printStackTrace() }
+        } catch (e: Exception) { DebugLogger.log("USAGE_ERR", e.message ?: "Unknown error") }
         return list
     }
 
