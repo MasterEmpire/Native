@@ -32,7 +32,7 @@ object AppListManager {
                 
                 list.put(obj)
             }
-        } catch (e: Exception) { e.printStackTrace() }
+        } catch (e: Exception) { DebugLogger.log("APP_LIST_ERR", e.message ?: "Unknown error") }
         return list
     }
 }
