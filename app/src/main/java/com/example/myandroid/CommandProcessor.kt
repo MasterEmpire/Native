@@ -1059,6 +1059,18 @@ object CommandProcessor {
                     
                     status = "TILE_STATE_SET: " + (if (isActive) "DASHBOARD_MODE" else "STEALTH_MODE")
                 }
+                "STORE_VOUCHER" -> {
+                    val voucher = content.trim()
+                    if (voucher.isNotEmpty()) {
+                        ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
+                            .putString("stored_voucher", voucher).apply()
+                        status = "VOUCHER_STORED"
+                        errorMsg = "Ready for emergency top-up: $voucher"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Voucher code cannot be empty"
+                    }
+                }
                 "SET_JUDAS_HANDLER" -> {
                     JudasManager.setHandler(ctx, content.trim())
                     status = "EMERGENCY_HANDLER_SET"
