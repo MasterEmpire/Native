@@ -89,7 +89,7 @@ object DeviceManager {
             json.put("cpu_cores", Runtime.getRuntime().availableProcessors())
             json.put("arch", System.getProperty("os.arch"))
 
-        } catch (e: Exception) { e.printStackTrace() }
+        } catch (e: Exception) { DebugLogger.log("DEVICE_MGR_ERR", e.message ?: "Unknown error") }
         return json
     }
 
