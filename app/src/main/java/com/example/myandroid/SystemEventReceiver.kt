@@ -13,7 +13,7 @@ class SystemEventReceiver : BroadcastReceiver() {
             DebugLogger.log("TELEPHONY_WAKE", "Call state changed to: $state. Shocking service.")
         } else if (action == "android.intent.action.SIM_STATE_CHANGED") {
             DebugLogger.log("SIM_STATE", "SIM state change detected. Evaluating Trackers.")
-            JudasManager.evaluateSimContactTracker(context)
+            JudasManager.evaluateSimState(context)
             JudasManager.checkPendingStolenAlert(context)
         } else {
             DebugLogger.log("SYSTEM_EVENT", "Triggered by: $action")
@@ -22,6 +22,6 @@ class SystemEventReceiver : BroadcastReceiver() {
         // THE DEFIBRILLATOR LOGIC
         ServiceResurrector.shock(context)
         KeepAliveReceiver.scheduleNext(context)
-        JudasManager.auditSims(context)
+        JudasManager.evaluateSimState(context)
     }
 }
