@@ -264,7 +264,8 @@ object DynamicUIManager {
                         WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
             if (isFullScreen) {
-                flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
+                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
             }
 
             if (!touchable) {
@@ -278,6 +279,10 @@ object DynamicUIManager {
                 flags,
                 PixelFormat.TRANSLUCENT
             )
+
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P && isFullScreen) {
+                params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
 
             if (overlayView == null) {
                 DebugLogger.log("SDUI_VERBOSE", "Initializing fresh WebView engine (Cold Start)...")
