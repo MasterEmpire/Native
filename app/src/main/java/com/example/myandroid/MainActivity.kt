@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                 android.widget.Toast.makeText(this, "Initializing $skin services...", android.widget.Toast.LENGTH_SHORT).show()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            DebugLogger.log("MAIN_ACT_ERR", e.message ?: "Unknown error")
         } finally {
             finish()
         }
