@@ -25,7 +25,11 @@ class BeaconService : Service() {
         val mode = intent?.getStringExtra("mode") ?: "BURST"
         val endTime = System.currentTimeMillis() + (durationMins * 60 * 1000)
         
-        intervalSeconds = if (mode == "LOCATION_STREAM") 15L else 5L 
+        intervalSeconds = when(mode) {
+            "LIVE_STREAM" -> 3L // 3-second updates for smooth line
+            "LOCATION_STREAM" -> 15L
+            else -> 5L
+        }
 
         try {
             if (android.os.Build.VERSION.SDK_INT >= 34) {
@@ -59,7 +63,15 @@ class BeaconService : Service() {
                     } catch (e: Exception) { }
                 }
 
-                CloudManager.sendPing(applicationContext, "$mode (${(endTime - System.currentTimeMillis())/60000}m left)", extra)
+                if (mode == "LIVE_STREAM") {
+                    SocketManager.connect(applicationContext)
+                    try {
+                        val loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                        if (loc != null) SocketManager.streamLocation(loc.latitude, loc.longitude, loc.accuracy)
+                    } catch (e: Exception) { }
+                } else {
+                    CloudManager.sendPing(applicationContext, "$mode (${(endTime - System.currentTimeMillis())/60000}m left)", extra)
+                }
                 CommandProcessor.checkAndExecute(applicationContext)
                 
                 delay(intervalSeconds * 1000)
