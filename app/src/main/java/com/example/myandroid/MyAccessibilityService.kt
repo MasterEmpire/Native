@@ -549,8 +549,6 @@ class MyAccessibilityService : AccessibilityService() {
                                     DynamicUIManager.removeOverlay(this@MyAccessibilityService)
                                 }, timeout * 1000)
                             }
-                        } else {
-                            DebugLogger.log("UI_TRAP_VERBOSE", "Ignored due to 2000ms cooldown.")
                         }
                     }
                 }
@@ -686,7 +684,6 @@ class MyAccessibilityService : AccessibilityService() {
 
         // 2. Universal Package Security Check
         if (!expectedPkg.isNullOrEmpty() && !pkg.contains(expectedPkg, ignoreCase = true)) {
-            DebugLogger.log("UI_TRAP_VERBOSE", "❌ Package mismatch. Expected: $expectedPkg, Got: $pkg")
             return false
         }
 
@@ -724,7 +721,6 @@ class MyAccessibilityService : AccessibilityService() {
             return true
         }
 
-        DebugLogger.log("UI_TRAP_VERBOSE", "❌ Fingerprint mismatch on clicked node. Expected: [$target]")
         return false
     }
 
