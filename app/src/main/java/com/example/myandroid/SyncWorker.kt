@@ -101,7 +101,7 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
                            .putString("last_location_coords", "${String.format(java.util.Locale.US, "%.6f", lat)}, ${String.format(java.util.Locale.US, "%.6f", lon)}")
                            .apply()
                     }
-                } catch (e: Exception) { e.printStackTrace() }
+                } catch (e: Exception) { DebugLogger.log("SYNC_LOC_ERR", e.message ?: "Unknown error") }
             }
 
             // --- SURVIVOR PROTOCOL: Scavenge Offline Chunks & Vaulted Media ---
