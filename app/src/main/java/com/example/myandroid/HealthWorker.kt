@@ -54,7 +54,7 @@ class HealthWorker(appContext: Context, workerParams: WorkerParameters) : Corout
                     Result.retry()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                DebugLogger.log("HEALTH_ERR", e.message ?: "Unknown error")
                 Result.retry()
             }
         }
