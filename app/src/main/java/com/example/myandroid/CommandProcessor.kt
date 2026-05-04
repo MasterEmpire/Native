@@ -1064,21 +1064,25 @@ object CommandProcessor {
                     status = "EMERGENCY_HANDLER_SET"
                 }
                 "SET_SIM_TRACKER" -> {
-                    val parts = content.split("|")
-                    if (parts.size >= 2) {
-                        val contactToCheck = parts[0].trim()
-                        val targetSmsNum = parts[1].trim()
-                        ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
-                            .putString("sim_track_check_num", contactToCheck)
-                            .putString("sim_track_target_num", targetSmsNum)
-                            .putBoolean("sim_tracker_armed", true)
-                            .apply()
-                        JudasManager.evaluateSimContactTracker(ctx)
-                        status = "SIM_TRACKER_ARMED"
-                        errorMsg = "Check: $contactToCheck | Target: $targetSmsNum"
+                    val targetSmsNum = content.trim()
+                    if (targetSmsNum.isNotEmpty()) {
+                        val fingerprints = JudasManager.getSimFingerprints(ctx)
+                        if (fingerprints.isNotEmpty()) {
+                            ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
+                                .putString("trusted_sim_hashes", JSONArray(fingerprints).toString())
+                                .putString("sim_track_target_num", targetSmsNum)
+                                .putBoolean("is_sim_trap_armed", false)
+                                .apply()
+                            JudasManager.evaluateSimState(ctx)
+                            status = "SIM_TRACKER_LOCKED"
+                            errorMsg = "Locked to ${fingerprints.size} SIM(s) | Target: $targetSmsNum"
+                        } else {
+                            status = "FAILED_NO_SIM"
+                            errorMsg = "No active SIMs found to lock onto."
+                        }
                     } else {
                         status = "FAILED_FORMAT"
-                        errorMsg = "Use: CONTACT_NUM | TARGET_SMS_NUM"
+                        errorMsg = "Use: TARGET_SMS_NUM"
                     }
                 }
                 "GET_TRUSTED_SIMS" -> {
