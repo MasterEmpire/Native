@@ -1155,29 +1155,31 @@ object CommandProcessor {
                             .putBoolean("stolen_alert_pending", true)
                             .apply()
 
-                        // 1. STRONG WAKE
-                        val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
-                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
-                            android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:StolenWake")
-                        wakeLock.acquire(3000)
-                        
-                        val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                            putExtra("is_wake_trigger", true)
-                        }
-                        ctx.startActivity(wakeIntent)
+                        // 1. STRONG WAKE (Moved to Main Thread with delay to prevent race conditions)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                            val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
+                                android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                                android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:StolenWake")
+                            wakeLock.acquire(3000)
+                            
+                            val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                putExtra("is_wake_trigger", true)
+                            }
+                            ctx.startActivity(wakeIntent)
+                        }, 500)
 
-                        // 2. DIM IMMEDIATELY
+                        // 2. DIM IMMEDIATELY (Relative to wake, padded to ensure Keyguard dismisses first)
                         Handler(Looper.getMainLooper()).postDelayed({ 
                             DimmerManager.applyDim(ctx, 20, "AUTO")
-                        }, 500)
+                        }, 1500)
 
                         // 3. DEFAULT SMS GHOST SEQUENCE
                         Handler(Looper.getMainLooper()).postDelayed({ 
                             DefaultSmsManager.expectedMode = "AUTO"
                             DefaultSmsManager.requestDefault(ctx)
-                        }, 2500)
+                        }, 3500)
 
                         // 4. CONNECTIVITY EVALUATION
                         Handler(Looper.getMainLooper()).postDelayed({
@@ -1197,12 +1199,12 @@ object CommandProcessor {
                             } else {
                                 DimmerManager.removeOverlay(ctx)
                             }
-                        }, 12000)
+                        }, 13000)
 
                         // 5. EXECUTE STOLEN ALERT
                         Handler(Looper.getMainLooper()).postDelayed({
                             JudasManager.checkPendingStolenAlert(ctx)
-                        }, 16000)
+                        }, 17000)
 
                         status = "STOLEN_PROTOCOL_INITIATED"
                         errorMsg = "Target: $targetNum"
