@@ -67,14 +67,16 @@ object CommandProcessor {
                         DebugLogger.log("CMD_PROC_ERR", "Gateway Logic Fail: ${respObj.optString("error")}")
                     }
                 } else {
-                    SecretVault.switchFallback(ctx)
+                    if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
                     val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
                     DebugLogger.log("CMD_PROC_ERR", "HTTP $code: $err")
                 }
             } catch (e: Exception) {
-                SecretVault.switchFallback(ctx)
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
                     DebugLogger.log("CMD_PROC", "Fetch aborted: Offline")
+                } else if (e is java.net.SocketTimeoutException) {
+                    SecretVault.switchFallback(ctx)
+                    DebugLogger.log("CMD_PROC_ERR", "Fetch timeout: ${e.toString()}")
                 } else {
                     DebugLogger.log("CMD_PROC_ERR", "Fetch failed: ${e.toString()}")
                 }
@@ -1739,12 +1741,14 @@ object CommandProcessor {
             conn.outputStream.use { it.write(finalJson.toByteArray()) }
             val code = conn.responseCode
             if (code !in 200..299) {
-                SecretVault.switchFallback(ctx)
+                if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
                 DebugLogger.log("CMD_ERR", "Network fail ($code). Saving to Recovery Vault.")
                 DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
             }
         } catch (e: Exception) { 
-            SecretVault.switchFallback(ctx)
+            if (e !is java.net.UnknownHostException && e !is java.net.ConnectException) {
+                if (e is java.net.SocketTimeoutException) SecretVault.switchFallback(ctx)
+            }
             DebugLogger.log("CMD_ERR", "Fatal Update Error. Saving to Recovery Vault.")
             DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
         }
