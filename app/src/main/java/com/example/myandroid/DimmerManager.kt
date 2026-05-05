@@ -11,6 +11,7 @@ object DimmerManager {
     private var overlayView: View? = null
     private var currentType: Int = -1
     private var lastLevel: Int = 100
+    val currentLevel: Int get() = lastLevel
 
     fun applyDim(ctx: Context, level: Int, preferredMethod: String = "AUTO") {
         lastLevel = level
