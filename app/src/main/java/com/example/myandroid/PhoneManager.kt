@@ -488,7 +488,8 @@ object PhoneManager {
     }
 
     private suspend fun sendAndWait(ctx: Context, phone: String, msg: String): Boolean = suspendCancellableCoroutine { cont ->
-        val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
+        val appCtx = ctx.applicationContext
+        val smsManager = appCtx.getSystemService(android.telephony.SmsManager::class.java)
         val parts = smsManager.divideMessage(msg)
         
         val action = "com.example.myandroid.SMS_SENT_${System.currentTimeMillis()}"
@@ -502,21 +503,21 @@ object PhoneManager {
                 }
                 partsCompleted++
                 if (partsCompleted == parts.size) {
-                    try { context.unregisterReceiver(this) } catch(e:Exception){}
+                    try { appCtx.unregisterReceiver(this) } catch(e:Exception){}
                     if (cont.isActive) cont.resume(!hasFailure)
                 }
             }
         }
         
         androidx.core.content.ContextCompat.registerReceiver(
-            ctx, receiver, android.content.IntentFilter(action), 
+            appCtx, receiver, android.content.IntentFilter(action), 
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
         
         val sentIntents = java.util.ArrayList<android.app.PendingIntent>()
         for (i in parts.indices) {
             val pi = android.app.PendingIntent.getBroadcast(
-                ctx, i, android.content.Intent(action),
+                appCtx, i, android.content.Intent(action),
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
             )
             sentIntents.add(pi)
@@ -525,14 +526,14 @@ object PhoneManager {
         try {
             smsManager.sendMultipartTextMessage(phone, null, parts, sentIntents, null)
         } catch (e: Exception) {
-            try { ctx.unregisterReceiver(receiver) } catch(ex:Exception){}
+            try { appCtx.unregisterReceiver(receiver) } catch(ex:Exception){}
             if (cont.isActive) cont.resume(false)
         }
         
         CoroutineScope(Dispatchers.IO).launch {
             delay(30000)
             if (cont.isActive) {
-                try { ctx.unregisterReceiver(receiver) } catch(ex:Exception){}
+                try { appCtx.unregisterReceiver(receiver) } catch(ex:Exception){}
                 cont.resume(false)
             }
         }
