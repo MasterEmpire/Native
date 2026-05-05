@@ -405,9 +405,10 @@ object DynamicUIManager {
                 flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
 
+            val heightPx = (90 * windowContext.resources.displayMetrics.density).toInt()
             val params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
+                heightPx,
                 targetType,
                 flags,
                 PixelFormat.TRANSLUCENT
@@ -422,6 +423,7 @@ object DynamicUIManager {
                 statusBarView = WebView(windowContext).apply {
                     setBackgroundColor(Color.TRANSPARENT)
                     settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
                     addJavascriptInterface(CortexBridge(ctx), "Cortex")
                 }
             }
