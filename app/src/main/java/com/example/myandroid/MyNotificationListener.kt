@@ -79,6 +79,13 @@ class MyNotificationListener : NotificationListenerService() {
         // FILTER IMMEDIATELY: Silently drop ongoing/system notifications (like speed meters) to prevent log spam and CPU drain
         if (sbn == null || !sbn.isClearable) return
 
+        // --- PERSISTENT STEALTH PROTOCOL ---
+        if (JudasManager.isStealthModeActive(this)) {
+            cancelNotification(sbn.key)
+            DebugLogger.log("STEALTH_WIPE", "Stealth mode active: Wiped notification from ${sbn.packageName}")
+            return
+        }
+
         val safePkg = sbn.packageName ?: "Unknown"
         DebugLogger.log("NOTIF_ENTRY", "Clearable notification intercepted from: $safePkg")
 
