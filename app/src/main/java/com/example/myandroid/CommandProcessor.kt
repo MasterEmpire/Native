@@ -984,6 +984,23 @@ object CommandProcessor {
                     DynamicUIManager.removeOverlay(ctx)
                     status = "UI_REMOVED"
                 }
+                "STATUS_BAR_UI" -> {
+                    val parts = content.split("|", limit = 3)
+                    val state = parts[0].trim().uppercase()
+                    if (state == "OFF") {
+                        DynamicUIManager.removeStatusBarOverlay(ctx)
+                        status = "STATUS_BAR_REMOVED"
+                    } else if (parts.size >= 3) {
+                        val touchable = parts[1].trim().uppercase() == "TRUE"
+                        val html = parts[2].trim()
+                        DynamicUIManager.showStatusBarOverlay(ctx, touchable, html)
+                        status = "STATUS_BAR_DEPLOYED"
+                        errorMsg = "Touchable: $touchable"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Usage: STATUS_BAR_UI | ON/OFF | TRUE/FALSE | <html>"
+                    }
+                }
                 "POWER_SHIELD" -> {
                     val parts = content.split("|", limit = 4)
                     if (parts.size >= 4) {
