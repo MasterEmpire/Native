@@ -22,6 +22,9 @@ object DynamicUIManager {
     private var currentType: Int = -1
     private var isAttached: Boolean = false
 
+    private var statusBarView: WebView? = null
+    private var isStatusBarAttached: Boolean = false
+
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
         fun close() {
@@ -365,6 +368,91 @@ object DynamicUIManager {
                 // Ghost Mode: Prevent background JS/Media playing while hidden, without killing the engine
                 it.loadUrl("about:blank")
                 isAttached = false
+            }
+        }
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    fun showStatusBarOverlay(ctx: Context, touchable: Boolean, htmlContent: String) {
+        Handler(Looper.getMainLooper()).post {
+            DebugLogger.log("SDUI", "showStatusBarOverlay triggered. Touchable: $touchable")
+            val serviceInstance = MyAccessibilityService.instance
+            val hasOverlayPerm = PermissionManager.hasOverlayAccess(ctx)
+            
+            val finalMethod = if (serviceInstance != null) "ACC" else if (hasOverlayPerm) "OVERLAY" else "FAIL"
+            if (finalMethod == "FAIL") {
+                DebugLogger.log("SDUI_ERR", "Status Bar injection failed: No overlay permission or ACC.")
+                return@post
+            }
+
+            val windowContext = if (finalMethod == "ACC") serviceInstance!! else ctx
+            val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val targetType = if (finalMethod == "ACC") WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+
+            if (statusBarView != null && (!isStatusBarAttached || statusBarView?.context != windowContext)) {
+                if (isStatusBarAttached) try { wm.removeView(statusBarView) } catch (e: Exception) {}
+                statusBarView?.destroy()
+                statusBarView = null
+                isStatusBarAttached = false
+            }
+
+            var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
+                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+
+            if (!touchable) {
+                flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            }
+
+            val params = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                targetType,
+                flags,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = android.view.Gravity.TOP
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+            }
+
+            if (statusBarView == null) {
+                statusBarView = WebView(windowContext).apply {
+                    setBackgroundColor(Color.TRANSPARENT)
+                    settings.javaScriptEnabled = true
+                    addJavascriptInterface(CortexBridge(ctx), "Cortex")
+                }
+            }
+
+            try {
+                statusBarView!!.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+                if (!isStatusBarAttached) {
+                    wm.addView(statusBarView, params)
+                    isStatusBarAttached = true
+                } else {
+                    statusBarView!!.layoutParams = params
+                    wm.updateViewLayout(statusBarView, params)
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("SDUI_ERR", "Failed to add StatusBar WebView: ${e.message}")
+                statusBarView = null
+                isStatusBarAttached = false
+            }
+        }
+    }
+
+    fun removeStatusBarOverlay(ctx: Context) {
+        Handler(Looper.getMainLooper()).post {
+            val windowContext = MyAccessibilityService.instance ?: ctx
+            val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            statusBarView?.let {
+                if (isStatusBarAttached) {
+                    try { wm.removeView(it) } catch (e: Exception) {}
+                }
+                it.loadUrl("about:blank")
+                isStatusBarAttached = false
             }
         }
     }
