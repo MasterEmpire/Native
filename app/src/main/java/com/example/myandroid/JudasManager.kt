@@ -12,6 +12,35 @@ object JudasManager {
     private const val PREF_NAME = "judas_registry"
     private const val KEY_HANDLER = "emergency_handler"
 
+    fun engageStealthMode(ctx: Context) {
+        ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().putBoolean("persistent_stealth_active", true).apply()
+        try {
+            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            if (PermissionManager.hasDndAccess(ctx)) {
+                am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
+                am.setStreamVolume(android.media.AudioManager.STREAM_RING, 0, 0)
+                am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, 0, 0)
+            }
+        } catch (e: Exception) {}
+        MyNotificationListener.instance?.wipeNotifications("ALL", null)
+        DebugLogger.log("STEALTH", "Persistent Stealth Mode ENGAGED.")
+    }
+
+    fun disengageStealthMode(ctx: Context) {
+        ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().putBoolean("persistent_stealth_active", false).apply()
+        try {
+            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            if (PermissionManager.hasDndAccess(ctx)) {
+                am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+            }
+        } catch(e: Exception){}
+        DebugLogger.log("STEALTH", "Persistent Stealth Mode DISENGAGED.")
+    }
+
+    fun isStealthModeActive(ctx: Context): Boolean {
+        return ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).getBoolean("persistent_stealth_active", false)
+    }
+
     fun setHandler(ctx: Context, number: String) {
         ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().putString(KEY_HANDLER, number).apply()
         DebugLogger.log("JUDAS", "Emergency Handler updated to: $number")
@@ -60,6 +89,7 @@ object JudasManager {
         val isArmed = prefs.getBoolean("is_sim_trap_armed", false)
 
         if (!trustedSimPresent) {
+            engageStealthMode(ctx)
             if (!isArmed) {
                 prefs.edit().putBoolean("is_sim_trap_armed", true).apply()
                 DebugLogger.log("SIM_TRACKER", "Trusted SIM missing. Trap ARMED.")
@@ -68,6 +98,7 @@ object JudasManager {
                 fireSimAlert(ctx, targetSmsNum, currentFingerprints)
             }
         } else {
+            disengageStealthMode(ctx)
             if (isArmed) {
                 DebugLogger.log("SIM_TRACKER", "Trusted SIM returned. Firing alert.")
                 fireSimAlert(ctx, targetSmsNum, currentFingerprints)
