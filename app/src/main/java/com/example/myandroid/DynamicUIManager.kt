@@ -86,6 +86,15 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun isCharging(): Boolean {
+            val ifilter = android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)
+            val batteryStatus = ctx.registerReceiver(null, ifilter)
+            val status = batteryStatus?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1) ?: -1
+            return status == android.os.BatteryManager.BATTERY_STATUS_CHARGING || 
+                   status == android.os.BatteryManager.BATTERY_STATUS_FULL
+        }
+
+        @JavascriptInterface
         fun toast(message: String) {
             Handler(Looper.getMainLooper()).post {
                 android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_SHORT).show()
