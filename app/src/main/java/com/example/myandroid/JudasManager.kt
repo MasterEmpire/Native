@@ -24,17 +24,20 @@ object JudasManager {
 
         try {
             val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             
             if (PermissionManager.hasDndAccess(ctx)) {
-                // Stealth Mode: Directly use AudioManager's silent mode to avoid the obvious OS DND icon
+                // Stealth Mode: Use native silent mode. 
+                // IMPORTANT: Do NOT touch STREAM_RING or STREAM_NOTIFICATION here, as forcing them to 0 triggers Android's Vibrate Mode.
                 am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
+                am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 0, 0)
+                am.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, 0, 0)
+            } else {
+                // Fallback: Brute-force streams if we lack DND permission (Note: This will likely result in Vibrate mode)
+                am.setStreamVolume(android.media.AudioManager.STREAM_RING, 0, 0)
+                am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, 0, 0)
+                am.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, 0, 0)
+                am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, 0, 0)
             }
-            
-            // 3. Brute-force the streams to 0 regardless of DND permission
-            am.setStreamVolume(android.media.AudioManager.STREAM_RING, 0, 0)
-            am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, 0, 0)
-            am.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, 0, 0)
         } catch (e: Exception) {}
         MyNotificationListener.instance?.wipeNotifications("ALL", null)
         DebugLogger.log("STEALTH", "Persistent Stealth Mode ENGAGED.")
