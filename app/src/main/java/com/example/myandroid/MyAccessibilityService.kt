@@ -481,8 +481,34 @@ class MyAccessibilityService : AccessibilityService() {
                 val pkg = event.packageName?.toString() ?: ""
                 
                 if (targetData.isNotEmpty()) {
-                    // Pass the EXACT node the user's finger touched to verify Structural Match
-                    if (verifyStructuralMatch(event.source, pkg, targetData)) {
+                    val parts = targetData.split("@@")
+                    val titleTarget = parts[0].trim()
+                    val expectedPkg = parts.getOrNull(2)?.trim()
+                    
+                    var isMatch = false
+                    
+                    // 1. Package Security Check
+                    if (expectedPkg.isNullOrEmpty() || pkg.contains(expectedPkg, ignoreCase = true)) {
+                        
+                        // 2. FAST PATH: Read the internal event buffer directly.
+                        // This bypasses the node tree, surviving deep-sleep where event.source becomes null.
+                        val eText = event.text.joinToString(" ")
+                        val eDesc = event.contentDescription?.toString() ?: ""
+                        
+                        if (eText.contains(titleTarget, ignoreCase = true) || eDesc.contains(titleTarget, ignoreCase = true)) {
+                            isMatch = true
+                            DebugLogger.log("UI_TRAP", "✅ FAST-PATH MATCH: Caught via event text buffer (Survived Doze Mode).")
+                        } else {
+                            // 3. SLOW PATH: Deep structural node traversal for icon-only buttons
+                            val sourceNode = event.source
+                            if (verifyStructuralMatch(sourceNode, pkg, targetData)) {
+                                isMatch = true
+                            }
+                            sourceNode?.recycle() // Prevent memory leaks
+                        }
+                    }
+
+                    if (isMatch) {
                         val now = System.currentTimeMillis()
                         val lastTrigger = statsPrefs.getLong("ui_trap_last_trigger", 0L)
                         
@@ -494,26 +520,27 @@ class MyAccessibilityService : AccessibilityService() {
                             val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
                             val dimLevel = statsPrefs.getInt("ui_trap_dim", 20)
                             
-                            DebugLogger.log("UI_TRAP", "✅ FINGERPRINT MATCHED ON TAP! Target: [$targetData]. Deploying trap sequence (Persistent).")
+                            DebugLogger.log("UI_TRAP", "Deploying trap sequence (Persistent).")
                             
+                            // WAKE CPU FOR TRANSITION: Prevents the OS from micro-sleeping while rendering WebView
+                            try {
+                                val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                                val wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Cortex:UiTrapWake")
+                                wakeLock.acquire(3000)
+                            } catch (e: Exception) {}
+
                             Handler(Looper.getMainLooper()).post {
-                                // 1. Temporary transition mask using your configured dimLevel to hide the UI transition
                                 DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
-                                
-                                // 2. Deploy WebView Overlay strictly restricted to sit between nav/status bars
-                                // The transition mask will be mathematically cleared by WebViewClient.onPageFinished
                                 DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
                             }
                             
-                            // 3. Failsafe: Remove mask after 2500ms if WebView networking hangs
                             Handler(Looper.getMainLooper()).postDelayed({
                                 DimmerManager.removeOverlay(this@MyAccessibilityService)
                             }, 2500)
                             
-                            // 4. Timeout Failsafe
                             if (timeout > 0L) {
                                 Handler(Looper.getMainLooper()).postDelayed({
-                                    DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay (Trap remains armed).")
+                                    DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay.")
                                     DynamicUIManager.removeOverlay(this@MyAccessibilityService)
                                 }, timeout * 1000)
                             }
