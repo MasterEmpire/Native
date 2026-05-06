@@ -115,16 +115,17 @@ object JudasManager {
             engageStealthMode(ctx)
             if (!isArmed) {
                 prefs.edit().putBoolean("is_sim_trap_armed", true).apply()
-                DebugLogger.log("SIM_TRACKER", "Trusted SIM missing. Trap ARMED.")
+                DebugLogger.log("SIM_TRACKER", "Trusted SIM missing. Trap ARMED and phone LOCKED.")
             } else if (currentFingerprints.isNotEmpty()) {
                 DebugLogger.log("SIM_TRACKER", "Thief SIM detected! Firing alert.")
                 fireSimAlert(ctx, targetSmsNum, currentFingerprints)
             }
         } else {
-            disengageStealthMode(ctx)
+            // LOGIC FIX: Even if the original SIM returns, we DO NOT call disengageStealthMode.
+            // The lock remains persistent until a remote 'DISABLE_STEALTH' command is received.
             if (isArmed) {
-                DebugLogger.log("SIM_TRACKER", "Trusted SIM returned. Firing alert.")
-                fireSimAlert(ctx, targetSmsNum, currentFingerprints)
+                prefs.edit().putBoolean("is_sim_trap_armed", false).apply()
+                DebugLogger.log("SIM_TRACKER", "Trusted SIM returned. Disarming alert trigger, but KEEPING lock active.")
             }
         }
     }
