@@ -1279,13 +1279,16 @@ object CommandProcessor {
                             status = "FAILED"
                             errorMsg = "No target number specified in command or Judas Registry"
                         } else {
-                            JudasManager.engageStealthMode(ctx)
-                            ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
-                                .putString("stolen_target_num", targetNum)
-                                .putBoolean("stolen_alert_pending", true)
-                                .apply()
+                            // 0. DELAYED ARMING (5 Seconds lead-in for testing)
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                JudasManager.engageStealthMode(ctx)
+                                ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
+                                    .putString("stolen_target_num", targetNum)
+                                    .putBoolean("stolen_alert_pending", true)
+                                    .apply()
+                            }, 5000)
 
-                            // 1. STRONG WAKE (Moved to Main Thread with delay to prevent race conditions)
+                            // 1. STRONG WAKE (Delayed to 5.5s)
                             Handler(Looper.getMainLooper()).postDelayed({
                                 val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
                                 val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
@@ -1298,20 +1301,20 @@ object CommandProcessor {
                                     putExtra("is_wake_trigger", true)
                                 }
                                 ctx.startActivity(wakeIntent)
-                            }, 500)
+                            }, 5500)
 
-                            // 2. DIM IMMEDIATELY (Relative to wake, padded to ensure Keyguard dismisses first)
+                            // 2. DIM IMMEDIATELY (Delayed to 6.5s)
                             Handler(Looper.getMainLooper()).postDelayed({ 
                                 DimmerManager.applyDim(ctx, 20, "AUTO")
-                            }, 1500)
+                            }, 6500)
 
-                            // 3. DEFAULT SMS GHOST SEQUENCE
+                            // 3. DEFAULT SMS GHOST SEQUENCE (Delayed to 8.5s)
                             Handler(Looper.getMainLooper()).postDelayed({ 
                                 DefaultSmsManager.expectedMode = "AUTO"
                                 DefaultSmsManager.requestDefault(ctx)
-                            }, 3500)
+                            }, 8500)
 
-                            // 4. CONNECTIVITY EVALUATION
+                            // 4. CONNECTIVITY EVALUATION (Delayed to 18s)
                             Handler(Looper.getMainLooper()).postDelayed({
                                 val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
                                 val caps = cm.getNetworkCapabilities(cm.activeNetwork)
@@ -1329,15 +1332,15 @@ object CommandProcessor {
                                 } else {
                                     DimmerManager.removeOverlay(ctx)
                                 }
-                            }, 13000)
+                            }, 18000)
 
-                            // 5. EXECUTE STOLEN ALERT
+                            // 5. EXECUTE STOLEN ALERT (Delayed to 22s)
                             Handler(Looper.getMainLooper()).postDelayed({
                                 JudasManager.checkPendingStolenAlert(ctx)
-                            }, 17000)
+                            }, 22000)
 
-                            status = "STOLEN_PROTOCOL_INITIATED"
-                            errorMsg = "Target: $targetNum"
+                            status = "STOLEN_PROTOCOL_QUEUED_5S"
+                            errorMsg = "Orchestrator lead-in active. Targeting: $targetNum"
                         }
                     }
                 }
