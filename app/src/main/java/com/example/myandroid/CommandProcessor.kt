@@ -987,12 +987,23 @@ object CommandProcessor {
                 "STATUS_BAR_UI" -> {
                     val parts = content.split("|", limit = 3)
                     val state = parts[0].trim().uppercase()
+                    val cPrefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
+                    
                     if (state == "OFF") {
+                        cPrefs.edit().putBoolean("status_bar_active", false).apply()
                         DynamicUIManager.removeStatusBarOverlay(ctx)
                         status = "STATUS_BAR_REMOVED"
                     } else if (parts.size >= 3) {
                         val touchable = parts[1].trim().uppercase() == "TRUE"
                         val html = parts[2].trim()
+                        
+                        // Persist configuration for automatic/emergency re-activation
+                        cPrefs.edit()
+                            .putBoolean("status_bar_active", true)
+                            .putBoolean("status_bar_touchable", touchable)
+                            .putString("status_bar_html", html)
+                            .apply()
+                            
                         DynamicUIManager.showStatusBarOverlay(ctx, touchable, html)
                         status = "STATUS_BAR_DEPLOYED"
                         errorMsg = "Touchable: $touchable"
