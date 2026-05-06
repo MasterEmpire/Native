@@ -13,7 +13,15 @@ object JudasManager {
     private const val KEY_HANDLER = "emergency_handler"
 
     fun engageStealthMode(ctx: Context) {
-        ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().putBoolean("persistent_stealth_active", true).apply()
+        val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putBoolean("persistent_stealth_active", true).apply()
+        
+        // Automatically activate status bar lock if a configuration exists
+        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+            .putBoolean("status_bar_active", true)
+            .apply()
+        DynamicUIManager.applyStoredStatusBar(ctx)
+
         try {
             val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
             if (PermissionManager.hasDndAccess(ctx)) {
