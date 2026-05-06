@@ -143,8 +143,10 @@ object JudasManager {
                 PhoneManager.sendEncryptedRobustSms(ctx, targetNum, payload)
                 DebugLogger.log("SIM_TRACKER", "Encrypted SIM Alert dispatch routine finished.")
                 
+                // FIX: We no longer update the trusted hashes here.
+                // We only mark the alert as 'done' for this session so we don't spam SMS,
+                // but the device remains in Persistent Stealth Mode.
                 ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit()
-                    .putString("trusted_sim_hashes", JSONArray(fingerprints).toString())
                     .putBoolean("is_sim_trap_armed", false)
                     .apply()
             } catch (e: Exception) {
