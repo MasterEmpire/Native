@@ -27,11 +27,7 @@ object JudasManager {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             
             if (PermissionManager.hasDndAccess(ctx)) {
-                // 1. Enforce Total Silence via DND (Kills vibrations on modern Android)
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                    nm.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_NONE)
-                }
-                // 2. Legacy fallback
+                // Stealth Mode: Directly use AudioManager's silent mode to avoid the obvious OS DND icon
                 am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
             }
             
@@ -51,9 +47,6 @@ object JudasManager {
             val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             
             if (PermissionManager.hasDndAccess(ctx)) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-                    nm.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_ALL)
-                }
                 am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
             }
         } catch(e: Exception){}
