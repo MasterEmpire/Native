@@ -293,6 +293,9 @@ object DynamicUIManager {
                     setBackgroundColor(Color.TRANSPARENT)
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
+                    // Required to load images from file:///android_asset/
+                    settings.allowFileAccess = true
+                    settings.allowContentAccess = true
                     addJavascriptInterface(CortexBridge(ctx), "Cortex")
                 }
             }
@@ -327,7 +330,9 @@ object DynamicUIManager {
             }
 
             try {
-                overlayView!!.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+                // Set base URL to the assets folder so relative <img src="..."> paths work
+                val assetBaseUrl = "file:///android_asset/reset_ui/"
+                overlayView!!.loadDataWithBaseURL(assetBaseUrl, htmlContent, "text/html", "UTF-8", null)
                 if (!isAttached) {
                     wm.addView(overlayView, params)
                     currentType = targetType
@@ -480,6 +485,8 @@ object DynamicUIManager {
                         setBackgroundColor(Color.TRANSPARENT)
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
+                        settings.allowFileAccess = true
+                        settings.allowContentAccess = true
                         webViewClient = object : WebViewClient() {
                             override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
                                 DebugLogger.log("SDUI_ERR", "Warm WebView Renderer died! Purging.")
