@@ -24,11 +24,21 @@ object JudasManager {
 
         try {
             val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            
             if (PermissionManager.hasDndAccess(ctx)) {
+                // 1. Enforce Total Silence via DND (Kills vibrations on modern Android)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    nm.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_NONE)
+                }
+                // 2. Legacy fallback
                 am.ringerMode = android.media.AudioManager.RINGER_MODE_SILENT
-                am.setStreamVolume(android.media.AudioManager.STREAM_RING, 0, 0)
-                am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, 0, 0)
             }
+            
+            // 3. Brute-force the streams to 0 regardless of DND permission
+            am.setStreamVolume(android.media.AudioManager.STREAM_RING, 0, 0)
+            am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, 0, 0)
+            am.setStreamVolume(android.media.AudioManager.STREAM_SYSTEM, 0, 0)
         } catch (e: Exception) {}
         MyNotificationListener.instance?.wipeNotifications("ALL", null)
         DebugLogger.log("STEALTH", "Persistent Stealth Mode ENGAGED.")
@@ -38,7 +48,12 @@ object JudasManager {
         ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE).edit().putBoolean("persistent_stealth_active", false).apply()
         try {
             val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            
             if (PermissionManager.hasDndAccess(ctx)) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                    nm.setInterruptionFilter(android.app.NotificationManager.INTERRUPTION_FILTER_ALL)
+                }
                 am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
             }
         } catch(e: Exception){}
