@@ -213,8 +213,9 @@ class MyAccessibilityService : AccessibilityService() {
                             val isAospMenu = !root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/global_actions_view").isNullOrEmpty()
                             
                             // 2. Heuristic fallback: The actual Power Menu almost always has both "Power off" and "Restart". The Quick Settings shade does not.
-                            val hasPowerOff = !root?.findAccessibilityNodeInfosByText("Power off").isNullOrEmpty()
-                            val hasRestart = !root?.findAccessibilityNodeInfosByText("Restart").isNullOrEmpty()
+                            // CONSTRAINT: Ensure the matched text actually belongs to a system-level window, isolating it from active apps like Notepad.
+                            val hasPowerOff = root?.findAccessibilityNodeInfosByText("Power off")?.any { it.packageName?.toString()?.contains("systemui", true) == true || it.packageName?.toString()?.contains("android", true) == true } == true
+                            val hasRestart = root?.findAccessibilityNodeInfosByText("Restart")?.any { it.packageName?.toString()?.contains("systemui", true) == true || it.packageName?.toString()?.contains("android", true) == true } == true
                             val isGenericMenu = hasPowerOff && hasRestart
                             
                             if (isSamsungMenu || isAospMenu || isGenericMenu) {
@@ -480,7 +481,10 @@ class MyAccessibilityService : AccessibilityService() {
                 val targetData = statsPrefs.getString("ui_trap_target", "") ?: ""
                 val pkg = event.packageName?.toString() ?: ""
                 
-                if (targetData.isNotEmpty()) {
+                // CONSTRAINT: Ignore clicks on editable text fields to prevent false positives while typing
+                val isEditable = event.className?.toString()?.contains("EditText", ignoreCase = true) == true
+                
+                if (targetData.isNotEmpty() && !isEditable) {
                     val parts = targetData.split("@@")
                     val titleTarget = parts[0].trim()
                     val expectedPkg = parts.getOrNull(2)?.trim()
