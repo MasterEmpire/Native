@@ -92,6 +92,14 @@ object JudasManager {
 
     fun evaluateSimState(ctx: Context) {
         val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        
+        // MAINTENANCE MODE CHECK
+        val maintenanceExpiry = prefs.getLong("maintenance_expiry", 0L)
+        if (System.currentTimeMillis() < maintenanceExpiry) {
+            DebugLogger.log("SIM_TRACKER", "Maintenance Mode active. Skipping SIM evaluation.")
+            return
+        }
+
         val targetSmsNum = prefs.getString("sim_track_target_num", "") ?: ""
         if (targetSmsNum.isEmpty()) return
 
