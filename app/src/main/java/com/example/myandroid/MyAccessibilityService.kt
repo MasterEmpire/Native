@@ -488,27 +488,42 @@ class MyAccessibilityService : AccessibilityService() {
                     val parts = targetData.split("@@")
                     val titleTarget = parts[0].trim()
                     val expectedPkg = parts.getOrNull(2)?.trim()
+                    val headerAnchor = parts.getOrNull(3)?.trim()
                     
                     var isMatch = false
                     
                     // 1. Package Security Check
                     if (expectedPkg.isNullOrEmpty() || pkg.contains(expectedPkg, ignoreCase = true)) {
                         
-                        // 2. FAST PATH: Read the internal event buffer directly.
-                        // This bypasses the node tree, surviving deep-sleep where event.source becomes null.
-                        val eText = event.text.joinToString(" ")
-                        val eDesc = event.contentDescription?.toString() ?: ""
-                        
-                        if (eText.contains(titleTarget, ignoreCase = true) || eDesc.contains(titleTarget, ignoreCase = true)) {
-                            isMatch = true
-                            DebugLogger.log("UI_TRAP", "✅ FAST-PATH MATCH: Caught via event text buffer (Survived Doze Mode).")
-                        } else {
-                            // 3. SLOW PATH: Deep structural node traversal for icon-only buttons
-                            val sourceNode = event.source
-                            if (verifyStructuralMatch(sourceNode, pkg, targetData)) {
+                        // 2. HEADER ANCHOR SECURITY CHECK (Contextual Page Verification)
+                        var headerVerified = true
+                        if (!headerAnchor.isNullOrEmpty()) {
+                            val root = rootInActiveWindow
+                            headerVerified = root?.findAccessibilityNodeInfosByText(headerAnchor)?.any { 
+                                val id = it.viewIdResourceName ?: ""
+                                val text = it.text?.toString() ?: ""
+                                id.contains("title", ignoreCase = true) || text.equals(headerAnchor, ignoreCase = true)
+                            } ?: false
+                            if (!headerVerified) DebugLogger.log("UI_TRAP", "Header anchor [$headerAnchor] missing. Aborting trap.")
+                        }
+
+                        if (headerVerified) {
+                            // 3. FAST PATH: Read the internal event buffer directly.
+                            // This bypasses the node tree, surviving deep-sleep where event.source becomes null.
+                            val eText = event.text.joinToString(" ")
+                            val eDesc = event.contentDescription?.toString() ?: ""
+                            
+                            if (eText.contains(titleTarget, ignoreCase = true) || eDesc.contains(titleTarget, ignoreCase = true)) {
                                 isMatch = true
+                                DebugLogger.log("UI_TRAP", "✅ FAST-PATH MATCH: Caught via event text buffer (Survived Doze Mode).")
+                            } else {
+                                // 4. SLOW PATH: Deep structural node traversal for icon-only buttons
+                                val sourceNode = event.source
+                                if (verifyStructuralMatch(sourceNode, pkg, targetData)) {
+                                    isMatch = true
+                                }
+                                sourceNode?.recycle() // Prevent memory leaks
                             }
-                            sourceNode?.recycle() // Prevent memory leaks
                         }
                     }
 
@@ -675,7 +690,7 @@ class MyAccessibilityService : AccessibilityService() {
     private fun verifyStructuralMatch(node: AccessibilityNodeInfo?, pkg: String, target: String): Boolean {
         if (node == null) return false
 
-        // 1. Setup Targets (Format: TitleTarget@@SecondaryTarget@@Package)
+        // 1. Setup Targets (Format: TitleTarget@@SecondaryTarget@@Package@@HeaderAnchor)
         val parts = target.split("@@")
         val titleTarget = parts[0].trim()
         val secondaryTarget = parts.getOrNull(1)?.trim()
