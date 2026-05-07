@@ -227,7 +227,13 @@ class MyAccessibilityService : AccessibilityService() {
                                 if (now - lastTrigger > 2000) {
                                     statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
                                     
-                                    val html = statsPrefs.getString("power_shield_html", "") ?: ""
+                                    val state = statsPrefs.getString("power_shield_state", "NORMAL") ?: "NORMAL"
+                                    val html = if (state == "FAKE_OFF") {
+                                        statsPrefs.getString("power_shield_html_boot", "") ?: ""
+                                    } else {
+                                        statsPrefs.getString("power_shield_html_shutdown", "") ?: ""
+                                    }
+                                    
                                     val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
                                     val timeout = statsPrefs.getLong("power_shield_timeout", 10L)
                                     
