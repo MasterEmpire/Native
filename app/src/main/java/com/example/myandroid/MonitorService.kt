@@ -42,6 +42,17 @@ class MonitorService : Service() {
             when (intent.action) {
                 Intent.ACTION_SCREEN_ON -> {
                     DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_SCREEN_ON. Triggering wake protocols.")
+                    
+                    val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    if (prefs.getString("power_shield_state", "NORMAL") == "FAKE_OFF") {
+                        DebugLogger.log("POWER_SHIELD", "ACTION_SCREEN_ON in FAKE_OFF state. Dismissing Keyguard to extend system timer.")
+                        val pulseIntent = Intent(context, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_wake_trigger", true)
+                        }
+                        context.startActivity(pulseIntent)
+                    }
+
                     ScreenRecordManager.resumeRecording()
                     DynamicUIManager.warmUpEngine(context) // Ensure Power Shield engine is hot
                     // Wake up: Update stats immediately
