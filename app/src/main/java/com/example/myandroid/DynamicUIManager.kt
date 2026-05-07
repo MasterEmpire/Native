@@ -33,6 +33,14 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun reportPowerState(state: String) {
+            DebugLogger.log("POWER_SHIELD", "State transitioned to: $state")
+            ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                .putString("power_shield_state", state.uppercase())
+                .apply()
+        }
+
+        @JavascriptInterface
         fun log(msg: String) {
             DebugLogger.log("SDUI", msg)
         }
