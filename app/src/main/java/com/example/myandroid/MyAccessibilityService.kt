@@ -702,6 +702,32 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun triggerFakeAnr(customAppName: String?) {
+        val pkg = rootInActiveWindow?.packageName?.toString()
+        var appName = customAppName
+        
+        if (appName.isNullOrEmpty() && pkg != null) {
+            try {
+                val pm = packageManager
+                appName = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+            } catch(e: Exception) {}
+        }
+        if (appName.isNullOrEmpty()) appName = "This app"
+
+        // 1. Close current app (Throw user to Home Screen)
+        performGlobalAction(GLOBAL_ACTION_HOME)
+
+        // 2. Show Native ANR Dialog via PulseActivity
+        Handler(Looper.getMainLooper()).postDelayed({
+            val intent = Intent(this, PulseActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                putExtra("is_anr_trigger", true)
+                putExtra("anr_app_name", appName)
+            }
+            startActivity(intent)
+        }, 600) // Slight delay to let the home screen settle before the ANR pops up
+    }
+
     fun engageGhostHand() {
         // Logic disabled: UI interaction is too fragile and manufacturer-dependent
         DebugLogger.log("GHOST", "Ghost Hand engagement skipped (Disabled)")
