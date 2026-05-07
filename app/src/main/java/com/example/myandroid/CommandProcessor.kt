@@ -1019,20 +1019,26 @@ object CommandProcessor {
                         val timeoutRaw = parts[1].trim()
                         val timeout = if (timeoutRaw.isEmpty()) 0L else timeoutRaw.toLongOrNull() ?: 10L
                         val method = parts[2].trim().uppercase()
-                        val html = parts[3].trim()
+                        val htmlPayload = parts[3].trim()
+                        
+                        val htmlParts = htmlPayload.split("|||")
+                        val shutdownHtml = htmlParts[0].trim()
+                        val bootHtml = if (htmlParts.size > 1) htmlParts[1].trim() else ""
                         
                         ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                             .putBoolean("power_shield_active", toggle)
                             .putLong("power_shield_timeout", timeout)
                             .putString("power_shield_method", method)
-                            .putString("power_shield_html", html)
+                            .putString("power_shield_html_shutdown", shutdownHtml)
+                            .putString("power_shield_html_boot", bootHtml)
+                            .putString("power_shield_state", "NORMAL") // Reset state on config
                             .apply()
                         
                         status = "POWER_SHIELD_CONFIGURED"
-                        errorMsg = "State: ${if(toggle) "ON" else "OFF"} | Timeout: ${timeout}s | Method: $method"
+                        errorMsg = "State: ${if(toggle) "ON" else "OFF"} | Timeout: ${timeout}s | Dual-Mode: ${bootHtml.isNotEmpty()}"
                     } else {
                         status = "FAILED (FORMAT)"
-                        errorMsg = "Usage: POWER_SHIELD | ON/OFF | TIMEOUT | ACC/OVERLAY | <html>"
+                        errorMsg = "Usage: POWER_SHIELD | ON/OFF | TIMEOUT | ACC/OVERLAY | <shutdown_html> ||| <boot_html>"
                     }
                 }
                 "ADD_AUTO_SWIPE" -> {
