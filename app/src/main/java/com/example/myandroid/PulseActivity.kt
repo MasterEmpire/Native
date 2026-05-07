@@ -102,6 +102,25 @@ class PulseActivity : Activity() {
             return
         }
 
+        // 4.5 Native ANR Illusion
+        if (intent.getBooleanExtra("is_anr_trigger", false)) {
+            val appName = intent.getStringExtra("anr_app_name") ?: "This app"
+            val dialog = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Light_Dialog_Alert)
+                .setTitle("$appName isn't responding")
+                .setMessage("$appName isn't responding.\nDo you want to close it?")
+                .setPositiveButton("Close app") { _, _ -> finish() }
+                .setNegativeButton("Wait") { _, _ -> finish() }
+                .setCancelable(false)
+                .create()
+                
+            dialog.setOnDismissListener { 
+                finish()
+                overridePendingTransition(0, 0)
+            }
+            dialog.show()
+            return
+        }
+
         // Immediately close our invisible activity. 
         // overridePendingTransition(0, 0) prevents any visual screen-flash.
         finish()
