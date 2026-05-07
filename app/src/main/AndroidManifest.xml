@@ -219,7 +219,7 @@
 
         <service
             android:name=".WifiTileService"
-            android:icon="@android:drawable/ic_menu_share"
+            android:icon="@drawable/ic_tile_wifi"
             android:label="Wi-Fi"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
@@ -230,7 +230,7 @@
 
         <service
             android:name=".LocationTileService"
-            android:icon="@android:drawable/ic_menu_mylocation"
+            android:icon="@drawable/ic_tile_location"
             android:label="Location"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
@@ -241,7 +241,7 @@
 
         <service
             android:name=".DataTileService"
-            android:icon="@android:drawable/stat_notify_sync"
+            android:icon="@drawable/ic_tile_data"
             android:label="Mobile data"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
@@ -252,7 +252,7 @@
 
         <service
             android:name=".AirplaneTileService"
-            android:icon="@android:drawable/ic_menu_send"
+            android:icon="@drawable/ic_tile_airplane"
             android:label="Airplane mode"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
