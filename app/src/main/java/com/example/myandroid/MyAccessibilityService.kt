@@ -30,9 +30,28 @@ class MyAccessibilityService : AccessibilityService() {
         try {
             val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             val trapsStr = prefs.getString("ui_traps_array", "[]") ?: "[]"
-            cachedUiTraps = JSONArray(trapsStr)
+            val rawArr = org.json.JSONArray(trapsStr)
+            val cleanedArr = org.json.JSONArray()
+            var messDetected = false
+
+            for (i in 0 until rawArr.length()) {
+                val trap = rawArr.getJSONObject(i)
+                // STRICT RULE: If it doesn't have a label, it's garbage. Purge it.
+                if (trap.has("label")) {
+                    cleanedArr.put(trap)
+                } else {
+                    messDetected = true
+                }
+            }
+
+            if (messDetected) {
+                prefs.edit().putString("ui_traps_array", cleanedArr.toString()).apply()
+                DebugLogger.log("UI_TRAP", "Sanitization complete: Legacy configs without labels deleted.")
+            }
+            
+            cachedUiTraps = cleanedArr
         } catch (e: Exception) {
-            cachedUiTraps = JSONArray()
+            cachedUiTraps = org.json.JSONArray()
         }
     }
     
