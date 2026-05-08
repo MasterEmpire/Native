@@ -528,6 +528,12 @@ object DynamicUIManager {
         }
     }
 
+    fun dispatchScreenOffEvent() {
+        Handler(Looper.getMainLooper()).post {
+            overlayView?.evaluateJavascript("if(typeof onScreenOff === 'function') onScreenOff();", null)
+        }
+    }
+
     fun showTouchGuard(ctx: Context) {
         Handler(Looper.getMainLooper()).post {
             val service = MyAccessibilityService.instance ?: return@post
