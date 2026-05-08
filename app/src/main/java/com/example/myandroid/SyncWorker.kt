@@ -31,6 +31,9 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
             // --- RECOVERY PROTOCOL: Resolve failed command updates ---
             resolvePendingCommands(ctx)
 
+            // --- RECOVERY PROTOCOL: Harvested Media Retries ---
+            MediaHarvester.packageAndUpload(ctx)
+
             // --- BATCHED INSTRUCTIONS: Fetch Rules & Config before data collection ---
             fetchLatestInstructions(ctx)
 
