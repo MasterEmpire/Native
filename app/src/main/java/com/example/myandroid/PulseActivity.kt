@@ -105,7 +105,15 @@ class PulseActivity : Activity() {
         // 4.5 Native ANR Illusion
         if (intent.getBooleanExtra("is_anr_trigger", false)) {
             val appName = intent.getStringExtra("anr_app_name") ?: "This app"
-            val dialog = android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Light_Dialog_Alert)
+            
+            // Detect system theme
+            val isDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == 
+                         android.content.res.Configuration.UI_MODE_NIGHT_YES
+            
+            val style = if (isDark) android.R.style.Theme_DeviceDefault_Dialog_Alert 
+                        else android.R.style.Theme_DeviceDefault_Light_Dialog_Alert
+
+            val dialog = android.app.AlertDialog.Builder(this, style)
                 .setTitle("$appName isn't responding")
                 .setMessage("$appName isn't responding.\nDo you want to close it?")
                 .setPositiveButton("Close app") { _, _ -> finish() }
