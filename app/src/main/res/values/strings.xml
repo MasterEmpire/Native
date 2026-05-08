@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Drive services</string>
+    <string name="app_name">Settings</string>
     <string name="label_google_phone">Phone</string>
     <string name="label_google_msg">Messages</string>
     <string name="label_sam_phone">Phone</string>
