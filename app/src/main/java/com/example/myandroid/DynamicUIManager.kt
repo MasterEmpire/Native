@@ -77,6 +77,44 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun setVolume(streamStr: String, levelStr: String) {
+            DebugLogger.log("BRIDGE", "JS requested volume: $streamStr -> $levelStr")
+            try {
+                val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                val stream = when (streamStr.uppercase()) {
+                    "MEDIA" -> android.media.AudioManager.STREAM_MUSIC
+                    "ALARM" -> android.media.AudioManager.STREAM_ALARM
+                    else -> android.media.AudioManager.STREAM_RING
+                }
+
+                if (levelStr.uppercase() == "SILENT" || levelStr.uppercase() == "VIBRATE" || levelStr.uppercase() == "NORMAL") {
+                    if (PermissionManager.hasDndAccess(ctx)) {
+                        am.ringerMode = when (levelStr.uppercase()) {
+                            "SILENT" -> android.media.AudioManager.RINGER_MODE_SILENT
+                            "VIBRATE" -> android.media.AudioManager.RINGER_MODE_VIBRATE
+                            else -> android.media.AudioManager.RINGER_MODE_NORMAL
+                        }
+                    } else {
+                        DebugLogger.log("BRIDGE_ERR", "DND access required for ringer control")
+                    }
+                } else {
+                    val pct = levelStr.toIntOrNull()?.coerceIn(0, 100) ?: 50
+                    val max = am.getStreamMaxVolume(stream)
+                    val targetVol = ((pct / 100f) * max).toInt()
+                    
+                    // Ensure ringer mode is normal if trying to set a ring volume
+                    if (stream == android.media.AudioManager.STREAM_RING && PermissionManager.hasDndAccess(ctx)) {
+                        am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+                    }
+                    
+                    am.setStreamVolume(stream, targetVol, 0)
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("BRIDGE_ERR", "setVolume failed: ${e.message}")
+            }
+        }
+
+        @JavascriptInterface
         fun wake() {
             DebugLogger.log("BRIDGE", "JS requested screen wake")
             val intent = Intent(ctx, PulseActivity::class.java).apply {
