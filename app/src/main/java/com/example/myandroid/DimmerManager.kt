@@ -57,7 +57,7 @@ object DimmerManager {
 
         // 3. Create or Update
                     if (overlayView == null) {
-                overlayView = View(ctx).apply { 
+                overlayView = View(windowContext).apply { 
                     setBackgroundColor(android.graphics.Color.BLACK)
                     systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                             or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
