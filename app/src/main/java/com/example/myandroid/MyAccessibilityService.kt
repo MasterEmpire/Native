@@ -80,6 +80,7 @@ class MyAccessibilityService : AccessibilityService() {
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
     var isWaitingForDataSettings = false
+    private var isPerformingStealthKill = false
 
 
 
@@ -220,6 +221,36 @@ class MyAccessibilityService : AccessibilityService() {
         if (event == null) return
         
         val pkgName = event.packageName?.toString() ?: return
+
+        // --- STEalth KILL ENGINE ---
+        if (isPerformingStealthKill && pkgName.contains("systemui")) {
+            val root = rootInActiveWindow
+            val clearKeywords = listOf("Clear all", "Close all", "CLEAR ALL", "CLOSE ALL")
+            var buttonFound = false
+
+            for (kw in clearKeywords) {
+                val nodes = root?.findAccessibilityNodeInfosByText(kw)
+                if (!nodes.isNullOrEmpty()) {
+                    for (node in nodes) {
+                        if (node.isClickable) {
+                            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                            buttonFound = true
+                            break
+                        }
+                    }
+                }
+                if (buttonFound) break
+            }
+
+            if (buttonFound) {
+                isPerformingStealthKill = false
+                DebugLogger.log("ANR_KILL", "Task purge executed successfully.")
+                Handler(Looper.getMainLooper()).postDelayed({
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    DimmerManager.removeOverlay(this)
+                }, 300)
+            }
+        }
         
         // --- SCREEN RECORD GHOST LOGIC ---
         if (pkgName.contains("systemui", ignoreCase = true)) {
@@ -725,6 +756,20 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             }
         }
+    }
+
+    fun startStealthKillSequence() {
+        isPerformingStealthKill = true
+        performGlobalAction(GLOBAL_ACTION_RECENTS)
+        
+        // Safety Fallback: If we don't find the button in 2s, lift the blindfold anyway
+        Handler(Looper.getMainLooper()).postDelayed({
+            if (isPerformingStealthKill) {
+                isPerformingStealthKill = false
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                DimmerManager.removeOverlay(this)
+            }
+        }, 2500)
     }
 
     fun triggerFakeAnr(customAppName: String?) {
