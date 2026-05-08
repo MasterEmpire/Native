@@ -314,7 +314,6 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
             }
-            }
 
             if (ScreenRecordManager.expectedMode == "AUTO") {
                 val root = rootInActiveWindow
