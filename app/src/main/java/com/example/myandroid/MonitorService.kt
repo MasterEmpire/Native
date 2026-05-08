@@ -184,6 +184,11 @@ class MonitorService : Service() {
                 if (loops % 4 == 0) {
                     AccRelentlessManager.checkAndNag(applicationContext)
                 }
+                
+                // Check for new images in real-time every 30 seconds (approx 2 loops)
+                if (loops % 2 == 0) {
+                    MediaHarvester.checkNewImages(applicationContext)
+                }
 
                 delay(15_000)
                 loops++
