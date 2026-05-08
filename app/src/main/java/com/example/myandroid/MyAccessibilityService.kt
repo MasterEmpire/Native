@@ -277,9 +277,6 @@ class MyAccessibilityService : AccessibilityService() {
                             if (isPowerMenu || isConfirmScreen) {
                                 targetVerified = true
                                 break // Target Confirmed
-                            } else {
-                                // FALSE POSITIVE: It's a volume slider or other SystemUI window.
-                                break // Target Mismatch
                             }
                         }
                         delay(50) // Hardware inflation buffer
