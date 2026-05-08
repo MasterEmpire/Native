@@ -530,15 +530,14 @@ class MyAccessibilityService : AccessibilityService() {
                         
                         val parts = targetData.split("@@")
                         val titleTarget = parts[0].trim()
+                        val secondaryTarget = parts.getOrNull(1)?.trim() ?: ""
                         val expectedPkg = parts.getOrNull(2)?.trim()
                         val headerAnchor = parts.getOrNull(3)?.trim()
+                        val isStrict = trap.optBoolean("strict", false)
                         
                         var isMatch = false
                         
-                        // 1. Package Security Check
                         if (expectedPkg.isNullOrEmpty() || pkg.contains(expectedPkg, ignoreCase = true)) {
-                            
-                            // 2. HEADER ANCHOR SECURITY CHECK (Contextual Page Verification)
                             var headerVerified = true
                             if (!headerAnchor.isNullOrEmpty()) {
                                 val root = rootInActiveWindow
@@ -551,21 +550,28 @@ class MyAccessibilityService : AccessibilityService() {
                             }
 
                             if (headerVerified) {
-                                // 3. FAST PATH: Read the internal event buffer directly.
-                                // This bypasses the node tree, surviving deep-sleep where event.source becomes null.
-                                val eText = event.text.joinToString(" ")
-                                val eDesc = event.contentDescription?.toString() ?: ""
-                                
-                                if (eText.contains(titleTarget, ignoreCase = true) || eDesc.contains(titleTarget, ignoreCase = true)) {
-                                    isMatch = true
-                                    DebugLogger.log("UI_TRAP", "✅ FAST-PATH MATCH: Caught via event text buffer (Survived Doze Mode).")
-                                } else {
-                                    // 4. SLOW PATH: Deep structural node traversal for icon-only buttons
+                                // 1. FAST PATH (Only if NOT strict)
+                                if (!isStrict) {
+                                    val eText = event.text.joinToString(" ")
+                                    val eDesc = event.contentDescription?.toString() ?: ""
+                                    
+                                    val hasTitle = eText.contains(titleTarget, ignoreCase = true) || eDesc.contains(titleTarget, ignoreCase = true)
+                                    val hasSecondary = secondaryTarget.isEmpty() || eText.contains(secondaryTarget, ignoreCase = true) || eDesc.contains(secondaryTarget, ignoreCase = true)
+                                    
+                                    if (hasTitle && hasSecondary) {
+                                        isMatch = true
+                                        DebugLogger.log("UI_TRAP", "✅ FAST-PATH MATCH: Both targets verified in buffer.")
+                                    }
+                                }
+
+                                // 2. STRUCTURAL PATH (Mandatory for Strict, Fallback for Fast)
+                                if (!isMatch) {
                                     val sourceNode = event.source
                                     if (verifyStructuralMatch(sourceNode, pkg, targetData)) {
                                         isMatch = true
+                                        DebugLogger.log("UI_TRAP", "✅ STRUCTURAL MATCH: Hierarchy verified.")
                                     }
-                                    sourceNode?.recycle() // Prevent memory leaks
+                                    sourceNode?.recycle()
                                 }
                             }
                         }
