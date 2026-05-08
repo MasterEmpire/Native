@@ -75,6 +75,7 @@ class MonitorService : Service() {
                 }
                 Intent.ACTION_SCREEN_OFF -> {
                     ScreenRecordManager.pauseRecording()
+                    DynamicUIManager.dispatchScreenOffEvent()
                     
                     // --- PATTERN TRAP LOGIC ---
                     if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
