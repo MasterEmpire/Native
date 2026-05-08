@@ -940,6 +940,7 @@ object CommandProcessor {
                             val newTrap = org.json.JSONObject().apply {
                                 put("label", label)
                                 put("target", json.getString("target"))
+                                put("strict", json.optBoolean("strict", false))
                                 put("method", json.optString("method", "ACC").uppercase())
                                 put("timeout", json.optLong("timeout", 15L))
                                 put("dim", json.optInt("dim", 20))
