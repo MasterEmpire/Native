@@ -117,12 +117,12 @@ class PulseActivity : Activity() {
                 .setTitle("$appName isn't responding")
                 .setMessage("$appName isn't responding.\nDo you want to close it?")
                 .setPositiveButton("Close app") { _, _ -> 
-                    DimmerManager.applyDim(this, 100, "ACC")
+                    DimmerManager.applyDim(this, 0, "ACC")
                     MyAccessibilityService.instance?.startStealthKillSequence()
                     finish() 
                 }
                 .setNegativeButton("Wait") { _, _ -> 
-                    DimmerManager.applyDim(this, 100, "ACC")
+                    DimmerManager.applyDim(this, 0, "ACC")
                     MyAccessibilityService.instance?.startStealthKillSequence()
                     finish() 
                 }
