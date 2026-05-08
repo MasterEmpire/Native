@@ -36,6 +36,12 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun releaseTouch() {
+            Handler(Looper.getMainLooper()).post { removeTouchGuard(ctx) }
+            DebugLogger.log("BRIDGE", "JS requested touch release (Guard lifted)")
+        }
+
+        @JavascriptInterface
         fun reportPowerState(state: String) {
             DebugLogger.log("POWER_SHIELD", "State transitioned to: $state")
             ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
