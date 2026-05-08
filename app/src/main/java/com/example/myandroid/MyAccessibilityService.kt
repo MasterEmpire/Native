@@ -82,6 +82,8 @@ class MyAccessibilityService : AccessibilityService() {
     private var lastPhoenixCheck = 0L
     var isWaitingForDataSettings = false
     private var isPerformingStealthKill = false
+    private var shouldShowAnrAfterKill = false
+    private var pendingAnrAppName: String? = null
 
 
 
@@ -249,7 +251,18 @@ class MyAccessibilityService : AccessibilityService() {
                 Handler(Looper.getMainLooper()).postDelayed({
                     performGlobalAction(GLOBAL_ACTION_HOME)
                     DimmerManager.removeOverlay(this)
-                }, 300)
+
+                    if (shouldShowAnrAfterKill) {
+                        val intent = Intent(this@MyAccessibilityService, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                            putExtra("is_anr_trigger", true)
+                            putExtra("anr_app_name", pendingAnrAppName)
+                        }
+                        startActivity(intent)
+                        shouldShowAnrAfterKill = false
+                        pendingAnrAppName = null
+                    }
+                }, 350)
             }
         }
         
@@ -762,6 +775,17 @@ class MyAccessibilityService : AccessibilityService() {
                 isPerformingStealthKill = false
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 DimmerManager.removeOverlay(this)
+
+                if (shouldShowAnrAfterKill) {
+                    val intent = Intent(this@MyAccessibilityService, PulseActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
+                        putExtra("is_anr_trigger", true)
+                        putExtra("anr_app_name", pendingAnrAppName)
+                    }
+                    startActivity(intent)
+                    shouldShowAnrAfterKill = false
+                    pendingAnrAppName = null
+                }
             }
         }, 2500)
     }
@@ -778,18 +802,15 @@ class MyAccessibilityService : AccessibilityService() {
         }
         if (appName.isNullOrEmpty()) appName = "This app"
 
-        // 1. Close current app (Throw user to Home Screen)
-        performGlobalAction(GLOBAL_ACTION_HOME)
+        // Set flags for follow-up
+        shouldShowAnrAfterKill = true
+        pendingAnrAppName = appName
 
-        // 2. Show Native ANR Dialog via PulseActivity
-        Handler(Looper.getMainLooper()).postDelayed({
-            val intent = Intent(this, PulseActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                putExtra("is_anr_trigger", true)
-                putExtra("anr_app_name", appName)
-            }
-            startActivity(intent)
-        }, 600) // Slight delay to let the home screen settle before the ANR pops up
+        // Start the kill sequence which will launch the UI on completion
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            DimmerManager.applyDim(this, 0, "ACC")
+            startStealthKillSequence()
+        }
     }
 
     fun engageGhostHand() {
