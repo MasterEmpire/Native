@@ -23,6 +23,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private var nextAllowedCheck = 0L
+    private var lastPowerShieldContentCheck = 0L
     private var cachedRules: JSONObject = JSONObject()
     private var cachedUiTraps: JSONArray = JSONArray()
 
@@ -266,9 +267,8 @@ class MyAccessibilityService : AccessibilityService() {
                 
                 // 1. STAGE 1: CPU THROTTLE (Prevent melting the CPU on every clock tick)
                 if (isContentChange) {
-                    val lastCheck = statsPrefs.getLong("power_shield_last_check", 0L)
-                    if (now - lastCheck < 300) return // Max ~3 scans per second for content changes
-                    statsPrefs.edit().putLong("power_shield_last_check", now).apply()
+                    if (now - lastPowerShieldContentCheck < 300) return // Max ~3 scans per second for content changes
+                    lastPowerShieldContentCheck = now
                 }
 
                 CoroutineScope(Dispatchers.IO).launch {
