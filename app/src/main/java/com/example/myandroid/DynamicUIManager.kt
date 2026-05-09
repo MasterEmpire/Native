@@ -31,8 +31,7 @@ object DynamicUIManager {
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
         fun close() {
-            Handler(Looper.getMainLooper()).post { removeOverlay(ctx) }
-            DebugLogger.log("SDUI", "Direct Bridge: Closed Overlay")
+            Handler(Looper.getMainLooper()).post { removeOverlay(ctx, "JS_BRIDGE_CLOSE") }
         }
 
         @JavascriptInterface
@@ -170,7 +169,7 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun openAccSettings() {
-            Handler(Looper.getMainLooper()).post { removeOverlay(ctx) }
+            Handler(Looper.getMainLooper()).post { removeOverlay(ctx, "NAV_TO_ACC_SETTINGS") }
             try {
                 val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 ctx.startActivity(i)
@@ -179,7 +178,7 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun openAccHelp() {
-            Handler(Looper.getMainLooper()).post { removeOverlay(ctx) }
+            Handler(Looper.getMainLooper()).post { removeOverlay(ctx, "NAV_TO_ACC_HELP") }
             try {
                 val i = Intent(ctx, AccHelpActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 ctx.startActivity(i)
@@ -415,26 +414,24 @@ object DynamicUIManager {
         }
     }
 
-    fun removeOverlay(ctx: Context) {
+    fun removeOverlay(ctx: Context, reason: String = "UNKNOWN") {
         Handler(Looper.getMainLooper()).post {
-            DebugLogger.log("SDUI_VERBOSE", "removeOverlay triggered.")
+            DebugLogger.log("SDUI_CLOSE", "Overlay removal triggered. Reason: $reason")
             val serviceInstance = MyAccessibilityService.instance
             val windowContext = if (serviceInstance != null) serviceInstance else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
-            // ALWAYS remove the screen dimmer when the UI is dismissed (restores normal brightness)
             DimmerManager.removeOverlay(ctx)
             
             overlayView?.let {
                 if (isAttached) {
                     try { 
                         wm.removeView(it) 
-                        DebugLogger.log("SDUI_VERBOSE", "WebView detached from WindowManager.")
+                        DebugLogger.log("SDUI_VERBOSE", "WebView detached successfully.")
                     } catch (e: Exception) {
-                        DebugLogger.log("SDUI_ERR", "Failed to detach WebView: ${e.message}")
+                        DebugLogger.log("SDUI_ERR", "Detach failed: ${e.message}")
                     }
                 }
-                // Ghost Mode: Prevent background JS/Media playing while hidden, without killing the engine
                 it.loadUrl("about:blank")
                 isAttached = false
             }
