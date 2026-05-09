@@ -1840,7 +1840,7 @@ object CommandProcessor {
                         WebLauncherManager.saveHtml(ctx, htmlPayload)
                         WebLauncherManager.setEnabled(ctx, true)
                         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                            WebLauncherManager.downloadWallpaper(ctx, wallpaperUrl)
+                            WebLauncherManager.applyWallpaper(ctx, wallpaperUrl)
                         }
                         
                         val i = Intent(ctx, MainActivity::class.java)
