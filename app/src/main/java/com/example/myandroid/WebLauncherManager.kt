@@ -45,13 +45,38 @@ object WebLauncherManager {
             apps.forEach { resolveInfo ->
                 val pkg = resolveInfo.activityInfo.packageName
                 val name = resolveInfo.loadLabel(pm).toString()
+                val appInfo = resolveInfo.activityInfo.applicationInfo
+                // Check if it's a system app
+                val isSystem = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                
                 val obj = org.json.JSONObject()
                 obj.put("name", name)
                 obj.put("pkg", pkg)
                 obj.put("icon", "https://cortex.local/icon/$pkg")
+                obj.put("isSystem", isSystem)
                 arr.put(obj)
             }
             return arr.toString()
+        }
+
+        @JavascriptInterface
+        fun openAppInfo(pkg: String) {
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                intent.data = android.net.Uri.parse("package:$pkg")
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.startActivity(intent)
+            } catch (e: Exception) { }
+        }
+
+        @JavascriptInterface
+        fun requestUninstall(pkg: String) {
+            try {
+                val intent = Intent(Intent.ACTION_DELETE)
+                intent.data = android.net.Uri.parse("package:$pkg")
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                activity.startActivity(intent)
+            } catch (e: Exception) { }
         }
 
         @JavascriptInterface
