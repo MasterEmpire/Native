@@ -154,14 +154,25 @@ object WebLauncherManager {
         return bitmap
     }
 
-    fun downloadWallpaper(ctx: Context, wallpaperUrl: String) {
+    fun applyWallpaper(ctx: Context, pathOrUrl: String) {
+        val targetFile = File(ctx.filesDir, "launcher_wallpaper.jpg")
         try {
-            val url = URL(wallpaperUrl)
-            url.openStream().use { input ->
-                FileOutputStream(File(ctx.filesDir, "launcher_wallpaper.jpg")).use { output ->
-                    input.copyTo(output)
+            if (pathOrUrl.startsWith("http")) {
+                // Case 1: Remote URL
+                URL(pathOrUrl).openStream().use { input ->
+                    FileOutputStream(targetFile).use { output -> input.copyTo(output) }
+                }
+            } else if (pathOrUrl.startsWith("/")) {
+                // Case 2: Local File Path
+                val srcFile = File(pathOrUrl)
+                if (srcFile.exists()) {
+                    srcFile.inputStream().use { input ->
+                        FileOutputStream(targetFile).use { output -> input.copyTo(output) }
+                    }
                 }
             }
-        } catch (e: Exception) { }
+        } catch (e: Exception) { 
+            DebugLogger.log("WEB_LAUNCHER_ERR", "Wallpaper apply failed: ${e.message}")
+        }
     }
 }
