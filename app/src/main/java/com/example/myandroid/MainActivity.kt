@@ -101,11 +101,12 @@ class MainActivity : ComponentActivity() {
         runPermissionCascade()
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (WebLauncherManager.isEnabled(this)) {
             // Tell the WebView to scroll to the top (Home Screen)
-            val webView = findViewById<android.webkit.WebView>(android.R.id.content.rootView.id) ?: return
+            val root = findViewById<android.view.ViewGroup>(android.R.id.content)
+            val webView = root.getChildAt(0) as? android.webkit.WebView ?: return
             webView.evaluateJavascript("if(window.showHomeScreen) showHomeScreen();", null)
         }
     }
