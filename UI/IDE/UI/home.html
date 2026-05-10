@@ -107,11 +107,13 @@
 
         .search-wrapper { padding: 40px 25px 5px 25px; }
         .search-bar {
-            height: 48px; background: rgba(50, 50, 50, 0.8);
-            backdrop-filter: blur(20px); border-radius: 40px;
+            height: 46px; background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(25px); border-radius: 24px;
             display: flex; align-items: center; padding: 0 18px; gap: 12px;
         }
-        #search-input { flex: 1; background: transparent; border: none; color: #eee; font-size: 0.95rem; outline: none; }
+        #search-input { flex: 1; background: transparent; border: none; color: #fff; font-size: 1.05rem; outline: none; }
+        #search-input::placeholder { color: rgba(255,255,255,0.5); }
+        .search-menu { color: #fff; opacity: 0.7; font-size: 1.2rem; cursor: pointer; padding-left: 5px; }
 
         .pager {
             flex: 1; display: flex; overflow-x: auto;
@@ -123,9 +125,9 @@
             min-width: 100vw; height: 100%;
             scroll-snap-align: start; scroll-snap-stop: always;
             display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(6, 1fr);
-            /* Reverted to original spacing, added slight top buffer for Status Bar */
-            padding: 40px 15px 25px 15px; 
-            row-gap: 12px; 
+            /* One UI has large top/bottom gutters */
+            padding: 20px 15px 10px 15px; 
+            row-gap: 22px; 
             column-gap: 5px;
         }
 
@@ -147,36 +149,40 @@
             margin-bottom: 0;
         }
         .app-label {
-            font-size: 0.65rem; width: 90%; line-height: 1.1;
-            max-height: 2.2em; display: -webkit-box; -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical; overflow: hidden;
-            color: #ddd;
+            font-size: 0.78rem; 
+            width: 95%; 
+            line-height: 1.2;
+            margin-top: 2px;
+            max-height: 2.4em; 
+            display: -webkit-box; 
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical; 
+            overflow: hidden;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
         }
 
         .pagination-dots {
-            height: 60px; 
+            height: 30px; 
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            gap: 4px; 
-            padding-bottom: 20px;
-            /* Prevent the pager from squishing the dots off-screen */
+            gap: 0px; 
+            margin-bottom: 45px; /* Sits perfectly above the nav bar */
             flex-shrink: 0; 
         }
         .dot {
-            /* Corrected dimensions for border-box */
-            width: 24px; height: 24px; 
+            width: 14px; height: 14px; 
             background: #fff; border-radius: 50%; 
-            /* Increased base opacity for better visibility against blur */
-            opacity: 0.3; 
+            opacity: 0.2; 
             cursor: pointer; 
-            /* Hitbox is now the full 24px, visible dot is the 8px center */
-            padding: 8px; 
+            /* Visual dot is now ~4px */
+            padding: 5px; 
             background-clip: content-box;
-            transition: opacity 0.2s, transform 0.2s;
+            transition: opacity 0.2s;
             box-sizing: border-box;
         }
-        .dot.active { opacity: 0.9; transform: scale(1.3); }
+        .dot.active { opacity: 0.8; }
 
         /* CONTEXT MENU */
         #context-menu {
@@ -225,7 +231,7 @@
 
         <!-- SCREEN 2: DRAWER -->
         <div class="view-screen" id="drawer-screen">
-            <div class="search-wrapper"><div class="search-bar"><input type="text" id="search-input" placeholder="Search" oninput="handleSearch()"></div></div>
+            <div class="search-wrapper"><div class="search-bar"><input type="text" id="search-input" placeholder="Search" oninput="handleSearch()"><div class="search-menu">⋮</div></div></div>
             <div class="pager" id="pager" onscroll="updateDots()"></div>
             <div class="pagination-dots" id="dots"></div>
         </div>
