@@ -353,6 +353,22 @@
             document.body.classList.remove('drawer-active');
         };
 
+        window.handleBack = () => {
+            // 1. Close context menu if open
+            const menu = document.getElementById('context-menu');
+            if (menu && menu.style.display === 'flex') {
+                closeMenu();
+                return true;
+            }
+            // 2. Close app drawer if open
+            if (document.body.classList.contains('drawer-active')) {
+                showHomeScreen();
+                return true;
+            }
+            // 3. Already at home
+            return false;
+        };
+
         window.onload = () => {
             try {
                 const raw = CortexLauncher.getAppList();
