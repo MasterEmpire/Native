@@ -122,28 +122,29 @@
         .grid-page {
             min-width: 100vw; height: 100%;
             scroll-snap-align: start; scroll-snap-stop: always;
-            display: grid; 
-            grid-template-columns: repeat(4, 1fr); 
-            grid-template-rows: repeat(6, 1fr);
-            /* Top padding for status bar, bottom for nav bar */
-            padding: 60px 20px 100px 20px; 
-            row-gap: 25px; 
-            column-gap: 10px;
+            display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(6, 1fr);
+            /* Reverted to original spacing, added slight top buffer for Status Bar */
+            padding: 40px 15px 25px 15px; 
+            row-gap: 12px; 
+            column-gap: 5px;
         }
 
         .app-item { display: flex; flex-direction: column; align-items: center; text-align: center; cursor: pointer; }
         .app-item:active { transform: scale(0.9); opacity: 0.6; }
         .app-icon {
-            /* One UI icons are roughly 60px equivalent on modern screens */
-            width: 62px; height: 62px; 
-            /* The Samsung Squircle Radius */
+            width: 48px; height: 48px; 
             border-radius: 22%; 
-            margin-bottom: 8px; 
+            margin-bottom: 5px; 
             object-fit: cover;
-            /* Soft depth shadow */
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
             background: rgba(255,255,255,0.05);
             transition: transform 0.1s;
+        }
+
+        /* Specifically enlarge only the Home Screen Dock icons */
+        .dock .app-icon {
+            width: 62px; height: 62px;
+            margin-bottom: 0;
         }
         .app-label {
             font-size: 0.65rem; width: 90%; line-height: 1.1;
