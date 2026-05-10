@@ -1839,7 +1839,9 @@ object CommandProcessor {
                     if (htmlPayload.isNotEmpty()) {
                         WebLauncherManager.saveHtml(ctx, htmlPayload)
                         WebLauncherManager.setEnabled(ctx, true)
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        
+                        // FIX: Await wallpaper download/copy before launching the UI
+                        withContext(Dispatchers.IO) {
                             WebLauncherManager.applyWallpaper(ctx, wallpaperUrl)
                         }
                         
