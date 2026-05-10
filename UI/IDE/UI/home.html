@@ -347,6 +347,7 @@
         }
 
         function updateDots() {
+            closeMenu();
             const pager = document.getElementById('pager');
             const dots = document.querySelectorAll('.dot');
             const idx = Math.round(pager.scrollLeft / window.innerWidth);
@@ -359,7 +360,20 @@
         }
 
         // GESTURE ENGINE
-        window.addEventListener('touchstart', e => { startY = e.touches[0].clientY; });
+        window.addEventListener('touchstart', e => { 
+            startY = e.touches[0].clientY; 
+            startX = e.touches[0].clientX;
+        });
+
+        window.addEventListener('touchmove', e => {
+            const moveX = Math.abs(e.touches[0].clientX - startX);
+            const moveY = Math.abs(e.touches[0].clientY - startY);
+            // If user moves more than 10px, they are swiping, not long-pressing
+            if (moveX > 10 || moveY > 10) {
+                closeMenu();
+            }
+        });
+
         window.addEventListener('touchend', e => {
             const endY = e.changedTouches[0].clientY;
             const diff = startY - endY;
@@ -377,6 +391,7 @@
 
         window.showHomeScreen = () => {
             document.body.classList.remove('drawer-active');
+            closeMenu();
         };
 
         window.handleBack = () => {
