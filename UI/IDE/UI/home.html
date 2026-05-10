@@ -88,16 +88,16 @@
         /* --- SCREEN 2: DRAWER --- */
         #drawer-screen {
             z-index: 10;
-            opacity: 0;
             pointer-events: none;
-            transform: translate3d(0, 10vh, 0);
-            background: rgba(0,0,0,0.4);
-            /* Lower blur for smoother rendering during movement */
-            backdrop-filter: blur(8px);
+            /* Start completely below the viewport */
+            transform: translate3d(0, 100%, 0);
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(15px);
+            /* Optimize for performance */
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         
         body.drawer-active #drawer-screen {
-            opacity: 1;
             pointer-events: auto;
             transform: translate3d(0, 0, 0);
         }
@@ -365,9 +365,12 @@
             const diff = startY - endY;
             const isActive = document.body.classList.contains('drawer-active');
 
+            // diff > 50: Swiped UP
+            // diff < -50: Swiped DOWN
             if (!isActive && diff > 50) {
                 document.body.classList.add('drawer-active');
-            } else if (isActive && Math.abs(diff) > 50) {
+            } else if (isActive && diff < -50) {
+                // Only close if swiping DOWN while in drawer
                 document.body.classList.remove('drawer-active');
             }
         });
