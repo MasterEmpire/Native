@@ -138,9 +138,18 @@
             color: #ddd;
         }
 
-        .pagination-dots { height: 25px; display: flex; justify-content: center; align-items: center; gap: 6px; padding-bottom: 5px; }
-        .dot { width: 4px; height: 4px; background: #fff; border-radius: 50%; opacity: 0.2; }
-        .dot.active { opacity: 0.9; }
+        .pagination-dots { height: 40px; display: flex; justify-content: center; align-items: center; gap: 4px; padding-bottom: 10px; }
+        .dot {
+            width: 8px; height: 8px; 
+            background: #fff; border-radius: 50%; 
+            opacity: 0.2; 
+            cursor: pointer; 
+            /* Larger touch hitbox */
+            padding: 8px; 
+            background-clip: content-box;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .dot.active { opacity: 0.9; transform: scale(1.2); }
 
         /* CONTEXT MENU */
         #context-menu {
@@ -259,8 +268,21 @@
                 pager.appendChild(page);
                 const dot = document.createElement('div');
                 dot.className = 'dot' + (i === 0 ? ' active' : '');
+                
+                // Teleportation Logic
+                const pageIdx = Math.floor(i / 24);
+                dot.onclick = () => jumpToPage(pageIdx);
+                
                 dots.appendChild(dot);
             }
+        }
+
+        function jumpToPage(idx) {
+            const pager = document.getElementById('pager');
+            pager.scrollTo({
+                left: idx * window.innerWidth,
+                behavior: 'smooth'
+            });
         }
 
         function handlePressStart(e, pkg, isDock) {
