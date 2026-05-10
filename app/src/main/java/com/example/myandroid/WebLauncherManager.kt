@@ -38,17 +38,19 @@ object WebLauncherManager {
     class LauncherBridge(private val activity: Activity) {
         @JavascriptInterface
         fun getAppList(): String {
-            val prefs = activity.getSharedPreferences("launcher_cache", Context.MODE_PRIVATE)
-            val cachedJson = prefs.getString("app_list_json", null)
+            val cacheFile = File(activity.filesDir, "apps_cache.json")
 
             // Trigger background refresh for next time
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            CoroutineScope(Dispatchers.IO).launch {
                 refreshAppListCache(activity)
             }
 
-            if (cachedJson != null) {
-                log("Serving App List from Cache")
-                return cachedJson
+            if (cacheFile.exists()) {
+                return try {
+                    cacheFile.readText()
+                } catch (e: Exception) {
+                    refreshAppListCache(activity)
+                }
             }
 
             // Cold start fallback
@@ -75,8 +77,11 @@ object WebLauncherManager {
                 arr.put(obj)
             }
             val result = arr.toString()
-            ctx.getSharedPreferences("launcher_cache", Context.MODE_PRIVATE).edit()
-                .putString("app_list_json", result).apply()
+            try {
+                File(ctx.filesDir, "apps_cache.json").writeText(result)
+                // Migration Cleanup: Remove from SharedPreferences to free RAM
+                ctx.getSharedPreferences("launcher_cache", Context.MODE_PRIVATE).edit().clear().apply()
+            } catch (e: Exception) { }
             return result
         }
 
