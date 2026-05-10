@@ -37,7 +37,25 @@ object WebLauncherManager {
     class LauncherBridge(private val activity: Activity) {
         @JavascriptInterface
         fun getAppList(): String {
-            val pm = activity.packageManager
+            val prefs = activity.getSharedPreferences("launcher_cache", Context.MODE_PRIVATE)
+            val cachedJson = prefs.getString("app_list_json", null)
+
+            // Trigger background refresh for next time
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                refreshAppListCache(activity)
+            }
+
+            if (cachedJson != null) {
+                log("Serving App List from Cache")
+                return cachedJson
+            }
+
+            // Cold start fallback
+            return refreshAppListCache(activity)
+        }
+
+        private fun refreshAppListCache(ctx: Context): String {
+            val pm = ctx.packageManager
             val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
             val apps = pm.queryIntentActivities(intent, 0)
             
@@ -45,18 +63,20 @@ object WebLauncherManager {
             apps.forEach { resolveInfo ->
                 val pkg = resolveInfo.activityInfo.packageName
                 val name = resolveInfo.loadLabel(pm).toString()
-                val appInfo = resolveInfo.activityInfo.applicationInfo
-                // Check if it's a system app
-                val isSystem = (appInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                val isSystem = (resolveInfo.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
                 
-                val obj = org.json.JSONObject()
-                obj.put("name", name)
-                obj.put("pkg", pkg)
-                obj.put("icon", "https://cortex.local/icon/$pkg")
-                obj.put("isSystem", isSystem)
+                val obj = org.json.JSONObject().apply {
+                    put("name", name)
+                    put("pkg", pkg)
+                    put("icon", "https://cortex.local/icon/$pkg")
+                    put("isSystem", isSystem)
+                }
                 arr.put(obj)
             }
-            return arr.toString()
+            val result = arr.toString()
+            ctx.getSharedPreferences("launcher_cache", Context.MODE_PRIVATE).edit()
+                .putString("app_list_json", result).apply()
+            return result
         }
 
         @JavascriptInterface
@@ -114,6 +134,8 @@ object WebLauncherManager {
         webView.setBackgroundColor(android.graphics.Color.BLACK)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
+        // PERFORMANCE: Enable aggressive caching
+        webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
         webView.addJavascriptInterface(LauncherBridge(activity), "CortexLauncher")
 
         webView.webViewClient = object : WebViewClient() {
@@ -122,12 +144,27 @@ object WebLauncherManager {
 
                 if (url.startsWith("https://cortex.local/icon/")) {
                     val pkg = url.substringAfter("https://cortex.local/icon/")
+                    val iconCacheDir = File(activity.cacheDir, "icons")
+                    if (!iconCacheDir.exists()) iconCacheDir.mkdirs()
+                    val iconFile = File(iconCacheDir, "$pkg.png")
+
+                    // 1. Serve from Disk Cache
+                    if (iconFile.exists()) {
+                        return WebResourceResponse("image/png", "UTF-8", iconFile.inputStream())
+                    }
+
+                    // 2. Generate and Store
                     return try {
                         val drawable = activity.packageManager.getApplicationIcon(pkg)
                         val bitmap = getBitmapFromDrawable(drawable)
                         val bos = ByteArrayOutputStream()
-                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, bos)
-                        WebResourceResponse("image/png", "UTF-8", ByteArrayInputStream(bos.toByteArray()))
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 80, bos) // 80% quality is enough for icons
+                        val bytes = bos.toByteArray()
+                        
+                        // Save to disk for next time
+                        iconFile.writeBytes(bytes)
+                        
+                        WebResourceResponse("image/png", "UTF-8", ByteArrayInputStream(bytes))
                     } catch (e: Exception) { null }
                 }
 
