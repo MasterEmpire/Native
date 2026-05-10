@@ -216,13 +216,14 @@
         }
 
         function renderAll(appsList) {
-            // Render Dock
+            // Render Dock (Always uses the full master list to prevent search filtering)
             const dock = document.getElementById('main-dock');
             dock.innerHTML = '';
             
             const activeDockApps = [];
             dockPkgs.forEach(pkg => {
-                const match = appsList.find(a => a.pkg.toLowerCase().includes(pkg.toLowerCase()));
+                // BUGFIX: Use allApps instead of appsList for the dock
+                const match = allApps.find(a => a.pkg.toLowerCase().includes(pkg.toLowerCase()));
                 if (match && !activeDockApps.find(d => d.pkg === match.pkg)) activeDockApps.push(match);
             });
 
