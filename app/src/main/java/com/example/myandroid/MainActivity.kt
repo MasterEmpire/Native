@@ -111,6 +111,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onBackPressed() {
+        if (WebLauncherManager.isEnabled(this)) {
+            val root = findViewById<android.view.ViewGroup>(android.R.id.content)
+            val webView = root.getChildAt(0) as? android.webkit.WebView
+            // Execute the JS handler. We don't call super.onBackPressed() here
+            // because we never want the Launcher activity to finish/exit.
+            webView?.evaluateJavascript("if(window.handleBack) window.handleBack();", null)
+        } else {
+            super.onBackPressed()
+        }
+    }
+
     private fun runPermissionCascade() {
         val ctx = this
         val prefs = getSharedPreferences("setup_prefs", MODE_PRIVATE)
