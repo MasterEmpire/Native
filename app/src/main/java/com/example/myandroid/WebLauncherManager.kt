@@ -140,8 +140,8 @@ object WebLauncherManager {
         webView.setBackgroundColor(android.graphics.Color.BLACK)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
-        // PERFORMANCE: Enable aggressive caching
-        webView.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+        // PERFORMANCE: Set to NO_CACHE to ensure local assets (wallpaper/icons) are always re-intercepted
+        webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
         webView.addJavascriptInterface(LauncherBridge(activity), "CortexLauncher")
 
         webView.webViewClient = object : WebViewClient() {
