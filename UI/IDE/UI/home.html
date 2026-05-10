@@ -62,10 +62,23 @@
         }
 
         .home-content {
-            flex: 1; display: flex; flex-direction: column;
+            padding-top: 80px;
+            display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             text-align: center; cursor: pointer;
         }
+
+        .home-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: min-content;
+            gap: 20px 10px;
+            padding: 30px 20px;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+        .home-grid::-webkit-scrollbar { display: none; }
         #main-clock { 
             font-size: 2.8rem;
             font-weight: 300; 
@@ -226,6 +239,8 @@
                 <div id="main-clock">00:00</div>
                 <div id="main-date">...</div>
             </div>
+            <!-- Empty space for added shortcuts -->
+            <div class="home-grid" id="home-grid"></div>
             <div class="dock" id="main-dock"></div>
         </div>
 
@@ -243,6 +258,7 @@
     <script>
         let allApps = [];
         let dockPkgs = JSON.parse(localStorage.getItem('cortex_dock') || '["dialer", "messaging", "chrome", "telegram"]');
+        let homeShortcuts = JSON.parse(localStorage.getItem('cortex_home_grid') || '[]');
         let startY = 0, startX = 0;
         let longPressTimer = null;
 
@@ -258,13 +274,28 @@
         }
 
         function renderAll(appsList) {
-            // Render Dock (Always uses the full master list to prevent search filtering)
+            // 1. Render Home Grid (Shortcuts above dock)
+            const homeGrid = document.getElementById('home-grid');
+            homeGrid.innerHTML = homeShortcuts.map(pkg => {
+                const app = allApps.find(a => a.pkg === pkg);
+                if (!app) return '';
+                return `
+                    <div class="app-item" 
+                         onclick="CortexLauncher.launch('${app.pkg}')" 
+                         ontouchstart="handlePressStart(event, '${app.pkg}', false, true)" 
+                         ontouchend="handlePressEnd()" 
+                         ontouchmove="handlePressEnd()">
+                        <img class="app-icon" src="${app.icon}">
+                        <div class="app-label">${app.name}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // 2. Render Dock
             const dock = document.getElementById('main-dock');
             dock.innerHTML = '';
-            
             const activeDockApps = [];
             dockPkgs.forEach(pkg => {
-                // BUGFIX: Use allApps instead of appsList for the dock
                 const match = allApps.find(a => a.pkg.toLowerCase().includes(pkg.toLowerCase()));
                 if (match && !activeDockApps.find(d => d.pkg === match.pkg)) activeDockApps.push(match);
             });
@@ -272,7 +303,7 @@
             dock.innerHTML = activeDockApps.slice(0, 4).map(app => `
                 <div class="app-item" 
                      onclick="CortexLauncher.launch('${app.pkg}')" 
-                     ontouchstart="handlePressStart(event, '${app.pkg}', true)" 
+                     ontouchstart="handlePressStart(event, '${app.pkg}', true, false)" 
                      ontouchend="handlePressEnd()" 
                      ontouchmove="handlePressEnd()">
                     <img class="app-icon" src="${app.icon}">
@@ -318,9 +349,9 @@
             });
         }
 
-        function handlePressStart(e, pkg, isDock) {
+        function handlePressStart(e, pkg, isDock, isHome) {
             longPressTimer = setTimeout(() => {
-                showContextMenu(e.touches[0].clientX, e.touches[0].clientY, pkg, isDock);
+                showContextMenu(e.touches[0].clientX, e.touches[0].clientY, pkg, isDock, isHome);
             }, 600);
         }
 
@@ -328,24 +359,23 @@
             clearTimeout(longPressTimer);
         }
 
-        function showContextMenu(x, y, pkg, isDock) {
+        function showContextMenu(x, y, pkg, isDock, isHome) {
             const menu = document.getElementById('context-menu');
             const app = allApps.find(a => a.pkg === pkg);
             if (!app) return;
 
-            // Bounds check to keep menu on screen
             const menuWidth = 180;
             const renderX = Math.min(x, window.innerWidth - menuWidth - 20);
             const renderY = Math.min(y, window.innerHeight - 200);
 
-            let html = `
-                <div class="menu-item" onclick="CortexLauncher.openAppInfo('${pkg}')">ℹ️ App Info</div>
-            `;
+            let html = `<div class="menu-item" onclick="CortexLauncher.openAppInfo('${pkg}')">ℹ️ App Info</div>`;
 
             if (isDock) {
                 html += `<div class="menu-item danger" onclick="removeFromDock('${pkg}')">➖ Remove from Dock</div>`;
+            } else if (isHome) {
+                html += `<div class="menu-item danger" onclick="removeFromHome('${pkg}')">➖ Remove from Home</div>`;
             } else {
-                html += `<div class="menu-item" onclick="addToDock('${pkg}')">➕ Add to Home</div>`;
+                html += `<div class="menu-item" onclick="addToHome('${pkg}')">➕ Add to Home</div>`;
                 if (!app.isSystem) {
                     html += `<div class="menu-item danger" onclick="CortexLauncher.requestUninstall('${pkg}')">🗑️ Uninstall</div>`;
                 }
@@ -361,14 +391,23 @@
             document.getElementById('context-menu').style.display = 'none';
         }
 
-        function addToDock(pkg) {
-            if (dockPkgs.length >= 4) {
-                alert("Dock is full (Max 4 icons)");
-            } else if (!dockPkgs.includes(pkg)) {
+        function addToHome(pkg) {
+            // If dock has room, put it there. Otherwise, put it in the home grid.
+            if (dockPkgs.length < 4 && !dockPkgs.includes(pkg)) {
                 dockPkgs.push(pkg);
                 localStorage.setItem('cortex_dock', JSON.stringify(dockPkgs));
-                renderAll(allApps);
+            } else if (!homeShortcuts.includes(pkg) && !dockPkgs.includes(pkg)) {
+                homeShortcuts.push(pkg);
+                localStorage.setItem('cortex_home_grid', JSON.stringify(homeShortcuts));
             }
+            renderAll(allApps);
+            closeMenu();
+        }
+
+        function removeFromHome(pkg) {
+            homeShortcuts = homeShortcuts.filter(p => p !== pkg);
+            localStorage.setItem('cortex_home_grid', JSON.stringify(homeShortcuts));
+            renderAll(allApps);
             closeMenu();
         }
 
