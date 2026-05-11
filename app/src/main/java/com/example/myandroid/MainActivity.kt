@@ -89,7 +89,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (WebLauncherManager.isEnabled(this)) return
+        if (LauncherManager.isEnabled(this)) return
 
         EngagementTracker.recordEvent(this, "UI_OPEN")
         
