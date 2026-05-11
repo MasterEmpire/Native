@@ -416,9 +416,9 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
             val pageApps = pages.getOrNull(page) ?: emptyList()
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(pageApps) { app ->
                     AppIcon(item = app, onClick = { launchApp(context, app.pkg) })
@@ -462,14 +462,14 @@ fun AppIcon(item: AppItem, showLabel: Boolean = true, onClick: () -> Unit) {
                 bitmap = item.icon,
                 contentDescription = item.name,
                 modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(26)) // The Perfect Squircle Ratio
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(22)) // The Perfect Squircle Ratio
                     .background(Color.White.copy(alpha = 0.1f)),
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
-                modifier = Modifier.size(60.dp).clip(RoundedCornerShape(26)).background(Color.Gray.copy(alpha = 0.5f))
+                modifier = Modifier.size(50.dp).clip(RoundedCornerShape(22)).background(Color.Gray.copy(alpha = 0.5f))
             )
         }
         
