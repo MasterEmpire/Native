@@ -85,6 +85,7 @@ fun OneUILauncher() {
     var isSelectionMode by remember { mutableStateOf(false) }
     var selectedPkgs by remember { mutableStateOf(setOf<String>()) }
     var activeFolder by remember { mutableStateOf<FolderData?>(null) }
+    var isNewFolder by remember { mutableStateOf(false) }
     val prefs = context.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
     
     val rawPages = prefs.getString("home_pages", null)
@@ -368,6 +369,8 @@ fun OneUILauncher() {
                         updated.addAll(drawerFolders)
                         drawerFolders = updated
                         saveDrawerFolders(updated)
+                        activeFolder = newFolder
+                        isNewFolder = true
                     }
                     isSelectionMode = false
                     selectedPkgs = emptySet()
@@ -380,29 +383,92 @@ fun OneUILauncher() {
         }
 
         // 5. Folder Content Overlay
-        if (activeFolder != null) {
+        val displayedFolder = remember { mutableStateOf<FolderData?>(null) }
+        LaunchedEffect(activeFolder) { if (activeFolder != null) displayedFolder.value = activeFolder }
+
+        AnimatedVisibility(
+            visible = activeFolder != null,
+            enter = fadeIn(tween(300)) + androidx.compose.animation.scaleIn(initialScale = 0.5f, animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)),
+            exit = fadeOut(tween(200)) + androidx.compose.animation.scaleOut(targetScale = 0.5f, animationSpec = tween(200)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            val folder = displayedFolder.value ?: return@AnimatedVisibility
+            var folderName by remember(folder) { mutableStateOf(folder.name) }
+            val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+            val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
+            LaunchedEffect(folder) {
+                if (isNewFolder) {
+                    delay(150)
+                    focusRequester.requestFocus()
+                    keyboardController?.show()
+                    isNewFolder = false
+                }
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.85f))
-                    .pointerInput(Unit) { detectTapGestures { activeFolder = null } }
+                    .pointerInput(Unit) { 
+                        detectTapGestures { 
+                            val updatedFolders = drawerFolders.map { if (it.id == folder.id) it.copy(name = folderName) else it }
+                            drawerFolders = updatedFolders
+                            saveDrawerFolders(updatedFolders)
+                            keyboardController?.hide()
+                            activeFolder = null 
+                        } 
+                    }
             ) {
+                if (wallpaperBitmap != null) {
+                    Image(
+                        bitmap = wallpaperBitmap!!,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .androidx.compose.ui.draw.blur(radius = 40.dp)
+                            .background(Color.Black.copy(alpha = 0.4f)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)))
+                }
+
                 Column(
-                    modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 24.dp),
+                    modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = activeFolder!!.name, 
-                        color = Color.White, 
-                        fontSize = 28.sp, 
-                        modifier = Modifier.padding(bottom = 32.dp)
+                    androidx.compose.foundation.text.BasicTextField(
+                        value = folderName,
+                        onValueChange = { folderName = it },
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            color = Color.White,
+                            fontSize = 32.sp,
+                            textAlign = TextAlign.Center
+                        ),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onDone = {
+                                val updatedFolders = drawerFolders.map { if (it.id == folder.id) it.copy(name = folderName) else it }
+                                drawerFolders = updatedFolders
+                                saveDrawerFolders(updatedFolders)
+                                keyboardController?.hide()
+                            }
+                        ),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White),
+                        modifier = Modifier
+                            .padding(bottom = 32.dp)
+                            .fillMaxWidth()
+                            .androidx.compose.ui.focus.focusRequester(focusRequester)
                     )
                     
-                    val folderApps = activeFolder!!.pkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }
+                    val folderApps = folder.pkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(4),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(22.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         items(folderApps) { app ->
                             AppIcon(
