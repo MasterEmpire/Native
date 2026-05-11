@@ -317,7 +317,7 @@
 
     </div>
 
-    <div class="stage" onclick="closeMenu()" ontouchstart="handleHomeTouchStart(event)" ontouchend="handleHomeTouchEnd()">
+    <div class="stage" onclick="handleGlobalClick(event)" ontouchstart="handleHomeTouchStart(event)" ontouchend="handleHomeTouchEnd()">
         <!-- SCREEN 1: HOME -->
         <div class="view-screen" id="home-screen"></div>
 
@@ -348,6 +348,7 @@
         }
 
         function launchClock() {
+            if (isEditorActive()) return;
             const clockApp = allApps.find(a => a.pkg.toLowerCase().includes('clock') || a.pkg.toLowerCase().includes('deskclock'));
             if (clockApp) CortexLauncher.launch(clockApp.pkg);
         }
@@ -369,12 +370,6 @@
             homePages.forEach((pageShortcuts, pageIdx) => {
                 const page = document.createElement('div');
                 page.className = 'home-page';
-                page.onclick = (e) => {
-                    if (isEditorActive()) {
-                        if (e.target.closest('.trash-header')) return;
-                        document.body.classList.remove('editor-active');
-                    }
-                };
                 
                 const gridHtml = pageShortcuts.map(pkg => {
                     const app = allApps.find(a => a.pkg === pkg);
@@ -482,6 +477,21 @@
 
         function closeMenu() {
             document.getElementById('context-menu').style.display = 'none';
+        }
+
+        function handleGlobalClick(e) {
+            // 1. Close context menu if open
+            closeMenu();
+
+            // 2. Handle Editor Mode dismissal
+            if (isEditorActive()) {
+                // Don't close if we clicked the 'Trash' or '+' buttons
+                if (e.target.closest('.trash-header') || e.target.closest('.editor-symbol')) {
+                    return;
+                }
+                document.body.classList.remove('editor-active');
+                e.stopPropagation();
+            }
         }
 
         function addToHome(pkg) {
