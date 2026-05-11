@@ -70,8 +70,8 @@ fun OneUILauncher() {
     var isDrawerOpen by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
     
-    val allApps by produceState<List<AppItem>>(initialValue = emptyList()) {
-        value = withContext(Dispatchers.IO) { fetchApps(context) }
+    val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps) {
+        value = withContext(Dispatchers.IO) { AppCache.getApps(context) }
     }
 
     val wallpaperBitmap by produceState<ImageBitmap?>(initialValue = null) {
@@ -127,10 +127,15 @@ fun OneUILauncher() {
             .fillMaxSize()
             .pointerInput(isEditing) {
                 if (!isEditing) {
+                    var totalDrag = 0f
                     detectVerticalDragGestures(
+                        onDragStart = { totalDrag = 0f },
                         onVerticalDrag = { _, dragAmount ->
-                            if (dragAmount < -15 && !isDrawerOpen) isDrawerOpen = true
-                            else if (dragAmount > 15 && isDrawerOpen) isDrawerOpen = false
+                            totalDrag += dragAmount
+                        },
+                        onDragEnd = {
+                            if (!isDrawerOpen && totalDrag < -40) isDrawerOpen = true
+                            else if (isDrawerOpen && (totalDrag > 40 || totalDrag < -40)) isDrawerOpen = false
                         }
                     )
                 }
@@ -418,7 +423,8 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
                 columns = GridCells.Fixed(4),
                 modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                userScrollEnabled = false
             ) {
                 items(pageApps) { app ->
                     AppIcon(item = app, onClick = { launchApp(context, app.pkg) })
@@ -496,19 +502,33 @@ fun AppIcon(item: AppItem, showLabel: Boolean = true, onClick: () -> Unit) {
     }
 }
 
-fun fetchApps(ctx: Context): List<AppItem> {
-    val pm = ctx.packageManager
-    val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
-    val resolveInfos = pm.queryIntentActivities(intent, 0)
-    
-    return resolveInfos.distinctBy { it.activityInfo.packageName }.map { resolveInfo ->
-        val pkg = resolveInfo.activityInfo.packageName
-        val name = resolveInfo.loadLabel(pm).toString()
-        val isSystem = (resolveInfo.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
-        val drawable = resolveInfo.loadIcon(pm)
-        val bitmap = drawableToBitmap(drawable)
-        AppItem(name, pkg, bitmap.asImageBitmap(), isSystem)
-    }.sortedBy { it.name }
+object AppCache {
+    var cachedApps: List<AppItem> = emptyList()
+    private var lastPackageCount: Int = -1
+
+    fun getApps(ctx: Context): List<AppItem> {
+        val pm = ctx.packageManager
+        val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
+        val resolveInfos = pm.queryIntentActivities(intent, 0)
+        
+        // Dynamic & Reliable: Return instantly if installed app count hasn't changed
+        if (cachedApps.isNotEmpty() && resolveInfos.size == lastPackageCount) {
+            return cachedApps
+        }
+        
+        lastPackageCount = resolveInfos.size
+        val newApps = resolveInfos.distinctBy { it.activityInfo.packageName }.map { resolveInfo ->
+            val pkg = resolveInfo.activityInfo.packageName
+            val name = resolveInfo.loadLabel(pm).toString()
+            val isSystem = (resolveInfo.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+            val drawable = resolveInfo.loadIcon(pm)
+            val bitmap = drawableToBitmap(drawable)
+            AppItem(name, pkg, bitmap.asImageBitmap(), isSystem)
+        }.sortedBy { it.name }
+        
+        cachedApps = newApps
+        return newApps
+    }
 }
 
 fun drawableToBitmap(drawable: Drawable): Bitmap {
