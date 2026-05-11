@@ -214,12 +214,7 @@ fun OneUILauncher() {
 
     BackHandler(enabled = isDrawerOpen || isEditing) {
         if (isDrawerOpen) isDrawerOpen = false
-        else if (isEditing) {
-            scope.launch {
-                pagerState.animateScrollToPage(homePageIndex)
-                isEditing = false
-            }
-        }
+        else if (isEditing) isEditing = false
     }
 
     Box(
@@ -276,14 +271,7 @@ fun OneUILauncher() {
             dockAlpha = dockAlpha,
             onLongPress = { isEditing = true },
             onAppLongPress = { app, source -> activeMenu = MenuState(app, source) },
-            onTap = { 
-                if (isEditing) {
-                    scope.launch {
-                        pagerState.animateScrollToPage(homePageIndex)
-                        isEditing = false
-                    }
-                }
-            },
+            onTap = { if (isEditing) isEditing = false },
             onAddPage = {
                 val mutablePages = homePages.toMutableList()
                 mutablePages.add(emptyList())
