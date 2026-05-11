@@ -112,7 +112,8 @@ class MainActivity : ComponentActivity() {
     override fun onBackPressed() {
         if (LauncherManager.isEnabled(this)) {
             // The native Compose BackHandler dynamically manages the drawer state.
-            super.onBackPressed()
+            // DO NOT call super.onBackPressed() here. A launcher never exits on back press.
+            return
         } else {
             super.onBackPressed()
         }
