@@ -78,9 +78,34 @@ fun OneUILauncher() {
     
     var activeMenu by remember { mutableStateOf<MenuState?>(null) }
     val prefs = context.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
-    var homeAppPkgs by remember { mutableStateOf(prefs.getStringSet("home_apps", emptySet()) ?: emptySet()) }
+    
+    val rawPages = prefs.getString("home_pages", null)
+    val initialPages = if (rawPages != null) {
+        val arr = org.json.JSONArray(rawPages)
+        List(arr.length()) { i -> 
+            val pageArr = arr.getJSONArray(i)
+            List(pageArr.length()) { j -> pageArr.getString(j) }
+        }
+    } else {
+        val oldSet = prefs.getStringSet("home_apps", null)
+        if (oldSet != null) listOf(oldSet.toList().chunked(24).firstOrNull() ?: emptyList()) else listOf(emptyList())
+    }
+    var homePages by remember { mutableStateOf(initialPages.ifEmpty { listOf(emptyList()) }) }
+    var homePageIndex by remember { mutableIntStateOf(prefs.getInt("home_page_index", 0).coerceIn(0, (homePages.size - 1).coerceAtLeast(0))) }
+    var highlightedApp by remember { mutableStateOf<String?>(null) }
+
     val defaultDock = setOf("com.android.dialer", "com.samsung.android.dialer", "com.android.chrome", "com.whatsapp", "com.android.messaging")
     var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock) ?: defaultDock) }
+
+    fun saveHomePages(pages: List<List<String>>) {
+        val arr = org.json.JSONArray()
+        pages.forEach { page ->
+            val pageArr = org.json.JSONArray()
+            page.forEach { pageArr.put(it) }
+            arr.put(pageArr)
+        }
+        prefs.edit().putString("home_pages", arr.toString()).apply()
+    }
     
     val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps) {
         value = withContext(Dispatchers.IO) { AppCache.getApps(context) }
@@ -129,15 +154,15 @@ fun OneUILauncher() {
 
     val dockAlpha by animateFloatAsState(targetValue = if (isEditing) 0f else 1f, label = "DockAlpha")
 
-    val pageCount = if (isEditing) 2 else 1
-    val pagerState = rememberPagerState(pageCount = { pageCount })
+    val pageCount = homePages.size + if (isEditing) 1 else 0
+    val pagerState = rememberPagerState(initialPage = homePageIndex, pageCount = { pageCount })
     val scope = rememberCoroutineScope()
 
     BackHandler(enabled = isDrawerOpen || isEditing) {
         if (isDrawerOpen) isDrawerOpen = false
         else if (isEditing) {
             scope.launch {
-                if (pagerState.currentPage > 0) pagerState.animateScrollToPage(0)
+                pagerState.animateScrollToPage(homePageIndex)
                 isEditing = false
             }
         }
@@ -177,7 +202,9 @@ fun OneUILauncher() {
         // 2. Home Workspace (Pages & Dock)
         HomeWorkspace(
             apps = allApps,
-            homeAppPkgs = homeAppPkgs,
+            homePages = homePages,
+            homePageIndex = homePageIndex,
+            highlightedApp = highlightedApp,
             dockAppPkgs = dockAppPkgs,
             wallpaperBitmap = wallpaperBitmap,
             isEditing = isEditing,
@@ -190,10 +217,29 @@ fun OneUILauncher() {
             onTap = { 
                 if (isEditing) {
                     scope.launch {
-                        if (pagerState.currentPage > 0) pagerState.animateScrollToPage(0)
+                        pagerState.animateScrollToPage(homePageIndex)
                         isEditing = false
                     }
                 }
+            },
+            onDeletePage = { pageIdx ->
+                val mutablePages = homePages.toMutableList()
+                mutablePages.removeAt(pageIdx)
+                if (mutablePages.isEmpty()) mutablePages.add(emptyList())
+                homePages = mutablePages
+                saveHomePages(mutablePages)
+                
+                if (homePageIndex == pageIdx) {
+                    homePageIndex = 0
+                    prefs.edit().putInt("home_page_index", 0).apply()
+                } else if (homePageIndex > pageIdx) {
+                    homePageIndex--
+                    prefs.edit().putInt("home_page_index", homePageIndex).apply()
+                }
+            },
+            onSetHome = { pageIdx ->
+                homePageIndex = pageIdx
+                prefs.edit().putInt("home_page_index", pageIdx).apply()
             },
             drawerProgress = drawerProgress
         )
@@ -240,17 +286,40 @@ fun OneUILauncher() {
                     menuState = activeMenu!!,
                     onDismiss = { activeMenu = null },
                     onAddToHome = { app -> 
-                        val updated = homeAppPkgs + app.pkg
-                        prefs.edit().putStringSet("home_apps", updated).apply()
-                        homeAppPkgs = updated
+                        val mutablePages = homePages.map { it.toMutableList() }.toMutableList()
+                        var addedPageIdx = -1
+                        for (i in mutablePages.indices) {
+                            if (mutablePages[i].size < 24) {
+                                mutablePages[i].add(app.pkg)
+                                addedPageIdx = i
+                                break
+                            }
+                        }
+                        if (addedPageIdx == -1) {
+                            mutablePages.add(mutableListOf(app.pkg))
+                            addedPageIdx = mutablePages.size - 1
+                        }
+                        homePages = mutablePages
+                        saveHomePages(mutablePages)
                         activeMenu = null
-                        isDrawerOpen = false // Close drawer to show home
+                        isDrawerOpen = false
+                        
+                        highlightedApp = app.pkg
+                        scope.launch {
+                            delay(300) // Wait for drawer to close
+                            pagerState.animateScrollToPage(addedPageIdx)
+                            delay(1500)
+                            if (highlightedApp == app.pkg) highlightedApp = null
+                        }
                     },
                     onRemove = { app, source ->
                         if (source == "HOME") {
-                            val updated = homeAppPkgs - app.pkg
-                            prefs.edit().putStringSet("home_apps", updated).apply()
-                            homeAppPkgs = updated
+                            val mutablePages = homePages.map { it.toMutableList() }.toMutableList()
+                            for (i in mutablePages.indices) {
+                                if (mutablePages[i].remove(app.pkg)) break
+                            }
+                            homePages = mutablePages
+                            saveHomePages(mutablePages)
                         } else if (source == "DOCK") {
                             val updated = dockAppPkgs - app.pkg
                             prefs.edit().putStringSet("dock_apps", updated).apply()
@@ -268,7 +337,9 @@ fun OneUILauncher() {
 @Composable
 fun HomeWorkspace(
     apps: List<AppItem>,
-    homeAppPkgs: Set<String>,
+    homePages: List<List<String>>,
+    homePageIndex: Int,
+    highlightedApp: String?,
     dockAppPkgs: Set<String>,
     wallpaperBitmap: ImageBitmap?,
     isEditing: Boolean,
@@ -279,6 +350,8 @@ fun HomeWorkspace(
     onLongPress: () -> Unit,
     onAppLongPress: (AppItem, String) -> Unit,
     onTap: () -> Unit,
+    onDeletePage: (Int) -> Unit,
+    onSetHome: (Int) -> Unit,
     drawerProgress: Float
 ) {
     val context = LocalContext.current
@@ -332,20 +405,28 @@ fun HomeWorkspace(
                     Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray))
                 }
 
-                if (page == 0) {
+                if (page < homePages.size) {
                     // Main Page Content
                     Column(modifier = Modifier.fillMaxSize()) {
-                        HomeClock()
+                        if (page == homePageIndex) {
+                            HomeClock()
+                        } else {
+                            // Spacer to maintain grid alignment when clock is absent
+                            Spacer(modifier = Modifier.height(120.dp))
+                        }
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(4),
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 20.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            userScrollEnabled = false
                         ) {
-                            val homeApps = apps.filter { homeAppPkgs.contains(it.pkg) }
-                            items(homeApps) { app ->
+                            val pagePkgs = homePages[page]
+                            val pageApps = pagePkgs.mapNotNull { pkg -> apps.find { it.pkg == pkg } }
+                            items(pageApps) { app ->
                                 AppIcon(
                                     item = app, 
+                                    isHighlighted = app.pkg == highlightedApp,
                                     onClick = { launchApp(context, app.pkg) }, 
                                     onLongClick = { onAppLongPress(app, "HOME") }
                                 )
@@ -353,17 +434,31 @@ fun HomeWorkspace(
                         }
                     }
                     
-                    // Edit Overlays for Main Page
+                    // Edit Overlays for Main Pages
                     if (isEditing) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Delete Page",
-                            tint = Color.White,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 24.dp)
-                                .size(28.dp)
-                        )
+                        IconButton(
+                            onClick = { onSetHome(page) },
+                            modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Home,
+                                contentDescription = "Set Home",
+                                tint = if (page == homePageIndex) Color.White else Color.White.copy(alpha = 0.4f),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { onDeletePage(page) },
+                            modifier = Modifier.align(Alignment.TopEnd).padding(top = 24.dp, end = 24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Page",
+                                tint = Color.White.copy(alpha = 0.8f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
                 } else {
                     // Add Page (+)
@@ -403,17 +498,28 @@ fun HomeWorkspace(
             }
         }
         
-        // Dash indicator above dock
-        Box(
+        // Page indicators above dock
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = 110.dp) // Sits above dock
-                .alpha(dockAlpha)
-                .size(width = 16.dp, height = 5.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.8f))
-        )
+                .alpha(dockAlpha),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            for (i in homePages.indices) {
+                val isActive = pagerState.currentPage == i
+                val isHome = i == homePageIndex
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .size(if (isActive) 6.dp else 4.dp)
+                        .clip(CircleShape)
+                        .background(if (isActive) Color.White else if (isHome) Color.White.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.4f))
+                )
+            }
+        }
     }
 }
 
@@ -546,30 +652,45 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>, onAppLongPr
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AppIcon(item: AppItem, showLabel: Boolean = true, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
+fun AppIcon(item: AppItem, showLabel: Boolean = true, isHighlighted: Boolean = false, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
+    val scale by animateFloatAsState(
+        targetValue = if (isHighlighted) 1.15f else 1f,
+        animationSpec = spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMediumLow),
+        label = "iconScale"
+    )
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .combinedClickable(
                 onClick = { onClick() },
                 onLongClick = { onLongClick?.invoke() }
             )
             .padding(4.dp)
     ) {
-        if (item.icon != null) {
-            Image(
-                bitmap = item.icon,
-                contentDescription = item.name,
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(RoundedCornerShape(20)) // The Perfect Squircle Ratio
-                    .background(Color.White.copy(alpha = 0.1f)),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(
-                modifier = Modifier.size(46.dp).clip(RoundedCornerShape(20)).background(Color.Gray.copy(alpha = 0.5f))
-            )
+        Box(modifier = Modifier.size(46.dp)) {
+            if (isHighlighted) {
+                Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(20)).background(Color.White.copy(alpha = 0.4f)))
+            }
+            if (item.icon != null) {
+                Image(
+                    bitmap = item.icon,
+                    contentDescription = item.name,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(20)) // The Perfect Squircle Ratio
+                        .background(Color.White.copy(alpha = 0.1f)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier.matchParentSize().clip(RoundedCornerShape(20)).background(Color.Gray.copy(alpha = 0.5f))
+                )
+            }
         }
         
         if (showLabel) {
