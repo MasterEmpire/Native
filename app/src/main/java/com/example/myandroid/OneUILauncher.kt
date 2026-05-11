@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -69,6 +70,8 @@ data class AppItem(val name: String, val pkg: String, val icon: ImageBitmap?, va
 
 data class MenuState(val app: AppItem, val source: String)
 
+data class FolderData(val id: String, val name: String, val pkgs: List<String>)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OneUILauncher() {
@@ -77,6 +80,9 @@ fun OneUILauncher() {
     var isEditing by remember { mutableStateOf(false) }
     
     var activeMenu by remember { mutableStateOf<MenuState?>(null) }
+    var isSelectionMode by remember { mutableStateOf(false) }
+    var selectedPkgs by remember { mutableStateOf(setOf<String>()) }
+    var activeFolder by remember { mutableStateOf<FolderData?>(null) }
     val prefs = context.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
     
     val rawPages = prefs.getString("home_pages", null)
@@ -105,6 +111,34 @@ fun OneUILauncher() {
             arr.put(pageArr)
         }
         prefs.edit().putString("home_pages", arr.toString()).apply()
+    }
+
+    val rawFolders = prefs.getString("drawer_folders", "[]")
+    val initialFolders = mutableListOf<FolderData>()
+    try {
+        val arr = org.json.JSONArray(rawFolders)
+        for (i in 0 until arr.length()) {
+            val fObj = arr.getJSONObject(i)
+            val pkgs = mutableListOf<String>()
+            val pkgsArr = fObj.getJSONArray("pkgs")
+            for (j in 0 until pkgsArr.length()) pkgs.add(pkgsArr.getString(j))
+            initialFolders.add(FolderData(fObj.getString("id"), fObj.getString("name"), pkgs))
+        }
+    } catch(e: Exception){}
+    var drawerFolders by remember { mutableStateOf(initialFolders.toList()) }
+
+    fun saveDrawerFolders(folders: List<FolderData>) {
+        val arr = org.json.JSONArray()
+        folders.forEach { f ->
+            val fObj = org.json.JSONObject()
+            fObj.put("id", f.id)
+            fObj.put("name", f.name)
+            val pkgsArr = org.json.JSONArray()
+            f.pkgs.forEach { pkgsArr.put(it) }
+            fObj.put("pkgs", pkgsArr)
+            arr.put(fObj)
+        }
+        prefs.edit().putString("drawer_folders", arr.toString()).apply()
     }
     
     val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps) {
@@ -199,6 +233,53 @@ fun OneUILauncher() {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black))
         }
 
+        // Selection Mode Top Bar
+        if (isSelectionMode) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.8f))
+                    .statusBarsPadding()
+                    .padding(vertical = 16.dp, horizontal = 40.dp)
+                    .androidx.compose.ui.zIndex.zIndex(100f),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
+                    selectedPkgs.forEach { pkg ->
+                        val app = allApps.find { it.pkg == pkg }
+                        if (app != null && !app.isSystem) {
+                            val i = Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:$pkg"))
+                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(i)
+                        }
+                    }
+                    isSelectionMode = false
+                    selectedPkgs = emptySet()
+                }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Disable", tint = Color.Gray, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Disable", color = Color.Gray, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
+                    if (selectedPkgs.isNotEmpty()) {
+                        val newFolder = FolderData(java.util.UUID.randomUUID().toString(), "Folder", selectedPkgs.toList())
+                        val updated = mutableListOf(newFolder)
+                        updated.addAll(drawerFolders)
+                        drawerFolders = updated
+                        saveDrawerFolders(updated)
+                    }
+                    isSelectionMode = false
+                    selectedPkgs = emptySet()
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = "Create folder", tint = Color.Gray, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Create folder", color = Color.Gray, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+                }
+            }
+        }
+
         // 2. Home Workspace (Pages & Dock)
         HomeWorkspace(
             apps = allApps,
@@ -208,6 +289,8 @@ fun OneUILauncher() {
             dockAppPkgs = dockAppPkgs,
             wallpaperBitmap = wallpaperBitmap,
             isEditing = isEditing,
+            isSelectionMode = isSelectionMode,
+            selectedPkgs = selectedPkgs,
             pagerState = pagerState,
             editScale = editScale,
             editCorner = editCorner,
@@ -241,6 +324,9 @@ fun OneUILauncher() {
                 homePageIndex = pageIdx
                 prefs.edit().putInt("home_page_index", pageIdx).apply()
             },
+            onToggleSelect = { pkg ->
+                selectedPkgs = if (selectedPkgs.contains(pkg)) selectedPkgs - pkg else selectedPkgs + pkg
+            },
             drawerProgress = drawerProgress
         )
 
@@ -269,11 +355,56 @@ fun OneUILauncher() {
                         alpha = drawerProgress.coerceIn(0f, 1f)
                     },
                 allApps = allApps,
+                drawerFolders = drawerFolders,
+                isSelectionMode = isSelectionMode,
+                selectedPkgs = selectedPkgs,
+                onToggleSelect = {
+                    selectedPkgs = if (selectedPkgs.contains(it)) selectedPkgs - it else selectedPkgs + it
+                },
+                onOpenFolder = { activeFolder = it },
                 onAppLongPress = { app -> activeMenu = MenuState(app, "DRAWER") }
             )
         }
 
-        // 5. Context Menu Overlay
+        // 5. Folder Content Overlay
+        if (activeFolder != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .pointerInput(Unit) { detectTapGestures { activeFolder = null } }
+                    .androidx.compose.ui.zIndex.zIndex(150f)
+            ) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = activeFolder!!.name, 
+                        color = Color.White, 
+                        fontSize = 32.sp, 
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive,
+                        modifier = Modifier.padding(bottom = 32.dp)
+                    )
+                    
+                    val folderApps = activeFolder!!.pkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(4),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(folderApps) { app ->
+                            AppIcon(
+                                item = app,
+                                onClick = { launchApp(context, app.pkg) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Context Menu Overlay
         if (activeMenu != null) {
             Box(
                 modifier = Modifier
@@ -343,6 +474,8 @@ fun HomeWorkspace(
     dockAppPkgs: Set<String>,
     wallpaperBitmap: ImageBitmap?,
     isEditing: Boolean,
+    isSelectionMode: Boolean,
+    selectedPkgs: Set<String>,
     pagerState: androidx.compose.foundation.pager.PagerState,
     editScale: Float,
     editCorner: androidx.compose.ui.unit.Dp,
@@ -352,6 +485,7 @@ fun HomeWorkspace(
     onTap: () -> Unit,
     onDeletePage: (Int) -> Unit,
     onSetHome: (Int) -> Unit,
+    onToggleSelect: (String) -> Unit,
     drawerProgress: Float
 ) {
     val context = LocalContext.current
@@ -427,8 +561,13 @@ fun HomeWorkspace(
                                 AppIcon(
                                     item = app, 
                                     isHighlighted = app.pkg == highlightedApp,
-                                    onClick = { launchApp(context, app.pkg) }, 
-                                    onLongClick = { onAppLongPress(app, "HOME") }
+                                    isSelectionMode = isSelectionMode,
+                                    isSelected = selectedPkgs.contains(app.pkg),
+                                    onClick = { 
+                                        if (isSelectionMode) onToggleSelect(app.pkg)
+                                        else launchApp(context, app.pkg) 
+                                    }, 
+                                    onLongClick = { if (!isSelectionMode) onAppLongPress(app, "HOME") }
                                 )
                             }
                         }
@@ -492,8 +631,13 @@ fun HomeWorkspace(
                 AppIcon(
                     item = app, 
                     showLabel = false, 
-                    onClick = { launchApp(context, app.pkg) },
-                    onLongClick = { onAppLongPress(app, "DOCK") }
+                    isSelectionMode = isSelectionMode,
+                    isSelected = selectedPkgs.contains(app.pkg),
+                    onClick = { 
+                        if (isSelectionMode) onToggleSelect(app.pkg)
+                        else launchApp(context, app.pkg) 
+                    },
+                    onLongClick = { if (!isSelectionMode) onAppLongPress(app, "DOCK") }
                 )
             }
         }
@@ -581,9 +725,24 @@ fun EditAction(label: String, icon: ImageVector) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>, onAppLongPress: (AppItem) -> Unit) {
+fun AppDrawer(
+    modifier: Modifier = Modifier, 
+    allApps: List<AppItem>, 
+    drawerFolders: List<FolderData>,
+    isSelectionMode: Boolean,
+    selectedPkgs: Set<String>,
+    onToggleSelect: (String) -> Unit,
+    onOpenFolder: (FolderData) -> Unit,
+    onAppLongPress: (AppItem) -> Unit
+) {
     val context = LocalContext.current
-    val pages = allApps.chunked(24) // Precise 6x4 Pagination limits
+    val folderPkgs = drawerFolders.flatMap { it.pkgs }.toSet()
+    val drawerApps = allApps.filter { !folderPkgs.contains(it.pkg) }
+    val drawerItems = mutableListOf<Any>()
+    drawerItems.addAll(drawerFolders)
+    drawerItems.addAll(drawerApps)
+    
+    val pages = drawerItems.chunked(24) // Precise 6x4 Pagination limits
     val pagerState = rememberPagerState(pageCount = { pages.size })
 
     Column(
@@ -591,25 +750,29 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>, onAppLongPr
             .fillMaxSize()
             .statusBarsPadding()
     ) {
-        // The Search Pill
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .height(48.dp)
-                .clip(RoundedCornerShape(50))
-                .background(Color.White.copy(alpha = 0.15f))
-                .padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Search", color = Color.White.copy(alpha = 0.5f), fontSize = 16.sp)
-            Spacer(modifier = Modifier.weight(1f))
-            Text("⋮", color = Color.White.copy(alpha = 0.7f), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        if (!isSelectionMode) {
+            // The Search Pill
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Color.White.copy(alpha = 0.15f))
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Search", color = Color.White.copy(alpha = 0.5f), fontSize = 16.sp)
+                Spacer(modifier = Modifier.weight(1f))
+                Text("⋮", color = Color.White.copy(alpha = 0.7f), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Spacer(modifier = Modifier.height(72.dp))
         }
 
         // App Grid Carousel
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
-            val pageApps = pages.getOrNull(page) ?: emptyList()
+            val pageItems = pages.getOrNull(page) ?: emptyList()
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
                 modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 4.dp),
@@ -617,12 +780,22 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>, onAppLongPr
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 userScrollEnabled = false
             ) {
-                items(pageApps) { app ->
-                    AppIcon(
-                        item = app, 
-                        onClick = { launchApp(context, app.pkg) },
-                        onLongClick = { onAppLongPress(app) }
-                    )
+                items(pageItems.size) { idx ->
+                    val item = pageItems[idx]
+                    if (item is FolderData) {
+                        FolderIcon(folder = item, allApps = allApps, onClick = { onOpenFolder(item) })
+                    } else if (item is AppItem) {
+                        AppIcon(
+                            item = item, 
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedPkgs.contains(item.pkg),
+                            onClick = { 
+                                if (isSelectionMode) onToggleSelect(item.pkg)
+                                else launchApp(context, item.pkg) 
+                            },
+                            onLongClick = { if (!isSelectionMode) onAppLongPress(item) }
+                        )
+                    }
                 }
             }
         }
@@ -652,7 +825,15 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>, onAppLongPr
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AppIcon(item: AppItem, showLabel: Boolean = true, isHighlighted: Boolean = false, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
+fun AppIcon(
+    item: AppItem, 
+    showLabel: Boolean = true, 
+    isHighlighted: Boolean = false, 
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onClick: () -> Unit, 
+    onLongClick: (() -> Unit)? = null
+) {
     val scale by animateFloatAsState(
         targetValue = if (isHighlighted) 1.15f else 1f,
         animationSpec = spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMediumLow),
@@ -690,6 +871,23 @@ fun AppIcon(item: AppItem, showLabel: Boolean = true, isHighlighted: Boolean = f
                 Box(
                     modifier = Modifier.matchParentSize().clip(RoundedCornerShape(20)).background(Color.Gray.copy(alpha = 0.5f))
                 )
+            }
+            
+            if (isSelectionMode) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = (-2).dp, y = (-2).dp)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) Color.Gray else Color.White.copy(alpha = 0.2f))
+                        .border(1.dp, if (isSelected) Color.Transparent else Color.White.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
+                    }
+                }
             }
         }
         
@@ -765,6 +963,53 @@ fun launchApp(ctx: Context, pkg: String) {
 }
 
 @Composable
+fun FolderIcon(folder: FolderData, allApps: List<AppItem>, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }.padding(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(20))
+                .background(Color.White.copy(alpha = 0.2f))
+                .padding(6.dp)
+        ) {
+            val folderApps = folder.pkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }.take(9)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                for (row in 0..2) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        for (col in 0..2) {
+                            val idx = row * 3 + col
+                            if (idx < folderApps.size) {
+                                val app = folderApps[idx]
+                                if (app.icon != null) {
+                                    Image(bitmap = app.icon, contentDescription = null, modifier = Modifier.size(10.dp), contentScale = ContentScale.Crop)
+                                } else {
+                                    Box(modifier = Modifier.size(10.dp).background(Color.Gray))
+                                }
+                            } else {
+                                Box(modifier = Modifier.size(10.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = folder.name,
+            color = Color.White,
+            fontSize = 11.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            lineHeight = 12.sp
+        )
+    }
+}
+
+@Composable
 fun AppContextMenu(
     menuState: MenuState,
     onDismiss: () -> Unit,
@@ -809,7 +1054,11 @@ fun AppContextMenu(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ContextMenuAction(Icons.Default.CheckCircle, "Select") { /* Placeholder */ }
+                ContextMenuAction(Icons.Default.CheckCircle, "Select") { 
+                    isSelectionMode = true
+                    selectedPkgs = setOf(menuState.app.pkg)
+                    onDismiss()
+                }
                 
                 if (menuState.source == "DRAWER") {
                     ContextMenuAction(Icons.Default.Home, "Add to Home") { onAddToHome(menuState.app) }
