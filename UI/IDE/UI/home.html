@@ -138,13 +138,13 @@
             scrollbar-width: none;
         }
         .home-grid::-webkit-scrollbar { display: none; }
-        #main-clock { 
+        .clock-display { 
             font-size: 2.8rem;
             font-weight: 300; 
             text-shadow: 0 2px 15px rgba(0,0,0,0.3); 
             margin-bottom: 2px; 
         }
-        #main-date { 
+        .date-display { 
             font-size: 0.85rem; 
             opacity: 0.7; 
             text-transform: uppercase; 
@@ -384,8 +384,10 @@
 
         function updateTime() {
             const now = new Date();
-            document.getElementById('main-clock').innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-            document.getElementById('main-date').innerText = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+            const dateStr = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+            document.querySelectorAll('.clock-display').forEach(el => el.innerText = timeStr);
+            document.querySelectorAll('.date-display').forEach(el => el.innerText = dateStr);
         }
 
         function launchClock() {
@@ -408,7 +410,8 @@
                     <img class="app-icon" src="${app.icon}">
                 </div>`).join('');
 
-            const isEditing = isEditorActive();
+            const currentTime = document.querySelector('.clock-display')?.innerText || '--:--';
+            const currentDate = document.querySelector('.date-display')?.innerText || '...';
 
             homePages.forEach((pageShortcuts, pageIdx) => {
                 const page = document.createElement('div');
@@ -425,30 +428,16 @@
                 }).join('');
 
                 page.innerHTML = `
-                    <div class="trash-header" onclick="removeHomePage(${pageIdx})"><div class="trash-icon"></div><div class="editor-divider"></div></div>
+                    <div class="trash-header" onclick="removeHomePage(${pageIdx}); event.stopPropagation();"><div class="trash-icon"></div><div class="editor-divider"></div></div>
                     <div class="home-content" onclick="launchClock()">
-                        <div id="main-clock">${document.getElementById('main-clock')?.innerText || '00:00'}</div>
-                        <div id="main-date">${document.getElementById('main-date')?.innerText || '...'}</div>
+                        <div class="clock-display">${currentTime}</div>
+                        <div class="date-display">${currentDate}</div>
                     </div>
                     <div class="home-grid">${gridHtml}</div>
                     <div class="dock">${dockHtml}</div>
                 `;
                 homeScreen.appendChild(page);
             });
-
-            // Append the "Add Screen" card if in editor mode
-            if (isEditing) {
-                const addPage = document.createElement('div');
-                addPage.className = 'home-page';
-                addPage.innerHTML = `
-                    <div class="add-page-container">
-                        <div class="add-page-circle" onclick="addHomePage(); event.stopPropagation();">
-                            <div class="add-page-plus">+</div>
-                        </div>
-                    </div>
-                `;
-                homeScreen.appendChild(addPage);
-            }
 
             updateEditorDots();
 
@@ -537,17 +526,10 @@
         }
 
         function handleGlobalClick(e) {
-            // 1. Close context menu if open
             closeMenu();
-
-            // 2. Handle Editor Mode dismissal
             if (isEditorActive()) {
-                // Don't close if we clicked the 'Trash', '+' buttons, or the add-page card
-                if (e.target.closest('.trash-header') || e.target.closest('.editor-symbol') || e.target.closest('.add-page-circle')) {
-                    return;
-                }
-                document.body.classList.remove('editor-active');
-                e.stopPropagation();
+                if (e.target.closest('.trash-header') || e.target.closest('.editor-symbol')) return;
+                exitEditorMode();
             }
         }
 
@@ -624,15 +606,22 @@
 
         function enterEditorMode() {
             document.body.classList.add('editor-active');
-            // Re-render to show the "Add Page" card
             renderAll(allApps);
-            updateEditorDots();
+        }
+
+        function exitEditorMode() {
+            document.body.classList.remove('editor-active');
+            renderAll(allApps);
         }
 
         function addHomePage() {
             homePages.push([]);
             localStorage.setItem('cortex_home_pages', JSON.stringify(homePages));
             renderAll(allApps);
+            setTimeout(() => {
+                const hs = document.getElementById('home-screen');
+                hs.scrollTo({ left: hs.scrollWidth, behavior: 'smooth' });
+            }, 100);
         }
 
         function removeHomePage(idx) {
@@ -688,21 +677,14 @@
         };
 
         window.handleBack = () => {
-            // 1. Close context menu if open
-            const menu = document.getElementById('context-menu');
-            if (menu && menu.style.display === 'flex') {
-                closeMenu();
-                return true;
+            if (document.getElementById('context-menu').style.display === 'flex') {
+                closeMenu(); return true;
             }
-            // 2. Close Editor if active
-            if (document.body.classList.contains('editor-active')) {
-                document.body.classList.remove('editor-active');
-                return true;
+            if (isEditorActive()) {
+                exitEditorMode(); return true;
             }
-            // 3. Close app drawer if open
             if (document.body.classList.contains('drawer-active')) {
-                showHomeScreen();
-                return true;
+                showHomeScreen(); return true;
             }
             return false;
         };
