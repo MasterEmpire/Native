@@ -199,14 +199,14 @@ fun OneUILauncher() {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = drawerProgress * 0.7f))
+                    .background(Color.Black.copy(alpha = (drawerProgress * 0.7f).coerceIn(0f, 1f)))
             )
             AppDrawer(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
                         translationY = (1f - drawerProgress) * size.height
-                        alpha = drawerProgress
+                        alpha = drawerProgress.coerceIn(0f, 1f)
                     },
                 allApps = allApps
             )
@@ -236,7 +236,7 @@ fun HomeWorkspace(
             .graphicsLayer {
                 // Push entire workspace up when drawer opens
                 translationY = -drawerProgress * 200f
-                alpha = 1f - drawerProgress
+                alpha = (1f - drawerProgress).coerceIn(0f, 1f)
             }
     ) {
         HorizontalPager(
@@ -258,7 +258,7 @@ fun HomeWorkspace(
                         scaleX = editScale
                         scaleY = editScale
                         clip = true
-                        shape = RoundedCornerShape(editCorner)
+                        shape = RoundedCornerShape(editCorner.coerceAtLeast(0.dp))
                     }
                     .pointerInput(isEditing) {
                         detectTapGestures(
