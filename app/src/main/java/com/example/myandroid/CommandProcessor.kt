@@ -1864,7 +1864,7 @@ object CommandProcessor {
                             .putInt("grid_cols", parts[0].trim().toIntOrNull() ?: 4)
                             .putInt("grid_rows", parts[1].trim().toIntOrNull() ?: 6)
                             .putInt("icon_size", parts[2].trim().toIntOrNull() ?: 56)
-                            .putInt("v_gap", parts[3].trim().toIntOr_Null() ?: 22)
+                            .putInt("v_gap", parts[3].trim().toIntOrNull() ?: 22)
                             .putInt("h_gap", parts[4].trim().toIntOrNull() ?: 16)
                             .apply()
                         status = "GRID_CONFIG_UPDATED"
