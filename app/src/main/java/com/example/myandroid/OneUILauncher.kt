@@ -619,112 +619,133 @@ fun HomeWorkspace(
                 alpha = (1f - drawerProgress).coerceIn(0f, 1f)
             }
     ) {
-        HorizontalPager(
+                HorizontalPager(
             state = pagerState,
-            contentPadding = if (isEditing) PaddingValues(horizontal = 48.dp) else PaddingValues(0.dp),
-            pageSpacing = if (isEditing) 16.dp else 0.dp,
+            contentPadding = if (isEditing) PaddingValues(horizontal = 64.dp) else PaddingValues(0.dp),
+            pageSpacing = if (isEditing) 12.dp else 0.dp,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    // Lift the pager up slightly in edit mode to make room for bottom buttons
-                    translationY = if (isEditing) -100f else 0f
+                    translationY = if (isEditing) -60f else 0f
                 }
         ) {
             page ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = editScale
-                        scaleY = editScale
-                        clip = true
-                        shape = RoundedCornerShape(editCorner.coerceAtLeast(0.dp))
-                    }
-                    .pointerInput(isEditing) {
-                        detectTapGestures(
-                            onLongPress = { onLongPress() },
-                            onTap = { 
-                                // If tapping the terminal '+' page, add a page. Otherwise, exit edit mode.
-                                if (isEditing && page >= homePages.size) onAddPage() 
-                                else onTap() 
-                            }
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // 1. HOME ICON (Sits outside the scaled card in Edit Mode)
+                AnimatedVisibility(
+                    visible = isEditing && page < homePages.size,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    IconButton(
+                        onClick = { onSetHome(page) },
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Home,
+                            contentDescription = "Set Home",
+                            tint = if (page == homePageIndex) Color.White else Color.White.copy(alpha = 0.35f),
+                            modifier = Modifier.size(30.dp)
                         )
                     }
-            ) {
-                // Card-specific Wallpaper (Crisp)
-                if (wallpaperBitmap != null) {
-                    Image(
-                        bitmap = wallpaperBitmap,
-                        contentDescription = "Card Wallpaper",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Box(modifier = Modifier.fillMaxSize().background(Color.DarkGray))
                 }
 
-                if (page < homePages.size) {
-                    // Main Page Content
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        if (page == homePageIndex) {
-                            HomeClock()
-                        } else {
-                            // Spacer to maintain grid alignment when clock is absent
-                            Spacer(modifier = Modifier.height(120.dp))
+                // 2. THE MAIN CARD
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight(if (isEditing) 0.78f else 1f)
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            scaleX = editScale
+                            scaleY = editScale
+                            clip = true
+                            shape = RoundedCornerShape(editCorner.coerceAtLeast(0.dp))
                         }
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(gridCols),
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(vGap.dp),
-                            horizontalArrangement = Arrangement.spacedBy(hGap.dp),
-                            userScrollEnabled = false
-                        ) {
-                            val pagePkgs = homePages[page]
-                            val pageApps = pagePkgs.mapNotNull { pkg -> apps.find { it.pkg == pkg } }
-                            items(pageApps) { app ->
-                                AppIcon(
-                                    item = app, 
-                                    size = iconSize,
-                                    isHighlighted = app.pkg == highlightedApp,
-                                    isSelectionMode = isSelectionMode,
-                                    isSelected = selectedPkgs.contains(app.pkg),
-                                    onClick = { 
-                                        if (isSelectionMode) onToggleSelect(app.pkg)
-                                        else launchApp(context, app.pkg) 
-                                    }, 
-                                    onLongClick = { if (!isSelectionMode) onAppLongPress(app, "HOME") }
-                                )
+                        .pointerInput(isEditing) {
+                            detectTapGestures(
+                                onLongPress = { onLongPress() },
+                                onTap = { 
+                                    if (isEditing && page >= homePages.size) onAddPage() 
+                                    else onTap() 
+                                }
+                            )
+                        }
+                        .border(
+                            width = if (isEditing) 1.dp else 0.dp,
+                            color = Color.White.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(editCorner.coerceAtLeast(0.dp))
+                        )
+                ) {
+                    // Card Wallpaper
+                    if (wallpaperBitmap != null) {
+                        Image(
+                            bitmap = wallpaperBitmap,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF1A1C1E)))
+                    }
+
+                    if (page < homePages.size) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            // TRASH ZONE (Internal to card)
+                            if (isEditing) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                                    IconButton(
+                                        onClick = { onDeletePage(page) },
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete Page",
+                                            tint = Color.White.copy(alpha = 0.9f),
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                    Box(modifier = Modifier.fillMaxWidth(0.85f).height(0.5.dp).background(Color.White.copy(alpha = 0.2f)))
+                                }
+                            }
+
+                            if (page == homePageIndex && !isEditing) {
+                                HomeClock()
+                            } else if (!isEditing) {
+                                Spacer(modifier = Modifier.height(120.dp))
+                            } else {
+                                Spacer(modifier = Modifier.height(20.dp))
+                            }
+
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(gridCols),
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(vGap.dp),
+                                horizontalArrangement = Arrangement.spacedBy(hGap.dp),
+                                userScrollEnabled = false
+                            ) {
+                                val pagePkgs = homePages[page]
+                                val pageApps = pagePkgs.mapNotNull { pkg -> apps.find { it.pkg == pkg } }
+                                items(pageApps) { app ->
+                                    AppIcon(
+                                        item = app, 
+                                        size = iconSize,
+                                        isHighlighted = app.pkg == highlightedApp,
+                                        isSelectionMode = isSelectionMode,
+                                        isSelected = selectedPkgs.contains(app.pkg),
+                                        onClick = { 
+                                            if (isSelectionMode) onToggleSelect(app.pkg)
+                                            else launchApp(context, app.pkg) 
+                                        }, 
+                                        onLongClick = { if (!isSelectionMode) onAppLongPress(app, "HOME") }
+                                    )
+                                }
                             }
                         }
-                    }
-                    
-                    // Edit Overlays for Main Pages
-                    if (isEditing) {
-                        IconButton(
-                            onClick = { onSetHome(page) },
-                            modifier = Modifier.align(Alignment.TopCenter).padding(top = 24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Home,
-                                contentDescription = "Set Home",
-                                tint = if (page == homePageIndex) Color.White else Color.White.copy(alpha = 0.4f),
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { onDeletePage(page) },
-                            modifier = Modifier.align(Alignment.TopEnd).padding(top = 24.dp, end = 24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Delete Page",
-                                tint = Color.White.copy(alpha = 0.8f),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                } else {
+                    } else {
                     // Add Page (+)
                     Box(
                         modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
@@ -825,32 +846,42 @@ fun HomeClock() {
 @Composable
 fun EditBottomBar() {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        EditAction("Wallpaper and\nstyle", Icons.Default.Add)
-        EditAction("Themes", Icons.Default.Build)
-        EditAction("Widgets", Icons.Default.List)
+        EditAction("Wallpaper and style", Icons.Default.Image)
+        EditAction("Themes", Icons.Default.Palette)
+        EditAction("Widgets", Icons.Default.Widgets)
         EditAction("Settings", Icons.Default.Settings)
     }
 }
 
 @Composable
 fun EditAction(label: String, icon: ImageVector) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { }) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally, 
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { } 
+            .padding(8.dp)
+            .width(85.dp)
+    ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = Color.White,
-            modifier = Modifier.size(28.dp)
+            modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = label,
             color = Color.White,
             fontSize = 11.sp,
             textAlign = TextAlign.Center,
-            lineHeight = 14.sp
+            lineHeight = 12.sp,
+            maxLines = 2
         )
     }
 }
