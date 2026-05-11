@@ -437,8 +437,8 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
             val pageApps = pages.getOrNull(page) ?: emptyList()
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
-                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 userScrollEnabled = false
             ) {
@@ -484,14 +484,14 @@ fun AppIcon(item: AppItem, showLabel: Boolean = true, onClick: () -> Unit) {
                 bitmap = item.icon,
                 contentDescription = item.name,
                 modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(22)) // The Perfect Squircle Ratio
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(20)) // The Perfect Squircle Ratio
                     .background(Color.White.copy(alpha = 0.1f)),
                 contentScale = ContentScale.Crop
             )
         } else {
             Box(
-                modifier = Modifier.size(50.dp).clip(RoundedCornerShape(22)).background(Color.Gray.copy(alpha = 0.5f))
+                modifier = Modifier.size(46.dp).clip(RoundedCornerShape(20)).background(Color.Gray.copy(alpha = 0.5f))
             )
         }
         
@@ -500,11 +500,11 @@ fun AppIcon(item: AppItem, showLabel: Boolean = true, onClick: () -> Unit) {
             Text(
                 text = item.name,
                 color = Color.White,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                lineHeight = 14.sp,
+                lineHeight = 12.sp,
                 style = androidx.compose.ui.text.TextStyle(
                     shadow = androidx.compose.ui.graphics.Shadow(
                         color = Color.Black.copy(alpha = 0.8f),
