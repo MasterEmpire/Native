@@ -477,8 +477,8 @@ fun OneUILauncher() {
 
         AnimatedVisibility(
             visible = activeMenu != null,
-            enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.92f, animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)),
-            exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.92f),
+            enter = fadeIn(tween(200)) + androidx.compose.animation.scaleIn(initialScale = 0.92f, animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)),
+            exit = fadeOut(tween(150)) + androidx.compose.animation.scaleOut(targetScale = 0.92f),
             modifier = Modifier.fillMaxSize()
         ) {
             val menu = activeMenu ?: return@AnimatedVisibility
@@ -777,9 +777,9 @@ fun EditBottomBar() {
             .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        EditAction("Wallpaper and style", Icons.Default.Image)
-        EditAction("Themes", Icons.Default.Palette)
-        EditAction("Widgets", Icons.Default.Widgets)
+        EditAction("Wallpaper and style", Icons.Default.Create)
+        EditAction("Themes", Icons.Default.Star)
+        EditAction("Widgets", Icons.Default.Build)
         EditAction("Settings", Icons.Default.Settings)
     }
 }
