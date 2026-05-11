@@ -17,7 +17,6 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Enable Edge-to-Edge transparency for Status and Nav bars
         window.setFlags(
             android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
@@ -25,8 +24,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         if (WebLauncherManager.isEnabled(this)) {
-            val webView = WebLauncherManager.setupWebView(this)
-            setContentView(webView)
+            setContent {
+                androidx.compose.material3.MaterialTheme {
+                    OneUILauncher()
+                }
+            }
             return
         }
 
@@ -108,21 +110,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (WebLauncherManager.isEnabled(this)) {
-            // Tell the WebView to scroll to the top (Home Screen)
-            val root = findViewById<android.view.ViewGroup>(android.R.id.content)
-            val webView = root.getChildAt(0) as? android.webkit.WebView ?: return
-            webView.evaluateJavascript("if(window.showHomeScreen) showHomeScreen();", null)
-        }
     }
 
     override fun onBackPressed() {
         if (WebLauncherManager.isEnabled(this)) {
-            val root = findViewById<android.view.ViewGroup>(android.R.id.content)
-            val webView = root.getChildAt(0) as? android.webkit.WebView
-            // Execute the JS handler. We don't call super.onBackPressed() here
-            // because we never want the Launcher activity to finish/exit.
-            webView?.evaluateJavascript("if(window.handleBack) window.handleBack();", null)
+            // The native Compose BackHandler dynamically manages the drawer state.
+            super.onBackPressed()
         } else {
             super.onBackPressed()
         }
