@@ -495,6 +495,7 @@ fun HomeWorkspace(
     drawerProgress: Float
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Box(
         modifier = Modifier
@@ -556,8 +557,8 @@ fun HomeWorkspace(
                         }
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(4),
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(22.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             userScrollEnabled = false
                         ) {
@@ -653,7 +654,7 @@ fun HomeWorkspace(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .padding(bottom = 110.dp) // Sits above dock
+                .padding(bottom = 114.dp) // Sits above dock
                 .alpha(dockAlpha),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
@@ -663,8 +664,14 @@ fun HomeWorkspace(
                 val isHome = i == homePageIndex
                 Box(
                     modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(if (isActive) 6.dp else 4.dp)
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            scope.launch { pagerState.animateScrollToPage(i) }
+                        }
+                        .padding(horizontal = 6.dp, vertical = 8.dp)
+                        .size(if (isActive) 8.dp else 6.dp)
                         .clip(CircleShape)
                         .background(if (isActive) Color.White else if (isHome) Color.White.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.4f))
                 )
@@ -742,6 +749,7 @@ fun AppDrawer(
     onAppLongPress: (AppItem) -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val folderPkgs = drawerFolders.flatMap { it.pkgs }.toSet()
     val drawerApps = allApps.filter { !folderPkgs.contains(it.pkg) }
     val drawerItems = mutableListOf<Any>()
@@ -781,8 +789,8 @@ fun AppDrawer(
             val pageItems = pages.getOrNull(page) ?: emptyList()
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
-                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(22.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 userScrollEnabled = false
             ) {
@@ -819,8 +827,14 @@ fun AppDrawer(
                 val isActive = pagerState.currentPage == i
                 Box(
                     modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(if (isActive) 6.dp else 4.dp)
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            scope.launch { pagerState.animateScrollToPage(i) }
+                        }
+                        .padding(horizontal = 6.dp, vertical = 8.dp)
+                        .size(if (isActive) 8.dp else 6.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = if (isActive) 0.8f else 0.4f))
                 )
@@ -859,9 +873,9 @@ fun AppIcon(
             )
             .padding(4.dp)
     ) {
-        Box(modifier = Modifier.size(46.dp)) {
+        Box(modifier = Modifier.size(56.dp)) {
             if (isHighlighted) {
-                Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(20)).background(Color.White.copy(alpha = 0.4f)))
+                Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(24)).background(Color.White.copy(alpha = 0.4f)))
             }
             if (item.icon != null) {
                 Image(
@@ -869,13 +883,13 @@ fun AppIcon(
                     contentDescription = item.name,
                     modifier = Modifier
                         .matchParentSize()
-                        .clip(RoundedCornerShape(20)) // The Perfect Squircle Ratio
+                        .clip(RoundedCornerShape(24)) // Adjusted for larger size
                         .background(Color.White.copy(alpha = 0.1f)),
                     contentScale = ContentScale.Crop
                 )
             } else {
                 Box(
-                    modifier = Modifier.matchParentSize().clip(RoundedCornerShape(20)).background(Color.Gray.copy(alpha = 0.5f))
+                    modifier = Modifier.matchParentSize().clip(RoundedCornerShape(24)).background(Color.Gray.copy(alpha = 0.5f))
                 )
             }
             
@@ -902,7 +916,7 @@ fun AppIcon(
             Text(
                 text = item.name,
                 color = Color.White,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
@@ -976,26 +990,26 @@ fun FolderIcon(folder: FolderData, allApps: List<AppItem>, onClick: () -> Unit) 
     ) {
         Box(
             modifier = Modifier
-                .size(46.dp)
-                .clip(RoundedCornerShape(20))
+                .size(56.dp)
+                .clip(RoundedCornerShape(24))
                 .background(Color.White.copy(alpha = 0.2f))
-                .padding(6.dp)
+                .padding(8.dp)
         ) {
             val folderApps = folder.pkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }.take(9)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 for (row in 0..2) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                         for (col in 0..2) {
                             val idx = row * 3 + col
                             if (idx < folderApps.size) {
                                 val app = folderApps[idx]
                                 if (app.icon != null) {
-                                    Image(bitmap = app.icon, contentDescription = null, modifier = Modifier.size(10.dp), contentScale = ContentScale.Crop)
+                                    Image(bitmap = app.icon, contentDescription = null, modifier = Modifier.size(11.dp), contentScale = ContentScale.Crop)
                                 } else {
-                                    Box(modifier = Modifier.size(10.dp).background(Color.Gray))
+                                    Box(modifier = Modifier.size(11.dp).background(Color.Gray))
                                 }
                             } else {
-                                Box(modifier = Modifier.size(10.dp))
+                                Box(modifier = Modifier.size(11.dp))
                             }
                         }
                     }
@@ -1006,7 +1020,7 @@ fun FolderIcon(folder: FolderData, allApps: List<AppItem>, onClick: () -> Unit) 
         Text(
             text = folder.name,
             color = Color.White,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
