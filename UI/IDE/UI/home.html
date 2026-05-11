@@ -21,6 +21,8 @@
             /* MAKE TEXT UNSELECTABLE */
             user-select: none;
             -webkit-user-select: none;
+            /* PREVENT BROWSER GESTURES (Pull-to-refresh, overscroll) */
+            touch-action: none;
         }
 
         .wallpaper {
@@ -131,6 +133,8 @@
         .pager {
             flex: 1; display: flex; overflow-x: auto;
             scroll-snap-type: x mandatory; scrollbar-width: none;
+            /* Allow horizontal native scroll, but block vertical browser interference */
+            touch-action: pan-x;
         }
         .pager::-webkit-scrollbar { display: none; }
 
@@ -435,7 +439,7 @@
         window.addEventListener('touchstart', e => { 
             startY = e.touches[0].clientY; 
             startX = e.touches[0].clientX;
-        });
+        }, { passive: false });
 
         window.addEventListener('touchmove', e => {
             const moveX = Math.abs(e.touches[0].clientX - startX);
@@ -444,7 +448,7 @@
             if (moveX > 10 || moveY > 10) {
                 closeMenu();
             }
-        });
+        }, { passive: false });
 
         window.addEventListener('touchend', e => {
             const endY = e.changedTouches[0].clientY;
