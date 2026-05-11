@@ -16,10 +16,13 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.zIndex.zIndex
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -241,7 +244,7 @@ fun OneUILauncher() {
                     .background(Color.Black.copy(alpha = 0.8f))
                     .statusBarsPadding()
                     .padding(vertical = 16.dp, horizontal = 40.dp)
-                    .androidx.compose.ui.zIndex.zIndex(100f),
+                    .zIndex(100f),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -373,7 +376,7 @@ fun OneUILauncher() {
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.85f))
                     .pointerInput(Unit) { detectTapGestures { activeFolder = null } }
-                    .androidx.compose.ui.zIndex.zIndex(150f)
+                    .zIndex(150f)
             ) {
                 Column(
                     modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 24.dp),
@@ -825,6 +828,8 @@ fun AppDrawer(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 fun AppIcon(
     item: AppItem, 
     showLabel: Boolean = true, 
@@ -873,6 +878,25 @@ fun AppIcon(
                 )
             }
             
+            if (isSelectionMode) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = (-2).dp, y = (-2).dp)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(if (isSelected) Color.Gray else Color.White.copy(alpha = 0.2f))
+                        .border(1.dp, if (isSelected) Color.Transparent else Color.White.copy(alpha = 0.5f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isSelected) {
+                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
+                    }
+                }
+            }
+        }
+        
+        if (showLabel) {
             if (isSelectionMode) {
                 Box(
                     modifier = Modifier
