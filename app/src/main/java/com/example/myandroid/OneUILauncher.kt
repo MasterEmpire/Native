@@ -493,30 +493,38 @@ fun OneUILauncher() {
                     menuState = menu,
                     onDismiss = { activeMenu = null },
                     onAddToHome = { app -> 
-                        val mutablePages = homePages.map { it.toMutableList() }.toMutableList()
-                        var addedPageIdx = -1
-                        for (i in mutablePages.indices) {
-                            if (mutablePages[i].size < itemsPerPage) {
-                                mutablePages[i].add(app.pkg)
-                                addedPageIdx = i
-                                break
+                        if (dockAppPkgs.size < 4) {
+                            val updatedDock = dockAppPkgs + app.pkg
+                            dockAppPkgs = updatedDock
+                            prefs.edit().putStringSet("dock_apps", updatedDock).apply()
+                            activeMenu = null
+                            isDrawerOpen = false
+                        } else {
+                            val mutablePages = homePages.map { it.toMutableList() }.toMutableList()
+                            var addedPageIdx = -1
+                            for (i in mutablePages.indices) {
+                                if (mutablePages[i].size < itemsPerPage) {
+                                    mutablePages[i].add(app.pkg)
+                                    addedPageIdx = i
+                                    break
+                                }
                             }
-                        }
-                        if (addedPageIdx == -1) {
-                            mutablePages.add(mutableListOf(app.pkg))
-                            addedPageIdx = mutablePages.size - 1
-                        }
-                        homePages = mutablePages
-                        saveHomePages(mutablePages)
-                        activeMenu = null
-                        isDrawerOpen = false
-                        
-                        highlightedApp = app.pkg
-                        scope.launch {
-                            delay(300)
-                            pagerState.animateScrollToPage(addedPageIdx)
-                            delay(1500)
-                            if (highlightedApp == app.pkg) highlightedApp = null
+                            if (addedPageIdx == -1) {
+                                mutablePages.add(mutableListOf(app.pkg))
+                                addedPageIdx = mutablePages.size - 1
+                            }
+                            homePages = mutablePages
+                            saveHomePages(mutablePages)
+                            activeMenu = null
+                            isDrawerOpen = false
+                            
+                            highlightedApp = app.pkg
+                            scope.launch {
+                                delay(300)
+                                pagerState.animateScrollToPage(addedPageIdx)
+                                delay(1500)
+                                if (highlightedApp == app.pkg) highlightedApp = null
+                            }
                         }
                     },
                     onRemove = { app, source ->
