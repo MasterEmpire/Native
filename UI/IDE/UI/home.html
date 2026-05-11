@@ -59,11 +59,11 @@
 
         body.editor-active .home-page {
             background: var(--editor-card-bg);
-            border-radius: 54px;
-            border: 1.5px solid rgba(255,255,255,0.15);
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            /* Remove fixed margins to prevent layout breakage */
-            transform: scale(0.95);
+            border-radius: 40px;
+            border: 1.5px solid rgba(255,255,255,0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            /* Shrink slightly inside the scaled stage to show gaps */
+            transform: scale(0.9);
         }
 
         body.editor-active .trash-header {
@@ -80,23 +80,27 @@
         #home-screen {
             z-index: 1;
             opacity: 1;
-            transform: translate3d(0, 0, 0);
             display: flex;
             flex-direction: row !important;
             overflow-x: auto;
+            overflow-y: hidden;
             scroll-snap-type: x mandatory;
             scrollbar-width: none;
-            gap: 10px;
-            padding: 0 5vw;
+            /* Align items so they stay centered when parent scales */
+            align-items: center;
+            /* Add gap that only becomes apparent when scaled */
+            gap: 40px;
         }
+        #home-screen::-webkit-scrollbar { display: none; }
         #home-screen::-webkit-scrollbar { display: none; }
 
         .home-page {
-            min-width: 100vw; height: 100%;
+            width: 100vw; 
             flex-shrink: 0;
+            height: 100%;
             scroll-snap-align: center;
             display: flex; flex-direction: column;
-            transition: all 0.4s ease;
+            transition: transform 0.4s ease, border-radius 0.4s ease, background 0.4s ease;
             position: relative;
         }
 
@@ -627,7 +631,11 @@
 
         function enterEditorMode() {
             document.body.classList.add('editor-active');
-            renderAll(allApps);
+            // Force a slight delay to ensure CSS classes are applied before re-rendering
+            setTimeout(() => {
+                renderAll(allApps);
+                updateEditorDots();
+            }, 10);
         }
 
         function exitEditorMode() {
