@@ -181,10 +181,8 @@ fun OneUILauncher() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-@Composable
-fun HomeScreen(modifier: Modifier = Modifier, apps: List<AppItem>) {
-    val context = LocalContext.current
-    Column(
+fun HomeWorkspace(
+    apps: List<AppItem>,
     wallpaperBitmap: ImageBitmap?,
     isEditing: Boolean,
     editScale: Float,
@@ -194,6 +192,7 @@ fun HomeScreen(modifier: Modifier = Modifier, apps: List<AppItem>) {
     onTap: () -> Unit,
     drawerProgress: Float
 ) {
+    val context = LocalContext.current
     // Manage dynamic pages. If editing, we append a "+" page.
     val pageCount = if (isEditing) 2 else 1
     val pagerState = rememberPagerState(pageCount = { pageCount })
