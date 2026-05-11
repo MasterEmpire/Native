@@ -262,6 +262,16 @@ fun OneUILauncher() {
                     }
                 }
             },
+            onAddPage = {
+                val mutablePages = homePages.toMutableList()
+                mutablePages.add(emptyList())
+                homePages = mutablePages
+                saveHomePages(mutablePages)
+                scope.launch {
+                    // Scroll to the newly created blank page
+                    pagerState.animateScrollToPage(mutablePages.size - 1)
+                }
+            },
             onDeletePage = { pageIdx ->
                 val mutablePages = homePages.toMutableList()
                 mutablePages.removeAt(pageIdx)
@@ -489,6 +499,7 @@ fun HomeWorkspace(
     onLongPress: () -> Unit,
     onAppLongPress: (AppItem, String) -> Unit,
     onTap: () -> Unit,
+    onAddPage: () -> Unit,
     onDeletePage: (Int) -> Unit,
     onSetHome: (Int) -> Unit,
     onToggleSelect: (String) -> Unit,
@@ -530,7 +541,11 @@ fun HomeWorkspace(
                     .pointerInput(isEditing) {
                         detectTapGestures(
                             onLongPress = { onLongPress() },
-                            onTap = { onTap() }
+                            onTap = { 
+                                // If tapping the terminal '+' page, add a page. Otherwise, exit edit mode.
+                                if (isEditing && page >= homePages.size) onAddPage() 
+                                else onTap() 
+                            }
                         )
                     }
             ) {
