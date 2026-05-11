@@ -88,6 +88,7 @@ data class FolderData(val id: String, val name: String, val pkgs: List<String>)
 fun OneUILauncher() {
     val context = LocalContext.current
     var isDrawerOpen by remember { mutableStateOf(false) }
+    var drawerExitDir by remember { mutableFloatStateOf(1f) }
     var isEditing by remember { mutableStateOf(false) }
     
     var activeMenu by remember { mutableStateOf<MenuState?>(null) }
@@ -221,6 +222,7 @@ fun OneUILauncher() {
             isSelectionMode = false
             selectedPkgs = emptySet()
         } else if (isDrawerOpen) {
+            drawerExitDir = 1f // Back button always exits downwards
             isDrawerOpen = false
         } else if (isEditing) {
             isEditing = false
@@ -239,8 +241,18 @@ fun OneUILauncher() {
                             totalDrag += dragAmount
                         },
                         onDragEnd = {
-                            if (!isDrawerOpen && totalDrag < -40) isDrawerOpen = true
-                            else if (isDrawerOpen && (totalDrag > 40 || totalDrag < -40)) isDrawerOpen = false
+                            if (!isDrawerOpen && totalDrag < -40) {
+                                drawerExitDir = 1f
+                                isDrawerOpen = true
+                            } else if (isDrawerOpen) {
+                                if (totalDrag > 40) {
+                                    drawerExitDir = 1f
+                                    isDrawerOpen = false
+                                } else if (totalDrag < -40) {
+                                    drawerExitDir = -1f
+                                    isDrawerOpen = false
+                                }
+                            }
                         }
                     )
                 }
@@ -314,7 +326,8 @@ fun OneUILauncher() {
             onToggleSelect = { pkg ->
                 selectedPkgs = if (selectedPkgs.contains(pkg)) selectedPkgs - pkg else selectedPkgs + pkg
             },
-            drawerProgress = drawerProgress
+            drawerProgress = drawerProgress,
+            drawerExitDir = drawerExitDir
         )
 
         // 3. Edit Mode Actions (Bottom Bar)
@@ -338,7 +351,7 @@ fun OneUILauncher() {
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        translationY = (1f - drawerProgress) * size.height
+                        translationY = (1f - drawerProgress) * size.height * drawerExitDir
                         alpha = drawerProgress.coerceIn(0f, 1f)
                     },
                 allApps = allApps,
@@ -603,7 +616,8 @@ fun HomeWorkspace(
     onDeletePage: (Int) -> Unit,
     onSetHome: (Int) -> Unit,
     onToggleSelect: (String) -> Unit,
-    drawerProgress: Float
+    drawerProgress: Float,
+    drawerExitDir: Float
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -612,8 +626,8 @@ fun HomeWorkspace(
         modifier = Modifier
             .fillMaxSize()
             .graphicsLayer {
-                // Push entire workspace up when drawer opens
-                translationY = -drawerProgress * 200f
+                // Push entire workspace directionally when drawer opens/closes
+                translationY = -drawerProgress * 200f * drawerExitDir
                 alpha = (1f - drawerProgress).coerceIn(0f, 1f)
             }
     ) {
