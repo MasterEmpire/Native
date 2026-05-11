@@ -460,6 +460,10 @@ fun OneUILauncher() {
                             dockAppPkgs = updated
                         }
                         activeMenu = null
+                    },
+                    onSelect = {
+                        isSelectionMode = true
+                        selectedPkgs = setOf(activeMenu!!.app.pkg)
                     }
                 )
             }
@@ -828,8 +832,6 @@ fun AppDrawer(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
 fun AppIcon(
     item: AppItem, 
     showLabel: Boolean = true, 
@@ -1038,7 +1040,8 @@ fun AppContextMenu(
     menuState: MenuState,
     onDismiss: () -> Unit,
     onAddToHome: (AppItem) -> Unit,
-    onRemove: (AppItem, String) -> Unit
+    onRemove: (AppItem, String) -> Unit,
+    onSelect: () -> Unit
 ) {
     val context = LocalContext.current
     Card(
@@ -1079,8 +1082,7 @@ fun AppContextMenu(
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 ContextMenuAction(Icons.Default.CheckCircle, "Select") { 
-                    isSelectionMode = true
-                    selectedPkgs = setOf(menuState.app.pkg)
+                    onSelect()
                     onDismiss()
                 }
                 
