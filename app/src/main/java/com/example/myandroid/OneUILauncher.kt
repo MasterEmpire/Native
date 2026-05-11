@@ -180,7 +180,7 @@ fun OneUILauncher() {
     )
     
     val editScale by animateFloatAsState(
-        targetValue = if (isEditing) 0.85f else 1f,
+        targetValue = if (isEditing) 0.9f else 1f,
         animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
         label = "EditScale"
     )
@@ -592,7 +592,7 @@ fun HomeWorkspace(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    translationY = if (isEditing) -100f else 0f
+                    translationY = if (isEditing) -40f else 0f
                 }
         ) { page ->
             Column(
@@ -617,7 +617,7 @@ fun HomeWorkspace(
 
                 Box(
                     modifier = Modifier
-                        .fillMaxHeight(if (isEditing) 0.88f else 1f)
+                        .fillMaxHeight(if (isEditing) 0.92f else 1f)
                         .fillMaxWidth()
                         .graphicsLayer {
                             scaleX = editScale
