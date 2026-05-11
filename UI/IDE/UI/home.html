@@ -62,7 +62,8 @@
             border-radius: 54px;
             border: 1.5px solid rgba(255,255,255,0.15);
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            margin: 0 15px;
+            /* Remove fixed margins to prevent layout breakage */
+            transform: scale(0.95);
         }
 
         body.editor-active .trash-header {
@@ -85,6 +86,8 @@
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             scrollbar-width: none;
+            gap: 10px;
+            padding: 0 5vw;
         }
         #home-screen::-webkit-scrollbar { display: none; }
 
@@ -439,6 +442,19 @@
                 homeScreen.appendChild(page);
             });
 
+            if (isEditorActive()) {
+                const addPage = document.createElement('div');
+                addPage.className = 'home-page';
+                addPage.innerHTML = `
+                    <div class="add-page-container">
+                        <div class="add-page-circle" onclick="addHomePage(); event.stopPropagation();">
+                            <div class="add-page-plus">+</div>
+                        </div>
+                    </div>
+                `;
+                homeScreen.appendChild(addPage);
+            }
+
             updateEditorDots();
 
             // Render Grid
@@ -578,13 +594,18 @@
             const dotsBox = document.getElementById('editor-dots');
             if(!dotsBox) return;
             dotsBox.innerHTML = '';
-            const idx = Math.round(document.getElementById('home-screen').scrollLeft / window.innerWidth);
-            homePages.forEach((_, i) => {
+            const hs = document.getElementById('home-screen');
+            const idx = Math.round(hs.scrollLeft / hs.offsetWidth);
+            
+            // Include a dot for the 'Add Page' card if editing
+            const totalDots = isEditorActive() ? homePages.length + 1 : homePages.length;
+            
+            for (let i = 0; i < totalDots; i++) {
                 const d = document.createElement('div');
                 d.className = 'dot' + (i === idx ? ' active' : '');
                 d.style.cssText = "width:8px; height:8px; background:" + (i === idx ? '#fff' : '#444') + "; border-radius:50%;";
                 dotsBox.appendChild(d);
-            });
+            }
         }
 
         // EDITOR LOGIC
