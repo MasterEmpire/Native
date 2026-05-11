@@ -118,7 +118,8 @@ fun InspectorDashboard(ctx: Context) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 60.dp, start = 24.dp, end = 24.dp, bottom = 40.dp)
+                .systemBarsPadding()
+                .padding(top = 16.dp, start = 24.dp, end = 24.dp, bottom = 16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
