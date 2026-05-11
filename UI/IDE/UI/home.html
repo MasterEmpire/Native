@@ -288,6 +288,39 @@
         .editor-pagination { margin-top: auto; margin-bottom: 30px; display: flex; align-items: center; gap: 12px; }
         .editor-symbol { color: #666; font-size: 20px; font-weight: bold; }
 
+        /* ADD PAGE CARD STYLING */
+        .add-page-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+        }
+
+        .add-page-circle {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.05);
+            transition: transform 0.1s, background 0.1s;
+        }
+
+        .add-page-circle:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .add-page-plus {
+            font-size: 50px;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 200;
+            pointer-events: none;
+        }
+
 
         @keyframes menuPop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
         
@@ -373,6 +406,8 @@
                     <img class="app-icon" src="${app.icon}">
                 </div>`).join('');
 
+            const isEditing = isEditorActive();
+
             homePages.forEach((pageShortcuts, pageIdx) => {
                 const page = document.createElement('div');
                 page.className = 'home-page';
@@ -398,6 +433,20 @@
                 `;
                 homeScreen.appendChild(page);
             });
+
+            // Append the "Add Screen" card if in editor mode
+            if (isEditing) {
+                const addPage = document.createElement('div');
+                addPage.className = 'home-page';
+                addPage.innerHTML = `
+                    <div class="add-page-container">
+                        <div class="add-page-circle" onclick="addHomePage(); event.stopPropagation();">
+                            <div class="add-page-plus">+</div>
+                        </div>
+                    </div>
+                `;
+                homeScreen.appendChild(addPage);
+            }
 
             updateEditorDots();
 
@@ -491,8 +540,8 @@
 
             // 2. Handle Editor Mode dismissal
             if (isEditorActive()) {
-                // Don't close if we clicked the 'Trash' or '+' buttons
-                if (e.target.closest('.trash-header') || e.target.closest('.editor-symbol')) {
+                // Don't close if we clicked the 'Trash', '+' buttons, or the add-page card
+                if (e.target.closest('.trash-header') || e.target.closest('.editor-symbol') || e.target.closest('.add-page-circle')) {
                     return;
                 }
                 document.body.classList.remove('editor-active');
@@ -573,6 +622,8 @@
 
         function enterEditorMode() {
             document.body.classList.add('editor-active');
+            // Re-render to show the "Add Page" card
+            renderAll(allApps);
             updateEditorDots();
         }
 
