@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
 
-        if (WebLauncherManager.isEnabled(this)) {
+        if (LauncherManager.isEnabled(this)) {
             setContent {
                 androidx.compose.material3.MaterialTheme {
                     OneUILauncher()
@@ -113,7 +113,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onBackPressed() {
-        if (WebLauncherManager.isEnabled(this)) {
+        if (LauncherManager.isEnabled(this)) {
             // The native Compose BackHandler dynamically manages the drawer state.
             super.onBackPressed()
         } else {
