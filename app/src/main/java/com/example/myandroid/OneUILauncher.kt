@@ -166,7 +166,7 @@ fun OneUILauncher() {
             visible = isEditing,
             enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 32.dp)
         ) {
             EditBottomBar()
         }
@@ -299,7 +299,7 @@ fun HomeWorkspace(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.navigationBars)
+                .navigationBarsPadding()
                 .padding(bottom = 16.dp, start = 16.dp, end = 16.dp)
                 .alpha(dockAlpha),
             horizontalArrangement = Arrangement.SpaceAround
@@ -317,6 +317,7 @@ fun HomeWorkspace(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
                 .padding(bottom = 110.dp) // Sits above dock
                 .alpha(dockAlpha)
                 .size(width = 16.dp, height = 5.dp)
@@ -341,7 +342,8 @@ fun HomeClock() {
         horizontalAlignment = Alignment.CenterHorizontally, 
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 90.dp)
+            .statusBarsPadding()
+            .padding(top = 40.dp)
     ) {
         Text(time, color = Color.White, fontSize = 72.sp, fontWeight = FontWeight.Light, letterSpacing = (-2).sp)
         Text(date, color = Color.White, fontSize = 16.sp, modifier = Modifier.offset(y = (-8).dp))
@@ -391,7 +393,7 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.statusBars)
+            .statusBarsPadding()
     ) {
         // The Search Pill
         Row(
@@ -428,8 +430,8 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp)
-                .windowInsetsPadding(WindowInsets.navigationBars),
+                .navigationBarsPadding()
+                .padding(vertical = 16.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
