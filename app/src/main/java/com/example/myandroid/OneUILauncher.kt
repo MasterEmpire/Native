@@ -196,7 +196,7 @@ fun OneUILauncher() {
     )
     
     val editScale by animateFloatAsState(
-        targetValue = if (isEditing) 0.75f else 1f,
+        targetValue = if (isEditing) 0.85f else 1f,
         animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow),
         label = "EditScale"
     )
@@ -633,12 +633,12 @@ fun HomeWorkspace(
     ) {
                 HorizontalPager(
             state = pagerState,
-            contentPadding = if (isEditing) PaddingValues(horizontal = 64.dp) else PaddingValues(0.dp),
-            pageSpacing = if (isEditing) 12.dp else 0.dp,
+            contentPadding = if (isEditing) PaddingValues(horizontal = 40.dp) else PaddingValues(0.dp),
+            pageSpacing = if (isEditing) 16.dp else 0.dp,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    translationY = if (isEditing) -60f else 0f
+                    translationY = if (isEditing) -100f else 0f
                 }
         ) {
             page ->
@@ -669,7 +669,7 @@ fun HomeWorkspace(
                 // 2. THE MAIN CARD
                 Box(
                     modifier = Modifier
-                        .fillMaxHeight(if (isEditing) 0.78f else 1f)
+                        .fillMaxHeight(if (isEditing) 0.88f else 1f)
                         .fillMaxWidth()
                         .graphicsLayer {
                             scaleX = editScale
