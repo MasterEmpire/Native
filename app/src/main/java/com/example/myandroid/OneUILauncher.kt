@@ -78,8 +78,20 @@ fun OneUILauncher() {
         value = withContext(Dispatchers.IO) {
             val file = File(context.filesDir, "launcher_wallpaper.jpg")
             if (file.exists()) {
-                try { android.graphics.BitmapFactory.decodeFile(file.absolutePath).asImageBitmap() }
-                catch (e: Exception) { null }
+                try {
+                    val options = android.graphics.BitmapFactory.Options()
+                    options.inJustDecodeBounds = true
+                    android.graphics.BitmapFactory.decodeFile(file.absolutePath, options)
+                    
+                    var scale = 1
+                    while (options.outWidth / scale > 1200 || options.outHeight / scale > 2500) {
+                        scale *= 2
+                    }
+                    
+                    val finalOptions = android.graphics.BitmapFactory.Options()
+                    finalOptions.inSampleSize = scale
+                    android.graphics.BitmapFactory.decodeFile(file.absolutePath, finalOptions)?.asImageBitmap()
+                } catch (e: Exception) { null }
             } else null
         }
     }
@@ -498,12 +510,10 @@ fun fetchApps(ctx: Context): List<AppItem> {
 }
 
 fun drawableToBitmap(drawable: Drawable): Bitmap {
-    if (drawable is BitmapDrawable && drawable.bitmap != null) return drawable.bitmap
-    val width = if (drawable.intrinsicWidth <= 0) 100 else drawable.intrinsicWidth
-    val height = if (drawable.intrinsicHeight <= 0) 100 else drawable.intrinsicHeight
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val size = 150
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, canvas.width, canvas.height)
+    drawable.setBounds(0, 0, size, size)
     drawable.draw(canvas)
     return bitmap
 }
