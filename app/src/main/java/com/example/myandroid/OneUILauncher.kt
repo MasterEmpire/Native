@@ -819,11 +819,19 @@ fun AppDrawer(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val folderPkgs = drawerFolders.flatMap { it.pkgs }.toSet()
-    val drawerApps = allApps.filter { !folderPkgs.contains(it.pkg) }
+    var searchQuery by remember { mutableStateOf("") }
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
     val drawerItems = mutableListOf<Any>()
-    drawerItems.addAll(drawerFolders)
-    drawerItems.addAll(drawerApps)
+    if (searchQuery.isEmpty()) {
+        val folderPkgs = drawerFolders.flatMap { it.pkgs }.toSet()
+        val drawerApps = allApps.filter { !folderPkgs.contains(it.pkg) }
+        drawerItems.addAll(drawerFolders)
+        drawerItems.addAll(drawerApps)
+    } else {
+        val filteredApps = allApps.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        drawerItems.addAll(filteredApps)
+    }
     
     val pages = drawerItems.chunked(itemsPerPage)
     val pagerState = rememberPagerState(pageCount = { pages.size })
@@ -844,9 +852,33 @@ fun AppDrawer(
                     .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Search", color = Color.White.copy(alpha = 0.5f), fontSize = 16.sp)
-                Spacer(modifier = Modifier.weight(1f))
-                Text("⋮", color = Color.White.copy(alpha = 0.7f), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { 
+                        searchQuery = it
+                        scope.launch { pagerState.scrollToPage(0) }
+                    },
+                    textStyle = TextStyle(color = Color.White, fontSize = 16.sp),
+                    singleLine = true,
+                    cursorBrush = SolidColor(Color.White),
+                    modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                    decorationBox = { innerTextField ->
+                        if (searchQuery.isEmpty()) Text("Search", color = Color.White.copy(alpha = 0.5f), fontSize = 16.sp)
+                        innerTextField()
+                    }
+                )
+                if (searchQuery.isNotEmpty()) {
+                    Icon(
+                        Icons.Default.Close, 
+                        contentDescription = "Clear", 
+                        tint = Color.White.copy(alpha = 0.7f), 
+                        modifier = Modifier.size(20.dp).clickable { searchQuery = "" }
+                    )
+                } else {
+                    Text("⋮", color = Color.White.copy(alpha = 0.7f), fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                }
             }
         } else {
             Spacer(modifier = Modifier.height(72.dp))
