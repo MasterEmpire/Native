@@ -653,12 +653,15 @@ fun HomeWorkspace(
                             clip = true
                             shape = RoundedCornerShape(editCorner.coerceAtLeast(0.dp))
                         }
-                        .pointerInput(isEditing) {
+                        .pointerInput(isEditing, page, homePages.size) {
                             detectTapGestures(
                                 onLongPress = { onLongPress() },
                                 onTap = { 
-                                    if (isEditing && page >= homePages.size) onAddPage() 
-                                    else onTap() 
+                                    if (isEditing && page >= homePages.size) {
+                                        onAddPage()
+                                    } else {
+                                        onTap()
+                                    }
                                 }
                             )
                         }
