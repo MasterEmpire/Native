@@ -737,20 +737,22 @@ fun HomeWorkspace(
                             }
                         }
                     } else {
-                    // Add Page (+)
-                    Box(
-                        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Add Page",
-                            tint = Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(64.dp)
-                        )
+                        // Add Page (+)
+                        Box(
+                            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Add Page",
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(64.dp)
+                            )
+                        }
                     }
                 }
             }
+        }
         }
 
         // The Dock (Fades out in Edit Mode)
