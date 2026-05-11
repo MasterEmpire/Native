@@ -117,9 +117,18 @@ fun OneUILauncher() {
 
     val dockAlpha by animateFloatAsState(targetValue = if (isEditing) 0f else 1f, label = "DockAlpha")
 
+    val pageCount = if (isEditing) 2 else 1
+    val pagerState = rememberPagerState(pageCount = { pageCount })
+    val scope = rememberCoroutineScope()
+
     BackHandler(enabled = isDrawerOpen || isEditing) {
         if (isDrawerOpen) isDrawerOpen = false
-        else if (isEditing) isEditing = false
+        else if (isEditing) {
+            scope.launch {
+                if (pagerState.currentPage > 0) pagerState.animateScrollToPage(0)
+                isEditing = false
+            }
+        }
     }
 
     Box(
@@ -158,11 +167,19 @@ fun OneUILauncher() {
             apps = allApps,
             wallpaperBitmap = wallpaperBitmap,
             isEditing = isEditing,
+            pagerState = pagerState,
             editScale = editScale,
             editCorner = editCorner,
             dockAlpha = dockAlpha,
             onLongPress = { isEditing = true },
-            onTap = { if (isEditing) isEditing = false },
+            onTap = { 
+                if (isEditing) {
+                    scope.launch {
+                        if (pagerState.currentPage > 0) pagerState.animateScrollToPage(0)
+                        isEditing = false
+                    }
+                }
+            },
             drawerProgress = drawerProgress
         )
 
@@ -202,6 +219,7 @@ fun HomeWorkspace(
     apps: List<AppItem>,
     wallpaperBitmap: ImageBitmap?,
     isEditing: Boolean,
+    pagerState: androidx.compose.foundation.pager.PagerState,
     editScale: Float,
     editCorner: androidx.compose.ui.unit.Dp,
     dockAlpha: Float,
@@ -210,9 +228,6 @@ fun HomeWorkspace(
     drawerProgress: Float
 ) {
     val context = LocalContext.current
-    // Manage dynamic pages. If editing, we append a "+" page.
-    val pageCount = if (isEditing) 2 else 1
-    val pagerState = rememberPagerState(pageCount = { pageCount })
 
     Box(
         modifier = Modifier
