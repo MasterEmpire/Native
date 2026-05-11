@@ -31,7 +31,11 @@ object LauncherManager {
                         srcFile.inputStream().use { input ->
                             FileOutputStream(targetFile).use { output -> input.copyTo(output) }
                         }
+                    } else {
+                        DebugLogger.log("LAUNCHER_WALL", "Local wallpaper file not found: $pathOrUrl")
                     }
+                } else {
+                    DebugLogger.log("LAUNCHER_WALL", "Invalid path or URL format: $pathOrUrl")
                 }
             } catch (e: Exception) {
                 DebugLogger.log("LAUNCHER_ERR", "Wallpaper apply failed: ${e.message}")
