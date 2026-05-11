@@ -282,11 +282,7 @@
         .editor-pagination { margin-top: auto; margin-bottom: 30px; display: flex; align-items: center; gap: 12px; }
         .editor-symbol { color: #666; font-size: 20px; font-weight: bold; }
 
-        .editor-bottom-row {
-            width: 100%; display: flex; justify-content: space-around; padding: 20px 10px 40px 10px;
-        }
-        .editor-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; color: #fff; font-size: 0.8rem; opacity: 0.9; }
-        .editor-btn-icon { width: 24px; height: 24px; stroke: #fff; fill: none; stroke-width: 1.5; }
+
         @keyframes menuPop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
         
         .menu-item {
@@ -318,12 +314,7 @@
             <span class="editor-symbol" onclick="addHomePage()" style="cursor:pointer">+</span>
         </div>
 
-        <div class="editor-bottom-row">
-            <div class="editor-btn"><svg class="editor-btn-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 15l4-4 4 4 5-5 4 4" /></svg>Wallpaper and style</div>
-            <div class="editor-btn"><svg class="editor-btn-icon" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>Themes</div>
-            <div class="editor-btn"><svg class="editor-btn-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>Widgets</div>
-            <div class="editor-btn"><svg class="editor-btn-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>Settings</div>
-        </div>
+
     </div>
 
     <div class="stage" onclick="closeMenu()" ontouchstart="handleHomeTouchStart(event)" ontouchend="handleHomeTouchEnd()">
@@ -378,6 +369,12 @@
             homePages.forEach((pageShortcuts, pageIdx) => {
                 const page = document.createElement('div');
                 page.className = 'home-page';
+                page.onclick = (e) => {
+                    if (isEditorActive()) {
+                        if (e.target.closest('.trash-header')) return;
+                        document.body.classList.remove('editor-active');
+                    }
+                };
                 
                 const gridHtml = pageShortcuts.map(pkg => {
                     const app = allApps.find(a => a.pkg === pkg);
