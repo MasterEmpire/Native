@@ -59,6 +59,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -394,7 +403,7 @@ fun OneUILauncher() {
         ) {
             val folder = displayedFolder.value ?: return@AnimatedVisibility
             var folderName by remember(folder) { mutableStateOf(folder.name) }
-            val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+            val focusRequester = remember { FocusRequester() }
             val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
 
             LaunchedEffect(folder) {
@@ -425,7 +434,7 @@ fun OneUILauncher() {
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxSize()
-                            .androidx.compose.ui.draw.blur(radius = 40.dp)
+                            .blur(radius = 40.dp)
                             .background(Color.Black.copy(alpha = 0.4f)),
                         contentScale = ContentScale.Crop
                     )
@@ -437,18 +446,18 @@ fun OneUILauncher() {
                     modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    androidx.compose.foundation.text.BasicTextField(
+                    BasicTextField(
                         value = folderName,
                         onValueChange = { folderName = it },
-                        textStyle = androidx.compose.ui.text.TextStyle(
+                        textStyle = TextStyle(
                             color = Color.White,
                             fontSize = 32.sp,
                             textAlign = TextAlign.Center
                         ),
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done
                         ),
-                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        keyboardActions = KeyboardActions(
                             onDone = {
                                 val updatedFolders = drawerFolders.map { if (it.id == folder.id) it.copy(name = folderName) else it }
                                 drawerFolders = updatedFolders
@@ -456,11 +465,11 @@ fun OneUILauncher() {
                                 keyboardController?.hide()
                             }
                         ),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Color.White),
+                        cursorBrush = SolidColor(Color.White),
                         modifier = Modifier
                             .padding(bottom = 32.dp)
                             .fillMaxWidth()
-                            .androidx.compose.ui.focus.focusRequester(focusRequester)
+                            .focusRequester(focusRequester)
                     )
                     
                     val folderApps = folder.pkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }
