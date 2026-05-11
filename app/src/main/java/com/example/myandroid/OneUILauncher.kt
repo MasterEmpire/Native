@@ -96,6 +96,14 @@ fun OneUILauncher() {
     var activeFolder by remember { mutableStateOf<FolderData?>(null) }
     var isNewFolder by remember { mutableStateOf(false) }
     val prefs = context.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+
+    // DYNAMIC LAYOUT ENGINE STATE
+    val gridCols by remember { mutableIntStateOf(prefs.getInt("grid_cols", 4)) }
+    val gridRows by remember { mutableIntStateOf(prefs.getInt("grid_rows", 6)) }
+    val iconSizeDp by remember { mutableIntStateOf(prefs.getInt("icon_size", 56)) }
+    val vGapDp by remember { mutableIntStateOf(prefs.getInt("v_gap", 22)) }
+    val hGapDp by remember { mutableIntStateOf(prefs.getInt("h_gap", 16)) }
+    val itemsPerPage = gridCols * gridRows
     
     val rawPages = prefs.getString("home_pages", null)
     val initialPages = if (rawPages != null) {
@@ -106,7 +114,7 @@ fun OneUILauncher() {
         }
     } else {
         val oldSet = prefs.getStringSet("home_apps", null)
-        if (oldSet != null) listOf(oldSet.toList().chunked(24).firstOrNull() ?: emptyList()) else listOf(emptyList())
+        if (oldSet != null) listOf(oldSet.toList().chunked(itemsPerPage).firstOrNull() ?: emptyList()) else listOf(emptyList())
     }
     var homePages by remember { mutableStateOf(initialPages.ifEmpty { listOf(emptyList()) }) }
     var homePageIndex by remember { mutableIntStateOf(prefs.getInt("home_page_index", 0).coerceIn(0, (homePages.size - 1).coerceAtLeast(0))) }
@@ -250,6 +258,10 @@ fun OneUILauncher() {
         // 2. Home Workspace (Pages & Dock)
         HomeWorkspace(
             apps = allApps,
+            gridCols = gridCols,
+            iconSize = iconSizeDp,
+            vGap = vGapDp,
+            hGap = hGapDp,
             homePages = homePages,
             homePageIndex = homePageIndex,
             highlightedApp = highlightedApp,
@@ -332,6 +344,11 @@ fun OneUILauncher() {
                         alpha = drawerProgress.coerceIn(0f, 1f)
                     },
                 allApps = allApps,
+                gridCols = gridCols,
+                itemsPerPage = itemsPerPage,
+                iconSize = iconSizeDp,
+                vGap = vGapDp,
+                hGap = hGapDp,
                 drawerFolders = drawerFolders,
                 isSelectionMode = isSelectionMode,
                 selectedPkgs = selectedPkgs,
@@ -473,15 +490,16 @@ fun OneUILauncher() {
                     )
                     
                     val folderApps = folder.pkgs.mapNotNull { pkg -> allApps.find { it.pkg == pkg } }
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(4),
-                        verticalArrangement = Arrangement.spacedBy(22.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                            LazyVerticalGrid(
+                        columns = GridCells.Fixed(gridCols),
+                        verticalArrangement = Arrangement.spacedBy(vGapDp.dp),
+                        horizontalArrangement = Arrangement.spacedBy(hGapDp.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        items(folderApps) { app ->
+                                                    items(folderApps) { app ->
                             AppIcon(
                                 item = app,
+                                size = iconSizeDp,
                                 onClick = { launchApp(context, app.pkg) }
                             )
                         }
@@ -502,11 +520,11 @@ fun OneUILauncher() {
                 AppContextMenu(
                     menuState = activeMenu!!,
                     onDismiss = { activeMenu = null },
-                    onAddToHome = { app -> 
+                                            onAddToHome = { app -> 
                         val mutablePages = homePages.map { it.toMutableList() }.toMutableList()
                         var addedPageIdx = -1
                         for (i in mutablePages.indices) {
-                            if (mutablePages[i].size < 24) {
+                            if (mutablePages[i].size < itemsPerPage) {
                                 mutablePages[i].add(app.pkg)
                                 addedPageIdx = i
                                 break
@@ -558,6 +576,10 @@ fun OneUILauncher() {
 @Composable
 fun HomeWorkspace(
     apps: List<AppItem>,
+    gridCols: Int,
+    iconSize: Int,
+    vGap: Int,
+    hGap: Int,
     homePages: List<List<String>>,
     homePageIndex: Int,
     highlightedApp: String?,
@@ -645,10 +667,10 @@ fun HomeWorkspace(
                             Spacer(modifier = Modifier.height(120.dp))
                         }
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(4),
+                            columns = GridCells.Fixed(gridCols),
                             modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(22.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(vGap.dp),
+                            horizontalArrangement = Arrangement.spacedBy(hGap.dp),
                             userScrollEnabled = false
                         ) {
                             val pagePkgs = homePages[page]
@@ -656,6 +678,7 @@ fun HomeWorkspace(
                             items(pageApps) { app ->
                                 AppIcon(
                                     item = app, 
+                                    size = iconSize,
                                     isHighlighted = app.pkg == highlightedApp,
                                     isSelectionMode = isSelectionMode,
                                     isSelected = selectedPkgs.contains(app.pkg),
@@ -726,6 +749,7 @@ fun HomeWorkspace(
             dockApps.forEach { app ->
                 AppIcon(
                     item = app, 
+                    size = iconSize,
                     showLabel = false, 
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedPkgs.contains(app.pkg),
@@ -830,6 +854,11 @@ fun EditAction(label: String, icon: ImageVector) {
 fun AppDrawer(
     modifier: Modifier = Modifier, 
     allApps: List<AppItem>, 
+    gridCols: Int,
+    itemsPerPage: Int,
+    iconSize: Int,
+    vGap: Int,
+    hGap: Int,
     drawerFolders: List<FolderData>,
     isSelectionMode: Boolean,
     selectedPkgs: Set<String>,
@@ -845,7 +874,7 @@ fun AppDrawer(
     drawerItems.addAll(drawerFolders)
     drawerItems.addAll(drawerApps)
     
-    val pages = drawerItems.chunked(24) // Precise 6x4 Pagination limits
+    val pages = drawerItems.chunked(itemsPerPage) // Dynamic Pagination limits
     val pagerState = rememberPagerState(pageCount = { pages.size })
 
     Column(
@@ -877,10 +906,10 @@ fun AppDrawer(
         HorizontalPager(state = pagerState, modifier = Modifier.weight(1f)) { page ->
             val pageItems = pages.getOrNull(page) ?: emptyList()
             LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
+                columns = GridCells.Fixed(gridCols),
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(vGap.dp),
+                horizontalArrangement = Arrangement.spacedBy(hGap.dp),
                 userScrollEnabled = false
             ) {
                 items(pageItems.size) { idx ->
@@ -890,6 +919,7 @@ fun AppDrawer(
                     } else if (item is AppItem) {
                         AppIcon(
                             item = item, 
+                            size = iconSize,
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedPkgs.contains(item.pkg),
                             onClick = { 
@@ -936,6 +966,7 @@ fun AppDrawer(
 @Composable
 fun AppIcon(
     item: AppItem, 
+    size: Int = 56,
     showLabel: Boolean = true, 
     isHighlighted: Boolean = false, 
     isSelectionMode: Boolean = false,
@@ -962,7 +993,7 @@ fun AppIcon(
             )
             .padding(4.dp)
     ) {
-        Box(modifier = Modifier.size(56.dp)) {
+        Box(modifier = Modifier.size(size.dp)) {
             if (isHighlighted) {
                 Box(modifier = Modifier.matchParentSize().clip(RoundedCornerShape(24)).background(Color.White.copy(alpha = 0.4f)))
             }
