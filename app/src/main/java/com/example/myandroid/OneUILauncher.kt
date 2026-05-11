@@ -30,8 +30,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
@@ -64,12 +67,20 @@ import java.util.Locale
 
 data class AppItem(val name: String, val pkg: String, val icon: ImageBitmap?, val isSystem: Boolean)
 
+data class MenuState(val app: AppItem, val source: String)
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OneUILauncher() {
     val context = LocalContext.current
     var isDrawerOpen by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
+    
+    var activeMenu by remember { mutableStateOf<MenuState?>(null) }
+    val prefs = context.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+    var homeAppPkgs by remember { mutableStateOf(prefs.getStringSet("home_apps", emptySet()) ?: emptySet()) }
+    val defaultDock = setOf("com.android.dialer", "com.samsung.android.dialer", "com.android.chrome", "com.whatsapp", "com.android.messaging")
+    var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock) ?: defaultDock) }
     
     val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps) {
         value = withContext(Dispatchers.IO) { AppCache.getApps(context) }
@@ -166,6 +177,8 @@ fun OneUILauncher() {
         // 2. Home Workspace (Pages & Dock)
         HomeWorkspace(
             apps = allApps,
+            homeAppPkgs = homeAppPkgs,
+            dockAppPkgs = dockAppPkgs,
             wallpaperBitmap = wallpaperBitmap,
             isEditing = isEditing,
             pagerState = pagerState,
@@ -173,6 +186,7 @@ fun OneUILauncher() {
             editCorner = editCorner,
             dockAlpha = dockAlpha,
             onLongPress = { isEditing = true },
+            onAppLongPress = { app, source -> activeMenu = MenuState(app, source) },
             onTap = { 
                 if (isEditing) {
                     scope.launch {
@@ -208,8 +222,44 @@ fun OneUILauncher() {
                         translationY = (1f - drawerProgress) * size.height
                         alpha = drawerProgress.coerceIn(0f, 1f)
                     },
-                allApps = allApps
+                allApps = allApps,
+                onAppLongPress = { app -> activeMenu = MenuState(app, "DRAWER") }
             )
+        }
+
+        // 5. Context Menu Overlay
+        if (activeMenu != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .pointerInput(Unit) { detectTapGestures { activeMenu = null } },
+                contentAlignment = Alignment.Center
+            ) {
+                AppContextMenu(
+                    menuState = activeMenu!!,
+                    onDismiss = { activeMenu = null },
+                    onAddToHome = { app -> 
+                        val updated = homeAppPkgs + app.pkg
+                        prefs.edit().putStringSet("home_apps", updated).apply()
+                        homeAppPkgs = updated
+                        activeMenu = null
+                        isDrawerOpen = false // Close drawer to show home
+                    },
+                    onRemove = { app, source ->
+                        if (source == "HOME") {
+                            val updated = homeAppPkgs - app.pkg
+                            prefs.edit().putStringSet("home_apps", updated).apply()
+                            homeAppPkgs = updated
+                        } else if (source == "DOCK") {
+                            val updated = dockAppPkgs - app.pkg
+                            prefs.edit().putStringSet("dock_apps", updated).apply()
+                            dockAppPkgs = updated
+                        }
+                        activeMenu = null
+                    }
+                )
+            }
         }
     }
 }
@@ -218,6 +268,8 @@ fun OneUILauncher() {
 @Composable
 fun HomeWorkspace(
     apps: List<AppItem>,
+    homeAppPkgs: Set<String>,
+    dockAppPkgs: Set<String>,
     wallpaperBitmap: ImageBitmap?,
     isEditing: Boolean,
     pagerState: androidx.compose.foundation.pager.PagerState,
@@ -225,6 +277,7 @@ fun HomeWorkspace(
     editCorner: androidx.compose.ui.unit.Dp,
     dockAlpha: Float,
     onLongPress: () -> Unit,
+    onAppLongPress: (AppItem, String) -> Unit,
     onTap: () -> Unit,
     drawerProgress: Float
 ) {
@@ -283,7 +336,21 @@ fun HomeWorkspace(
                     // Main Page Content
                     Column(modifier = Modifier.fillMaxSize()) {
                         HomeClock()
-                        // Future: Render Grid apps here
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(4),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            val homeApps = apps.filter { homeAppPkgs.contains(it.pkg) }
+                            items(homeApps) { app ->
+                                AppIcon(
+                                    item = app, 
+                                    onClick = { launchApp(context, app.pkg) }, 
+                                    onLongClick = { onAppLongPress(app, "HOME") }
+                                )
+                            }
+                        }
                     }
                     
                     // Edit Overlays for Main Page
@@ -325,12 +392,14 @@ fun HomeWorkspace(
                 .alpha(dockAlpha),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            val defaultPkgs = listOf("com.android.dialer", "com.samsung.android.dialer", "com.android.chrome", "com.whatsapp", "com.android.messaging")
-            val dockApps = apps.filter { defaultPkgs.any { dp -> it.pkg.contains(dp, true) } }.take(4).let {
-                if (it.size < 4) apps.take(4) else it
-            }
+            val dockApps = apps.filter { app -> dockAppPkgs.any { dp -> app.pkg.contains(dp, true) } }.take(5)
             dockApps.forEach { app ->
-                AppIcon(item = app, showLabel = false, onClick = { launchApp(context, app.pkg) })
+                AppIcon(
+                    item = app, 
+                    showLabel = false, 
+                    onClick = { launchApp(context, app.pkg) },
+                    onLongClick = { onAppLongPress(app, "DOCK") }
+                )
             }
         }
         
@@ -406,7 +475,7 @@ fun EditAction(label: String, icon: ImageVector) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
+fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>, onAppLongPress: (AppItem) -> Unit) {
     val context = LocalContext.current
     val pages = allApps.chunked(24) // Precise 6x4 Pagination limits
     val pagerState = rememberPagerState(pageCount = { pages.size })
@@ -443,7 +512,11 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
                 userScrollEnabled = false
             ) {
                 items(pageApps) { app ->
-                    AppIcon(item = app, onClick = { launchApp(context, app.pkg) })
+                    AppIcon(
+                        item = app, 
+                        onClick = { launchApp(context, app.pkg) },
+                        onLongClick = { onAppLongPress(app) }
+                    )
                 }
             }
         }
@@ -471,12 +544,16 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AppIcon(item: AppItem, showLabel: Boolean = true, onClick: () -> Unit) {
+fun AppIcon(item: AppItem, showLabel: Boolean = true, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .clickable { onClick() }
+            .combinedClickable(
+                onClick = { onClick() },
+                onLongClick = { onLongClick?.invoke() }
+            )
             .padding(4.dp)
     ) {
         if (item.icon != null) {
@@ -564,4 +641,87 @@ fun launchApp(ctx: Context, pkg: String) {
             ctx.startActivity(intent)
         }
     } catch (e: Exception) {}
+}
+
+@Composable
+fun AppContextMenu(
+    menuState: MenuState,
+    onDismiss: () -> Unit,
+    onAddToHome: (AppItem) -> Unit,
+    onRemove: (AppItem, String) -> Unit
+) {
+    val context = LocalContext.current
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xF21C1C1E)),
+        modifier = Modifier.width(320.dp)
+    ) {
+        Column(modifier = Modifier.padding(vertical = 16.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                Text(
+                    text = menuState.app.name,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                IconButton(
+                    onClick = { 
+                        val i = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${menuState.app.pkg}"))
+                        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        context.startActivity(i)
+                        onDismiss()
+                    },
+                    modifier = Modifier.align(Alignment.CenterEnd).size(24.dp)
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = "App Info", tint = Color.White.copy(alpha = 0.8f))
+                }
+            }
+            
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                color = Color.White.copy(alpha = 0.1f)
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                ContextMenuAction(Icons.Default.CheckCircle, "Select") { /* Placeholder */ }
+                
+                if (menuState.source == "DRAWER") {
+                    ContextMenuAction(Icons.Default.Home, "Add to Home") { onAddToHome(menuState.app) }
+                    if (!menuState.app.isSystem) {
+                        ContextMenuAction(Icons.Default.Close, "Uninstall") {
+                            val i = Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:${menuState.app.pkg}"))
+                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(i)
+                            onDismiss()
+                        }
+                    }
+                } else {
+                    ContextMenuAction(Icons.Default.Close, "Remove") { onRemove(menuState.app, menuState.source) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ContextMenuAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable { onClick() }.padding(8.dp)
+    ) {
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label, 
+            color = Color.White, 
+            fontSize = 11.sp, 
+            maxLines = 1,
+            fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive
+        )
+    }
 }
