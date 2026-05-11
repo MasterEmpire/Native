@@ -22,7 +22,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.ui.zIndex.zIndex
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -236,52 +235,7 @@ fun OneUILauncher() {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black))
         }
 
-        // Selection Mode Top Bar
-        if (isSelectionMode) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.8f))
-                    .statusBarsPadding()
-                    .padding(vertical = 16.dp, horizontal = 40.dp)
-                    .zIndex(100f),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
-                    selectedPkgs.forEach { pkg ->
-                        val app = allApps.find { it.pkg == pkg }
-                        if (app != null && !app.isSystem) {
-                            val i = Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:$pkg"))
-                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(i)
-                        }
-                    }
-                    isSelectionMode = false
-                    selectedPkgs = emptySet()
-                }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Disable", tint = Color.Gray, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Disable", color = Color.Gray, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
-                }
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
-                    if (selectedPkgs.isNotEmpty()) {
-                        val newFolder = FolderData(java.util.UUID.randomUUID().toString(), "Folder", selectedPkgs.toList())
-                        val updated = mutableListOf(newFolder)
-                        updated.addAll(drawerFolders)
-                        drawerFolders = updated
-                        saveDrawerFolders(updated)
-                    }
-                    isSelectionMode = false
-                    selectedPkgs = emptySet()
-                }) {
-                    Icon(Icons.Default.Add, contentDescription = "Create folder", tint = Color.Gray, modifier = Modifier.size(24.dp))
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Create folder", color = Color.Gray, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
-                }
-            }
-        }
+        // (Selection Mode Top Bar dynamically reordered below to utilize natural Box layering)
 
         // 2. Home Workspace (Pages & Dock)
         HomeWorkspace(
@@ -369,6 +323,52 @@ fun OneUILauncher() {
             )
         }
 
+        // Selection Mode Top Bar
+        if (isSelectionMode) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.8f))
+                    .statusBarsPadding()
+                    .padding(vertical = 16.dp, horizontal = 40.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
+                    selectedPkgs.forEach { pkg ->
+                        val app = allApps.find { it.pkg == pkg }
+                        if (app != null && !app.isSystem) {
+                            val i = Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:$pkg"))
+                            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(i)
+                        }
+                    }
+                    isSelectionMode = false
+                    selectedPkgs = emptySet()
+                }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Disable", tint = Color.Gray, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Disable", color = Color.Gray, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
+                    if (selectedPkgs.isNotEmpty()) {
+                        val newFolder = FolderData(java.util.UUID.randomUUID().toString(), "Folder", selectedPkgs.toList())
+                        val updated = mutableListOf(newFolder)
+                        updated.addAll(drawerFolders)
+                        drawerFolders = updated
+                        saveDrawerFolders(updated)
+                    }
+                    isSelectionMode = false
+                    selectedPkgs = emptySet()
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = "Create folder", tint = Color.Gray, modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Create folder", color = Color.Gray, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+                }
+            }
+        }
+
         // 5. Folder Content Overlay
         if (activeFolder != null) {
             Box(
@@ -376,7 +376,6 @@ fun OneUILauncher() {
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.85f))
                     .pointerInput(Unit) { detectTapGestures { activeFolder = null } }
-                    .zIndex(150f)
             ) {
                 Column(
                     modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(horizontal = 24.dp),
@@ -899,25 +898,6 @@ fun AppIcon(
         }
         
         if (showLabel) {
-            if (isSelectionMode) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .offset(x = (-2).dp, y = (-2).dp)
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(if (isSelected) Color.Gray else Color.White.copy(alpha = 0.2f))
-                        .border(1.dp, if (isSelected) Color.Transparent else Color.White.copy(alpha = 0.5f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isSelected) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(10.dp))
-                    }
-                }
-            }
-        }
-        
-        if (showLabel) {
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = item.name,
@@ -1061,7 +1041,7 @@ fun AppContextMenu(
                 )
                 IconButton(
                     onClick = { 
-                        val i = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${menuState.app.pkg}"))
+                        val i = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${menuState.app.pkg}"))
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         context.startActivity(i)
                         onDismiss()
