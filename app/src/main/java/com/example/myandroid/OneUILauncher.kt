@@ -358,7 +358,7 @@ fun OneUILauncher() {
                 }) {
                     Icon(Icons.Default.Delete, contentDescription = "Disable", tint = Color.Gray, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Disable", color = Color.Gray, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+                    Text("Disable", color = Color.Gray, fontSize = 13.sp)
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable {
@@ -374,7 +374,7 @@ fun OneUILauncher() {
                 }) {
                     Icon(Icons.Default.Add, contentDescription = "Create folder", tint = Color.Gray, modifier = Modifier.size(24.dp))
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("Create folder", color = Color.Gray, fontSize = 13.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive)
+                    Text("Create folder", color = Color.Gray, fontSize = 13.sp)
                 }
             }
         }
@@ -394,8 +394,7 @@ fun OneUILauncher() {
                     Text(
                         text = activeFolder!!.name, 
                         color = Color.White, 
-                        fontSize = 32.sp, 
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive,
+                        fontSize = 28.sp, 
                         modifier = Modifier.padding(bottom = 32.dp)
                     )
                     
@@ -1053,21 +1052,20 @@ fun AppContextMenu(
     onSelect: () -> Unit
 ) {
     val context = LocalContext.current
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xF21C1C1E)),
-        modifier = Modifier.width(320.dp)
-    ) {
-        Column(modifier = Modifier.padding(vertical = 16.dp)) {
-            Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                Text(
-                    text = menuState.app.name,
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive,
-                    modifier = Modifier.align(Alignment.Center)
-                )
+            Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xF21C1C1E)),
+            modifier = Modifier.width(260.dp)
+        ) {
+            Column(modifier = Modifier.padding(vertical = 12.dp)) {
+                Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Text(
+                        text = menuState.app.name,
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 IconButton(
                     onClick = { 
                         val i = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${menuState.app.pkg}"))
@@ -1082,7 +1080,7 @@ fun AppContextMenu(
             }
             
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 16.dp),
+                modifier = Modifier.padding(vertical = 10.dp),
                 color = Color.White.copy(alpha = 0.1f)
             )
             
@@ -1117,16 +1115,15 @@ fun AppContextMenu(
 fun ContextMenuAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }.padding(8.dp)
+        modifier = Modifier.clickable { onClick() }.padding(4.dp)
     ) {
-        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label, 
             color = Color.White, 
-            fontSize = 11.sp, 
-            maxLines = 1,
-            fontFamily = androidx.compose.ui.text.font.FontFamily.Cursive
+            fontSize = 12.sp, 
+            maxLines = 1
         )
     }
 }
