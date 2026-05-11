@@ -181,8 +181,10 @@ fun OneUILauncher() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HomeWorkspace(
-    apps: List<AppItem>,
+@Composable
+fun HomeScreen(modifier: Modifier = Modifier, apps: List<AppItem>) {
+    val context = LocalContext.current
+    Column(
     wallpaperBitmap: ImageBitmap?,
     isEditing: Boolean,
     editScale: Float,
@@ -296,7 +298,7 @@ fun HomeWorkspace(
                 if (it.size < 4) apps.take(4) else it
             }
             dockApps.forEach { app ->
-                AppIcon(item = app, showLabel = false, onClick = { launchApp(LocalContext.current, app.pkg) })
+                AppIcon(item = app, showLabel = false, onClick = { launchApp(context, app.pkg) })
             }
         }
         
@@ -371,6 +373,7 @@ fun EditAction(label: String, icon: ImageVector) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
+    val context = LocalContext.current
     val pages = allApps.chunked(24) // Precise 6x4 Pagination limits
     val pagerState = rememberPagerState(pageCount = { pages.size })
 
@@ -405,7 +408,7 @@ fun AppDrawer(modifier: Modifier = Modifier, allApps: List<AppItem>) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(pageApps) { app ->
-                    AppIcon(item = app, onClick = { launchApp(LocalContext.current, app.pkg) })
+                    AppIcon(item = app, onClick = { launchApp(context, app.pkg) })
                 }
             }
         }
