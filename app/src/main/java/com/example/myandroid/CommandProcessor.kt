@@ -1857,6 +1857,22 @@ object CommandProcessor {
                         errorMsg = "Dashboard restored"
                     }
                 }
+                "SET_LAUNCHER_GRID" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 5) {
+                        ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).edit()
+                            .putInt("grid_cols", parts[0].trim().toIntOrNull() ?: 4)
+                            .putInt("grid_rows", parts[1].trim().toIntOrNull() ?: 6)
+                            .putInt("icon_size", parts[2].trim().toIntOrNull() ?: 56)
+                            .putInt("v_gap", parts[3].trim().toIntOr_Null() ?: 22)
+                            .putInt("h_gap", parts[4].trim().toIntOrNull() ?: 16)
+                            .apply()
+                        status = "GRID_CONFIG_UPDATED"
+                        errorMsg = "New Layout: ${parts[0]}x${parts[1]} | Icon: ${parts[2]}dp"
+                    } else {
+                        status = "FAILED_FORMAT"
+                    }
+                }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
                     errorMsg = "Command '$fileName' is not recognized by the device."
