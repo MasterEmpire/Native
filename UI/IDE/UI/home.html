@@ -23,6 +23,8 @@
             -webkit-user-select: none;
             /* PREVENT BROWSER GESTURES (Pull-to-refresh, overscroll) */
             touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
         }
 
         .wallpaper {
@@ -158,6 +160,7 @@
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
             background: rgba(255,255,255,0.05);
             transition: transform 0.1s;
+            pointer-events: none;
         }
 
         /* Specifically enlarge only the Home Screen Dock icons */
@@ -288,7 +291,7 @@
                          onclick="CortexLauncher.launch('${app.pkg}')" 
                          ontouchstart="handlePressStart(event, '${app.pkg}', false, true)" 
                          ontouchend="handlePressEnd()" 
-                         ontouchmove="handlePressEnd()">
+                         ontouchcancel="handlePressEnd()">
                         <img class="app-icon" src="${app.icon}">
                         <div class="app-label">${app.name}</div>
                     </div>
@@ -309,7 +312,7 @@
                      onclick="CortexLauncher.launch('${app.pkg}')" 
                      ontouchstart="handlePressStart(event, '${app.pkg}', true, false)" 
                      ontouchend="handlePressEnd()" 
-                     ontouchmove="handlePressEnd()">
+                     ontouchcancel="handlePressEnd()">
                     <img class="app-icon" src="${app.icon}">
                 </div>
             `).join('');
@@ -328,7 +331,7 @@
                          onclick="CortexLauncher.launch('${app.pkg}')" 
                          ontouchstart="handlePressStart(event, '${app.pkg}', false)" 
                          ontouchend="handlePressEnd()" 
-                         ontouchmove="handlePressEnd()">
+                         ontouchcancel="handlePressEnd()">
                         <img class="app-icon" src="${app.icon}" loading="lazy">
                         <div class="app-label">${app.name}</div>
                     </div>
@@ -354,8 +357,11 @@
         }
 
         function handlePressStart(e, pkg, isDock, isHome) {
+            // Cache coordinates immediately; 'e' will be recycled by the OS before the timeout fires
+            const touchX = e.touches[0].clientX;
+            const touchY = e.touches[0].clientY;
             longPressTimer = setTimeout(() => {
-                showContextMenu(e.touches[0].clientX, e.touches[0].clientY, pkg, isDock, isHome);
+                showContextMenu(touchX, touchY, pkg, isDock, isHome);
             }, 600);
         }
 
@@ -446,6 +452,7 @@
             const moveY = Math.abs(e.touches[0].clientY - startY);
             // If user moves more than 10px, they are swiping, not long-pressing
             if (moveX > 10 || moveY > 10) {
+                handlePressEnd();
                 closeMenu();
             }
         }, { passive: false });
