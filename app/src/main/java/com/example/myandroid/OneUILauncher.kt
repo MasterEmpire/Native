@@ -508,17 +508,23 @@ fun OneUILauncher() {
             }
         }
 
-        // 6. Context Menu Overlay
-        if (activeMenu != null) {
+        // 6. Context Menu Overlay (Samsung Glassmorphism Style)
+        AnimatedVisibility(
+            visible = activeMenu != null,
+            enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.92f, animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)),
+            exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.92f),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            val menu = activeMenu ?: return@AnimatedVisibility
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .background(Color.Black.copy(alpha = 0.45f))
                     .pointerInput(Unit) { detectTapGestures { activeMenu = null } },
                 contentAlignment = Alignment.Center
             ) {
                 AppContextMenu(
-                    menuState = activeMenu!!,
+                    menuState = menu,
                     onDismiss = { activeMenu = null },
                                             onAddToHome = { app -> 
                         val mutablePages = homePages.map { it.toMutableList() }.toMutableList()
@@ -1158,49 +1164,59 @@ fun AppContextMenu(
     onSelect: () -> Unit
 ) {
     val context = LocalContext.current
-            Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xF21C1C1E)),
-            modifier = Modifier.width(260.dp)
-        ) {
-            Column(modifier = Modifier.padding(vertical = 12.dp)) {
-                Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Text(
-                        text = menuState.app.name,
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = Color(0xCC1A1C1E),
+        modifier = Modifier
+            .width(280.dp)
+            .border(0.5.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
+            .blur(radius = 0.dp) // Use background alpha + shadow to simulate the depth
+    ) {
+        Column(modifier = Modifier.padding(top = 16.dp, bottom = 12.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Spacer(Modifier.width(24.dp)) // Spacer to balance the Info icon
+                Text(
+                    text = menuState.app.name,
+                    color = Color.White,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.SansSerif // One UI vibe
+                )
                 IconButton(
-                    onClick = { 
+                    onClick = {
                         val i = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${menuState.app.pkg}"))
                         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         context.startActivity(i)
                         onDismiss()
                     },
-                    modifier = Modifier.align(Alignment.CenterEnd).size(24.dp)
+                    modifier = Modifier.size(24.dp)
                 ) {
-                    Icon(Icons.Default.Info, contentDescription = "App Info", tint = Color.White.copy(alpha = 0.8f))
+                    Icon(Icons.Default.Info, contentDescription = "App Info", tint = Color.White, modifier = Modifier.size(20.dp))
                 }
             }
-            
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 10.dp),
-                color = Color.White.copy(alpha = 0.1f)
-            )
-            
+
+            Spacer(Modifier.height(14.dp))
+            Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(Color.White.copy(alpha = 0.15f)))
+
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, start = 12.dp, end = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ContextMenuAction(Icons.Default.CheckCircle, "Select") { 
+                ContextMenuAction(Icons.Default.CheckCircle, "Select") {
                     onSelect()
                     onDismiss()
                 }
-                
+
                 if (menuState.source == "DRAWER") {
-                    ContextMenuAction(Icons.Default.Home, "Add to Home") { onAddToHome(menuState.app) }
+                    ContextMenuAction(Icons.Default.AddCircle, "Add to Home") { onAddToHome(menuState.app) }
                     if (!menuState.app.isSystem) {
                         ContextMenuAction(Icons.Default.Close, "Uninstall") {
                             val i = Intent(Intent.ACTION_DELETE, android.net.Uri.parse("package:${menuState.app.pkg}"))
@@ -1221,15 +1237,21 @@ fun AppContextMenu(
 fun ContextMenuAction(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }.padding(4.dp)
+        modifier = Modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .width(75.dp)
     ) {
-        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(22.dp))
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.height(6.dp))
         Text(
-            text = label, 
-            color = Color.White, 
-            fontSize = 12.sp, 
-            maxLines = 1
+            text = label,
+            color = Color.White,
+            fontSize = 11.sp,
+            textAlign = TextAlign.Center,
+            lineHeight = 13.sp,
+            maxLines = 2
         )
     }
 }
