@@ -212,9 +212,19 @@ fun OneUILauncher() {
     val pagerState = rememberPagerState(initialPage = homePageIndex, pageCount = { pageCount })
     val scope = rememberCoroutineScope()
 
-    BackHandler(enabled = isDrawerOpen || isEditing) {
-        if (isDrawerOpen) isDrawerOpen = false
-        else if (isEditing) isEditing = false
+    BackHandler(enabled = activeMenu != null || activeFolder != null || isSelectionMode || isDrawerOpen || isEditing) {
+        if (activeMenu != null) {
+            activeMenu = null
+        } else if (activeFolder != null) {
+            activeFolder = null
+        } else if (isSelectionMode) {
+            isSelectionMode = false
+            selectedPkgs = emptySet()
+        } else if (isDrawerOpen) {
+            isDrawerOpen = false
+        } else if (isEditing) {
+            isEditing = false
+        }
     }
 
     Box(
