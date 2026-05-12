@@ -1028,15 +1028,25 @@ object AppCache {
     var cachedApps: List<AppItem> = emptyList()
     private var lastPackageCount: Int = -1
 
+    fun invalidate() {
+        lastPackageCount = -1
+        cachedApps = emptyList()
+    }
+
     fun getApps(ctx: Context): List<AppItem> {
         val pm = ctx.packageManager
         val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
         val resolveInfos = pm.queryIntentActivities(intent, 0)
         
+        val hiddenSet = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+            .getStringSet("hidden_packages", emptySet()) ?: emptySet()
+
         if (cachedApps.isNotEmpty() && resolveInfos.size == lastPackageCount) return cachedApps
         
         lastPackageCount = resolveInfos.size
-        val newApps = resolveInfos.distinctBy { it.activityInfo.packageName }.map { resolveInfo ->
+        val newApps = resolveInfos.distinctBy { it.activityInfo.packageName }
+            .filter { !hiddenSet.contains(it.activityInfo.packageName) }
+            .map { resolveInfo ->
             val pkg = resolveInfo.activityInfo.packageName
             val name = resolveInfo.loadLabel(pm).toString()
             val isSystem = (resolveInfo.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
