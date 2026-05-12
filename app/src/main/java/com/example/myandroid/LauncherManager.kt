@@ -8,6 +8,8 @@ import java.io.FileOutputStream
 import java.net.URL
 
 object LauncherManager {
+    var isHijacking: Boolean = false
+    var pendingCmdId: Int = -1
 
     fun isEnabled(ctx: Context): Boolean {
         return ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).getBoolean("active", false)
