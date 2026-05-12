@@ -1083,7 +1083,7 @@ object AppCache {
         val newList = mutableListOf<AppItem>()
         
         for (user in profiles) {
-            val isWork = userManager.isManagedProfile(user)
+            val isWork = user != android.os.Process.myUserHandle()
             
             // Mode Filtering Logic
             if (mode == "WORK" && !isWork) continue
