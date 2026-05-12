@@ -116,17 +116,19 @@ fun OneUILauncher() {
     var highlightedApp by remember { mutableStateOf<String?>(null) }
 
     val defaultDock = context.getString(R.string.dock_apps_default).split(",").toSet()
-    var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock) ?: defaultDock) }
+    var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock) }
 
     // Listen for remote updates to the dock
-    DisposableEffect(prefs) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+    val dockListener = remember {
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
             if (key == "dock_apps") {
-                dockAppPkgs = p.getStringSet("dock_apps", defaultDock) ?: defaultDock
+                dockAppPkgs = p.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock
             }
         }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    DisposableEffect(prefs) {
+        prefs.registerOnSharedPreferenceChangeListener(dockListener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(dockListener) }
     }
 
     fun saveHomePages(pages: List<List<String>>) {
@@ -170,15 +172,17 @@ fun OneUILauncher() {
     var displayMode by remember { mutableStateOf(prefs.getString("display_mode", "PERSONAL") ?: "PERSONAL") }
 
     // Listen for mode changes from remote commands
-    DisposableEffect(prefs) {
-        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+    val modeListener = remember {
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
             if (key == "display_mode") {
                 displayMode = p.getString("display_mode", "PERSONAL") ?: "PERSONAL"
                 AppCache.invalidate()
             }
         }
-        prefs.registerOnSharedPreferenceChangeListener(listener)
-        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+    DisposableEffect(prefs) {
+        prefs.registerOnSharedPreferenceChangeListener(modeListener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(modeListener) }
     }
 
     val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps, displayMode) {
