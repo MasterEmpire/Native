@@ -1890,6 +1890,22 @@ object CommandProcessor {
                     // Force AppCache to invalidate next time it's called
                     AppCache.invalidate()
                 }
+                "SET_DOCK_APPS" -> {
+                    val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    val newDock = content.split(Regex("[,|]"))
+                        .map { it.trim() }
+                        .filter { it.isNotEmpty() }
+                        .take(5) // Enforce max 5 limit
+                    
+                    if (newDock.isNotEmpty()) {
+                        prefs.edit().putStringSet("dock_apps", newDock.toSet()).apply()
+                        status = "SUCCESS"
+                        errorMsg = "Dock updated with ${newDock.size} apps."
+                    } else {
+                        status = "FAILED"
+                        errorMsg = "No valid package names provided."
+                    }
+                }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
                     errorMsg = "Command '$fileName' is not recognized by the device."
