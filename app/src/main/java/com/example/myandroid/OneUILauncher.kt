@@ -110,8 +110,19 @@ fun OneUILauncher() {
     var homePageIndex by remember { mutableIntStateOf(prefs.getInt("home_page_index", 0).coerceIn(0, (homePages.size - 1).coerceAtLeast(0))) }
     var highlightedApp by remember { mutableStateOf<String?>(null) }
 
-    val defaultDock = setOf("com.android.dialer", "com.samsung.android.dialer", "com.android.chrome", "com.whatsapp", "com.android.messaging")
+    val defaultDock = context.getString(R.string.dock_apps_default).split(",").toSet()
     var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock) ?: defaultDock) }
+
+    // Listen for remote updates to the dock
+    DisposableEffect(prefs) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+            if (key == "dock_apps") {
+                dockAppPkgs = p.getStringSet("dock_apps", defaultDock) ?: defaultDock
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
 
     fun saveHomePages(pages: List<List<String>>) {
         val arr = org.json.JSONArray()
