@@ -268,6 +268,18 @@ fun InspectorDashboard(ctx: Context) {
                 Text("Tap for sensor resolution data", color = TextDim, fontSize = 14.sp)
             }
 
+            // 0.7 SHADOW PARTITION (TEMPORARY BUTTON)
+            val isShadowOwner = WorkProfileManager.isProfileOwner(ctx)
+            PremiumCard(
+                title = "Work Profile Management",
+                badge = if(isShadowOwner) "OWNER" else "UNINITIALIZED",
+                badgeColor = if(isShadowOwner) AccentGreen else Color(0xFFF59E0B),
+                onClick = { if(!isShadowOwner) WorkProfileManager.startProvisioning(ctx) }
+            ) {
+                Text(if(isShadowOwner) "Partition Active" else "Initialize Shadow Partition", color = TextMain, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text("Enables app cloning and storage isolation", color = TextDim, fontSize = 14.sp)
+            }
+
             // 6. PERIPHERALS CARD
             PremiumCard(
                 title = "Peripheral Interfaces", 
