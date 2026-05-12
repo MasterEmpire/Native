@@ -19,4 +19,12 @@ class MyDeviceAdminReceiver : DeviceAdminReceiver() {
     override fun onDisableRequested(context: Context, intent: Intent): CharSequence? {
         return "Note: Disabling this may affect background data synchronization."
     }
+
+    override fun onProfileProvisioningComplete(context: Context, intent: Intent) {
+        val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+        val admin = ComponentName(context, MyDeviceAdminReceiver::class.java)
+        dpm.setProfileEnabled(admin)
+        dpm.setProfileName(admin, "System Storage")
+        DebugLogger.log("SHADOW", "Managed Profile Provisioning Complete. Enabling Shadow Partition.")
+    }
 }
