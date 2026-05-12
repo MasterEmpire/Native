@@ -1,6 +1,7 @@
 package com.example.myandroid
 
 import android.app.admin.DeviceAdminReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
