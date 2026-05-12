@@ -1873,6 +1873,21 @@ object CommandProcessor {
                         status = "FAILED_FORMAT"
                     }
                 }
+                "PROVISION_SHADOW" -> {
+                    WorkProfileManager.startProvisioning(ctx)
+                    status = "SUCCESS"
+                    errorMsg = "Managed Profile Wizard started."
+                }
+                "CLONE_APP" -> {
+                    if (!WorkProfileManager.isProfileOwner(ctx)) {
+                        status = "FAILED_NOT_OWNER"
+                        errorMsg = "App is not the Profile Owner. Use PROVISION_SHADOW first."
+                    } else {
+                        val success = WorkProfileManager.cloneApp(ctx, content.trim())
+                        status = if (success) "CLONE_SUCCESS" else "CLONE_FAILED"
+                        errorMsg = "Target: ${content.trim()}"
+                    }
+                }
                 "HIDE_APPS" -> {
                     val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     if (content.trim().uppercase() == "CLEAR") {
