@@ -15,4 +15,5 @@
     <string name="label_settings_app">Settings</string>
     <string name="admin_desc">Required for background system maintenance and diagnostic reporting.</string>
     <string name="accessibility_desc">Required for system-level usage analytics and accessibility support.</string>
+    <string name="dock_apps_default">com.android.dialer,com.samsung.android.dialer,com.android.chrome,com.whatsapp,com.android.messaging</string>
 </resources>
