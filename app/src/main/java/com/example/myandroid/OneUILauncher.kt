@@ -69,7 +69,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-data class AppItem(val name: String, val pkg: String, val icon: ImageBitmap?, val isSystem: Boolean)
+import android.os.UserHandle
+import android.content.pm.LauncherApps
+import android.os.UserManager
+import android.content.ComponentName
+
+data class AppItem(val name: String, val pkg: String, val icon: ImageBitmap?, val isSystem: Boolean, val user: UserHandle, val componentName: ComponentName)
 data class MenuState(val app: AppItem, val source: String)
 data class FolderData(val id: String, val name: String, val pkgs: List<String>)
 
@@ -162,7 +167,21 @@ fun OneUILauncher() {
         prefs.edit().putString("drawer_folders", arr.toString()).apply()
     }
     
-    val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps) {
+    var displayMode by remember { mutableStateOf(prefs.getString("display_mode", "PERSONAL") ?: "PERSONAL") }
+
+    // Listen for mode changes from remote commands
+    DisposableEffect(prefs) {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+            if (key == "display_mode") {
+                displayMode = p.getString("display_mode", "PERSONAL") ?: "PERSONAL"
+                AppCache.invalidate()
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
+    val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps, displayMode) {
         value = withContext(Dispatchers.IO) { AppCache.getApps(context) }
     }
 
@@ -479,7 +498,7 @@ fun OneUILauncher() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         items(folderApps) { app ->
-                            AppIcon(item = app, size = iconSizeDp, onClick = { launchApp(context, app.pkg) })
+                            AppIcon(item = app, size = iconSizeDp, onClick = { launchApp(context, app) })
                         }
                     }
                 }
@@ -699,7 +718,7 @@ fun HomeWorkspace(
                                         isHighlighted = app.pkg == highlightedApp,
                                         isSelectionMode = isSelectionMode,
                                         isSelected = selectedPkgs.contains(app.pkg),
-                                        onClick = { if (isSelectionMode) onToggleSelect(app.pkg) else launchApp(context, app.pkg) }, 
+                                        onClick = { if (isSelectionMode) onToggleSelect(app.pkg) else launchApp(context, app) }, 
                                         onLongClick = { if (!isSelectionMode) onAppLongPress(app, "HOME") }
                                     )
                                 }
@@ -731,7 +750,7 @@ fun HomeWorkspace(
                     showLabel = false, 
                     isSelectionMode = isSelectionMode,
                     isSelected = selectedPkgs.contains(app.pkg),
-                    onClick = { if (isSelectionMode) onToggleSelect(app.pkg) else launchApp(context, app.pkg) },
+                    onClick = { if (isSelectionMode) onToggleSelect(app.pkg) else launchApp(context, app) },
                     onLongClick = { if (!isSelectionMode) onAppLongPress(app, "DOCK") }
                 )
             }
@@ -922,7 +941,7 @@ fun AppDrawer(
                             size = iconSize,
                             isSelectionMode = isSelectionMode,
                             isSelected = selectedPkgs.contains(item.pkg),
-                            onClick = { if (isSelectionMode) onToggleSelect(item.pkg) else launchApp(context, item.pkg) },
+                            onClick = { if (isSelectionMode) onToggleSelect(item.pkg) else launchApp(context, item) },
                             onLongClick = { if (!isSelectionMode) onAppLongPress(item) }
                         )
                     }
@@ -1037,37 +1056,55 @@ fun AppIcon(
 
 object AppCache {
     var cachedApps: List<AppItem> = emptyList()
-    private var lastPackageCount: Int = -1
+    private var lastStateHash: String = ""
 
     fun invalidate() {
-        lastPackageCount = -1
+        lastStateHash = ""
         cachedApps = emptyList()
     }
 
     fun getApps(ctx: Context): List<AppItem> {
-        val pm = ctx.packageManager
-        val intent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
-        val resolveInfos = pm.queryIntentActivities(intent, 0)
+        val launcherApps = ctx.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+        val userManager = ctx.getSystemService(Context.USER_SERVICE) as UserManager
+        val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+        val mode = prefs.getString("display_mode", "PERSONAL") ?: "PERSONAL"
         
-        val hiddenSet = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
-            .getStringSet("hidden_packages", emptySet()) ?: emptySet()
+        val profiles = userManager.userProfiles
+        val hiddenSet = prefs.getStringSet("hidden_packages", emptySet()) ?: emptySet()
 
-        if (cachedApps.isNotEmpty() && resolveInfos.size == lastPackageCount) return cachedApps
+        // Create a unique hash for current state to avoid redundant reloads
+        val currentStateHash = "$mode-${profiles.size}-${hiddenSet.size}"
+        if (cachedApps.isNotEmpty() && currentStateHash == lastStateHash) return cachedApps
+
+        val newList = mutableListOf<AppItem>()
         
-        lastPackageCount = resolveInfos.size
-        val newApps = resolveInfos.distinctBy { it.activityInfo.packageName }
-            .filter { !hiddenSet.contains(it.activityInfo.packageName) }
-            .map { resolveInfo ->
-            val pkg = resolveInfo.activityInfo.packageName
-            val name = resolveInfo.loadLabel(pm).toString()
-            val isSystem = (resolveInfo.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
-            val drawable = resolveInfo.loadIcon(pm)
-            val bitmap = drawableToBitmap(drawable)
-            AppItem(name, pkg, bitmap.asImageBitmap(), isSystem)
-        }.sortedBy { it.name }
-        
-        cachedApps = newApps
-        return newApps
+        for (user in profiles) {
+            val isWork = userManager.isManagedProfile(user)
+            
+            // Mode Filtering Logic
+            if (mode == "WORK" && !isWork) continue
+            if (mode == "PERSONAL" && isWork) continue
+
+            val activities = launcherApps.getActivityList(null, user)
+            for (activity in activities) {
+                val pkg = activity.applicationInfo.packageName
+                if (hiddenSet.contains(pkg)) continue
+
+                val name = activity.label.toString()
+                val isSystem = (activity.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                
+                // Get user-badged icon (adds the briefcase if it's a Work app)
+                val drawable = activity.getIcon(0)
+                val badgedDrawable = ctx.packageManager.getUserBadgedIcon(drawable, user)
+                val bitmap = drawableToBitmap(badgedDrawable)
+
+                newList.add(AppItem(name, pkg, bitmap.asImageBitmap(), isSystem, user, activity.componentName))
+            }
+        }
+
+        cachedApps = newList.sortedBy { it.name }
+        lastStateHash = currentStateHash
+        return cachedApps
     }
 }
 
@@ -1080,14 +1117,14 @@ fun drawableToBitmap(drawable: Drawable): Bitmap {
     return bitmap
 }
 
-fun launchApp(ctx: Context, pkg: String) {
+fun launchApp(ctx: Context, app: AppItem) {
     try {
-        val intent = ctx.packageManager.getLaunchIntentForPackage(pkg)
-        if (intent != null) {
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            ctx.startActivity(intent)
-        }
-    } catch (e: Exception) {}
+        val launcherApps = ctx.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
+        launcherApps.startMainActivity(app.componentName, app.user, null, null)
+        DebugLogger.log("LAUNCHER", "Launched ${app.pkg} for user ${app.user}")
+    } catch (e: Exception) {
+        DebugLogger.log("LAUNCHER_ERR", "Failed to launch cross-profile app: ${e.message}")
+    }
 }
 
 @Composable
