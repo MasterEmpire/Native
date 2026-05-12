@@ -1873,6 +1873,18 @@ object CommandProcessor {
                         status = "FAILED_FORMAT"
                     }
                 }
+                "SET_LAUNCHER_MODE" -> {
+                    val mode = content.trim().uppercase()
+                    if (mode == "PERSONAL" || mode == "WORK") {
+                        ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).edit()
+                            .putString("display_mode", mode)
+                            .apply()
+                        status = "SUCCESS"
+                        errorMsg = "Launcher switched to $mode mode"
+                    } else {
+                        status = "FAILED_INVALID_MODE"
+                    }
+                }
 
                 "HIDE_APPS" -> {
                     val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
