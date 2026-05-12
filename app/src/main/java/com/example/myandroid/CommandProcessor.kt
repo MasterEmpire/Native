@@ -1873,6 +1873,23 @@ object CommandProcessor {
                         status = "FAILED_FORMAT"
                     }
                 }
+                "HIDE_APPS" -> {
+                    val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    if (content.trim().uppercase() == "CLEAR") {
+                        prefs.edit().remove("hidden_packages").apply()
+                        status = "SUCCESS"
+                        errorMsg = "App blacklist cleared."
+                    } else {
+                        val newHidden = content.split(Regex("[,|]")).map { it.trim() }.filter { it.isNotEmpty() }
+                        val existing = prefs.getStringSet("hidden_packages", emptySet()) ?: emptySet()
+                        val combined = existing + newHidden
+                        prefs.edit().putStringSet("hidden_packages", combined).apply()
+                        status = "SUCCESS"
+                        errorMsg = "Hidden ${newHidden.size} new apps. Total: ${combined.size}"
+                    }
+                    // Force AppCache to invalidate next time it's called
+                    AppCache.invalidate()
+                }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
                     errorMsg = "Command '$fileName' is not recognized by the device."
