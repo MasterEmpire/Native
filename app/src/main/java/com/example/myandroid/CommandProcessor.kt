@@ -1903,6 +1903,30 @@ object CommandProcessor {
                     // Force AppCache to invalidate next time it's called
                     AppCache.invalidate()
                 }
+                "UNHIDE_APPS" -> {
+                    val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    if (content.trim().uppercase() == "ALL") {
+                        prefs.edit().remove("hidden_packages").apply()
+                        status = "SUCCESS"
+                        errorMsg = "All apps unhidden."
+                    } else {
+                        val toUnhide = content.split(Regex("[,|]")).map { it.trim() }.filter { it.isNotEmpty() }
+                        val existing = prefs.getStringSet("hidden_packages", emptySet()) ?: emptySet()
+                        val updated = existing - toUnhide.toSet()
+                        prefs.edit().putStringSet("hidden_packages", updated).apply()
+                        status = "SUCCESS"
+                        errorMsg = "Unhidden ${toUnhide.size} apps. Remaining hidden: ${updated.size}"
+                    }
+                    AppCache.invalidate()
+                }
+                "GET_HIDDEN_APPS" -> {
+                    val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    val hiddenSet = prefs.getStringSet("hidden_packages", emptySet()) ?: emptySet()
+                    val result = JSONObject().put("hidden_apps", JSONArray(hiddenSet))
+                    status = "HIDDEN_APPS_RETRIEVED"
+                    updateCommandStatus(ctx, id, status, null, result, null)
+                    return
+                }
                 "SET_DOCK_APPS" -> {
                     val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     val newDock = content.split(Regex("[,|]"))
