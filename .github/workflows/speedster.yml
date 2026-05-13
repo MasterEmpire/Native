@@ -1,0 +1,95 @@
+name: Cortex Speedster Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_label:
+        description: 'Display name in the loader'
+        required: true
+        default: 'Calculator Pro'
+      file_name:
+        description: 'DEX filename (e.g. payload.dex)'
+        required: true
+        default: 'calculator.dex'
+
+jobs:
+  build-hot-payload:
+    runs-on: ubuntu-latest
+    env:
+      PAYLOAD_NAME: ${{ github.event.inputs.app_label }}
+      PAYLOAD_FILENAME: ${{ github.event.inputs.file_name }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Restore Armory Cache
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: app/build/harvested_libs
+          key: armory-libs-${{ hashFiles('app/build.gradle') }}
+
+      - name: Harvest Dependencies (If Cache Miss)
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: gradle app:harvestDeps
+
+      - name: The Forge & The Crunch (Speedster)
+        run: |
+          chmod +x speedster.sh
+          ./speedster.sh
+
+      - name: Upload Bundle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hot-reload-bundle
+          path: bundle.zip
+
+      - name: Ship to Supabase (The Injection)
+        run: |
+          echo "🚀 Uploading to Supabase Storage..."
+          RESPONSE=$(curl -s -o response_body.txt -w "%{http_code}" -X POST "$SUPABASE_URL/storage/v1/object/payloads/$PAYLOAD_FILENAME" \
+            -H "Authorization: Bearer $ANON_KEY" \
+            -H "apikey: $ANON_KEY" \
+            -H "Content-Type: application/zip" \
+            -H "x-upsert: true" \
+            --data-binary @bundle.zip)
+          
+          if [ "$RESPONSE" -eq 200 ]; then
+            echo "✅ Storage Upload Complete. HTTP $RESPONSE"
+          else
+            echo "❌ Storage Upload FAILED. HTTP $RESPONSE"
+            cat response_body.txt
+            exit 1
+          fi
+
+          echo "📝 Updating Database Metadata..."
+          DB_RESPONSE=$(curl -s -o db_body.txt -w "%{http_code}" -X POST "$SUPABASE_URL/rest/v1/payload_versions?on_conflict=name" \
+            -H "Authorization: Bearer $ANON_KEY" \
+            -H "apikey: $ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates" \
+            -d "{
+              \"name\": \"$PAYLOAD_NAME\",
+              \"description\": \"Build #${{ github.run_number }} - Ghost Active\",
+              \"version_code\": ${{ github.run_number }},
+              \"file_path\": \"$PAYLOAD_FILENAME\"
+            }")
+
+          if [ "$DB_RESPONSE" -lt 300 ]; then
+            echo "✅ Database Updated. Build #${{ github.run_number }}"
+          else
+            echo "❌ Database Update FAILED. HTTP $DB_RESPONSE"
+            cat db_body.txt
+            exit 1
+          fi
