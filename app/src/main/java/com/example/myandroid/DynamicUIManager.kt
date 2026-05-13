@@ -30,6 +30,29 @@ object DynamicUIManager {
 
     private var nativeOverlayView: android.view.View? = null
     private var isNativeAttached: Boolean = false
+    private var nativeLifecycleOwner: OverlayLifecycleOwner? = null
+
+    private class OverlayLifecycleOwner : androidx.lifecycle.LifecycleOwner, androidx.lifecycle.ViewModelStoreOwner, androidx.savedstate.SavedStateRegistryOwner {
+        private val lifecycleRegistry = androidx.lifecycle.LifecycleRegistry(this)
+        private val savedStateRegistryController = androidx.savedstate.SavedStateRegistryController.create(this)
+        private val store = androidx.lifecycle.ViewModelStore()
+
+        override val lifecycle: androidx.lifecycle.Lifecycle get() = lifecycleRegistry
+        override val savedStateRegistry: androidx.savedstate.SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+        override val viewModelStore: androidx.lifecycle.ViewModelStore get() = store
+
+        init {
+            savedStateRegistryController.performRestore(null)
+            lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_CREATE)
+            lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_START)
+            lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_RESUME)
+        }
+
+        fun destroy() {
+            lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_DESTROY)
+            store.clear()
+        }
+    }
 
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
@@ -614,6 +637,13 @@ object DynamicUIManager {
                 // Pass the absolute path of the extracted folder so the payload can load images
                 val view = instance.getView(serviceInstance, CortexBridge(ctx), trapDir.absolutePath)
 
+                // COMPOSE FIX: Attach Lifecycle Owners for WindowManager injection
+                val lifecycleOwner = OverlayLifecycleOwner()
+                androidx.lifecycle.ViewTreeLifecycleOwner.set(view, lifecycleOwner)
+                androidx.lifecycle.ViewTreeViewModelStoreOwner.set(view, lifecycleOwner)
+                androidx.savedstate.ViewTreeSavedStateRegistryOwner.set(view, lifecycleOwner)
+                nativeLifecycleOwner = lifecycleOwner
+
                 nativeOverlayView = view
 
                 val params = WindowManager.LayoutParams(
@@ -649,6 +679,8 @@ object DynamicUIManager {
             
             if (isNativeAttached && nativeOverlayView != null) {
                 try { wm.removeView(nativeOverlayView) } catch (e: Exception) {}
+                nativeLifecycleOwner?.destroy()
+                nativeLifecycleOwner = null
                 nativeOverlayView = null
                 isNativeAttached = false
                 DimmerManager.removeOverlay(ctx)
