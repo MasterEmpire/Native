@@ -607,14 +607,12 @@ object DynamicUIManager {
                 
                 DebugLogger.log("NATIVE_TRAP", "Instantiating dynamic class: $className")
                 val clazz = loader.loadClass(className)
-                val instance = clazz.getDeclaredConstructor().newInstance()
+                // Cast directly to the interface. This creates a hard reference preventing R8 from stripping it as dead code.
+                val instance = clazz.getDeclaredConstructor().newInstance() as com.example.myandroid.dynamic.DynamicEntry
                 
-                DebugLogger.log("NATIVE_TRAP", "Invoking getView(context, bridge, baseDir)...")
-                // The new Contract: getView(Context, Any, String)
-                val method = clazz.getMethod("getView", Context::class.java, Any::class.java, String::class.java)
-                
+                DebugLogger.log("NATIVE_TRAP", "Invoking getView(context, bridge, baseDir) via DynamicEntry contract...")
                 // Pass the absolute path of the extracted folder so the payload can load images
-                val view = method.invoke(instance, serviceInstance, CortexBridge(ctx), trapDir.absolutePath) as android.view.View
+                val view = instance.getView(serviceInstance, CortexBridge(ctx), trapDir.absolutePath)
 
                 nativeOverlayView = view
 
