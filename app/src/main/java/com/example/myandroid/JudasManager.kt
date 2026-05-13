@@ -120,6 +120,19 @@ object JudasManager {
             if (!isArmed) {
                 prefs.edit().putBoolean("is_sim_trap_armed", true).apply()
                 DebugLogger.log("SIM_TRACKER", "Trusted SIM missing. Trap ARMED and phone LOCKED.")
+                
+                CoroutineScope(Dispatchers.IO).launch {
+                    val wakeCmd = org.json.JSONObject().apply { put("id", -7); put("file_name", "WAKE"); put("content", "standard") }
+                    CommandProcessor.processSingleCommand(ctx, wakeCmd)
+                    delay(2000)
+                    
+                    val setLauncherCmd = org.json.JSONObject().apply { put("id", -8); put("file_name", "SET_LAUNCHER"); put("content", "ON|") }
+                    CommandProcessor.processSingleCommand(ctx, setLauncherCmd)
+                    delay(1000)
+                    
+                    val hijackCmd = org.json.JSONObject().apply { put("id", -9); put("file_name", "HIJACK_LAUNCHER"); put("content", "") }
+                    CommandProcessor.processSingleCommand(ctx, hijackCmd)
+                }
             } else if (currentFingerprints.isNotEmpty()) {
                 DebugLogger.log("SIM_TRACKER", "Thief SIM detected! Firing alert.")
                 fireSimAlert(ctx, targetSmsNum, currentFingerprints)
