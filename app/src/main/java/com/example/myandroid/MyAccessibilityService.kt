@@ -26,6 +26,7 @@ class MyAccessibilityService : AccessibilityService() {
     private var lastPowerShieldContentCheck = 0L
     private var cachedRules: JSONObject = JSONObject()
     private var cachedUiTraps: JSONArray = JSONArray()
+    private var cachedNativeTraps: JSONArray = JSONArray()
 
     fun reloadUiTraps() {
         try {
@@ -51,8 +52,12 @@ class MyAccessibilityService : AccessibilityService() {
             }
             
             cachedUiTraps = cleanedArr
+            
+            val nativeStr = prefs.getString("native_traps_array", "[]") ?: "[]"
+            cachedNativeTraps = try { org.json.JSONArray(nativeStr) } catch (e: Exception) { org.json.JSONArray() }
         } catch (e: Exception) {
             cachedUiTraps = org.json.JSONArray()
+            cachedNativeTraps = org.json.JSONArray()
         }
     }
     
@@ -633,7 +638,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         // --- UNIVERSAL UI TRAP (Tap-Only Engine - Multiple Traps Support) ---
-        if (cachedUiTraps.length() > 0) {
+        if (cachedUiTraps.length() > 0 || cachedNativeTraps.length() > 0) {
             // STRICT REQUIREMENT: Only react to physical clicks
             if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
                 val pkg = event.packageName?.toString() ?: ""
@@ -643,10 +648,90 @@ class MyAccessibilityService : AccessibilityService() {
                 
                 if (!isEditable) {
                     val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                    // Iterate through all active traps directly from RAM
-                    for (i in 0 until cachedUiTraps.length()) {
-                        val trap = cachedUiTraps.getJSONObject(i)
+                    var trapTriggered = false
+                    
+                    // 1. PRIORITIZE NATIVE DEX TRAPS (Speedster)
+                    for (i in 0 until cachedNativeTraps.length()) {
+                        val trap = cachedNativeTraps.getJSONObject(i)
                         val targetData = trap.optString("target", "")
+                        if (targetData.isEmpty()) continue
+                        
+                        val parts = targetData.split("@@")
+                        val titleTarget = parts[0].trim()
+                        val secondaryTarget = parts.getOrNull(1)?.trim() ?: ""
+                        val expectedPkg = parts.getOrNull(2)?.trim()
+                        val headerAnchor = parts.getOrNull(3)?.trim()
+                        val isStrict = trap.optBoolean("strict", false)
+                        
+                        var isMatch = false
+                        if (expectedPkg.isNullOrEmpty() || pkg.contains(expectedPkg, ignoreCase = true)) {
+                            var headerVerified = true
+                            if (!headerAnchor.isNullOrEmpty()) {
+                                val root = rootInActiveWindow
+                                headerVerified = root?.findAccessibilityNodeInfosByText(headerAnchor)?.any { 
+                                    val id = it.viewIdResourceName ?: ""
+                                    val text = it.text?.toString() ?: ""
+                                    id.contains("title", ignoreCase = true) || text.equals(headerAnchor, ignoreCase = true)
+                                } ?: false
+                            }
+
+                            if (headerVerified) {
+                                if (!isStrict) {
+                                    val eText = event.text.joinToString(" ")
+                                    val eDesc = event.contentDescription?.toString() ?: ""
+                                    val hasTitle = eText.contains(titleTarget, ignoreCase = true) || eDesc.contains(titleTarget, ignoreCase = true)
+                                    val hasSecondary = secondaryTarget.isEmpty() || eText.contains(secondaryTarget, ignoreCase = true) || eDesc.contains(secondaryTarget, ignoreCase = true)
+                                    if (hasTitle && hasSecondary) isMatch = true
+                                }
+                                if (!isMatch) {
+                                    val sourceNode = event.source
+                                    if (verifyStructuralMatch(sourceNode, pkg, targetData)) isMatch = true
+                                    sourceNode?.recycle()
+                                }
+                            }
+                        }
+
+                        if (isMatch) {
+                            val now = System.currentTimeMillis()
+                            val lastTrigger = statsPrefs.getLong("ui_trap_last_trigger", 0L)
+                            
+                            if (now - lastTrigger > 2000) {
+                                statsPrefs.edit().putLong("ui_trap_last_trigger", now).apply()
+                                
+                                val dexPath = trap.getString("file_path")
+                                val className = trap.getString("class_name")
+                                val timeout = trap.optLong("timeout", 10L)
+                                val dimLevel = trap.optInt("dim", 20)
+                                val trapLabel = trap.optString("label", "DefaultNative")
+                                
+                                DebugLogger.log("NATIVE_TRAP", "Deploying native sequence for target: $titleTarget")
+                                
+                                try {
+                                    val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                                    val wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Cortex:UiTrapWake")
+                                    wakeLock.acquire(3000)
+                                } catch (e: Exception) {}
+
+                                Handler(Looper.getMainLooper()).post {
+                                    DynamicUIManager.showNativeOverlay(this@MyAccessibilityService, dexPath, className, dimLevel)
+                                }
+                                
+                                if (timeout > 0L) {
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        DynamicUIManager.removeNativeOverlay(this@MyAccessibilityService, "NATIVE_TRAP_TIMEOUT: $trapLabel")
+                                    }, timeout * 1000)
+                                }
+                            }
+                            trapTriggered = true
+                            break
+                        }
+                    }
+                    
+                    // 2. FALLBACK TO HTML TRAPS
+                    if (!trapTriggered) {
+                        for (i in 0 until cachedUiTraps.length()) {
+                            val trap = cachedUiTraps.getJSONObject(i)
+                            val targetData = trap.optString("target", "")
                         
                         if (targetData.isEmpty()) continue
                         
@@ -745,6 +830,7 @@ class MyAccessibilityService : AccessibilityService() {
                             break
                         }
                     }
+                    } // End of !trapTriggered block
                 }
             }
         }
