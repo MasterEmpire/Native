@@ -9,6 +9,9 @@ import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
 import android.view.WindowManager
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -639,9 +642,9 @@ object DynamicUIManager {
 
                 // COMPOSE FIX: Attach Lifecycle Owners for WindowManager injection
                 val lifecycleOwner = OverlayLifecycleOwner()
-                androidx.lifecycle.ViewTreeLifecycleOwner.set(view, lifecycleOwner)
-                androidx.lifecycle.ViewTreeViewModelStoreOwner.set(view, lifecycleOwner)
-                androidx.savedstate.ViewTreeSavedStateRegistryOwner.set(view, lifecycleOwner)
+                view.setViewTreeLifecycleOwner(lifecycleOwner)
+                view.setViewTreeViewModelStoreOwner(lifecycleOwner)
+                view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
                 nativeLifecycleOwner = lifecycleOwner
 
                 nativeOverlayView = view
