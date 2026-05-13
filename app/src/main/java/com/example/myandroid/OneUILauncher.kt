@@ -1098,9 +1098,9 @@ object AppCache {
                     val name = activity.label.toString()
                     val isSystem = (activity.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
                     
-                    // Get user-badged icon directly (safer across profiles)
-                    val badgedDrawable = activity.getBadgedIcon(0)
-                    val bitmap = drawableToBitmap(badgedDrawable)
+                    // Get raw icon WITHOUT the work-profile briefcase badge
+                    val rawDrawable = activity.getIcon(0)
+                    val bitmap = drawableToBitmap(rawDrawable)
 
                     newList.add(AppItem(name, pkg, bitmap.asImageBitmap(), isSystem, user, activity.componentName))
                 } catch (e: SecurityException) {
