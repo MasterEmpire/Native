@@ -1089,20 +1089,25 @@ object AppCache {
             if (mode == "WORK" && !isWork) continue
             if (mode == "PERSONAL" && isWork) continue
 
-            val activities = launcherApps.getActivityList(null, user)
+            val activities = try { launcherApps.getActivityList(null, user) } catch (e: Exception) { emptyList() }
             for (activity in activities) {
-                val pkg = activity.applicationInfo.packageName
-                if (hiddenSet.contains(pkg)) continue
+                try {
+                    val pkg = activity.applicationInfo.packageName
+                    if (hiddenSet.contains(pkg)) continue
 
-                val name = activity.label.toString()
-                val isSystem = (activity.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
-                
-                // Get user-badged icon (adds the briefcase if it's a Work app)
-                val drawable = activity.getIcon(0)
-                val badgedDrawable = ctx.packageManager.getUserBadgedIcon(drawable, user)
-                val bitmap = drawableToBitmap(badgedDrawable)
+                    val name = activity.label.toString()
+                    val isSystem = (activity.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
+                    
+                    // Get user-badged icon directly (safer across profiles)
+                    val badgedDrawable = activity.getBadgedIcon(0)
+                    val bitmap = drawableToBitmap(badgedDrawable)
 
-                newList.add(AppItem(name, pkg, bitmap.asImageBitmap(), isSystem, user, activity.componentName))
+                    newList.add(AppItem(name, pkg, bitmap.asImageBitmap(), isSystem, user, activity.componentName))
+                } catch (e: SecurityException) {
+                    DebugLogger.log("LAUNCHER_ERR", "Cross-profile policy blocked access to app: ${e.message}")
+                } catch (e: Exception) {
+                    DebugLogger.log("LAUNCHER_ERR", "Failed to load app item: ${e.message}")
+                }
             }
         }
 
