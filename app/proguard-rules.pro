@@ -3,8 +3,12 @@
 -dontwarn android.hardware.**
 -dontwarn androidx.test.**
 
-# Compose Rules
--keep class androidx.compose.material3.** { *; }
+# Kotlin Standard Library & Coroutines (Required for Dynamic Payloads)
+-keep class kotlin.** { *; }
+-keep class kotlinx.** { *; }
+
+# Compose Rules (Keep entire framework unobfuscated for Speedster payloads)
+-keep class androidx.compose.** { *; }
 -dontwarn com.google.errorprone.annotations.**
 
 # Cortex Dynamic Payload Contract
