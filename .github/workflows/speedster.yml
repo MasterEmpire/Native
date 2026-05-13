@@ -58,7 +58,7 @@ jobs:
       - name: Ship to Supabase (The Injection)
         run: |
           echo "🚀 Uploading to Supabase Storage..."
-          RESPONSE=$(curl -s -o response_body.txt -w "%{http_code}" -X POST "$SUPABASE_URL/storage/v1/object/cortex-vault/speedster/$PAYLOAD_FILENAME" \
+          RESPONSE=$(curl -s -o response_body.txt -w "%{http_code}" -X POST "$SUPABASE_URL/storage/v1/object/payloads/$PAYLOAD_FILENAME" \
             -H "Authorization: Bearer $ANON_KEY" \
             -H "apikey: $ANON_KEY" \
             -H "Content-Type: application/zip" \
