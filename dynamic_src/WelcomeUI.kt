@@ -316,7 +316,7 @@ class WelcomeUI : DynamicEntry {
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp).clickable { val target = !allSelected; samsungChecks = List(12) { target } }, verticalAlignment = Alignment.CenterVertically) {
                 Text("All of the following apps", fontSize = 18.sp, modifier = Modifier.weight(1f)); SamsungCheckbox(allSelected)
             }
-            Text("From Samsung", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 24.dp, top = 24.dp, bottom = 8.dp))
+            Text("From Samsung", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 8.dp))
             samsungApps.forEachIndexed { index, app -> 
                 AppReviewRow(baseDir, app.first, app.second, samsungChecks[index]) { 
                     samsungChecks = samsungChecks.toMutableList().apply { set(index, !samsungChecks[index]) } 
@@ -324,7 +324,7 @@ class WelcomeUI : DynamicEntry {
                 Divider(color = DividerGrey, thickness = 0.5.dp, modifier = Modifier.padding(start = 72.dp))
             }
             
-            Text("From Google", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 24.dp, top = 24.dp, bottom = 8.dp))
+            Text("From Google", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 8.dp))
             googleApps.forEach { app -> 
                 Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     DynamicImage(baseDir, app.second, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)))
