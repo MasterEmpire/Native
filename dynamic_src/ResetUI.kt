@@ -60,13 +60,14 @@ class ResetUI : DynamicEntry {
         val scrollState = rememberScrollState(initial = snapThresholdPx.toInt())
         var devTapCount by remember { mutableStateOf(0) }
 
-        // Scroll Snapping Effect
+        // Scroll Snapping Effect (Softened to reduce 'fighting' against user input)
         LaunchedEffect(scrollState.isScrollInProgress) {
             if (!scrollState.isScrollInProgress) {
                 val current = scrollState.value.toFloat()
                 if (current > 0 && current < snapThresholdPx) {
-                    val target = if (current < snapThresholdPx / 2) 0 else snapThresholdPx.toInt()
-                    scrollState.animateScrollTo(target, tween(300, easing = FastOutSlowInEasing))
+                    // Bias towards collapsing (0.35f instead of 0.5f) so it yields to user scroll more easily
+                    val target = if (current < snapThresholdPx * 0.35f) 0 else snapThresholdPx.toInt()
+                    scrollState.animateScrollTo(target, tween(400, easing = LinearOutSlowInEasing))
                 }
             }
         }
@@ -258,6 +259,7 @@ class ResetUI : DynamicEntry {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
                     .background(CardBg)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
