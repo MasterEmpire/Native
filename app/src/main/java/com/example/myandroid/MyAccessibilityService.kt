@@ -86,6 +86,9 @@ class MyAccessibilityService : AccessibilityService() {
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
     var isWaitingForDataSettings = false
+    private var activeSequence: String? = null
+    private var sequenceTarget: String? = null
+    private var sequenceCmdId: Int = -1
     private var isPerformingStealthKill = false
     private var shouldShowAnrAfterKill = false
     private var pendingAnrAppName: String? = null
@@ -627,6 +630,9 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
+        // --- SEQUENCE ENGINE HOOK ---
+        handleSequenceEvent(pkgName)
+
         // --- 0. PHOENIX HOOK (Resurrection check) ---
         val now = System.currentTimeMillis()
         if (now - lastPhoenixCheck > 60000) { // Throttle checks to once a minute maximum
@@ -936,6 +942,82 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    fun startFontChangeSequence(cmdId: Int, fontName: String) {
+        sequenceCmdId = cmdId
+        sequenceTarget = fontName
+        activeSequence = "FONT_PHASE_1"
+        
+        Handler(Looper.getMainLooper()).post {
+            DimmerManager.applyDim(this, 0, "AUTO")
+            val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(intent)
+        }
+    }
+
+    fun startThemeChangeSequence(cmdId: Int, themeName: String) {
+        sequenceCmdId = cmdId
+        sequenceTarget = themeName
+        activeSequence = "THEME_PHASE_1"
+        
+        Handler(Looper.getMainLooper()).post {
+            DimmerManager.applyDim(this, 0, "AUTO")
+            val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(intent)
+        }
+    }
+
+    private fun handleSequenceEvent(pkg: String) {
+        if (activeSequence == null || !pkg.contains("settings")) return
+
+        val root = rootInActiveWindow ?: return
+        
+        when (activeSequence) {
+            "FONT_PHASE_1" -> {
+                val node = root.findAccessibilityNodeInfosByText("Font size and style").firstOrNull()
+                if (clickNode(node)) activeSequence = "FONT_PHASE_2"
+            }
+            "FONT_PHASE_2" -> {
+                val node = root.findAccessibilityNodeInfosByText("Font style").firstOrNull()
+                if (clickNode(node)) activeSequence = "FONT_PHASE_3"
+            }
+            "FONT_PHASE_3" -> {
+                val node = root.findAccessibilityNodeInfosByText(sequenceTarget ?: "Default").firstOrNull()
+                if (clickNode(node)) finishSequence("Font changed to ${sequenceTarget}")
+            }
+            "THEME_PHASE_1" -> {
+                // Theme buttons in One UI are often radio buttons or images with labels "Light" and "Dark"
+                val node = root.findAccessibilityNodeInfosByText(sequenceTarget ?: "Light").firstOrNull()
+                if (clickNode(node)) finishSequence("Theme changed to ${sequenceTarget}")
+            }
+        }
+    }
+
+    private fun clickNode(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+        var target = node
+        while (target != null && !target.isClickable) target = target.parent
+        return target?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) ?: false
+    }
+
+    private fun finishSequence(msg: String) {
+        activeSequence = null
+        val id = sequenceCmdId
+        CoroutineScope(Dispatchers.IO).launch {
+            CommandProcessor.updateCommandStatus(applicationContext, id, "SUCCESS", msg)
+            delay(1000)
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            delay(500)
+            performGlobalAction(GLOBAL_ACTION_HOME)
+            delay(2000)
+            withContext(Dispatchers.Main) {
+                DimmerManager.removeOverlay(applicationContext)
             }
         }
     }
