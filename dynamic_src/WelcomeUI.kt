@@ -64,7 +64,11 @@ class WelcomeUI : DynamicEntry {
                     7 -> LoadingScreen(Icons.Default.DownloadForOffline, "Checking info...", onComplete = { currentStep = 8 })
                     8 -> LoadingScreen(null, "Getting your account info...", isGoogle = true, onComplete = { currentStep = 9 })
                     9 -> LoadingScreen(null, "Google services", isGoogle = true, onComplete = { currentStep = 10 })
-                    10 -> ProtectPhoneScreen()
+                    10 -> ProtectPhoneScreen(onSkip = { currentStep = 11 })
+                    11 -> LoadingScreen(null, "", onComplete = { currentStep = 12 })
+                    12 -> LoadingScreen(null, "Checking...", isAssistant = true, onComplete = { currentStep = 13 })
+                    13 -> AssistantHeyGoogleScreen(onNext = { currentStep = 14 })
+                    14 -> AssistantLockScreen(onNext = { /* Final step or Home */ })
                 }
             }
 
@@ -194,16 +198,27 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun LoadingScreen(icon: ImageVector?, title: String, isGoogle: Boolean = false, onComplete: () -> Unit) {
+    fun LoadingScreen(icon: ImageVector?, title: String, isGoogle: Boolean = false, isAssistant: Boolean = false, onComplete: () -> Unit) {
         LaunchedEffect(Unit) {
-            delay(4000)
+            delay(if (title.isEmpty()) 2500 else 4000)
             onComplete()
         }
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(80.dp))
-            if (isGoogle) GoogleGIcon() else if (icon != null) Icon(icon, null, tint = SamsungBlue, modifier = Modifier.size(40.dp))
-            Text(title, fontSize = 32.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
-            if (!isGoogle) Text("This may take a few minutes", fontSize = 18.sp, color = TextGrey, modifier = Modifier.padding(top = 8.dp))
+            when {
+                isGoogle -> GoogleGIcon()
+                isAssistant -> AssistantLogo()
+                icon != null -> Icon(icon, null, tint = SamsungBlue, modifier = Modifier.size(40.dp))
+            }
+            
+            if (title.isNotEmpty()) {
+                Text(title, fontSize = 32.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
+            }
+            
+            if (!isGoogle && !isAssistant && title.isNotEmpty()) {
+                Text("This may take a few minutes", fontSize = 18.sp, color = TextGrey, modifier = Modifier.padding(top = 8.dp))
+            }
+            
             Spacer(modifier = Modifier.weight(1f))
             SamsungSpinner()
             Spacer(modifier = Modifier.weight(1.5f))
@@ -236,7 +251,7 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun ProtectPhoneScreen() {
+    fun ProtectPhoneScreen(onSkip: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
             Spacer(modifier = Modifier.height(80.dp))
             Icon(Icons.Default.Lock, null, tint = SamsungBlue, modifier = Modifier.size(40.dp).align(Alignment.CenterHorizontally))
@@ -250,7 +265,7 @@ class WelcomeUI : DynamicEntry {
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
-            Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 80.dp).clickable { })
+            Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 80.dp).clickable { onSkip() })
         }
     }
 
@@ -271,6 +286,92 @@ class WelcomeUI : DynamicEntry {
     fun GoogleGIcon() {
         Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) {
             Text(text = "G", fontSize = 38.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF4285F4))
+        }
+    }
+
+    @Composable
+    fun AssistantLogo() {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF4285F4))) // Blue
+            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFEA4335))) // Red
+            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFBBC05))) // Yellow
+            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF34A853))) // Green
+        }
+    }
+
+    @Composable
+    fun AssistantHeyGoogleScreen(onNext: () -> Unit) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(modifier = Modifier.height(60.dp))
+            AssistantLogo()
+            Text("Access your Assistant with\n“Hey Google”", fontSize = 28.sp, textAlign = TextAlign.Center, lineHeight = 34.sp, modifier = Modifier.padding(top = 20.dp))
+            Text("If you agree, Google Assistant will wait in standby mode to detect “Hey Google”.", fontSize = 17.sp, color = TextBlack, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 16.dp))
+
+            Spacer(modifier = Modifier.weight(0.5f))
+            // Graphic Placeholder: Face and Phone
+            Box(modifier = Modifier.size(200.dp), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Face, null, tint = SamsungBlue, modifier = Modifier.size(80.dp).offset(x = 50.dp))
+                Icon(Icons.Default.PhoneAndroid, null, tint = Color.LightGray, modifier = Modifier.size(100.dp).offset(x = (-40.dp)))
+            }
+            Spacer(modifier = Modifier.weight(0.5f))
+
+            Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
+                BulletItem("Ask questions", "“What’s the weather like this weekend?”")
+                BulletItem("Get directions", "“Where’s the nearest coffee shop?”")
+                BulletItem("Get things done", "“Set an alarm for 5.00 a.m. tomorrow.”")
+            }
+
+            Text("You can update this choice in Assistant settings.", fontSize = 15.sp, color = TextGrey, modifier = Modifier.padding(top = 24.dp))
+
+            Spacer(modifier = Modifier.weight(1f))
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.clickable { onNext() })
+                Button(onClick = onNext, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(130.dp).height(50.dp)) {
+                    Text("I agree", color = Color.White, fontSize = 18.sp)
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun AssistantLockScreen(onNext: () -> Unit) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(modifier = Modifier.height(60.dp))
+            AssistantLogo()
+            Text("Access your Assistant without\nunlocking your device", fontSize = 28.sp, textAlign = TextAlign.Center, lineHeight = 34.sp, modifier = Modifier.padding(top = 20.dp))
+            
+            Spacer(modifier = Modifier.weight(0.5f))
+            // Graphic Placeholder: Lock and Phone
+            Box(modifier = Modifier.size(220.dp), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.size(180.dp).clip(CircleShape).border(1.dp, Color.LightGray, CircleShape))
+                Icon(Icons.Default.Lock, null, tint = Color.LightGray, modifier = Modifier.size(40.dp).offset(y = (-40.dp)))
+                AssistantLogo()
+            }
+            Spacer(modifier = Modifier.weight(0.5f))
+
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+                Icon(Icons.Default.Description, null, tint = TextGrey, modifier = Modifier.size(24.dp))
+                Column(modifier = Modifier.padding(start = 16.dp)) {
+                    Text("Allow Assistant on lock screen", fontSize = 19.sp, fontWeight = FontWeight.Medium)
+                    Text("Allow Assistant to respond when your device is locked...", fontSize = 15.sp, color = TextGrey, modifier = Modifier.padding(top = 4.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.clickable { })
+                Button(onClick = { }, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(130.dp).height(50.dp)) {
+                    Text("I agree", color = Color.White, fontSize = 18.sp)
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun BulletItem(title: String, quote: String) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            Text(title, fontSize = 19.sp, fontWeight = FontWeight.Medium)
+            Text(quote, fontSize = 17.sp, color = TextGrey)
         }
     }
 
