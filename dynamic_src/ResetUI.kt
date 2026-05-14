@@ -40,7 +40,7 @@ class ResetUI : DynamicEntry {
     private val DividerBg = Color.Transparent
     private val BorderColor = Color.Transparent
     
-    private val SnapThreshold = 450f 
+    private val SnapThreshold = 550f 
 
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
@@ -80,17 +80,22 @@ class ResetUI : DynamicEntry {
                     .fillMaxSize()
                     .verticalScroll(scrollState)
             ) {
-                // Expandable Header
+                // Expandable Header - Tall for Notch Clearance
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(200.dp),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp) // Increased height
+                        .statusBarsPadding(),
+                    contentAlignment = Alignment.TopCenter
                 ) {
                     Text(
                         text = "Factory data reset",
                         color = TextWhite,
                         fontSize = 34.sp,
                         fontFamily = FontFamily.SansSerif,
-                        modifier = Modifier.alpha(1f - (scrollProgress * 1.5f))
+                        modifier = Modifier
+                            .padding(top = 100.dp) // Pushed down further from notch
+                            .alpha(1f - (scrollProgress * 1.5f))
                     )
                 }
 
@@ -140,8 +145,9 @@ class ResetUI : DynamicEntry {
                 )
             }
 
-            // Back Button Chevron (LERP movement + Status Bar Offset)
-            val backButtonY = (200f - (scrollProgress * (200f - 8f))).dp
+            // Back Button Chevron (Safe LERP range to avoid gray area)
+            // Max Y restricted to 140dp so it stays in the black area above the card
+            val backButtonY = (140f - (scrollProgress * (140f - 8f))).dp
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
