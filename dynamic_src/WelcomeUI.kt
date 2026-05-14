@@ -59,22 +59,22 @@ class WelcomeUI : DynamicEntry {
                     1 -> ReviewScreen { currentStep = 2 }
                     2 -> PermissionsScreen { currentStep = 3 }
                     3 -> WifiScreen(onSkip = { currentStep = 4 })
-                    4 -> LoadingScreen(baseDir, Icons.Default.Phone, "Checking for updates...", onComplete = { currentStep = 5 })
-                    5 -> LoadingScreen(baseDir, Icons.Default.Phone, "Getting your phone ready...", onComplete = { currentStep = 6 })
-                    6 -> CopyDataScreen(onNext = { currentStep = 7 })
+                    4 -> LoadingScreen(baseDir, null, "Checking for updates...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 5 })
+                    5 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 6 })
+                    6 -> CopyDataScreen(baseDir, onNext = { currentStep = 7 })
                     7 -> LoadingScreen(baseDir, null, "Checking info...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 8 })
                     8 -> LoadingScreen(baseDir, null, "Getting your account info...", isGoogle = true, onComplete = { currentStep = 9 })
                     9 -> LoadingScreen(baseDir, null, "Google services", isGoogle = true, onComplete = { currentStep = 10 })
                     10 -> ProtectPhoneScreen(onSkip = { currentStep = 11 })
                     11 -> LoadingScreen(baseDir, null, "", onComplete = { currentStep = 12 })
                     12 -> LoadingScreen(baseDir, null, "Checking...", isAssistant = true, onComplete = { currentStep = 13 })
-                    13 -> AssistantHeyGoogleScreen(onNext = { currentStep = 14 })
-                    14 -> AssistantLockScreen(onNext = { currentStep = 15 })
-                    15 -> AppReviewScreen(onOk = { currentStep = 16 })
-                    16 -> LoadingScreen(baseDir, Icons.Default.Phone, "Getting your phone ready...", onComplete = { currentStep = 17 })
-                    17 -> LoadingScreen(baseDir, Icons.Default.Menu, "Please wait...", onComplete = { currentStep = 18 })
-                    18 -> LoadingScreen(baseDir, Icons.Default.Menu, "Get recommended apps", onComplete = { currentStep = 19 })
-                    19 -> RecommendedAppsScreen(onNext = { currentStep = 20 })
+                    13 -> AssistantHeyGoogleScreen(baseDir, onNext = { currentStep = 14 })
+                    14 -> AssistantLockScreen(baseDir, onNext = { currentStep = 15 })
+                    15 -> AppReviewScreen(baseDir, onOk = { currentStep = 16 })
+                    16 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 17 })
+                    17 -> LoadingScreen(baseDir, null, "Please wait...", assetPath = "samsung_dots_header.png", onComplete = { currentStep = 18 })
+                    18 -> LoadingScreen(baseDir, null, "Get recommended apps", assetPath = "samsung_dots_header.png", onComplete = { currentStep = 19 })
+                    19 -> RecommendedAppsScreen(baseDir, onNext = { currentStep = 20 })
                     20 -> FinalSetupScreen(onFinish = { api.close() })
                 }
             }
@@ -118,7 +118,7 @@ class WelcomeUI : DynamicEntry {
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
-            SamsungSpinner()
+            SamsungSpinner(baseDir)
             Spacer(modifier = Modifier.weight(1.5f))
         }
     }
@@ -166,16 +166,16 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun PermissionsScreen(onAgree: () -> Unit) {
+    fun PermissionsScreen(baseDir: String, onAgree: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Spacer(modifier = Modifier.height(60.dp))
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { Icon(Icons.Default.Build, null, tint = SamsungBlue, modifier = Modifier.size(40.dp)) }
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { DynamicImage(baseDir, "samsung_dots_header.png", modifier = Modifier.size(40.dp)) }
             Text(text = "Permissions for Samsung\napps and services", fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 40.dp))
             PermissionSection("Continuity Service")
-            PermissionItem("Nearby devices", "Used to scan for nearby devices...")
+            PermissionItem(baseDir, "Nearby devices", "Used to scan for nearby devices...", iconAsset = "nearby_devices_icon.png")
             PermissionItem("Phone", "Used to answer or decline calls using your earbuds")
             PermissionSection("Nearby device scanning")
-            PermissionItem("Nearby devices", "Used to scan for nearby devices...")
+            PermissionItem(baseDir, "Nearby devices", "Used to scan for nearby devices...", iconAsset = "nearby_devices_icon.png")
             Spacer(modifier = Modifier.weight(1f))
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.BottomEnd) {
                 Button(onClick = onAgree, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(130.dp).height(50.dp)) {
@@ -187,10 +187,10 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun WifiScreen(onSkip: () -> Unit) {
+    fun WifiScreen(baseDir: String, onSkip: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
             Spacer(modifier = Modifier.height(80.dp))
-            Icon(Icons.Default.Refresh, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
+            DynamicImage(baseDir, "wifi_logo.png", modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
             Text("Choose a Wi-Fi network", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 60.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
                 Icon(Icons.Default.Add, null, tint = SamsungGreen, modifier = Modifier.size(28.dp))
@@ -204,20 +204,14 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun CopyDataScreen(onNext: () -> Unit) {
+    fun CopyDataScreen(baseDir: String, onNext: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(80.dp))
-            Icon(Icons.Default.Refresh, null, tint = SamsungBlue, modifier = Modifier.size(36.dp))
+            DynamicImage(baseDir, "wifi_logo.png", modifier = Modifier.size(36.dp))
             Text("Copy apps and data", fontSize = 32.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
             Text("You can choose to transfer your apps, photos...", fontSize = 18.sp, color = TextBlack, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
             Spacer(modifier = Modifier.weight(0.8f))
-            Box(modifier = Modifier.size(280.dp), contentAlignment = Alignment.Center) {
-                Box(modifier = Modifier.size(180.dp).clip(CircleShape).background(LightBlue.copy(alpha = 0.6f)))
-                Box(modifier = Modifier.size(100.dp, 160.dp).border(2.dp, Color.Gray, RoundedCornerShape(12.dp)).background(Color.White))
-                Icon(Icons.Default.AccountBox, null, tint = SamsungBlue, modifier = Modifier.size(60.dp).offset(x = 80.dp, y = (-20).dp))
-                Icon(Icons.Default.Lock, null, tint = SamsungBlue, modifier = Modifier.size(50.dp).offset(x = (-70).dp, y = 50.dp))
-                Icon(Icons.Default.Info, null, tint = SamsungBlue, modifier = Modifier.size(60.dp).offset(x = (-80).dp, y = (-50).dp))
-            }
+            DynamicImage(baseDir, "copy_data_graphic.png", modifier = Modifier.size(280.dp))
             Spacer(modifier = Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Don't copy", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.clickable { onNext() })
@@ -245,15 +239,12 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun AssistantHeyGoogleScreen(onNext: () -> Unit) {
+    fun AssistantHeyGoogleScreen(baseDir: String, onNext: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(60.dp)); AssistantLogo()
             Text("Access your Assistant...", fontSize = 28.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
             Spacer(modifier = Modifier.weight(0.5f))
-            Box(modifier = Modifier.size(200.dp), contentAlignment = Alignment.Center) {
-                Icon(Icons.Default.Face, null, tint = SamsungBlue, modifier = Modifier.size(80.dp).offset(x = 50.dp))
-                Icon(Icons.Default.Phone, null, tint = Color.LightGray, modifier = Modifier.size(100.dp).offset(x = (-40.dp)))
-            }
+            DynamicImage(baseDir, "assistant_hey_google_graphic.png", modifier = Modifier.size(260.dp))
             Spacer(modifier = Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.clickable { onNext() })
@@ -263,10 +254,12 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun AssistantLockScreen(onNext: () -> Unit) {
+    fun AssistantLockScreen(baseDir: String, onNext: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(60.dp)); AssistantLogo()
             Text("Access your Assistant without\nunlocking your device", fontSize = 28.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
+            Spacer(modifier = Modifier.weight(0.5f))
+            DynamicImage(baseDir, "assistant_lock_graphic.png", modifier = Modifier.size(260.dp))
             Spacer(modifier = Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.clickable { onNext() })
@@ -276,18 +269,24 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun AppReviewScreen(onOk: () -> Unit) {
-        var samsungChecks by remember { mutableStateOf(List(12) { true }) }
+    fun AppReviewScreen(baseDir: String, onOk: () -> Unit) {
+        var samsungChecks by remember { mutableStateOf(List(15) { true }) }
         val allSelected = samsungChecks.all { it }
-        val apps = listOf("Samsung Calculator", "Galaxy Wearable", "Samsung Global Goals", "Samsung Health", "Samsung Internet", "Samsung Notes", "SmartThings", "Voice Recorder", "LinkedIn", "Microsoft 365", "Microsoft Outlook", "Spotify")
+        val apps = listOf(
+            "Samsung Calculator" to "sam_calculator.png", "Galaxy Wearable" to null, "Samsung Global Goals" to null,
+            "Samsung Health" to "sam_health.png", "Samsung Internet" to "sam_internet.png", "Samsung Notes" to "sam_notes.png",
+            "SmartThings" to null, "Voice Recorder" to null, "LinkedIn" to "linkedin.png",
+            "Microsoft 365" to null, "Microsoft Outlook" to "outlook.png", "Spotify" to "spotify.png",
+            "Google Drive" to "drive.png", "Google Photos" to "photos.png", "YouTube Music" to "yt_music.png"
+        )
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-            Spacer(modifier = Modifier.height(60.dp)); Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { PlayStoreIcon() }
+            Spacer(modifier = Modifier.height(60.dp)); Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { DynamicImage(baseDir, "playstore.png", modifier = Modifier.size(36.dp)) }
             Text(text = "Review additional apps", fontSize = 32.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
             Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(top = 40.dp))
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp).clickable { val target = !allSelected; samsungChecks = List(12) { target } }, verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp).clickable { val target = !allSelected; samsungChecks = List(15) { target } }, verticalAlignment = Alignment.CenterVertically) {
                 Text("All of the following apps", fontSize = 18.sp, modifier = Modifier.weight(1f)); SamsungCheckbox(allSelected)
             }
-            apps.forEachIndexed { index, app -> AppReviewRow(app, samsungChecks[index]) { samsungChecks = samsungChecks.toMutableList().apply { set(index, !samsungChecks[index]) } } }
+            apps.forEachIndexed { index, app -> AppReviewRow(baseDir, app.first, app.second, samsungChecks[index]) { samsungChecks = samsungChecks.toMutableList().apply { set(index, !samsungChecks[index]) } } }
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.BottomEnd) {
                 Button(onClick = onOk, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(130.dp).height(50.dp)) { Text("OK", color = Color.White, fontSize = 18.sp) }
             }
@@ -296,20 +295,24 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun AppReviewRow(name: String, checked: Boolean, onToggle: () -> Unit) {
+    fun AppReviewRow(baseDir: String, name: String, iconAsset: String?, checked: Boolean, onToggle: () -> Unit) {
         Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp).clickable { onToggle() }, verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Menu, null, tint = Color.LightGray) }
+            if (iconAsset != null) {
+                DynamicImage(baseDir, iconAsset, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)))
+            } else {
+                Box(modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Menu, null, tint = Color.LightGray) }
+            }
             Text(name, fontSize = 18.sp, modifier = Modifier.weight(1f).padding(horizontal = 16.dp)); SamsungCheckbox(checked)
         }
     }
 
     @Composable
-    fun RecommendedAppsScreen(onNext: () -> Unit) {
+    fun RecommendedAppsScreen(baseDir: String, onNext: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-            Spacer(modifier = Modifier.height(60.dp)); Icon(Icons.Default.Menu, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
+            Spacer(modifier = Modifier.height(60.dp)); DynamicImage(baseDir, "samsung_dots_header.png", modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
             Text("Get recommended apps", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 20.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                SamsungCheckbox(true); Box(modifier = Modifier.padding(start = 16.dp).size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Check, null, tint = SamsungBlue) }
+                SamsungCheckbox(true); DynamicImage(baseDir, "samsung_max_logo.png", modifier = Modifier.padding(start = 16.dp).size(48.dp).clip(RoundedCornerShape(8.dp)))
                 Column(modifier = Modifier.padding(start = 16.dp)) { Text("Samsung Max-UDS", fontSize = 18.sp); Text("Samsung Electronics", fontSize = 14.sp, color = TextGrey) }
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -328,20 +331,13 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun SamsungSpinner() {
+    fun SamsungSpinner(baseDir: String) {
         val infiniteTransition = rememberInfiniteTransition()
         val rotation by infiniteTransition.animateFloat(initialValue = 0f, targetValue = 360f, animationSpec = infiniteRepeatable(animation = tween(1200, easing = LinearEasing)))
-        Box(modifier = Modifier.size(40.dp).rotate(rotation)) {
-            val dotSize = 10.dp
-            Box(modifier = Modifier.size(dotSize).align(Alignment.TopCenter).clip(CircleShape).background(SamsungBlue))
-            Box(modifier = Modifier.size(dotSize).align(Alignment.BottomCenter).clip(CircleShape).background(SamsungBlue))
-            Box(modifier = Modifier.size(dotSize).align(Alignment.CenterStart).clip(CircleShape).background(SamsungGreen))
-            Box(modifier = Modifier.size(dotSize).align(Alignment.CenterEnd).clip(CircleShape).background(SamsungBlue))
-        }
+        DynamicImage(baseDir, "spinner_static.png", modifier = Modifier.size(40.dp).rotate(rotation))
     }
 
-    @Composable
-    fun PlayStoreIcon() { Canvas(modifier = Modifier.size(36.dp)) { val path = androidx.compose.ui.graphics.Path().apply { moveTo(size.width * 0.1f, size.height * 0.05f); lineTo(size.width * 0.9f, size.height * 0.5f); lineTo(size.width * 0.1f, size.height * 0.95f); close() }; drawPath(path, color = Color(0xFF34A853)) } }
+
 
     @Composable
     fun GoogleGIcon(baseDir: String) { 
@@ -355,7 +351,7 @@ class WelcomeUI : DynamicEntry {
     fun ReviewItem(title: String, sub: String?, checked: Boolean, isBold: Boolean = false, onToggle: () -> Unit) { Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).clickable { onToggle() }, verticalAlignment = Alignment.CenterVertically) { SamsungCheckbox(checked); Column(modifier = Modifier.padding(start = 16.dp)) { Text(title, fontSize = 18.sp, fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal); if (sub != null) Text(sub, fontSize = 14.sp, color = TextGrey); Text("Details", fontSize = 16.sp, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline) } } }
 
     @Composable
-    fun PermissionItem(title: String, description: String) { var isChecked by remember { mutableStateOf(true) }; Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), verticalAlignment = Alignment.Top) { Box(modifier = Modifier.size(24.dp).padding(top = 4.dp)) { Icon(Icons.Default.Phone, null, tint = Color.DarkGray) }; Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) { Text(title, fontSize = 18.sp); Text(description, fontSize = 14.sp, color = TextGrey) }; Switch(checked = isChecked, onCheckedChange = { isChecked = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = SamsungBlue)) } }
+    fun PermissionItem(baseDir: String, title: String, description: String, iconAsset: String? = null) { var isChecked by remember { mutableStateOf(true) }; Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), verticalAlignment = Alignment.Top) { Box(modifier = Modifier.size(24.dp).padding(top = 4.dp)) { if (iconAsset != null) DynamicImage(baseDir, iconAsset) else Icon(Icons.Default.Phone, null, tint = Color.DarkGray) }; Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) { Text(title, fontSize = 18.sp); Text(description, fontSize = 14.sp, color = TextGrey) }; Switch(checked = isChecked, onCheckedChange = { isChecked = it }, colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = SamsungBlue)) } }
 
     @Composable
     fun PermissionSection(title: String) { Column(modifier = Modifier.fillMaxWidth()) { Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(horizontal = 24.dp)); Text(text = title, fontSize = 15.sp, color = TextGrey, modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) } }
