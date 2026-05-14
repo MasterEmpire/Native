@@ -19,6 +19,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -53,7 +54,8 @@ class WelcomeUI : DynamicEntry {
                 when (currentStep) {
                     0 -> WelcomeScreen { currentStep = 1 }
                     1 -> ReviewScreen { currentStep = 2 }
-                    2 -> WifiScreen()
+                    2 -> PermissionsScreen { currentStep = 3 }
+                    3 -> WifiScreen()
                 }
             }
 
@@ -136,23 +138,106 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
+    @Composable
     fun WifiScreen() {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
             Spacer(modifier = Modifier.height(80.dp))
-            // Replaced Wifi with Refresh (Core Icon) to fix build; Replaced QrCodeScanner with List (Core Icon)
-            Icon(Icons.Default.Refresh, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
+            // Manual Wifi Drawing to avoid build error
+            Box(modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Refresh, null, tint = SamsungBlue)
+            }
             Text("Choose a Wi-Fi network", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 60.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
                 Icon(Icons.Default.Add, null, tint = SamsungGreen, modifier = Modifier.size(28.dp))
                 Text("Add network", fontSize = 20.sp, modifier = Modifier.padding(start = 24.dp).weight(1f))
-                Icon(Icons.Default.List, null, tint = Color.Black, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Search, null, tint = Color.Black, modifier = Modifier.size(24.dp))
             }
+
+    @Composable
+    fun PermissionsScreen(onAgree: () -> Unit) {
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Spacer(modifier = Modifier.height(60.dp))
+            
+            // Top Icon (Hybrid Placeholder)
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Apps, null, tint = SamsungBlue, modifier = Modifier.size(40.dp))
+            }
+            
+            Text(
+                text = "Permissions for Samsung\napps and services",
+                fontSize = 28.sp,
+                lineHeight = 34.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 40.dp, horizontal = 24.dp)
+            )
+
+            PermissionSection("Continuity Service")
+            PermissionItem("Nearby devices", "Used to scan for your nearby devices and share information about them with Samsung apps and services...")
+            PermissionItem("Phone", "Used to answer or decline calls using your earbuds")
+
+            Spacer(modifier = Modifier.height(16.dp))
+            PermissionSection("Nearby device scanning")
+            PermissionItem("Nearby devices", "Used to scan for nearby devices and share information about them with Samsung apps and services, allowing you to connect to wearable devices...")
 
             Spacer(modifier = Modifier.weight(1f))
             
-            Text("Turn off Wi-Fi", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(vertical = 16.dp))
-            Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 80.dp))
+            Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.BottomEnd) {
+                Button(
+                    onClick = onAgree,
+                    colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue),
+                    shape = RoundedCornerShape(25.dp),
+                    modifier = Modifier.width(130.dp).height(50.dp)
+                ) {
+                    Text("Agree", color = Color.White, fontSize = 18.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+
+    @Composable
+    fun PermissionSection(title: String) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(horizontal = 24.dp))
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                color = TextGrey,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)
+            )
+        }
+    }
+
+    @Composable
+    fun PermissionItem(title: String, description: String) {
+        var isChecked by remember { mutableStateOf(true) }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            // Hybrid Icon Placeholder
+            Box(modifier = Modifier.size(24.dp).padding(top = 4.dp)) {
+                Icon(Icons.Default.PhoneAndroid, null, tint = Color.DarkGray)
+            }
+            
+            Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                Text(title, fontSize = 18.sp, fontWeight = FontWeight.Normal)
+                Text(description, fontSize = 14.sp, color = TextGrey, lineHeight = 19.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+
+            Switch(
+                checked = isChecked,
+                onCheckedChange = { isChecked = it },
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = SamsungBlue,
+                    uncheckedThumbColor = Color.White,
+                    uncheckedTrackColor = Color.LightGray,
+                    uncheckedBorderColor = Color.Transparent
+                )
+            )
         }
     }
 
