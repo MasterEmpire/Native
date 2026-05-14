@@ -34,11 +34,11 @@ import androidx.compose.ui.text.font.FontFamily
 class ResetUI : DynamicEntry {
 
     private val BgBlack = Color(0xFF000000)
-    private val CardBg = Color(0xFF111111)
+    private val CardBg = Color(0xFF1C1C1E)
     private val TextWhite = Color(0xFFFFFFFF)
     private val TextGrey = Color(0xFF9A9A9A)
-    private val DividerBg = Color(0xFF090909)
-    private val BorderColor = Color(0xFF242424)
+    private val DividerBg = Color.Transparent
+    private val BorderColor = Color.Transparent
     
     private val SnapThreshold = 450f 
 
@@ -94,14 +94,11 @@ class ResetUI : DynamicEntry {
                     )
                 }
 
-                // Content Card
+                // Content Blocks Layout
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 1000.dp)
-                        .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                        .background(CardBg)
-                        .padding(horizontal = 22.dp)
+                        .padding(horizontal = 16.dp)
                 ) {
                     if (currentScreen == 1) {
                         ScreenOneContent(
@@ -200,24 +197,46 @@ class ResetUI : DynamicEntry {
     @Composable
     fun ScreenOneContent(onReset: () -> Unit, onDevExit: () -> Unit) {
         Column {
-            Text("All data will be erased from your phone, including your:", color = TextWhite, fontSize = 16.5.sp, modifier = Modifier.padding(top = 45.dp, bottom = 12.dp), lineHeight = 22.sp)
-            
-            val items = listOf(
-                "Google account", "System and app data", "Settings", "Downloaded apps", 
-                "Music", "Pictures", "All other user data", "Service provider apps and content",
-                "The decryption key for files on the SD card"
-            )
-            items.forEach {
-                Text("• $it", color = TextGrey, fontSize = 16.5.sp, modifier = Modifier.padding(start = 14.dp, bottom = 5.dp))
+            // BLOCK 1: Warning List
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(CardBg)
+                    .padding(20.dp)
+            ) {
+                Text("All data will be erased from your phone, including your:", color = TextWhite, fontSize = 17.sp, modifier = Modifier.padding(bottom = 12.dp), lineHeight = 22.sp)
+                
+                val items = listOf(
+                    "Google account", "System and app data", "Settings", "Downloaded apps", 
+                    "Music", "Pictures", "All other user data", "Service provider apps and content",
+                    "The decryption key for files on the SD card"
+                )
+                items.forEach {
+                    Text("• $it", color = TextGrey, fontSize = 16.sp, modifier = Modifier.padding(start = 8.dp, bottom = 4.dp))
+                }
+
+                Text("(You will not be able to use encrypted files on the SD card after you reset your device to factory defaults.)", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(top = 12.dp), lineHeight = 20.sp)
             }
 
-            Text("(You will not be able to use encrypted files on the SD card after you reset your device to factory defaults.)", color = TextGrey, fontSize = 16.5.sp, modifier = Modifier.padding(top = 14.dp), lineHeight = 22.sp)
-            Text("You are currently signed in to the following accounts:", color = TextWhite, fontSize = 16.5.sp, modifier = Modifier.padding(top = 30.dp, bottom = 18.dp))
+            Text("You are currently signed in to the following accounts:", color = TextWhite, fontSize = 16.sp, modifier = Modifier.padding(top = 24.dp, bottom = 12.dp, start = 8.dp))
 
             SectionLabel("Personal")
-            AccountRow(Color(0xFF4285F4), "getyetekluz@gmail.com")
-            AccountRow(Color(0xFF2DA6DA), "8087130772")
-            AccountRow(Color(0xFF2DA6DA), "7581490017")
+            
+            // BLOCK 2: Accounts
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(CardBg)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                AccountRow(Color(0xFF4285F4), "getyetekilu@gmail.com")
+                AccountRow(Color(0xFF4285F4), "getyetekluz@gmail.com")
+                AccountRow(Color(0xFF4285F4), "zebenetekilu412@gmail.com")
+                AccountRow(Color(0xFF4285F4), "davejohnatan1@gmail.com")
+                AccountRow(Color(0xFF4285F4), "dawitteklu773@gmail.com")
+            }
 
             Text("The following apps will be uninstalled. Some apps may be reinstalled after the reset depending on your service provider.", color = Color(0xFFD1D1D1), fontSize = 16.sp, modifier = Modifier.padding(top = 35.dp, bottom = 22.dp), lineHeight = 22.sp)
             
@@ -266,25 +285,22 @@ class ResetUI : DynamicEntry {
 
     @Composable
     fun SectionLabel(text: String) {
-        Box(modifier = Modifier.fillMaxWidth().background(DividerBg).border(0.5.dp, BorderColor).padding(horizontal = 22.dp, vertical = 8.dp)) {
-            Text(text, color = TextGrey, fontSize = 13.sp)
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp)) {
+            Text(text, color = TextGrey, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 
     @Composable
     fun AccountRow(color: Color, email: String) {
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            // Realistic Google Icon Circle
             Box(
-                modifier = Modifier.size(32.dp).clip(CircleShape).background(color),
+                modifier = Modifier.size(34.dp).clip(CircleShape).background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                if (color == Color(0xFF4285F4)) {
-                    Text("G", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                } else {
-                    Icon(Icons.Default.Send, null, tint = Color.White, modifier = Modifier.size(16.dp)) // Mocking Telegram icon
-                }
+                Text("G", color = Color(0xFF4285F4), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
             }
-            Text(email, color = TextWhite, fontSize = 15.sp, modifier = Modifier.padding(start = 14.dp))
+            Text(email, color = TextWhite, fontSize = 16.sp, modifier = Modifier.padding(start = 16.dp))
         }
     }
 
