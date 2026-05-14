@@ -139,13 +139,14 @@ class WelcomeUI : DynamicEntry {
     fun WifiScreen() {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
             Spacer(modifier = Modifier.height(80.dp))
-            Icon(Icons.Default.Wifi, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
+            // Replaced Wifi with Refresh (Core Icon) to fix build; Replaced QrCodeScanner with List (Core Icon)
+            Icon(Icons.Default.Refresh, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
             Text("Choose a Wi-Fi network", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 60.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
                 Icon(Icons.Default.Add, null, tint = SamsungGreen, modifier = Modifier.size(28.dp))
                 Text("Add network", fontSize = 20.sp, modifier = Modifier.padding(start = 24.dp).weight(1f))
-                Icon(Icons.Default.QrCodeScanner, null, tint = Color.Black, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.List, null, tint = Color.Black, modifier = Modifier.size(24.dp))
             }
 
             Spacer(modifier = Modifier.weight(1f))
