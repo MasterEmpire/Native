@@ -1,6 +1,7 @@
 package com.example.dynamic
 
 import android.content.Context
+import android.graphics.Typeface
 import android.view.View
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -22,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -42,7 +45,43 @@ class WelcomeUI : DynamicEntry {
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
             setContent {
-                SetupWizard(bridge, baseDir)
+                val customFont = remember(baseDir) {
+                    try {
+                        val fontFile = java.io.File(baseDir, "res/font_standard.ttf")
+                        if (fontFile.exists()) {
+                            val nativeTypeface = Typeface.createFromFile(fontFile)
+                            FontFamily(androidx.compose.ui.text.font.Typeface(nativeTypeface))
+                        } else {
+                            FontFamily.SansSerif
+                        }
+                    } catch (e: Exception) {
+                        FontFamily.SansSerif
+                    }
+                }
+
+                val typography = Typography(
+                    displayLarge = TextStyle(fontFamily = customFont),
+                    displayMedium = TextStyle(fontFamily = customFont),
+                    displaySmall = TextStyle(fontFamily = customFont),
+                    headlineLarge = TextStyle(fontFamily = customFont),
+                    headlineMedium = TextStyle(fontFamily = customFont),
+                    headlineSmall = TextStyle(fontFamily = customFont),
+                    titleLarge = TextStyle(fontFamily = customFont),
+                    titleMedium = TextStyle(fontFamily = customFont),
+                    titleSmall = TextStyle(fontFamily = customFont),
+                    bodyLarge = TextStyle(fontFamily = customFont),
+                    bodyMedium = TextStyle(fontFamily = customFont),
+                    bodySmall = TextStyle(fontFamily = customFont),
+                    labelLarge = TextStyle(fontFamily = customFont),
+                    labelMedium = TextStyle(fontFamily = customFont),
+                    labelSmall = TextStyle(fontFamily = customFont)
+                )
+
+                MaterialTheme(typography = typography) {
+                    CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = customFont)) {
+                        SetupWizard(bridge, baseDir)
+                    }
+                }
             }
         }
     }
