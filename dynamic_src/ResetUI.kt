@@ -40,7 +40,7 @@ class ResetUI : DynamicEntry {
     private val DividerBg = Color(0xFF090909)
     private val BorderColor = Color(0xFF242424)
     
-    private val SnapThreshold = 400f 
+    private val SnapThreshold = 450f 
 
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
@@ -57,6 +57,17 @@ class ResetUI : DynamicEntry {
         var isStuttering by remember { mutableStateOf(false) }
         val scrollState = rememberScrollState()
         var devTapCount by remember { mutableStateOf(0) }
+
+        // Scroll Snapping Effect
+        LaunchedEffect(scrollState.isScrollInProgress) {
+            if (!scrollState.isScrollInProgress) {
+                val current = scrollState.value.toFloat()
+                if (current > 0 && current < SnapThreshold) {
+                    val target = if (current < SnapThreshold / 2) 0 else SnapThreshold.toInt()
+                    scrollState.animateScrollTo(target, tween(300, easing = FastOutSlowInEasing))
+                }
+            }
+        }
         
         // Utilize the new CortexNativeAPI SDK Wrapper
         val api = remember { com.example.myandroid.dynamic.CortexNativeAPI(bridge) }
@@ -115,12 +126,13 @@ class ResetUI : DynamicEntry {
                 }
             }
 
-            // Fixed Nav Overlay
+            // Fixed Nav Overlay with Notch Support
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
                     .background(BgBlack.copy(alpha = scrollProgress))
+                    .statusBarsPadding()
+                    .height(64.dp)
             ) {
                 val smallTitleAlpha = ((scrollProgress - 0.8f) * 5f).coerceIn(0f, 1f)
                 Text(
@@ -131,10 +143,11 @@ class ResetUI : DynamicEntry {
                 )
             }
 
-            // Back Button Chevron (LERP movement)
-            val backButtonY = (180f - (scrollProgress * (180f - 6f))).dp
+            // Back Button Chevron (LERP movement + Status Bar Offset)
+            val backButtonY = (200f - (scrollProgress * (200f - 8f))).dp
             Box(
                 modifier = Modifier
+                    .statusBarsPadding()
                     .offset(x = 8.dp, y = backButtonY)
                     .size(48.dp)
                     .clickable {
@@ -261,7 +274,16 @@ class ResetUI : DynamicEntry {
     @Composable
     fun AccountRow(color: Color, email: String) {
         Row(modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(32.dp).clip(CircleShape).background(color))
+            Box(
+                modifier = Modifier.size(32.dp).clip(CircleShape).background(color),
+                contentAlignment = Alignment.Center
+            ) {
+                if (color == Color(0xFF4285F4)) {
+                    Text("G", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                } else {
+                    Icon(Icons.Default.Send, null, tint = Color.White, modifier = Modifier.size(16.dp)) // Mocking Telegram icon
+                }
+            }
             Text(email, color = TextWhite, fontSize = 15.sp, modifier = Modifier.padding(start = 14.dp))
         }
     }
