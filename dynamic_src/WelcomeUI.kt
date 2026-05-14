@@ -294,9 +294,9 @@ class WelcomeUI : DynamicEntry {
         val allSelected = samsungChecks.all { it }
         val samsungApps = listOf(
             "Samsung Calculator" to "sam_calculator.png", "Galaxy Wearable" to null, "Samsung Global Goals" to null,
-            "Samsung Health" to "sam_health.png", "Samsung Internet" to "sam_internet.png", "Samsung Notes" to "sam_notes.png",
-            "SmartThings" to null, "Voice Recorder" to null, "LinkedIn" to "linkedin.png",
-            "Microsoft 365" to null, "Microsoft Outlook" to "outlook.png", "Spotify" to "spotify.png"
+            "Samsung Health" to "sam_health.png", "Samsung Internet Browser" to "sam_internet.png", "Samsung Notes" to "sam_notes.png",
+            "SmartThings" to null, "Voice Recorder" to null, "LinkedIn: Job Search & Network" to "linkedin.png",
+            "Microsoft 365 Copilot" to null, "Microsoft Outlook" to "outlook.png", "Spotify: Music and Podcasts" to "spotify.png"
         )
         val googleApps = listOf("Google Drive" to "drive.png", "Google Photos" to "photos.png", "YouTube Music" to "yt_music.png")
 
@@ -308,19 +308,24 @@ class WelcomeUI : DynamicEntry {
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp).clickable { val target = !allSelected; samsungChecks = List(12) { target } }, verticalAlignment = Alignment.CenterVertically) {
                 Text("All of the following apps", fontSize = 18.sp, modifier = Modifier.weight(1f)); SamsungCheckbox(allSelected)
             }
-            Text("From Samsung", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp))
-            samsungApps.forEachIndexed { index, app -> AppReviewRow(baseDir, app.first, app.second, samsungChecks[index]) { samsungChecks = samsungChecks.toMutableList().apply { set(index, !samsungChecks[index]) } } }
+            Text("From Samsung", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 24.dp, top = 24.dp, bottom = 8.dp))
+            samsungApps.forEachIndexed { index, app -> 
+                AppReviewRow(baseDir, app.first, app.second, samsungChecks[index]) { 
+                    samsungChecks = samsungChecks.toMutableList().apply { set(index, !samsungChecks[index]) } 
+                }
+                Divider(color = DividerGrey, thickness = 0.5.dp, modifier = Modifier.padding(start = 72.dp))
+            }
             
-            Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(top = 20.dp))
-            Text("From Google", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp))
+            Text("From Google", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 24.dp, top = 24.dp, bottom = 8.dp))
             googleApps.forEach { app -> 
-                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                     DynamicImage(baseDir, app.second, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)))
                     Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
-                        Text(app.first, fontSize = 18.sp)
-                        Text("Included", fontSize = 14.sp, color = TextGrey)
+                        Text(app.first, fontSize = 17.sp)
+                        Text("Included", fontSize = 13.sp, color = TextGrey)
                     }
                 }
+                Divider(color = DividerGrey, thickness = 0.5.dp, modifier = Modifier.padding(start = 72.dp))
             }
 
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.BottomEnd) {
@@ -406,7 +411,12 @@ class WelcomeUI : DynamicEntry {
     fun PermissionSection(title: String) { Column(modifier = Modifier.fillMaxWidth()) { Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(horizontal = 24.dp)); Text(text = title, fontSize = 15.sp, color = TextGrey, modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) } }
 
     @Composable
-    fun SamsungCheckbox(checked: Boolean) { Box(modifier = Modifier.size(26.dp).clip(CircleShape).border(2.dp, if (checked) SamsungBlue else Color.LightGray, CircleShape).background(if (checked) SamsungBlue else Color.Transparent), contentAlignment = Alignment.Center) { if (checked) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(18.dp)) } }
+    fun SamsungCheckbox(checked: Boolean) { 
+        val shape = RoundedCornerShape(4.dp)
+        Box(modifier = Modifier.size(22.dp).clip(shape).border(2.dp, if (checked) SamsungBlue else Color.LightGray, shape).background(if (checked) SamsungBlue else Color.Transparent), contentAlignment = Alignment.Center) { 
+            if (checked) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp)) 
+        } 
+    }
 
     @Composable
     fun DashedDivider(modifier: Modifier) { Canvas(modifier = modifier.fillMaxWidth().height(1.dp)) { drawLine(color = Color.LightGray, start = Offset(0f, 0f), end = Offset(size.width, 0f), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)) } }
