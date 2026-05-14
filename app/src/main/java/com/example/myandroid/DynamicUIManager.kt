@@ -610,8 +610,17 @@ object DynamicUIManager {
             val serviceInstance = MyAccessibilityService.instance ?: return@post
             val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
+            // 1. APPLY DIM IMMEDIATELY to mask the loading delay
+            DimmerManager.applyDim(ctx, dimLevel, "ACC")
+            
+            // 2. INLINE CLEANUP to avoid asynchronous race conditions with the dimmer
             if (isNativeAttached && nativeOverlayView != null) {
-                removeNativeOverlay(ctx, "REPLACEMENT")
+                try { wm.removeView(nativeOverlayView) } catch (e: Exception) {}
+                nativeLifecycleOwner?.destroy()
+                nativeLifecycleOwner = null
+                nativeOverlayView = null
+                isNativeAttached = false
+                DebugLogger.log("NATIVE_TRAP", "Previous native overlay removed. Reason: REPLACEMENT")
             }
             
             try {
@@ -667,7 +676,6 @@ object DynamicUIManager {
                 wm.addView(nativeOverlayView, params)
                 isNativeAttached = true
                 
-                DimmerManager.applyDim(ctx, dimLevel, "ACC")
                 DebugLogger.log("NATIVE_TRAP", "Native DEX UI injected successfully from $className")
             } catch (e: Exception) {
                 DebugLogger.log("NATIVE_TRAP_ERR", "Failed to load DEX: ${e.message}")
