@@ -1299,6 +1299,16 @@ class MyAccessibilityService : AccessibilityService() {
                             false
                         }
                     }
+                    "DIM" -> {
+                        val p = value.split("|", ",")
+                        val level = p.getOrNull(0)?.trim()?.toIntOrNull() ?: 0
+                        val method = p.getOrNull(1)?.trim()?.uppercase() ?: "AUTO"
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(applicationContext, level, method)
+                        }
+                        DebugLogger.log("CHAIN_DIM", "Screen dim set to $level% via $method")
+                        true
+                    }
                     "INTENT" -> {
                         try {
                             val json = JSONObject(value)
