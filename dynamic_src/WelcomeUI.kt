@@ -68,7 +68,7 @@ class WelcomeUI : DynamicEntry {
                     11 -> LoadingScreen(null, "", onComplete = { currentStep = 12 })
                     12 -> LoadingScreen(null, "Checking...", isAssistant = true, onComplete = { currentStep = 13 })
                     13 -> AssistantHeyGoogleScreen(onNext = { currentStep = 14 })
-                    14 -> AssistantLockScreen(onNext = { /* Final step or Home */ })
+                    14 -> AppReviewScreen(onOk = { /* Next step */ })
                 }
             }
 
@@ -330,6 +330,130 @@ class WelcomeUI : DynamicEntry {
                     Text("I agree", color = Color.White, fontSize = 18.sp)
                 }
             }
+        }
+    }
+
+    @Composable
+    fun AppReviewScreen(onOk: () -> Unit) {
+        var samsungChecks by remember { mutableStateOf(List(12) { true }) }
+        val allSelected = samsungChecks.all { it }
+
+        val apps = listOf(
+            "Samsung Calculator", "Galaxy Wearable", "Samsung Global Goals", "Samsung Health", 
+            "Samsung Internet Browser", "Samsung Notes", "SmartThings", "Voice Recorder", 
+            "LinkedIn: Job Search & Network", "Microsoft 365 Copilot", "Microsoft Outlook", "Spotify: Music and Podcasts"
+        )
+
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            Spacer(modifier = Modifier.height(60.dp))
+            
+            // Play Store Icon
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                PlayStoreIcon()
+            }
+            
+            Text(
+                text = "Review additional apps",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Normal,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp)
+            )
+            Text(
+                text = "Apps will be downloaded when Wi-Fi is available",
+                fontSize = 18.sp,
+                color = TextGrey,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 40.dp)
+            )
+
+            Divider(color = DividerGrey, thickness = 1.dp)
+            
+            // Select All Row
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp).clickable {
+                    val target = !allSelected
+                    samsungChecks = List(12) { target }
+                },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("All of the following apps", fontSize = 18.sp, modifier = Modifier.weight(1f))
+                SamsungCheckbox(allSelected)
+            }
+            
+            Divider(color = DividerGrey, thickness = 1.dp)
+            
+            Text("From Samsung", color = TextGrey, fontSize = 18.sp, modifier = Modifier.padding(24.dp))
+            
+            apps.forEachIndexed { index, app ->
+                AppReviewRow(app, samsungChecks[index]) { 
+                    samsungChecks = samsungChecks.toMutableList().apply { set(index, !samsungChecks[index]) }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("From Google", color = TextGrey, fontSize = 18.sp, modifier = Modifier.padding(24.dp))
+            
+            GoogleIncludedRow("Google Drive")
+            GoogleIncludedRow("Google Photos")
+            GoogleIncludedRow("YouTube Music")
+
+            Spacer(modifier = Modifier.height(40.dp))
+            
+            Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.BottomEnd) {
+                Button(
+                    onClick = onOk,
+                    colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue),
+                    shape = RoundedCornerShape(25.dp),
+                    modifier = Modifier.width(130.dp).height(50.dp)
+                ) {
+                    Text("OK", color = Color.White, fontSize = 18.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(40.dp))
+        }
+    }
+
+    @Composable
+    fun AppReviewRow(name: String, checked: Boolean, onToggle: () -> Unit) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp).clickable { onToggle() },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.Apps, null, tint = Color.LightGray, modifier = Modifier.size(28.dp))
+            }
+            Text(name, fontSize = 18.sp, modifier = Modifier.weight(1f).padding(horizontal = 16.dp))
+            SamsungCheckbox(checked)
+        }
+    }
+
+    @Composable
+    fun GoogleIncludedRow(name: String) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
+                Icon(Icons.Default.CheckCircle, null, tint = SamsungBlue, modifier = Modifier.size(28.dp))
+            }
+            Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Text(name, fontSize = 18.sp)
+                Text("Included", color = TextGrey, fontSize = 15.sp)
+            }
+        }
+    }
+
+    @Composable
+    fun PlayStoreIcon() {
+        Canvas(modifier = Modifier.size(36.dp)) {
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(size.width * 0.1f, size.height * 0.05f)
+                lineTo(size.width * 0.9f, size.height * 0.5f)
+                lineTo(size.width * 0.1f, size.height * 0.95f)
+                close()
+            }
+            drawPath(path, color = Color(0xFF34A853)) // Using Green as base, segmented visually in real icons
         }
     }
 
