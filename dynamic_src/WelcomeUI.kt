@@ -68,12 +68,18 @@ class WelcomeUI : DynamicEntry {
                     11 -> LoadingScreen(null, "", onComplete = { currentStep = 12 })
                     12 -> LoadingScreen(null, "Checking...", isAssistant = true, onComplete = { currentStep = 13 })
                     13 -> AssistantHeyGoogleScreen(onNext = { currentStep = 14 })
-                    14 -> AppReviewScreen(onOk = { /* Next step */ })
+                    14 -> AppReviewScreen(onOk = { currentStep = 15 })
+                    15 -> LoadingScreen(Icons.Default.PhoneAndroid, "Getting your phone ready...", onComplete = { currentStep = 16 })
+                    16 -> LoadingScreen(Icons.Default.Apps, "Please wait...", onComplete = { currentStep = 17 })
+                    17 -> LoadingScreen(Icons.Default.Apps, "Get recommended apps", onComplete = { currentStep = 18 })
+                    18 -> RecommendedAppsScreen(onNext = { currentStep = 19 })
+                    19 -> FinalSetupScreen(onFinish = { api.close() })
                 }
             }
 
             // Navigation Control Overlay
-            if (currentStep != 4 && currentStep != 5 && currentStep != 7 && currentStep != 8 && currentStep != 9) {
+            val isAutoStep = listOf(4, 5, 7, 8, 9, 11, 12, 15, 16, 17).contains(currentStep)
+            if (!isAutoStep) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -454,6 +460,72 @@ class WelcomeUI : DynamicEntry {
                 close()
             }
             drawPath(path, color = Color(0xFF34A853)) // Using Green as base, segmented visually in real icons
+        }
+    }
+
+    @Composable
+    fun RecommendedAppsScreen(onNext: () -> Unit) {
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+            Spacer(modifier = Modifier.height(60.dp))
+            Icon(Icons.Default.Apps, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
+            Text("Get recommended apps", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 20.dp))
+            Text("Apps will be downloaded when you're connected to Wi-Fi.", fontSize = 17.sp, color = TextGrey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 24.dp, bottom = 40.dp))
+
+            Text("From Samsung", fontWeight = FontWeight.Bold, fontSize = 19.sp, modifier = Modifier.padding(bottom = 16.dp))
+            
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                SamsungCheckbox(true)
+                Box(modifier = Modifier.padding(start = 16.dp).size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.NetworkCheck, null, tint = SamsungBlue)
+                }
+                Column(modifier = Modifier.padding(start = 16.dp)) {
+                    Text("Samsung Max-UDS", fontSize = 18.sp)
+                    Text("Samsung Electronics Co., Ltd.", fontSize = 14.sp, color = TextGrey)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text("Essential apps", color = TextGrey, modifier = Modifier.padding(end = 8.dp))
+                DashedDivider(modifier = Modifier.weight(1f))
+                Icon(Icons.Default.KeyboardArrowUp, null, tint = TextGrey)
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)) {
+                Box(modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.ShoppingCart, null, tint = Color(0xFFE91E63))
+                }
+                Column(modifier = Modifier.padding(start = 16.dp)) {
+                    Text("Lazada - Online Shopping & Deals", fontSize = 18.sp)
+                    Text("Lazada", fontSize = 14.sp, color = TextGrey)
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+            Box(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), contentAlignment = Alignment.BottomEnd) {
+                Button(onClick = onNext, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(130.dp).height(50.dp)) {
+                    Text("Next", color = Color.White, fontSize = 18.sp)
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun FinalSetupScreen(onFinish: () -> Unit) {
+        Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+            Text("You're all set up!", fontSize = 34.sp, fontWeight = FontWeight.Normal)
+            
+            // Positioned according to Samsung UI (not true center, slightly bottom weighted)
+            Spacer(modifier = Modifier.height(280.dp))
+            
+            Button(
+                onClick = onFinish,
+                colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue),
+                shape = RoundedCornerShape(30.dp),
+                modifier = Modifier.width(260.dp).height(56.dp)
+            ) {
+                Text("Finish", color = Color.White, fontSize = 20.sp)
+            }
         }
     }
 
