@@ -76,13 +76,11 @@ class HelloUI : DynamicEntry {
 
                 Button(
                     onClick = {
-                        // Vibrate and Close using the Bridge via Reflection
-                        try {
-                            bridge.javaClass.getMethod("vibrate", Long::class.java).invoke(bridge, 100L)
-                            bridge.javaClass.getMethod("close").invoke(bridge)
-                        } catch (e: Exception) {
-                            // Fallback if bridge call fails
-                        }
+                        // The CortexNativeAPI wrapper automatically handles reflection for you
+                        val api = com.example.myandroid.dynamic.CortexNativeAPI(bridge)
+                        api.vibrate(100L)
+                        api.toast("Speedster detached.")
+                        api.close()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ComposeColor(0xFF3B82F6)),
                     shape = RoundedCornerShape(12.dp),
