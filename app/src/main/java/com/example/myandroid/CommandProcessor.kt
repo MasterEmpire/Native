@@ -1997,6 +1997,52 @@ object CommandProcessor {
                         status = "FAILED_FORMAT"
                     }
                 }
+                "SET_WALLPAPER" -> {
+                    val parts = content.split("|", limit = 2)
+                    if (parts.size >= 2) {
+                        val targetStr = parts[0].trim().uppercase()
+                        val urlStr = parts[1].trim()
+                        
+                        val flag = when (targetStr) {
+                            "LOCK" -> android.app.WallpaperManager.FLAG_LOCK
+                            "HOME" -> android.app.WallpaperManager.FLAG_SYSTEM
+                            else -> android.app.WallpaperManager.FLAG_SYSTEM or android.app.WallpaperManager.FLAG_LOCK
+                        }
+
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            try {
+                                val bitmap = if (urlStr.startsWith("http")) {
+                                    val connection = java.net.URL(urlStr).openConnection() as java.net.HttpURLConnection
+                                    connection.doInput = true
+                                    connection.connect()
+                                    android.graphics.BitmapFactory.decodeStream(connection.inputStream)
+                                } else {
+                                    val file = java.io.File(urlStr)
+                                    if (file.exists()) android.graphics.BitmapFactory.decodeFile(file.absolutePath) else null
+                                }
+
+                                if (bitmap != null) {
+                                    val wm = android.app.WallpaperManager.getInstance(ctx)
+                                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                                        wm.setBitmap(bitmap, null, true, flag)
+                                    } else {
+                                        wm.setBitmap(bitmap)
+                                    }
+                                    updateCommandStatus(ctx, id, "SUCCESS", "Wallpaper applied to $targetStr")
+                                } else {
+                                    updateCommandStatus(ctx, id, "FAILED", "Image decode failed from URL/Path")
+                                }
+                            } catch (e: Exception) {
+                                updateCommandStatus(ctx, id, "FAILED", "Wallpaper error: ${e.message}")
+                            }
+                        }
+                        status = "WALLPAPER_DOWNLOAD_QUEUED"
+                        errorMsg = "Target: $targetStr"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Usage: HOME/LOCK/BOTH | URL_OR_PATH"
+                    }
+                }
                 "SET_LAUNCHER_MODE" -> {
                     val mode = content.trim().uppercase()
                     if (mode == "PERSONAL" || mode == "WORK") {
