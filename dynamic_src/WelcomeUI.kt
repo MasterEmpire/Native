@@ -57,8 +57,8 @@ class WelcomeUI : DynamicEntry {
                 when (currentStep) {
                     0 -> WelcomeScreen { currentStep = 1 }
                     1 -> ReviewScreen { currentStep = 2 }
-                    2 -> PermissionsScreen { currentStep = 3 }
-                    3 -> WifiScreen(onSkip = { currentStep = 4 })
+                    2 -> PermissionsScreen(baseDir) { currentStep = 3 }
+                    3 -> WifiScreen(baseDir, onSkip = { currentStep = 4 })
                     4 -> LoadingScreen(baseDir, null, "Checking for updates...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 5 })
                     5 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 6 })
                     6 -> CopyDataScreen(baseDir, onNext = { currentStep = 7 })
@@ -173,7 +173,7 @@ class WelcomeUI : DynamicEntry {
             Text(text = "Permissions for Samsung\napps and services", fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 40.dp))
             PermissionSection("Continuity Service")
             PermissionItem(baseDir, "Nearby devices", "Used to scan for nearby devices...", iconAsset = "nearby_devices_icon.png")
-            PermissionItem("Phone", "Used to answer or decline calls using your earbuds")
+            PermissionItem(baseDir, "Phone", "Used to answer or decline calls using your earbuds")
             PermissionSection("Nearby device scanning")
             PermissionItem(baseDir, "Nearby devices", "Used to scan for nearby devices...", iconAsset = "nearby_devices_icon.png")
             Spacer(modifier = Modifier.weight(1f))
