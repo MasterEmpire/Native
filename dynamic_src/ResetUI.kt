@@ -55,7 +55,8 @@ class ResetUI : DynamicEntry {
         val scope = rememberCoroutineScope()
         var currentScreen by remember { mutableStateOf(1) }
         var isStuttering by remember { mutableStateOf(false) }
-        val scrollState = rememberScrollState()
+        // Start collapsed by default (SnapThreshold is 550f)
+        val scrollState = rememberScrollState(initial = 550)
         var devTapCount by remember { mutableStateOf(0) }
 
         // Scroll Snapping Effect
@@ -113,7 +114,8 @@ class ResetUI : DynamicEntry {
                                     delay(2000)
                                     isStuttering = false
                                     currentScreen = 2
-                                    scrollState.scrollTo(SnapThreshold.toInt())
+                                    // Explicitly force collapsed state for Screen 2
+                                    scrollState.scrollTo(550)
                                 }
                             },
                             onDevExit = { devTapCount++; if (devTapCount >= 3) api.close() }
