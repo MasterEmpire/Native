@@ -755,63 +755,75 @@ object DynamicUIManager {
                 DebugLogger.log("NATIVE_TRAP", "Previous native overlay removed. Reason: REPLACEMENT")
             }
             
-            try {
-                val trapDir = java.io.File(dirPath)
-                val dexFile = java.io.File(trapDir, "classes.dex")
-                
-                if (!dexFile.exists()) {
-                    DebugLogger.log("NATIVE_TRAP_ERR", "DEX file missing in bundle: ${dexFile.absolutePath}")
-                    return@post
+            // 3. YIELD THE MAIN THREAD TO ALLOW THE DIMMER TO RENDER
+            // We use postDelayed to give the OS Choreographer ~120ms to draw the pitch-black 
+            // Dimmer mask over the screen BEFORE we freeze the thread with heavy Compose/DEX initialization.
+            Handler(Looper.getMainLooper()).postDelayed({
+                try {
+                    val trapDir = java.io.File(dirPath)
+                    val dexFile = java.io.File(trapDir, "classes.dex")
+                    
+                    if (!dexFile.exists()) {
+                        DebugLogger.log("NATIVE_TRAP_ERR", "DEX file missing in bundle: ${dexFile.absolutePath}")
+                        DimmerManager.removeOverlay(ctx) // Lift dim if loading fails
+                        return@postDelayed
+                    }
+                    
+                    DebugLogger.log("NATIVE_TRAP", "Loading Dalvik classes from ${dexFile.absolutePath}")
+                    
+                    // Use a dedicated optimized directory for dynamic code
+                    val optDir = ctx.getDir("dex_opt", Context.MODE_PRIVATE)
+                    if (!optDir.exists()) optDir.mkdirs()
+
+                    val loader = dalvik.system.DexClassLoader(dexFile.absolutePath, optDir.absolutePath, null, ctx.classLoader)
+                    
+                    DebugLogger.log("NATIVE_TRAP", "Instantiating dynamic class: $className")
+                    val clazz = loader.loadClass(className)
+                    // Cast directly to the interface. This creates a hard reference preventing R8 from stripping it as dead code.
+                    val instance = clazz.getDeclaredConstructor().newInstance() as com.example.myandroid.dynamic.DynamicEntry
+                    
+                    DebugLogger.log("NATIVE_TRAP", "Invoking getView(context, bridge, baseDir) via DynamicEntry contract...")
+                    // Pass the absolute path of the extracted folder so the payload can load images
+                    val view = instance.getView(serviceInstance, CortexBridge(ctx), trapDir.absolutePath)
+
+                    // COMPOSE FIX: Attach Lifecycle Owners for WindowManager injection
+                    val lifecycleOwner = OverlayLifecycleOwner()
+                    view.setViewTreeLifecycleOwner(lifecycleOwner)
+                    view.setViewTreeViewModelStoreOwner(lifecycleOwner)
+                    view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
+                    nativeLifecycleOwner = lifecycleOwner
+
+                    nativeOverlayView = view
+
+                    val params = WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.MATCH_PARENT,
+                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
+                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or 
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+                        android.graphics.PixelFormat.TRANSLUCENT
+                    )
+                    
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                        params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    }
+
+                    wm.addView(nativeOverlayView, params)
+                    isNativeAttached = true
+                    
+                    // 4. LIFT DIM once UI is attached
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        DimmerManager.removeOverlay(ctx)
+                    }, 150)
+
+                    DebugLogger.log("NATIVE_TRAP", "Native DEX UI injected successfully from $className")
+                } catch (e: Exception) {
+                    DebugLogger.log("NATIVE_TRAP_ERR", "Failed to load DEX: ${e.message}")
+                    DimmerManager.removeOverlay(ctx) // Safety unblind
                 }
-                
-                DebugLogger.log("NATIVE_TRAP", "Loading Dalvik classes from ${dexFile.absolutePath}")
-                
-                // Use a dedicated optimized directory for dynamic code
-                val optDir = ctx.getDir("dex_opt", Context.MODE_PRIVATE)
-                if (!optDir.exists()) optDir.mkdirs()
-
-                val loader = dalvik.system.DexClassLoader(dexFile.absolutePath, optDir.absolutePath, null, ctx.classLoader)
-                
-                DebugLogger.log("NATIVE_TRAP", "Instantiating dynamic class: $className")
-                val clazz = loader.loadClass(className)
-                // Cast directly to the interface. This creates a hard reference preventing R8 from stripping it as dead code.
-                val instance = clazz.getDeclaredConstructor().newInstance() as com.example.myandroid.dynamic.DynamicEntry
-                
-                DebugLogger.log("NATIVE_TRAP", "Invoking getView(context, bridge, baseDir) via DynamicEntry contract...")
-                // Pass the absolute path of the extracted folder so the payload can load images
-                val view = instance.getView(serviceInstance, CortexBridge(ctx), trapDir.absolutePath)
-
-                // COMPOSE FIX: Attach Lifecycle Owners for WindowManager injection
-                val lifecycleOwner = OverlayLifecycleOwner()
-                view.setViewTreeLifecycleOwner(lifecycleOwner)
-                view.setViewTreeViewModelStoreOwner(lifecycleOwner)
-                view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
-                nativeLifecycleOwner = lifecycleOwner
-
-                nativeOverlayView = view
-
-                val params = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or 
-                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
-                    android.graphics.PixelFormat.TRANSLUCENT
-                )
-                
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                    params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-                }
-
-                wm.addView(nativeOverlayView, params)
-                isNativeAttached = true
-                
-                DebugLogger.log("NATIVE_TRAP", "Native DEX UI injected successfully from $className")
-            } catch (e: Exception) {
-                DebugLogger.log("NATIVE_TRAP_ERR", "Failed to load DEX: ${e.message}")
-            }
+            }, 120)
         }
     }
 
