@@ -293,10 +293,18 @@ class WelcomeUI : DynamicEntry {
         var samsungChecks by remember { mutableStateOf(List(12) { true }) }
         val allSelected = samsungChecks.all { it }
         val samsungApps = listOf(
-            "Samsung Calculator" to "sam_calculator.png", "Galaxy Wearable" to null, "Samsung Global Goals" to null,
-            "Samsung Health" to "sam_health.png", "Samsung Internet Browser" to "sam_internet.png", "Samsung Notes" to "sam_notes.png",
-            "SmartThings" to null, "Voice Recorder" to null, "LinkedIn: Job Search & Network" to "linkedin.png",
-            "Microsoft 365 Copilot" to null, "Microsoft Outlook" to "outlook.png", "Spotify: Music and Podcasts" to "spotify.png"
+            "Samsung Calculator" to "sam_calculator.png", 
+            "Galaxy Wearable" to "wearable.png", 
+            "Samsung Global Goals" to "sam_Global_goals.png",
+            "Samsung Health" to "sam_health.png", 
+            "Samsung Internet Browser" to "sam_internet.png", 
+            "Samsung Notes" to "sam_notes.png",
+            "SmartThings" to "sam_smart_things.png", 
+            "Voice Recorder" to "Samsung_Voice_Recorder.png", 
+            "LinkedIn: Job Search & Network" to "linkedin.png",
+            "Microsoft 365 Copilot" to "Microsoft_365_Copilot.png", 
+            "Microsoft Outlook" to "outlook.png", 
+            "Spotify: Music and Podcasts" to "spotify.png"
         )
         val googleApps = listOf("Google Drive" to "drive.png", "Google Photos" to "photos.png", "YouTube Music" to "yt_music.png")
 
