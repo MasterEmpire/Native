@@ -104,7 +104,6 @@ class ResetUI : DynamicEntry {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
                 ) {
                     Spacer(modifier = Modifier.height(130.dp)) // Precision gap for shoulders and chevron
                 ) {
@@ -219,9 +218,8 @@ class ResetUI : DynamicEntry {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
                     .background(CardBg)
-                    .padding(20.dp)
+                    .padding(horizontal = 24.dp, vertical = 20.dp)
             ) {
                 Text("All data will be erased from your phone, including your:", color = TextWhite, fontSize = 17.sp, modifier = Modifier.padding(bottom = 12.dp), lineHeight = 22.sp)
                 
@@ -237,7 +235,7 @@ class ResetUI : DynamicEntry {
                 Text("(You will not be able to use encrypted files on the SD card after you reset your device to factory defaults.)", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(top = 12.dp), lineHeight = 20.sp)
             }
 
-            Text("You are currently signed in to the following accounts:", color = TextWhite, fontSize = 16.sp, modifier = Modifier.padding(top = 24.dp, bottom = 12.dp, start = 8.dp))
+            Text("You are currently signed in to the following accounts:", color = TextWhite, fontSize = 16.sp, modifier = Modifier.padding(top = 24.dp, bottom = 12.dp, start = 24.dp))
 
             SectionLabel("Personal")
             
@@ -245,9 +243,8 @@ class ResetUI : DynamicEntry {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
                     .background(CardBg)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 AccountRow(Color(0xFF4285F4), "getyetekilu@gmail.com")
                 AccountRow(Color(0xFF4285F4), "getyetekluz@gmail.com")
@@ -256,15 +253,14 @@ class ResetUI : DynamicEntry {
                 AccountRow(Color(0xFF4285F4), "dawitteklu773@gmail.com")
             }
 
-            Text("The following apps will be uninstalled. Some apps may be reinstalled after the reset depending on your service provider.", color = Color(0xFFD1D1D1), fontSize = 16.sp, modifier = Modifier.padding(top = 35.dp, bottom = 12.dp, start = 8.dp), lineHeight = 22.sp)
+            Text("The following apps will be uninstalled. Some apps may be reinstalled after the reset depending on your service provider.", color = Color(0xFFD1D1D1), fontSize = 16.sp, modifier = Modifier.padding(top = 35.dp, bottom = 12.dp, start = 24.dp), lineHeight = 22.sp)
             
             // BLOCK 3: Apps List
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
                     .background(CardBg)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 val apps = listOf(
                     "Samsung Health", "Samsung Internet", "Samsung Members", "Samsung Notes",
@@ -286,14 +282,16 @@ class ResetUI : DynamicEntry {
                 }
             }
 
-            Text("Tip", fontSize = 22.sp, color = TextWhite, fontWeight = FontWeight.Medium)
-            Text("You can use Smart Switch to back up your data to an SD card or USB storage device before resetting your phone.", color = TextWhite, fontSize = 17.sp, modifier = Modifier.padding(top = 12.dp), lineHeight = 24.sp)
+            Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                Text("Tip", fontSize = 22.sp, color = TextWhite, fontWeight = FontWeight.Medium)
+                Text("You can use Smart Switch to back up your data to an SD card or USB storage device before resetting your phone.", color = TextWhite, fontSize = 17.sp, modifier = Modifier.padding(top = 12.dp), lineHeight = 24.sp)
+            }
         }
     }
 
     @Composable
     fun ScreenTwoContent(onDeleteAll: () -> Unit) {
-        Column {
+        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             Text("All your personal information and downloaded apps will be erased and can't be recovered.", color = TextWhite, fontSize = 19.sp, modifier = Modifier.padding(top = 40.dp), lineHeight = 26.sp)
             Text("Data that has been backed up to the SD card won't be erased. You can restore SD card data using Smart Switch after the reset.", color = TextWhite, fontSize = 19.sp, modifier = Modifier.padding(top = 35.dp), lineHeight = 26.sp)
             
@@ -312,7 +310,7 @@ class ResetUI : DynamicEntry {
 
     @Composable
     fun SectionLabel(text: String) {
-        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp)) {
+        Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 10.dp)) {
             Text(text, color = TextGrey, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
