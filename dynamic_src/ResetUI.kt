@@ -245,14 +245,23 @@ class ResetUI : DynamicEntry {
                 AccountRow(Color(0xFF4285F4), "dawitteklu773@gmail.com")
             }
 
-            Text("The following apps will be uninstalled. Some apps may be reinstalled after the reset depending on your service provider.", color = Color(0xFFD1D1D1), fontSize = 16.sp, modifier = Modifier.padding(top = 35.dp, bottom = 22.dp), lineHeight = 22.sp)
+            Text("The following apps will be uninstalled. Some apps may be reinstalled after the reset depending on your service provider.", color = Color(0xFFD1D1D1), fontSize = 16.sp, modifier = Modifier.padding(top = 35.dp, bottom = 12.dp, start = 8.dp), lineHeight = 22.sp)
             
-            val apps = listOf(
-                "Samsung Health", "Samsung Internet", "Samsung Members", "Samsung Notes",
-                "Drive", "LinkedIn", "Outlook", "Photos", "Spotify", "YouTube Music"
-            )
-            apps.forEach { app ->
-                AppRow(app, onDevExit = if (app == "Samsung Internet") onDevExit else null)
+            // BLOCK 3: Apps List
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(CardBg)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                val apps = listOf(
+                    "Samsung Health", "Samsung Internet", "Samsung Members", "Samsung Notes",
+                    "Drive", "LinkedIn", "Outlook", "Photos", "Spotify", "YouTube Music"
+                )
+                apps.forEach { app ->
+                    AppRow(app, onDevExit = if (app == "Samsung Internet") onDevExit else null)
+                }
             }
 
             Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 50.dp), contentAlignment = Alignment.Center) {
