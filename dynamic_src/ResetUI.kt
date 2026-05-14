@@ -105,6 +105,8 @@ class ResetUI : DynamicEntry {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
+                        // Ensure content is always tall enough to allow the header to collapse (SnapThreshold)
+                        .defaultMinSize(minHeight = 800.dp) 
                 ) {
                     if (currentScreen == 1) {
                         ScreenOneContent(
@@ -114,8 +116,9 @@ class ResetUI : DynamicEntry {
                                     delay(2000)
                                     isStuttering = false
                                     currentScreen = 2
-                                    // Explicitly force collapsed state for Screen 2
-                                    scrollState.scrollTo(550)
+                                    // Wait for layout pass before scrolling
+                                    delay(50)
+                                    scrollState.scrollTo(SnapThreshold.toInt())
                                 }
                             },
                             onDevExit = { devTapCount++; if (devTapCount >= 3) api.close() }
