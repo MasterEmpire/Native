@@ -39,8 +39,6 @@ class ResetUI : DynamicEntry {
     private val TextGrey = Color(0xFF9A9A9A)
     private val DividerBg = Color.Transparent
     private val BorderColor = Color.Transparent
-    
-    private val SnapThreshold = 340f 
 
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
@@ -52,19 +50,22 @@ class ResetUI : DynamicEntry {
 
     @Composable
     fun ResetScreen(bridge: Any) {
+        val density = androidx.compose.ui.platform.LocalDensity.current
+        val snapThresholdPx = remember(density) { with(density) { 370.dp.toPx() } }
+
         val scope = rememberCoroutineScope()
         var currentScreen by remember { mutableStateOf(1) }
         var isStuttering by remember { mutableStateOf(false) }
-        // Start collapsed by default at the SnapThreshold
-        val scrollState = rememberScrollState(initial = SnapThreshold.toInt())
+        // Start collapsed by default at the snapThresholdPx
+        val scrollState = rememberScrollState(initial = snapThresholdPx.toInt())
         var devTapCount by remember { mutableStateOf(0) }
 
         // Scroll Snapping Effect
         LaunchedEffect(scrollState.isScrollInProgress) {
             if (!scrollState.isScrollInProgress) {
                 val current = scrollState.value.toFloat()
-                if (current > 0 && current < SnapThreshold) {
-                    val target = if (current < SnapThreshold / 2) 0 else SnapThreshold.toInt()
+                if (current > 0 && current < snapThresholdPx) {
+                    val target = if (current < snapThresholdPx / 2) 0 else snapThresholdPx.toInt()
                     scrollState.animateScrollTo(target, tween(300, easing = FastOutSlowInEasing))
                 }
             }
@@ -73,7 +74,7 @@ class ResetUI : DynamicEntry {
         // Utilize the new CortexNativeAPI SDK Wrapper
         val api = remember { com.example.myandroid.dynamic.CortexNativeAPI(bridge) }
 
-        val scrollProgress = (scrollState.value / SnapThreshold).coerceIn(0f, 1f)
+        val scrollProgress = (scrollState.value / snapThresholdPx).coerceIn(0f, 1f)
 
         Box(modifier = Modifier.fillMaxSize().background(BgBlack)) {
             Column(
@@ -85,9 +86,9 @@ class ResetUI : DynamicEntry {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(340.dp)
-                        .statusBarsPadding(),
-                    contentAlignment = Alignment.TopCenter
+                        .statusBarsPadding()
+                        .height(470.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Factory data reset",
@@ -95,7 +96,6 @@ class ResetUI : DynamicEntry {
                         fontSize = 34.sp,
                         fontFamily = FontFamily.SansSerif,
                         modifier = Modifier
-                            .padding(top = 110.dp)
                             .alpha(1f - (scrollProgress * 1.8f))
                     )
                 }
@@ -106,7 +106,6 @@ class ResetUI : DynamicEntry {
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 800.dp) // Prevents Screen 2 from forcing header expansion
                 ) {
-                    Spacer(modifier = Modifier.height(130.dp)) // Precision gap for shoulders and chevron
                     if (currentScreen == 1) {
                         ScreenOneContent(
                             onReset = {
@@ -117,7 +116,7 @@ class ResetUI : DynamicEntry {
                                     currentScreen = 2
                                     // Wait for layout pass before scrolling
                                     delay(50)
-                                    scrollState.scrollTo(SnapThreshold.toInt())
+                                    scrollState.scrollTo(snapThresholdPx.toInt())
                                 }
                             },
                             onDevExit = { devTapCount++; if (devTapCount >= 3) api.close() }
