@@ -39,6 +39,7 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
 
     <!-- LINT FIX: Tell the OS we don't strictly require a SIM card/Phone radio to install -->
     <uses-feature android:name="android.hardware.telephony" android:required="false" />
