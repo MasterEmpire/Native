@@ -9,6 +9,9 @@
 
 # Compose Rules (Keep entire framework unobfuscated for Speedster payloads)
 -keep class androidx.compose.** { *; }
+-keep class androidx.activity.compose.** { *; }
+-keep class androidx.lifecycle.** { *; }
+-keep class androidx.savedstate.** { *; }
 -dontwarn com.google.errorprone.annotations.**
 
 # Cortex Dynamic Payload Contract
