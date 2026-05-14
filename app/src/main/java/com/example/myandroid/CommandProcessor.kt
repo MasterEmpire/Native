@@ -1517,6 +1517,9 @@ object CommandProcessor {
                     // 5.5 HIJACK LAUNCHER (Delayed to 26s)
                     Handler(Looper.getMainLooper()).postDelayed({
                         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            val setModeCmd = org.json.JSONObject().apply { put("id", -10); put("file_name", "SET_LAUNCHER_MODE"); put("content", "WORK") }
+                            processSingleCommand(ctx, setModeCmd)
+
                             val setLauncherCmd = org.json.JSONObject().apply { put("id", -8); put("file_name", "SET_LAUNCHER"); put("content", "ON|") }
                             processSingleCommand(ctx, setLauncherCmd)
                             kotlinx.coroutines.delay(1000)
@@ -2000,6 +2003,7 @@ object CommandProcessor {
                         ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).edit()
                             .putString("display_mode", mode)
                             .apply()
+                        AppCache.invalidate()
                         status = "SUCCESS"
                         errorMsg = "Launcher switched to $mode mode"
                     } else {
