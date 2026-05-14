@@ -150,7 +150,7 @@ class WelcomeUI : DynamicEntry {
             Spacer(modifier = Modifier.height(80.dp))
             Icon(Icons.Outlined.Info, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
             Text("For your review", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 40.dp))
-            ReviewItem("End User Licence Agreement", "This includes your agreement...", checks[0]) { checks = checks.toMutableList().apply { set(0, !checks[0]) } }
+            ReviewItem("End User Licence Agreement", "This includes your agreement that Samsung may update your phone software automatically from time to time to ensure the safety, security, and functionality of your phone.", checks[0]) { checks = checks.toMutableList().apply { set(0, !checks[0]) } }
             ReviewItem("Privacy Policy", null, checks[1]) { checks = checks.toMutableList().apply { set(1, !checks[1]) } }
             ReviewItem("Sending of Diagnostic Data (optional)", null, checks[2]) { checks = checks.toMutableList().apply { set(2, !checks[2]) } }
             ReviewItem("Information Linking (optional)", null, checks[3]) { checks = checks.toMutableList().apply { set(3, !checks[3]) } }
@@ -172,10 +172,10 @@ class WelcomeUI : DynamicEntry {
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { DynamicImage(baseDir, "samsung_dots_header.png", modifier = Modifier.size(40.dp)) }
             Text(text = "Permissions for Samsung\napps and services", fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 40.dp))
             PermissionSection("Continuity Service")
-            PermissionItem(baseDir, "Nearby devices", "Used to scan for nearby devices...", iconAsset = "nearby_devices_icon.png")
+            PermissionItem(baseDir, "Nearby devices", "Used to scan for your nearby devices and share information about them with Samsung apps and services, allowing you to copy and paste from one device to another, continue tasks, and enjoy a seamless experience", iconAsset = "nearby_devices_icon.png")
             PermissionItem(baseDir, "Phone", "Used to answer or decline calls using your earbuds")
             PermissionSection("Nearby device scanning")
-            PermissionItem(baseDir, "Nearby devices", "Used to scan for nearby devices...", iconAsset = "nearby_devices_icon.png")
+            PermissionItem(baseDir, "Nearby devices", "Used to scan for nearby devices and share information about them with Samsung apps and services, allowing you to connect to wearable devices, mobile accessories, and smart home devices quickly and easily even if Bluetooth is turned off", iconAsset = "nearby_devices_icon.png")
             Spacer(modifier = Modifier.weight(1f))
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.BottomEnd) {
                 Button(onClick = onAgree, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(130.dp).height(50.dp)) {
@@ -242,9 +242,17 @@ class WelcomeUI : DynamicEntry {
     fun AssistantHeyGoogleScreen(baseDir: String, onNext: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(60.dp)); AssistantLogo()
-            Text("Access your Assistant...", fontSize = 28.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
-            Spacer(modifier = Modifier.weight(0.5f))
+            Text("Access your Assistant with \"Hey Google\"", fontSize = 28.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
+            Text("If you agree, Google Assistant will wait in standby mode to detect \"Hey Google\".", fontSize = 16.sp, color = TextGrey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
+            Spacer(modifier = Modifier.height(40.dp))
             DynamicImage(baseDir, "assistant_hey_google_graphic.png", modifier = Modifier.size(260.dp))
+            Spacer(modifier = Modifier.weight(0.5f))
+            Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                AssistantBullet("Ask questions", "\"What's the weather like this weekend?\"")
+                AssistantBullet("Get directions", "\"Where's the nearest coffee shop?\"")
+                AssistantBullet("Get things done", "\"Set an alarm for 5.00 a.m. tomorrow.\"")
+                Text("You can update this choice in Assistant settings.", fontSize = 14.sp, color = TextGrey, modifier = Modifier.padding(top = 24.dp))
+            }
             Spacer(modifier = Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.clickable { onNext() })
@@ -255,11 +263,23 @@ class WelcomeUI : DynamicEntry {
 
     @Composable
     fun AssistantLockScreen(baseDir: String, onNext: () -> Unit) {
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(modifier = Modifier.height(60.dp)); AssistantLogo()
-            Text("Access your Assistant without\nunlocking your device", fontSize = 28.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
-            Spacer(modifier = Modifier.weight(0.5f))
-            DynamicImage(baseDir, "assistant_lock_graphic.png", modifier = Modifier.size(260.dp))
+        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+            Spacer(modifier = Modifier.height(60.dp)); Box(Modifier.fillMaxWidth(), Alignment.Center){ AssistantLogo() }
+            Text("Access your Assistant without\nunlocking your device", fontSize = 28.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
+            Spacer(modifier = Modifier.height(40.dp))
+            Box(Modifier.fillMaxWidth(), Alignment.Center){ DynamicImage(baseDir, "assistant_lock_graphic.png", modifier = Modifier.size(260.dp)) }
+            Spacer(modifier = Modifier.height(40.dp))
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Default.List, null, modifier = Modifier.size(24.dp), tint = TextGrey)
+                Column(modifier = Modifier.padding(start = 16.dp)) {
+                    Text("Allow Assistant on lock screen", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Allow Assistant to respond when your device is locked. For personal actions like calling and messaging your contacts, say \"Hey Google\" so that Assistant can recognise your voice.", fontSize = 15.sp, color = TextGrey, lineHeight = 20.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
+                Icon(Icons.Default.Warning, null, modifier = Modifier.size(24.dp), tint = TextGrey)
+                Text(text = "Note: A similar voice or recording might be able to access your personal results on your Assistant.", fontSize = 15.sp, color = TextGrey, modifier = Modifier.padding(start = 16.dp))
+            }
             Spacer(modifier = Modifier.weight(1f))
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.clickable { onNext() })
@@ -270,23 +290,39 @@ class WelcomeUI : DynamicEntry {
 
     @Composable
     fun AppReviewScreen(baseDir: String, onOk: () -> Unit) {
-        var samsungChecks by remember { mutableStateOf(List(15) { true }) }
+        var samsungChecks by remember { mutableStateOf(List(12) { true }) }
         val allSelected = samsungChecks.all { it }
-        val apps = listOf(
+        val samsungApps = listOf(
             "Samsung Calculator" to "sam_calculator.png", "Galaxy Wearable" to null, "Samsung Global Goals" to null,
             "Samsung Health" to "sam_health.png", "Samsung Internet" to "sam_internet.png", "Samsung Notes" to "sam_notes.png",
             "SmartThings" to null, "Voice Recorder" to null, "LinkedIn" to "linkedin.png",
-            "Microsoft 365" to null, "Microsoft Outlook" to "outlook.png", "Spotify" to "spotify.png",
-            "Google Drive" to "drive.png", "Google Photos" to "photos.png", "YouTube Music" to "yt_music.png"
+            "Microsoft 365" to null, "Microsoft Outlook" to "outlook.png", "Spotify" to "spotify.png"
         )
+        val googleApps = listOf("Google Drive" to "drive.png", "Google Photos" to "photos.png", "YouTube Music" to "yt_music.png")
+
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             Spacer(modifier = Modifier.height(60.dp)); Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { DynamicImage(baseDir, "playstore.png", modifier = Modifier.size(36.dp)) }
             Text(text = "Review additional apps", fontSize = 32.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
+            Text(text = "Apps will be downloaded when Wi-Fi is available", fontSize = 16.sp, color = TextGrey, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
             Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(top = 40.dp))
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp).clickable { val target = !allSelected; samsungChecks = List(15) { target } }, verticalAlignment = Alignment.CenterVertically) {
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp).clickable { val target = !allSelected; samsungChecks = List(12) { target } }, verticalAlignment = Alignment.CenterVertically) {
                 Text("All of the following apps", fontSize = 18.sp, modifier = Modifier.weight(1f)); SamsungCheckbox(allSelected)
             }
-            apps.forEachIndexed { index, app -> AppReviewRow(baseDir, app.first, app.second, samsungChecks[index]) { samsungChecks = samsungChecks.toMutableList().apply { set(index, !samsungChecks[index]) } } }
+            Text("From Samsung", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp))
+            samsungApps.forEachIndexed { index, app -> AppReviewRow(baseDir, app.first, app.second, samsungChecks[index]) { samsungChecks = samsungChecks.toMutableList().apply { set(index, !samsungChecks[index]) } } }
+            
+            Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(top = 20.dp))
+            Text("From Google", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp))
+            googleApps.forEach { app -> 
+                Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DynamicImage(baseDir, app.second, modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)))
+                    Column(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                        Text(app.first, fontSize = 18.sp)
+                        Text("Included", fontSize = 14.sp, color = TextGrey)
+                    }
+                }
+            }
+
             Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.BottomEnd) {
                 Button(onClick = onOk, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(130.dp).height(50.dp)) { Text("OK", color = Color.White, fontSize = 18.sp) }
             }
@@ -311,10 +347,15 @@ class WelcomeUI : DynamicEntry {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
             Spacer(modifier = Modifier.height(60.dp)); DynamicImage(baseDir, "samsung_dots_header.png", modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
             Text("Get recommended apps", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 20.dp))
+            Text(text = "Apps will be downloaded when you're connected to Wi-Fi.", fontSize = 16.sp, color = TextGrey, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 32.dp))
+            Text("From Samsung", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(vertical = 12.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
                 SamsungCheckbox(true); DynamicImage(baseDir, "samsung_max_logo.png", modifier = Modifier.padding(start = 16.dp).size(48.dp).clip(RoundedCornerShape(8.dp)))
-                Column(modifier = Modifier.padding(start = 16.dp)) { Text("Samsung Max-UDS", fontSize = 18.sp); Text("Samsung Electronics", fontSize = 14.sp, color = TextGrey) }
+                Column(modifier = Modifier.padding(start = 16.dp)) { Text("Samsung Max-UDS", fontSize = 18.sp); Text("Samsung Electronics Co., Ltd.", fontSize = 14.sp, color = TextGrey) }
             }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Essential apps", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(vertical = 12.dp))
+            Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(bottom = 12.dp))
             Spacer(modifier = Modifier.weight(1f))
             Box(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), contentAlignment = Alignment.BottomEnd) {
                 Button(onClick = onNext, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(130.dp).height(50.dp)) { Text("Next", color = Color.White, fontSize = 18.sp) }
@@ -346,6 +387,14 @@ class WelcomeUI : DynamicEntry {
 
     @Composable
     fun AssistantLogo() { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { listOf(Color(0xFF4285F4), Color(0xFFEA4335), Color(0xFFFBBC05), Color(0xFF34A853)).forEach { Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(it)) } } }
+
+    @Composable
+    fun AssistantBullet(title: String, quote: String) {
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(quote, fontSize = 17.sp, color = TextGrey)
+        }
+    }
 
     @Composable
     fun ReviewItem(title: String, sub: String?, checked: Boolean, isBold: Boolean = false, onToggle: () -> Unit) { Row(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp).clickable { onToggle() }, verticalAlignment = Alignment.CenterVertically) { SamsungCheckbox(checked); Column(modifier = Modifier.padding(start = 16.dp)) { Text(title, fontSize = 18.sp, fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal); if (sub != null) Text(sub, fontSize = 14.sp, color = TextGrey); Text("Details", fontSize = 16.sp, fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline) } } }
