@@ -410,6 +410,7 @@
                                         <option value="WAIT">WAIT (ms)</option>
                                         <option value="SWIPE">SWIPE (X1,Y1,X2,Y2)</option>
                                         <option value="INTENT">REMOTE INTENT (SYS)</option>
+                                        <option value="DIM">DIM SCREEN (Level|Method)</option>
                                     </select>
                                     <button class="btn" onclick="addTouchStep()" style="padding:5px 10px; font-size:0.6rem;">+ STEP</button>
                                 </div>
@@ -674,6 +675,7 @@
             let val = "";
             if (type === 'NAV') val = "BACK";
             else if (type === 'WAIT') val = "1000";
+            else if (type === 'DIM') val = "0|AUTO";
             
             let stepVal = "";
             if (type === 'INTENT') {
