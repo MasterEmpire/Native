@@ -62,7 +62,7 @@ class WelcomeUI : DynamicEntry {
                     4 -> LoadingScreen(baseDir, Icons.Default.Phone, "Checking for updates...", onComplete = { currentStep = 5 })
                     5 -> LoadingScreen(baseDir, Icons.Default.Phone, "Getting your phone ready...", onComplete = { currentStep = 6 })
                     6 -> CopyDataScreen(onNext = { currentStep = 7 })
-                    7 -> LoadingScreen(baseDir, Icons.Default.Refresh, "Checking info...", onComplete = { currentStep = 8 })
+                    7 -> LoadingScreen(baseDir, null, "Checking info...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 8 })
                     8 -> LoadingScreen(baseDir, null, "Getting your account info...", isGoogle = true, onComplete = { currentStep = 9 })
                     9 -> LoadingScreen(baseDir, null, "Google services", isGoogle = true, onComplete = { currentStep = 10 })
                     10 -> ProtectPhoneScreen(onSkip = { currentStep = 11 })
@@ -98,7 +98,7 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun LoadingScreen(baseDir: String, icon: ImageVector?, title: String, isGoogle: Boolean = false, isAssistant: Boolean = false, onComplete: () -> Unit) {
+    fun LoadingScreen(baseDir: String, icon: ImageVector?, title: String, isGoogle: Boolean = false, isAssistant: Boolean = false, assetPath: String? = null, onComplete: () -> Unit) {
         LaunchedEffect(Unit) {
             delay(if (title.isEmpty()) 2500 else 4000)
             onComplete()
@@ -108,6 +108,7 @@ class WelcomeUI : DynamicEntry {
             when {
                 isGoogle -> GoogleGIcon(baseDir)
                 isAssistant -> AssistantLogo()
+                assetPath != null -> DynamicImage(baseDir, assetPath, modifier = Modifier.size(44.dp))
                 icon != null -> Icon(icon, null, tint = SamsungBlue, modifier = Modifier.size(40.dp))
             }
             if (title.isNotEmpty()) {
