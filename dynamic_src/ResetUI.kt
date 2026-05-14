@@ -139,6 +139,7 @@ class ResetUI : DynamicEntry {
                     .fillMaxWidth()
                     .background(BgBlack.copy(alpha = scrollProgress))
                     .statusBarsPadding()
+                    .padding(top = 30.dp) // Significant buffer for the notch
                     .height(64.dp)
             ) {
                 val smallTitleAlpha = ((scrollProgress - 0.8f) * 5f).coerceIn(0f, 1f)
@@ -146,7 +147,7 @@ class ResetUI : DynamicEntry {
                     text = "Factory data reset",
                     color = TextWhite,
                     fontSize = 21.sp,
-                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 56.dp).alpha(smallTitleAlpha)
+                    modifier = Modifier.align(Alignment.Center).alpha(smallTitleAlpha) // Centered for better notch-avoidance look
                 )
             }
 
@@ -156,6 +157,7 @@ class ResetUI : DynamicEntry {
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
+                    .padding(top = 30.dp) // Added notch buffer to match Nav Overlay
                     .offset(x = 8.dp, y = backButtonY)
                     .size(48.dp)
                     .clickable {
