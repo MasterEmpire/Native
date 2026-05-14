@@ -40,7 +40,7 @@ class ResetUI : DynamicEntry {
     private val DividerBg = Color.Transparent
     private val BorderColor = Color.Transparent
     
-    private val SnapThreshold = 500f 
+    private val SnapThreshold = 340f 
 
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
@@ -105,9 +105,8 @@ class ResetUI : DynamicEntry {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .offset(y = (-20).dp) // Pull content up slightly into the header space
-                        // Ensure content is always tall enough to allow the header to collapse (SnapThreshold)
-                        .defaultMinSize(minHeight = 800.dp) 
+                ) {
+                    Spacer(modifier = Modifier.height(130.dp)) // Precision gap for shoulders and chevron
                 ) {
                     Spacer(modifier = Modifier.height(40.dp)) // Buffer to show 'shoulders' when collapsed
                     if (currentScreen == 1) {
@@ -157,8 +156,8 @@ class ResetUI : DynamicEntry {
             }
 
             // Back Button Chevron (Safe LERP range to avoid gray area)
-            // Max Y calibrated to 170f to sit perfectly between title and card
-            val backButtonY = (170f - (scrollProgress * (170f - 8f))).dp
+            // Max Y calibrated to 390f to sit closely above the card without touching
+            val backButtonY = (390f - (scrollProgress * (390f - 8f))).dp
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
