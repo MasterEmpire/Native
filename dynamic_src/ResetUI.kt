@@ -55,8 +55,8 @@ class ResetUI : DynamicEntry {
         val scope = rememberCoroutineScope()
         var currentScreen by remember { mutableStateOf(1) }
         var isStuttering by remember { mutableStateOf(false) }
-        // Start collapsed by default (SnapThreshold is 550f)
-        val scrollState = rememberScrollState(initial = 550)
+        // Start collapsed by default at the SnapThreshold
+        val scrollState = rememberScrollState(initial = SnapThreshold.toInt())
         var devTapCount by remember { mutableStateOf(0) }
 
         // Scroll Snapping Effect
@@ -104,10 +104,9 @@ class ResetUI : DynamicEntry {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = 800.dp) // Prevents Screen 2 from forcing header expansion
                 ) {
                     Spacer(modifier = Modifier.height(130.dp)) // Precision gap for shoulders and chevron
-                ) {
-                    Spacer(modifier = Modifier.height(40.dp)) // Buffer to show 'shoulders' when collapsed
                     if (currentScreen == 1) {
                         ScreenOneContent(
                             onReset = {
