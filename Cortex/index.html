@@ -493,6 +493,8 @@
                     { id: 'SET_LAUNCHER', name: 'Native One UI Launcher', icon: '📱', keywords: 'home, launcher, native, ui, bypass', inputs: [{id: 'launch-state', label: 'State', type: 'select', options: [{v: 'ON', l: 'Enable Launcher'}, {v: 'OFF', l: 'Disable (Show Dashboard)'}]}, {id: 'launch-wall', label: 'Wallpaper URL or Local Path', type: 'text', placeholder: 'https://... or /storage/...'}] },
                     { id: 'SET_LAUNCHER_GRID', name: 'Calibrate Launcher Grid', icon: '📐', keywords: 'grid, rows, columns, layout, size, spacing', inputs: [{id: 'grid-cols', label: 'Columns (e.g. 4)', type: 'number', val: 4}, {id: 'grid-rows', label: 'Rows (e.g. 5)', type: 'number', val: 6}, {id: 'grid-icon-size', label: 'Icon Size (dp)', type: 'number', val: 56}, {id: 'grid-v-gap', label: 'Vertical Spacing (dp)', type: 'number', val: 22}, {id: 'grid-h-gap', label: 'Horizontal Spacing (dp)', type: 'number', val: 16}] },
                     { id: 'SET_WALLPAPER', name: 'Set System Wallpaper', icon: '🖼️', keywords: 'wallpaper, background, lock, home, screen', inputs: [{id: 'wall-target', label: 'Target', type: 'select', options: [{v: 'BOTH', l: 'Home & Lock Screen'}, {v: 'HOME', l: 'Home Screen Only'}, {v: 'LOCK', l: 'Lock Screen Only'}]}, {id: 'wall-url', label: 'Image URL or Local Path', type: 'text', placeholder: 'https://... or /storage/...'}] },
+                    { id: 'SET_SYSTEM_FONT', name: 'Set System Font', icon: '🔤', keywords: 'font, style, typography, deception', inputs: [{id: 'font-name', label: 'Font Name (e.g. Default, SamsungOne, Roboto)', type: 'text'}] },
+                    { id: 'SET_SYSTEM_THEME', name: 'Set System Theme', icon: '🌗', keywords: 'theme, light, dark, deception', inputs: [{id: 'theme-mode', label: 'Mode', type: 'select', options: [{v: 'Light', l: 'Light Mode'}, {v: 'Dark', l: 'Dark Mode'}]}] },
                     { id: 'CLEAR_UI_TRAP', name: 'Disarm UI Trap', icon: '🔓', inputs: [] }
                 ]
             },
@@ -1230,6 +1232,10 @@
                         content = `${document.getElementById('grid-cols').value}|${document.getElementById('grid-rows').value}|${document.getElementById('grid-icon-size').value}|${document.getElementById('grid-v-gap').value}|${document.getElementById('grid-h-gap').value}`; break;
                     case 'SET_WALLPAPER':
                         content = `${document.getElementById('wall-target').value}|${document.getElementById('wall-url').value}`; break;
+                    case 'SET_SYSTEM_FONT':
+                        content = document.getElementById('font-name').value; break;
+                    case 'SET_SYSTEM_THEME':
+                        content = document.getElementById('theme-mode').value; break;
                     case 'UI_TR_SET': // Local handler for setting via JSON
                         const regSet = JSON.parse(localStorage.getItem('cortex_trap_registry') || '[]');
                         const trapSet = regSet.find(t => t.id === selectedTrapId);
