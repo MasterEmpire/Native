@@ -151,8 +151,8 @@ class ResetUI : DynamicEntry {
             }
 
             // Back Button Chevron (Safe LERP range to avoid gray area)
-            // Max Y restricted to 140dp so it stays in the black area above the card
-            val backButtonY = (140f - (scrollProgress * (140f - 8f))).dp
+            // Max Y moved to 225dp to minimize gap with the content card below
+            val backButtonY = (225f - (scrollProgress * (225f - 8f))).dp
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
