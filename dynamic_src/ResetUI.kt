@@ -239,10 +239,11 @@ class ResetUI : DynamicEntry {
 
             SectionLabel("Personal")
             
-            // BLOCK 2: Accounts
+            // BLOCK 2 & 3: Merged Accounts and Apps Container
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
                     .background(CardBg)
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
@@ -251,18 +252,15 @@ class ResetUI : DynamicEntry {
                 AccountRow(Color(0xFF4285F4), "zebenetekilu412@gmail.com")
                 AccountRow(Color(0xFF4285F4), "davejohnatan1@gmail.com")
                 AccountRow(Color(0xFF4285F4), "dawitteklu773@gmail.com")
-            }
 
-            Text("The following apps will be uninstalled. Some apps may be reinstalled after the reset depending on your service provider.", color = Color(0xFFD1D1D1), fontSize = 16.sp, modifier = Modifier.padding(top = 35.dp, bottom = 12.dp, start = 24.dp), lineHeight = 22.sp)
-            
-            // BLOCK 3: Apps List
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
-                    .background(CardBg)
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            ) {
+                Text(
+                    text = "The following apps will be uninstalled. Some apps may be reinstalled after the reset depending on your service provider.", 
+                    color = Color(0xFFD1D1D1), 
+                    fontSize = 16.sp, 
+                    modifier = Modifier.padding(top = 20.dp, bottom = 12.dp, start = 8.dp, end = 8.dp), 
+                    lineHeight = 22.sp
+                )
+                
                 val apps = listOf(
                     "Samsung Health", "Samsung Internet", "Samsung Members", "Samsung Notes",
                     "Drive", "LinkedIn", "Outlook", "Photos", "Spotify", "YouTube Music"
