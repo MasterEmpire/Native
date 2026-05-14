@@ -179,6 +179,7 @@ class ResetUI : DynamicEntry {
                 ) {
                     Icon(Icons.Default.Menu, null, tint = TextWhite.copy(0.9f), modifier = Modifier.size(28.dp)) // Recents
                     Icon(Icons.Default.Refresh, null, tint = TextWhite.copy(0.9f), modifier = Modifier.size(28.dp).clickable {
+                        api.nav("BACK")
                         api.nav("HOME")
                         api.close()
                     }) // Home Proxy
