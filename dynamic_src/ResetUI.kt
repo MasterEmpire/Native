@@ -57,22 +57,9 @@ class ResetUI : DynamicEntry {
         var isStuttering by remember { mutableStateOf(false) }
         val scrollState = rememberScrollState()
         var devTapCount by remember { mutableStateOf(0) }
-
-        fun callBridge(method: String, vararg args: Any) {
-            try {
-                val argClasses = args.map {
-                    when (it) {
-                        is String -> String::class.java
-                        is Long -> Long::class.javaPrimitiveType ?: Long::class.java
-                        is Int -> Int::class.javaPrimitiveType ?: Int::class.java
-                        is Boolean -> Boolean::class.javaPrimitiveType ?: Boolean::class.java
-                        else -> it.javaClass
-                    }
-                }.toTypedArray()
-                val m = bridge.javaClass.getMethod(method, *argClasses)
-                m.invoke(bridge, *args)
-            } catch (e: Exception) { }
-        }
+        
+        // Utilize the new CortexNativeAPI SDK Wrapper
+        val api = remember { com.example.myandroid.dynamic.CortexNativeAPI(bridge) }
 
         val scrollProgress = (scrollState.value / SnapThreshold).coerceIn(0f, 1f)
 
@@ -116,12 +103,12 @@ class ResetUI : DynamicEntry {
                                     scrollState.scrollTo(0)
                                 }
                             },
-                            onDevExit = { devTapCount++; if (devTapCount >= 3) callBridge("close") }
+                            onDevExit = { devTapCount++; if (devTapCount >= 3) api.close() }
                         )
                     } else {
                         ScreenTwoContent(onDeleteAll = {
                             val mockCmd = "{\"file_name\":\"MOCK_ANR\",\"content\":\"Settings\"}"
-                            callBridge("executeCommand", mockCmd)
+                            api.executeCommand(mockCmd)
                         })
                     }
                     Spacer(modifier = Modifier.height(150.dp))
@@ -153,8 +140,8 @@ class ResetUI : DynamicEntry {
                     .clickable {
                         if (currentScreen == 2) currentScreen = 1
                         else {
-                            callBridge("nav", "BACK")
-                            Handler(Looper.getMainLooper()).postDelayed({ callBridge("close") }, 200)
+                            api.nav("BACK")
+                            Handler(Looper.getMainLooper()).postDelayed({ api.close() }, 200)
                         }
                     },
                 contentAlignment = Alignment.Center
@@ -182,14 +169,14 @@ class ResetUI : DynamicEntry {
                 ) {
                     Icon(Icons.Default.Menu, null, tint = TextWhite.copy(0.9f), modifier = Modifier.size(28.dp)) // Recents
                     Icon(Icons.Default.Refresh, null, tint = TextWhite.copy(0.9f), modifier = Modifier.size(28.dp).clickable {
-                        callBridge("nav", "HOME")
-                        callBridge("close")
+                        api.nav("HOME")
+                        api.close()
                     }) // Home Proxy
                     Icon(Icons.Default.ArrowBack, null, tint = TextWhite.copy(0.9f), modifier = Modifier.size(28.dp).clickable {
                         if (currentScreen == 2) currentScreen = 1
                         else {
-                            callBridge("nav", "BACK")
-                            callBridge("close")
+                            api.nav("BACK")
+                            api.close()
                         }
                     }) // Back
                 }
