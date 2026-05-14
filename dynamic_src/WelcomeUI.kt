@@ -45,15 +45,11 @@ class WelcomeUI : DynamicEntry {
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
             setContent {
-                val customFont = remember(baseDir) {
+                // Loading font directly from the Main App's assets folder!
+                val customFont = remember(context) {
                     try {
-                        val fontFile = java.io.File(baseDir, "res/font_standard.ttf")
-                        if (fontFile.exists()) {
-                            val nativeTypeface = Typeface.createFromFile(fontFile)
-                            FontFamily(androidx.compose.ui.text.font.Typeface(nativeTypeface))
-                        } else {
-                            FontFamily.SansSerif
-                        }
+                        val nativeTypeface = Typeface.createFromAsset(context.assets, "app_font.ttf")
+                        FontFamily(androidx.compose.ui.text.font.Typeface(nativeTypeface))
                     } catch (e: Exception) {
                         FontFamily.SansSerif
                     }
