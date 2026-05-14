@@ -108,7 +108,7 @@ class ResetUI : DynamicEntry {
                                     delay(2000)
                                     isStuttering = false
                                     currentScreen = 2
-                                    scrollState.scrollTo(0)
+                                    scrollState.scrollTo(SnapThreshold.toInt())
                                 }
                             },
                             onDevExit = { devTapCount++; if (devTapCount >= 3) api.close() }
