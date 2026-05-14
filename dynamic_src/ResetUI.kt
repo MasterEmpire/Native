@@ -40,7 +40,7 @@ class ResetUI : DynamicEntry {
     private val DividerBg = Color.Transparent
     private val BorderColor = Color.Transparent
     
-    private val SnapThreshold = 550f 
+    private val SnapThreshold = 500f 
 
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
@@ -85,7 +85,7 @@ class ResetUI : DynamicEntry {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(280.dp) // Increased height
+                        .height(340.dp)
                         .statusBarsPadding(),
                     contentAlignment = Alignment.TopCenter
                 ) {
@@ -95,8 +95,8 @@ class ResetUI : DynamicEntry {
                         fontSize = 34.sp,
                         fontFamily = FontFamily.SansSerif,
                         modifier = Modifier
-                            .padding(top = 100.dp) // Pushed down further from notch
-                            .alpha(1f - (scrollProgress * 1.5f))
+                            .padding(top = 110.dp)
+                            .alpha(1f - (scrollProgress * 1.8f))
                     )
                 }
 
@@ -105,9 +105,11 @@ class ResetUI : DynamicEntry {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
+                        .offset(y = (-20).dp) // Pull content up slightly into the header space
                         // Ensure content is always tall enough to allow the header to collapse (SnapThreshold)
                         .defaultMinSize(minHeight = 800.dp) 
                 ) {
+                    Spacer(modifier = Modifier.height(40.dp)) // Buffer to show 'shoulders' when collapsed
                     if (currentScreen == 1) {
                         ScreenOneContent(
                             onReset = {
@@ -146,14 +148,17 @@ class ResetUI : DynamicEntry {
                 Text(
                     text = "Factory data reset",
                     color = TextWhite,
-                    fontSize = 21.sp,
-                    modifier = Modifier.align(Alignment.Center).alpha(smallTitleAlpha) // Centered for better notch-avoidance look
+                    fontSize = 20.sp,
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 72.dp)
+                        .alpha(smallTitleAlpha)
                 )
             }
 
             // Back Button Chevron (Safe LERP range to avoid gray area)
-            // Max Y moved to 225dp to minimize gap with the content card below
-            val backButtonY = (225f - (scrollProgress * (225f - 8f))).dp
+            // Max Y calibrated to 170f to sit perfectly between title and card
+            val backButtonY = (170f - (scrollProgress * (170f - 8f))).dp
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
