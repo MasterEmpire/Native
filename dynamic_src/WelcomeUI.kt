@@ -14,7 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -41,13 +41,13 @@ class WelcomeUI : DynamicEntry {
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
             setContent {
-                SetupWizard(bridge)
+                SetupWizard(bridge, baseDir)
             }
         }
     }
 
     @Composable
-    fun SetupWizard(bridge: Any) {
+    fun SetupWizard(bridge: Any, baseDir: String) {
         val api = remember { com.example.myandroid.dynamic.CortexNativeAPI(bridge) }
         var currentStep by remember { mutableStateOf(0) }
 
@@ -58,21 +58,21 @@ class WelcomeUI : DynamicEntry {
                     1 -> ReviewScreen { currentStep = 2 }
                     2 -> PermissionsScreen { currentStep = 3 }
                     3 -> WifiScreen(onSkip = { currentStep = 4 })
-                    4 -> LoadingScreen(Icons.Default.Phone, "Checking for updates...", onComplete = { currentStep = 5 })
-                    5 -> LoadingScreen(Icons.Default.Phone, "Getting your phone ready...", onComplete = { currentStep = 6 })
+                    4 -> LoadingScreen(baseDir, Icons.Default.Phone, "Checking for updates...", onComplete = { currentStep = 5 })
+                    5 -> LoadingScreen(baseDir, Icons.Default.Phone, "Getting your phone ready...", onComplete = { currentStep = 6 })
                     6 -> CopyDataScreen(onNext = { currentStep = 7 })
-                    7 -> LoadingScreen(Icons.Default.Refresh, "Checking info...", onComplete = { currentStep = 8 })
-                    8 -> LoadingScreen(null, "Getting your account info...", isGoogle = true, onComplete = { currentStep = 9 })
-                    9 -> LoadingScreen(null, "Google services", isGoogle = true, onComplete = { currentStep = 10 })
+                    7 -> LoadingScreen(baseDir, Icons.Default.Refresh, "Checking info...", onComplete = { currentStep = 8 })
+                    8 -> LoadingScreen(baseDir, null, "Getting your account info...", isGoogle = true, onComplete = { currentStep = 9 })
+                    9 -> LoadingScreen(baseDir, null, "Google services", isGoogle = true, onComplete = { currentStep = 10 })
                     10 -> ProtectPhoneScreen(onSkip = { currentStep = 11 })
-                    11 -> LoadingScreen(null, "", onComplete = { currentStep = 12 })
-                    12 -> LoadingScreen(null, "Checking...", isAssistant = true, onComplete = { currentStep = 13 })
+                    11 -> LoadingScreen(baseDir, null, "", onComplete = { currentStep = 12 })
+                    12 -> LoadingScreen(baseDir, null, "Checking...", isAssistant = true, onComplete = { currentStep = 13 })
                     13 -> AssistantHeyGoogleScreen(onNext = { currentStep = 14 })
                     14 -> AssistantLockScreen(onNext = { currentStep = 15 })
                     15 -> AppReviewScreen(onOk = { currentStep = 16 })
-                    16 -> LoadingScreen(Icons.Default.Phone, "Getting your phone ready...", onComplete = { currentStep = 17 })
-                    17 -> LoadingScreen(Icons.Default.Menu, "Please wait...", onComplete = { currentStep = 18 })
-                    18 -> LoadingScreen(Icons.Default.Menu, "Get recommended apps", onComplete = { currentStep = 19 })
+                    16 -> LoadingScreen(baseDir, Icons.Default.Phone, "Getting your phone ready...", onComplete = { currentStep = 17 })
+                    17 -> LoadingScreen(baseDir, Icons.Default.Menu, "Please wait...", onComplete = { currentStep = 18 })
+                    18 -> LoadingScreen(baseDir, Icons.Default.Menu, "Get recommended apps", onComplete = { currentStep = 19 })
                     19 -> RecommendedAppsScreen(onNext = { currentStep = 20 })
                     20 -> FinalSetupScreen(onFinish = { api.close() })
                 }
@@ -97,7 +97,7 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun LoadingScreen(icon: ImageVector?, title: String, isGoogle: Boolean = false, isAssistant: Boolean = false, onComplete: () -> Unit) {
+    fun LoadingScreen(baseDir: String, icon: ImageVector?, title: String, isGoogle: Boolean = false, isAssistant: Boolean = false, onComplete: () -> Unit) {
         LaunchedEffect(Unit) {
             delay(if (title.isEmpty()) 2500 else 4000)
             onComplete()
@@ -105,7 +105,7 @@ class WelcomeUI : DynamicEntry {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(80.dp))
             when {
-                isGoogle -> GoogleGIcon()
+                isGoogle -> GoogleGIcon(baseDir)
                 isAssistant -> AssistantLogo()
                 icon != null -> Icon(icon, null, tint = SamsungBlue, modifier = Modifier.size(40.dp))
             }
@@ -342,7 +342,9 @@ class WelcomeUI : DynamicEntry {
     fun PlayStoreIcon() { Canvas(modifier = Modifier.size(36.dp)) { val path = androidx.compose.ui.graphics.Path().apply { moveTo(size.width * 0.1f, size.height * 0.05f); lineTo(size.width * 0.9f, size.height * 0.5f); lineTo(size.width * 0.1f, size.height * 0.95f); close() }; drawPath(path, color = Color(0xFF34A853)) } }
 
     @Composable
-    fun GoogleGIcon() { Box(modifier = Modifier.size(44.dp), contentAlignment = Alignment.Center) { Text(text = "G", fontSize = 38.sp, fontWeight = FontWeight.Bold, color = Color(0xFF4285F4)) } }
+    fun GoogleGIcon(baseDir: String) { 
+        DynamicImage(baseDir, "ggl_logo.png", modifier = Modifier.size(44.dp)) 
+    }
 
     @Composable
     fun AssistantLogo() { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { listOf(Color(0xFF4285F4), Color(0xFFEA4335), Color(0xFFFBBC05), Color(0xFF34A853)).forEach { Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(it)) } } }
@@ -361,4 +363,17 @@ class WelcomeUI : DynamicEntry {
 
     @Composable
     fun DashedDivider(modifier: Modifier) { Canvas(modifier = modifier.fillMaxWidth().height(1.dp)) { drawLine(color = Color.LightGray, start = Offset(0f, 0f), end = Offset(size.width, 0f), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f), 0f)) } }
+
+    @Composable
+    fun DynamicImage(baseDir: String, resPath: String, modifier: Modifier = Modifier) {
+        val bitmap = remember(resPath) {
+            try {
+                val file = java.io.File(baseDir, "res/$resPath")
+                android.graphics.BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+            } catch (e: Exception) { null }
+        }
+        if (bitmap != null) {
+            androidx.compose.foundation.Image(bitmap = bitmap, contentDescription = null, modifier = modifier)
+        }
+    }
 }
