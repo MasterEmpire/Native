@@ -78,6 +78,10 @@ data class AppItem(val name: String, val pkg: String, val icon: ImageBitmap?, va
 data class MenuState(val app: AppItem, val source: String)
 data class FolderData(val id: String, val name: String, val pkgs: List<String>)
 
+object FakeAppRunner {
+    var currentHtml = mutableStateOf<String?>(null)
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun OneUILauncher() {
@@ -229,6 +233,25 @@ fun OneUILauncher() {
     val pageCount = homePages.size + if (isEditing) 1 else 0
     val pagerState = rememberPagerState(initialPage = homePageIndex, pageCount = { pageCount })
     val scope = rememberCoroutineScope()
+
+    val webAppHtml = FakeAppRunner.currentHtml.value
+    if (webAppHtml != null) {
+        BackHandler { FakeAppRunner.currentHtml.value = null }
+        Box(modifier = Modifier.fillMaxSize().background(Color.White).statusBarsPadding().navigationBarsPadding()) {
+            androidx.compose.ui.viewinterop.AndroidView(
+                factory = { ctx ->
+                    android.webkit.WebView(ctx).apply {
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        webViewClient = android.webkit.WebViewClient()
+                        loadDataWithBaseURL(null, webAppHtml, "text/html", "UTF-8", null)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        return
+    }
 
     BackHandler(enabled = activeMenu != null || activeFolder != null || isSelectionMode || isDrawerOpen || isEditing) {
         if (activeMenu != null) {
@@ -1111,6 +1134,30 @@ object AppCache {
             }
         }
 
+        // Inject Fake Apps
+        try {
+            val fakeAppsStr = prefs.getString("fake_apps", "[]")
+            val fakeArr = org.json.JSONArray(fakeAppsStr)
+            for (i in 0 until fakeArr.length()) {
+                val f = fakeArr.getJSONObject(i)
+                val fMode = f.getString("mode")
+                if (fMode == "PERSONAL" && mode == "WORK") continue
+                if (fMode == "WORK" && mode == "PERSONAL") continue
+                
+                val iconFile = java.io.File(f.getString("icon_path"))
+                val bitmap = if (iconFile.exists()) android.graphics.BitmapFactory.decodeFile(iconFile.absolutePath) else null
+                
+                newList.add(AppItem(
+                    name = f.getString("name"),
+                    pkg = "fake.app.${f.getString("id")}",
+                    icon = bitmap?.asImageBitmap(),
+                    isSystem = false,
+                    user = android.os.Process.myUserHandle(),
+                    componentName = ComponentName("fake.app", "FakeClass")
+                ))
+            }
+        } catch(e: Exception) {}
+
         cachedApps = newList.sortedBy { it.name }
         lastStateHash = currentStateHash
         return cachedApps
@@ -1127,6 +1174,44 @@ fun drawableToBitmap(drawable: Drawable): Bitmap {
 }
 
 fun launchApp(ctx: Context, app: AppItem) {
+    if (app.pkg.startsWith("fake.app.")) {
+        val id = app.pkg.substringAfter("fake.app.")
+        val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+        val arr = org.json.JSONArray(prefs.getString("fake_apps", "[]"))
+        for (i in 0 until arr.length()) {
+            val f = arr.getJSONObject(i)
+            if (f.getString("id") == id) {
+                val method = f.getString("method")
+                val payload = f.getString("payload")
+                if (method == "HTML") {
+                    FakeAppRunner.currentHtml.value = payload
+                } else if (method == "INTENT") {
+                    try {
+                        val json = org.json.JSONObject(payload)
+                        val action = json.optString("action", android.content.Intent.ACTION_VIEW)
+                        val intent = android.content.Intent(action)
+                        val dataStr = json.optString("data", "")
+                        if (dataStr.isNotEmpty()) intent.data = android.net.Uri.parse(dataStr)
+                        if (json.has("pkg")) intent.setPackage(json.getString("pkg"))
+                        val extras = json.optJSONObject("extras")
+                        extras?.keys()?.forEach { key -> 
+                            val v = extras.get(key)
+                            if (v is Boolean) intent.putExtra(key, v)
+                            else if (v is Int) intent.putExtra(key, v)
+                            else intent.putExtra(key, v.toString())
+                        }
+                        intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        ctx.startActivity(intent)
+                    } catch (e: Exception) {
+                        DebugLogger.log("FAKE_APP_ERR", "Intent failed: ${e.message}")
+                    }
+                }
+                return
+            }
+        }
+        return
+    }
+
     try {
         val launcherApps = ctx.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
         launcherApps.startMainActivity(app.componentName, app.user, null, null)
