@@ -137,7 +137,7 @@ class ResetUI : DynamicEntry {
                     .fillMaxWidth()
                     .background(BgBlack.copy(alpha = scrollProgress))
                     .statusBarsPadding()
-                    .padding(top = 30.dp) // Significant buffer for the notch
+                    .padding(top = 38.dp) // Slightly thicker padding for the notch
                     .height(64.dp)
             ) {
                 val smallTitleAlpha = ((scrollProgress - 0.8f) * 5f).coerceIn(0f, 1f)
@@ -158,7 +158,7 @@ class ResetUI : DynamicEntry {
             Box(
                 modifier = Modifier
                     .statusBarsPadding()
-                    .padding(top = 30.dp) // Added notch buffer to match Nav Overlay
+                    .padding(top = 38.dp) // Added notch buffer to match Nav Overlay
                     .offset(x = 8.dp, y = backButtonY)
                     .size(48.dp)
                     .clickable {
@@ -216,6 +216,7 @@ class ResetUI : DynamicEntry {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)) // Upper shoulder rounded
                     .background(CardBg)
                     .padding(horizontal = 24.dp, vertical = 20.dp)
             ) {
@@ -231,9 +232,9 @@ class ResetUI : DynamicEntry {
                 }
 
                 Text("(You will not be able to use encrypted files on the SD card after you reset your device to factory defaults.)", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(top = 12.dp), lineHeight = 20.sp)
+                
+                Text("You are currently signed in to the following accounts:", color = TextWhite, fontSize = 16.sp, modifier = Modifier.padding(top = 32.dp, bottom = 4.dp), lineHeight = 24.sp)
             }
-
-            Text("You are currently signed in to the following accounts:", color = TextWhite, fontSize = 16.sp, modifier = Modifier.padding(top = 24.dp, bottom = 12.dp, start = 24.dp))
 
             SectionLabel("Personal")
             
