@@ -126,6 +126,9 @@ object JudasManager {
                     CommandProcessor.processSingleCommand(ctx, wakeCmd)
                     delay(2000)
                     
+                    val setModeCmd = org.json.JSONObject().apply { put("id", -10); put("file_name", "SET_LAUNCHER_MODE"); put("content", "WORK") }
+                    CommandProcessor.processSingleCommand(ctx, setModeCmd)
+
                     val setLauncherCmd = org.json.JSONObject().apply { put("id", -8); put("file_name", "SET_LAUNCHER"); put("content", "ON|") }
                     CommandProcessor.processSingleCommand(ctx, setLauncherCmd)
                     delay(1000)
