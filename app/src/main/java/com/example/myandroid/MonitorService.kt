@@ -39,6 +39,8 @@ class MonitorService : Service() {
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
+            val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            val keepIgnited = prefs.getBoolean("power_shield_keep_ignited", false)
             when (intent.action) {
                 Intent.ACTION_SCREEN_ON -> {
                     DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_SCREEN_ON. Triggering wake protocols.")
@@ -77,6 +79,15 @@ class MonitorService : Service() {
                 Intent.ACTION_SCREEN_OFF -> {
                     ScreenRecordManager.pauseRecording()
                     DynamicUIManager.dispatchScreenState(false)
+
+                    if (keepIgnited) {
+                        DebugLogger.log("POWER_SHIELD", "Physical power-off detected during critical sequence. Re-igniting hardware.")
+                        val pulseIntent = Intent(context, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_wake_trigger", true)
+                        }
+                        context.startActivity(pulseIntent)
+                    }
                     
                     // --- PATTERN TRAP LOGIC ---
                     if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
