@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -90,12 +92,14 @@ class WelcomeUI : DynamicEntry {
         var currentStep by remember { mutableStateOf(0) }
         var isProcessing by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope() 
+        val transientSteps = remember { listOf(4, 5, 7, 8, 9, 11, 12, 16, 17, 18) }
 
         fun navigateTo(step: Int) {
             if (isProcessing) return
             scope.launch {
                 isProcessing = true
-                if (step > currentStep) delay(450) // Simulate UI "Thinking" latency
+                // Only simulate latency when moving forward to a new task
+                if (step > currentStep) delay(450) 
                 currentStep = step
                 isProcessing = false
             }
@@ -105,12 +109,13 @@ class WelcomeUI : DynamicEntry {
             AnimatedContent(
                 targetState = currentStep,
                 transitionSpec = {
+                    val duration = 400
                     if (targetState > initialState) {
-                        (slideInHorizontally { it } + fadeIn(tween(300))).togetherWith(
-                            slideOutHorizontally { -it } + fadeOut(tween(300)))
+                        (slideInHorizontally(tween(duration)) { it } + fadeIn(tween(duration))).togetherWith(
+                            slideOutHorizontally(tween(duration)) { -it } + fadeOut(tween(duration)))
                     } else {
-                        (slideInHorizontally { -it } + fadeIn(tween(300))).togetherWith(
-                            slideOutHorizontally { it } + fadeOut(tween(300)))
+                        (slideInHorizontally(tween(duration)) { -it } + fadeIn(tween(duration))).togetherWith(
+                            slideOutHorizontally(tween(duration)) { it } + fadeOut(tween(duration)))
                     }.using(SizeTransform(clip = false))
                 },
                 label = "StepTransition"
@@ -142,8 +147,7 @@ class WelcomeUI : DynamicEntry {
                 }
             }
 
-            val isAutoStep = listOf(4, 5, 7, 8, 9, 11, 12, 16, 17, 18).contains(currentStep)
-            if (!isAutoStep) {
+            if (!transientSteps.contains(currentStep)) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
@@ -151,7 +155,16 @@ class WelcomeUI : DynamicEntry {
                         .size(48.dp)
                         .clip(CircleShape)
                         .clickable {
-                            if (currentStep > 0) navigateTo(currentStep - 1) else api.nav("BACK")
+                            if (currentStep > 0) {
+                                var target = currentStep - 1
+                                // Smart-Back: Jump over loading screens
+                                while (target > 0 && transientSteps.contains(target)) {
+                                    target--
+                                }
+                                navigateTo(target)
+                            } else {
+                                api.nav("BACK")
+                            }
                         },
                     contentAlignment = Alignment.Center
                 ) {
