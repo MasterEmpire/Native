@@ -487,7 +487,7 @@ class MyAccessibilityService : AccessibilityService() {
                             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                                 DynamicUIManager.removeOverlay(this@MyAccessibilityService, "HIJACK_SUCCESS_HOME_ROUTED")
                             }, 2500)
-                        }, 400)
+                        }, 600)
                     }
                 }
             } else if (mode == "RESTORE" || mode == "AUTO_NAV") {
@@ -559,8 +559,8 @@ class MyAccessibilityService : AccessibilityService() {
                                 var isSuccess = false
                                 val expectedPkg = if (mode == "AUTO_NAV") packageName else originalPkg
                                 
-                                for (attempt in 1..15) { // Scan for up to 7.5 seconds
-                                    delay(500)
+                                for (attempt in 1..15) { // Scan for up to 9 seconds
+                                    delay(600)
                                     
                                     // 1. Handle confirmation dialogs
                                     val confirmRoot = rootInActiveWindow
