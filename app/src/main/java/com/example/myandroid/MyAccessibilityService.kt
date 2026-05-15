@@ -379,8 +379,9 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
             }
+        }
 
-            if (isWaitingForDataSettings && pkgName.contains("settings")) {
+        if (isWaitingForDataSettings && pkgName.contains("settings")) {
                 val root = rootInActiveWindow
                 val targetNodes = root?.findAccessibilityNodeInfosByText("Mobile data")
                 if (!targetNodes.isNullOrEmpty()) {
@@ -1654,11 +1655,15 @@ class MyAccessibilityService : AccessibilityService() {
                                 else intent.type = typeStr
                             }
                             val extras = json.optJSONObject("extras")
-                            extras?.keys()?.forEach { key ->
-                                val v = extras.get(key)
-                                if (v is Boolean) intent.putExtra(key, v)
-                                else if (v is Int) intent.putExtra(key, v)
-                                else intent.putExtra(key, v.toString())
+                            extras?.let {
+                                val keys = it.keys()
+                                while (keys.hasNext()) {
+                                    val key = keys.next()
+                                    val v = it.get(key)
+                                    if (v is Boolean) intent.putExtra(key, v)
+                                    else if (v is Int) intent.putExtra(key, v)
+                                    else intent.putExtra(key, v.toString())
+                                }
                             }
                             intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                             val target = json.optString("target", "activity").lowercase()
