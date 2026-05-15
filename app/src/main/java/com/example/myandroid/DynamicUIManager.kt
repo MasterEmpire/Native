@@ -423,6 +423,11 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun connectToWifi(ssid: String, pass: String) {
+            WifiConnector.connect(ctx, ssid, pass)
+        }
+
+        @JavascriptInterface
         fun injectTouchGuard() {
             showTouchGuard(ctx)
         }
