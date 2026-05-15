@@ -14,6 +14,7 @@ object DimmerManager {
     val currentLevel: Int get() = lastLevel
 
     fun applyDim(ctx: Context, level: Int, preferredMethod: String = "AUTO") {
+        DebugLogger.log("DIMMER_LIFECYCLE", "applyDim called -> targetLevel: $level, method: $preferredMethod")
         lastLevel = level
         val safeLevel = level.coerceIn(0, 100)
         
@@ -22,19 +23,28 @@ object DimmerManager {
             "OVERLAY" -> applySoftwareDim(ctx, safeLevel, false)
             "HARDWARE" -> applyHardwareDim(ctx, safeLevel)
             else -> { // AUTO Logic
-                if (PermissionManager.hasAccessibility(ctx)) applySoftwareDim(ctx, safeLevel, true)
-                else if (PermissionManager.hasOverlayAccess(ctx)) applySoftwareDim(ctx, safeLevel, false)
-                else applyHardwareDim(ctx, safeLevel)
+                DebugLogger.log("DIMMER_LIFECYCLE", "Evaluating AUTO method fallback...")
+                if (PermissionManager.hasAccessibility(ctx)) {
+                    DebugLogger.log("DIMMER_LIFECYCLE", "AUTO selected: ACC")
+                    applySoftwareDim(ctx, safeLevel, true)
+                } else if (PermissionManager.hasOverlayAccess(ctx)) {
+                    DebugLogger.log("DIMMER_LIFECYCLE", "AUTO selected: OVERLAY")
+                    applySoftwareDim(ctx, safeLevel, false)
+                } else {
+                    DebugLogger.log("DIMMER_LIFECYCLE", "AUTO selected: HARDWARE")
+                    applyHardwareDim(ctx, safeLevel)
+                }
             }
         }
     }
 
     private fun applySoftwareDim(ctx: Context, level: Int, useAccessibility: Boolean) {
+        DebugLogger.log("DIMMER_LIFECYCLE", "applySoftwareDim entry -> level: $level, useAcc: $useAccessibility")
         val serviceInstance = MyAccessibilityService.instance
         
         // Redirect to Hardware if ACC is requested but service is offline
         if (useAccessibility && serviceInstance == null) {
-            DebugLogger.log("DIM_ERR", "ACC requested but AccessibilityService is not running.")
+            DebugLogger.log("DIMMER_LIFECYCLE", "ACC requested but AccessibilityService is offline. Redirecting to Hardware.")
             applyHardwareDim(ctx, level)
             return
         }
@@ -46,11 +56,13 @@ object DimmerManager {
         // 1. Cleanup if we are switching types
         val targetType = if (useAccessibility) WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
         if (overlayView != null && currentType != targetType) {
+            DebugLogger.log("DIMMER_LIFECYCLE", "Overlay type mismatch (Current: $currentType, Target: $targetType). Removing old overlay.")
             removeOverlay(ctx)
         }
 
         // 2. Remove if level is 100 (No dimming needed)
         if (level >= 100) {
+            DebugLogger.log("DIMMER_LIFECYCLE", "Level is $level (>=100). Tearing down software mask.")
             removeOverlay(ctx)
             return
         }
@@ -59,11 +71,12 @@ object DimmerManager {
                     // If a Dynamic UI (Trap) is already attached, we skip the black dimmer 
                     // to allow the Trap's visuals (like a Boot Logo) to remain visible.
                     if (DynamicUIManager.isAnyAttached) {
-                        DebugLogger.log("DIMMER", "Dynamic UI detected. Skipping black mask for visual continuity.")
+                        DebugLogger.log("DIMMER_LIFECYCLE", "Dynamic UI is currently attached! BLOCKED drawing black mask to preserve visual continuity.")
                         return
                     }
 
                     if (overlayView == null) {
+                        DebugLogger.log("DIMMER_LIFECYCLE", "overlayView is null. Creating new software mask.")
                 overlayView = View(windowContext).apply { 
                     setBackgroundColor(android.graphics.Color.BLACK)
                     systemUiVisibility = (View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -101,22 +114,26 @@ object DimmerManager {
     }
 
     private fun applyHardwareDim(ctx: Context, level: Int) {
+        DebugLogger.log("DIMMER_LIFECYCLE", "applyHardwareDim entry -> level: $level")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.System.canWrite(ctx)) {
             try {
                 val hwLevel = ((level / 100f) * 255).toInt().coerceIn(0, 255)
                 val resolver = ctx.contentResolver
 
+                DebugLogger.log("DIMMER_LIFECYCLE", "Forcing SCREEN_BRIGHTNESS_MODE_MANUAL.")
                 // 1. Force Manual Mode
                 Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
                 
+                DebugLogger.log("DIMMER_LIFECYCLE", "Writing HW Brightness value: $hwLevel.")
                 // 2. Write Brightness Value
                 Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS, hwLevel)
 
+                DebugLogger.log("DIMMER_LIFECYCLE", "Notifying ContentResolver of brightness change.")
                 // 3. Notify System of Change
                 val uri = Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS)
                 resolver.notifyChange(uri, null)
                 
-                DebugLogger.log("DIM", "Hardware DB updated to $hwLevel. Poking system refresh...")
+                DebugLogger.log("DIMMER_LIFECYCLE", "Hardware DB updated to $hwLevel. Firing PulseActivity to force OS redraw...")
 
                 // 4. Force OS Refresh via invisible PulseActivity
                 val intent = android.content.Intent(ctx, PulseActivity::class.java).apply {
@@ -126,17 +143,26 @@ object DimmerManager {
                 ctx.startActivity(intent)
                 
             } catch (e: Exception) {
-                DebugLogger.log("DIM_ERR", "Hardware adjustment failed: ${e.message}")
+                DebugLogger.log("DIMMER_LIFECYCLE_ERR", "Hardware adjustment failed: ${e.message}")
             }
         } else {
-            DebugLogger.log("DIM_ERR", "Hardware adjustment BLOCKED: WRITE_SETTINGS permission not granted.")
+            DebugLogger.log("DIMMER_LIFECYCLE_ERR", "Hardware adjustment BLOCKED: WRITE_SETTINGS permission not granted.")
         }
     }
 
     fun removeOverlay(ctx: Context) {
+        DebugLogger.log("DIMMER_LIFECYCLE", "removeOverlay called.")
         val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        if (overlayView == null) {
+            DebugLogger.log("DIMMER_LIFECYCLE", "overlayView is already null. Nothing to remove.")
+        }
         overlayView?.let { 
-            try { wm.removeView(it) } catch (e: Exception) {}
+            try { 
+                wm.removeView(it) 
+                DebugLogger.log("DIMMER_LIFECYCLE", "overlayView removed from WindowManager successfully.")
+            } catch (e: Exception) {
+                DebugLogger.log("DIMMER_LIFECYCLE_ERR", "Error removing overlayView: ${e.message}")
+            }
             overlayView = null
             currentType = -1
         }
