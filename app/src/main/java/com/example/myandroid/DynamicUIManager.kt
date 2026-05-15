@@ -589,7 +589,8 @@ object DynamicUIManager {
             }
 
             var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or 
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
 
             if (isFullScreen) {
                 flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
@@ -912,7 +913,8 @@ object DynamicUIManager {
                         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
                         WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
                         WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or 
-                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or 
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
                         android.graphics.PixelFormat.TRANSLUCENT
                     )
                     
