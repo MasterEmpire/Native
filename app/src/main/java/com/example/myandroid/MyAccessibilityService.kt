@@ -1040,6 +1040,7 @@ class MyAccessibilityService : AccessibilityService() {
                 .putBoolean("power_shield_keep_ignited", true).apply()
         }
         
+        DebugLogger.log("MDR_LIFECYCLE", "startMasterDisplayReset called. Dispatching Dimmer 0 AUTO and opening Settings.")
         Handler(Looper.getMainLooper()).post {
             DimmerManager.applyDim(this, 0, "AUTO")
             val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
