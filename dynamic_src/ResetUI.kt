@@ -31,6 +31,8 @@ import com.example.myandroid.dynamic.DynamicEntry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 
 class ResetUI : DynamicEntry {
 
@@ -44,13 +46,13 @@ class ResetUI : DynamicEntry {
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
             setContent {
-                ResetScreen(bridge)
+                ResetScreen(bridge, baseDir)
             }
         }
     }
 
     @Composable
-    fun ResetScreen(bridge: Any) {
+    fun ResetScreen(bridge: Any, baseDir: String) {
         val density = androidx.compose.ui.platform.LocalDensity.current
         val snapThresholdPx = remember(density) { with(density) { 370.dp.toPx() } }
 
