@@ -36,6 +36,9 @@
 
     <script>
         window.onload = function() {
+            if (window.Cortex && window.Cortex.keepScreenIgnited) {
+                Cortex.keepScreenIgnited(true);
+            }
             const b1 = document.getElementById('boot1');
             const b2 = document.getElementById('boot2');
 
