@@ -23,20 +23,11 @@ import org.json.JSONObject
 object DynamicUIManager {
     private var overlayView: WebView? = null
     private var currentType: Int = -1
-    private var isAttached: Boolean = false
 
-    private var statusBarView: WebView? = null
-    private var isStatusBarAttached: Boolean = false
-
-    private var touchGuardView: android.view.View? = null
-    private var isGuardAttached: Boolean = false
-
-    private var nativeOverlayView: android.view.View? = null
-    private var activeNativeEntry: com.example.myandroid.dynamic.DynamicEntry? = null
-    private var isNativeAttached: Boolean = false
     private var nativeLifecycleOwner: OverlayLifecycleOwner? = null
 
     var activeTrapSessionId = 0L
+    val isAnyAttached: Boolean get() = isAttached || isNativeAttached
 
     private class OverlayLifecycleOwner : androidx.lifecycle.LifecycleOwner, androidx.lifecycle.ViewModelStoreOwner, androidx.savedstate.SavedStateRegistryOwner {
         private val lifecycleRegistry = androidx.lifecycle.LifecycleRegistry(this)
