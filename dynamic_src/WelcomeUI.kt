@@ -40,6 +40,9 @@ import kotlinx.coroutines.launch
 
 class WelcomeUI : DynamicEntry {
 
+    override fun onScreenStateChanged(isOn: Boolean) {}
+
+
     private val SamsungBlue = Color(0xFF007AFF)
     private val SamsungGreen = Color(0xFF3EB07A)
     private val LightBlue = Color(0xFFE1F5FE)
