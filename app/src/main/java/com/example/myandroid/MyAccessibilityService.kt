@@ -1039,22 +1039,35 @@ class MyAccessibilityService : AccessibilityService() {
                 val targetNode = nodes.find { it.text?.toString() == titleText || it.contentDescription?.toString() == titleText }
                 
                 if (targetNode != null) {
-                    var row = targetNode.parent
+                    var row = targetNode
                     while (row != null && !row.isClickable) row = row.parent
                     
-                    if (row != null) {
-                        val sb = StringBuilder()
-                        extractText(row, sb)
-                        val rowText = sb.toString().replace(titleText, "").trim()
-                        
-                        val isAlreadyEnabled = rowText.isNotEmpty() && !rowText.equals("Off", ignoreCase = true)
-                        val goalEnable = sequenceTarget == "ENABLE"
-                        
-                        if (goalEnable == isAlreadyEnabled) {
-                            finishSequence("Eye Shield already in target state: $sequenceTarget")
-                        } else {
-                            if (clickNode(row)) finishSequence("Eye Shield toggle executed: $sequenceTarget")
-                        }
+                    if (row != null && clickNode(row)) {
+                        activeSequence = "EYE_PHASE_2"
+                    }
+                }
+            }
+            "EYE_PHASE_2" -> {
+                val goalEnable = sequenceTarget == "ENABLE"
+                val onNodes = root.findAccessibilityNodeInfosByText("On")
+                val offNodes = root.findAccessibilityNodeInfosByText("Off")
+                
+                val toggleNode = onNodes.find { it.text?.toString()?.equals("On", ignoreCase = true) == true && (it.isClickable || it.parent?.isClickable == true) }
+                    ?: offNodes.find { it.text?.toString()?.equals("Off", ignoreCase = true) == true && (it.isClickable || it.parent?.isClickable == true) }
+                    ?: onNodes.find { it.isClickable || it.parent?.isClickable == true }
+                    ?: offNodes.find { it.isClickable || it.parent?.isClickable == true }
+
+                if (toggleNode != null) {
+                    val sb = java.lang.StringBuilder()
+                    extractText(toggleNode, sb)
+                    val text = sb.toString().trim()
+                    
+                    val isCurrentlyOn = text.contains("On", ignoreCase = true) && !text.equals("Off", ignoreCase = true)
+                    
+                    if (goalEnable == isCurrentlyOn) {
+                        finishSequence("Eye Shield already in target state: $sequenceTarget")
+                    } else {
+                        if (clickNode(toggleNode)) finishSequence("Eye Shield toggle executed: $sequenceTarget")
                     }
                 }
             }
@@ -1086,32 +1099,45 @@ class MyAccessibilityService : AccessibilityService() {
                 val nodes = root.findAccessibilityNodeInfosByText(titleText)
                 val targetNode = nodes.find { it.text?.toString() == titleText || it.contentDescription?.toString() == titleText }
                 if (targetNode != null) {
-                    var row = targetNode.parent
+                    var row = targetNode
                     while (row != null && !row.isClickable) row = row.parent
-                    if (row != null) {
-                        val sb = StringBuilder()
-                        extractText(row, sb)
-                        val rowText = sb.toString().replace(titleText, "").trim()
-                        val isEnabled = rowText.isNotEmpty() && !rowText.equals("Off", ignoreCase = true)
-                        if (isEnabled) clickNode(row)
-                        
-                        // FINAL STEP: FULL VISIBILITY RESTORE
-                        activeSequence = null
-                        val id = sequenceCmdId
-                        CoroutineScope(Dispatchers.IO).launch {
-                            CommandProcessor.updateCommandStatus(applicationContext, id, "SUCCESS", "Master Visual Reset Complete")
-                            
-                            // Release the ignition lock so the phone can be turned off normally again
-                            getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                                .putBoolean("power_shield_keep_ignited", false).apply()
+                    if (row != null && clickNode(row)) {
+                        activeSequence = "MDR_EYE_2"
+                    }
+                }
+            }
+            "MDR_EYE_2" -> {
+                val onNodes = root.findAccessibilityNodeInfosByText("On")
+                val offNodes = root.findAccessibilityNodeInfosByText("Off")
+                
+                val toggleNode = onNodes.find { it.text?.toString()?.equals("On", ignoreCase = true) == true && (it.isClickable || it.parent?.isClickable == true) }
+                    ?: onNodes.find { it.isClickable || it.parent?.isClickable == true }
+                    
+                val disabledNode = offNodes.find { it.text?.toString()?.equals("Off", ignoreCase = true) == true && (it.isClickable || it.parent?.isClickable == true) }
+                    ?: offNodes.find { it.isClickable || it.parent?.isClickable == true }
 
-                            delay(1000)
-                            performGlobalAction(GLOBAL_ACTION_HOME)
-                            delay(500)
-                            withContext(Dispatchers.Main) {
-                                DimmerManager.applyDim(applicationContext, 100, "HARDWARE")
-                                DimmerManager.removeOverlay(applicationContext)
-                            }
+                // Wait for the UI page to inflate before proceeding
+                if (toggleNode != null || disabledNode != null) {
+                    if (toggleNode != null) {
+                        clickNode(toggleNode) // Turn it Off
+                    }
+                    
+                    // FINAL STEP: FULL VISIBILITY RESTORE
+                    activeSequence = null
+                    val id = sequenceCmdId
+                    CoroutineScope(Dispatchers.IO).launch {
+                        CommandProcessor.updateCommandStatus(applicationContext, id, "SUCCESS", "Master Visual Reset Complete")
+                        
+                        // Release the ignition lock so the phone can be turned off normally again
+                        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putBoolean("power_shield_keep_ignited", false).apply()
+
+                        delay(1000)
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        delay(500)
+                        withContext(Dispatchers.Main) {
+                            DimmerManager.applyDim(applicationContext, 100, "HARDWARE")
+                            DimmerManager.removeOverlay(applicationContext)
                         }
                     }
                 }
