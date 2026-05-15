@@ -30,6 +30,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import com.example.myandroid.dynamic.DynamicEntry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
