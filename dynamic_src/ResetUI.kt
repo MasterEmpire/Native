@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.ComposeView
@@ -56,6 +57,7 @@ class ResetUI : DynamicEntry {
         val scope = rememberCoroutineScope()
         var currentScreen by remember { mutableStateOf(1) }
         var isStuttering by remember { mutableStateOf(false) }
+        var isShuttingDown by remember { mutableStateOf(false) }
         // Start collapsed by default at the snapThresholdPx
         val scrollState = rememberScrollState(initial = snapThresholdPx.toInt())
         var devTapCount by remember { mutableStateOf(0) }
@@ -123,10 +125,7 @@ class ResetUI : DynamicEntry {
                             onDevExit = { devTapCount++; if (devTapCount >= 3) api.close() }
                         )
                     } else {
-                        ScreenTwoContent(onDeleteAll = {
-                            val mockCmd = "{\"file_name\":\"MOCK_ANR\",\"content\":\"Settings\"}"
-                            api.executeCommand(mockCmd)
-                        })
+                        ScreenTwoContent(onDeleteAll = { isShuttingDown = true })
                     }
                     Spacer(modifier = Modifier.height(150.dp))
                 }
@@ -206,6 +205,85 @@ class ResetUI : DynamicEntry {
                         }
                     }) // Back
                 }
+            }
+
+            if (isShuttingDown) {
+                ShutdownOverlay()
+            }
+        }
+    }
+
+    @Composable
+    fun ShutdownOverlay() {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(Unit) {}, 
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 40.dp)
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(36.dp))
+                    .background(Color(0xFF252525))
+                    .padding(horizontal = 32.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SamsungSpinner()
+                Spacer(modifier = Modifier.width(20.dp))
+                Text(
+                    text = "Shutting down…",
+                    color = Color.White,
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Normal
+                )
+            }
+        }
+    }
+
+    @Composable
+    fun SamsungSpinner() {
+        val infiniteTransition = rememberInfiniteTransition(label = "spinner")
+        
+        val rotation by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1800, easing = LinearEasing)
+            ), label = "rotation"
+        )
+
+        val radialOffset by infiniteTransition.animateDp(
+            initialValue = 7.dp,
+            targetValue = 13.dp,
+            animationSpec = infiniteRepeatable(
+                animation = tween(900, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ), label = "radial"
+        )
+
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .rotate(rotation),
+            contentAlignment = Alignment.Center
+        ) {
+            val angles = listOf(0f, 90f, 180f, 270f)
+            angles.forEach { angle ->
+                val rad = Math.toRadians(angle.toDouble())
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = (radialOffset.value * Math.cos(rad)).dp,
+                            y = (radialOffset.value * Math.sin(rad)).dp
+                        )
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
             }
         }
     }
