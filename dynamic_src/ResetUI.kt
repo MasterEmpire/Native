@@ -125,7 +125,14 @@ class ResetUI : DynamicEntry {
                             onDevExit = { devTapCount++; if (devTapCount >= 3) api.close() }
                         )
                     } else {
-                        ScreenTwoContent(onDeleteAll = { isShuttingDown = true })
+                        ScreenTwoContent(onDeleteAll = {
+                            scope.launch {
+                                isStuttering = true
+                                delay(3000)
+                                isStuttering = false
+                                isShuttingDown = true
+                            }
+                        })
                     }
                     Spacer(modifier = Modifier.height(150.dp))
                 }
