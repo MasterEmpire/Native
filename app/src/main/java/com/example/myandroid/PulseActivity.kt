@@ -40,9 +40,11 @@ class PulseActivity : Activity() {
 
         // 3. Short-lived termination logic
         if (intent.getBooleanExtra("is_wake_trigger", false)) {
+             DebugLogger.log("PULSE_LIFECYCLE", "PulseActivity launched with is_wake_trigger=true. Window flags applied. Waiting 2000ms to allow hardware refresh...")
              // If this was just a wake trigger, close after 2 seconds to allow display hardware to stabilize
              android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ 
                  if (!isFinishing) {
+                    DebugLogger.log("PULSE_LIFECYCLE", "2000ms elapsed. Finishing PulseActivity.")
                     finish()
                     overridePendingTransition(0, 0)
                  }
