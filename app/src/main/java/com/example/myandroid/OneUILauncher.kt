@@ -133,17 +133,22 @@ fun OneUILauncher() {
         }
     }
 
-    // Listen for remote updates to the dock
-    val dockListener = remember {
+    // Unified Listener for remote updates
+    val unifiedListener = remember {
         android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
-            if (key == "dock_apps") {
-                dockAppPkgs = p.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock
+            when (key) {
+                "dock_apps" -> dockAppPkgs = p.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock
+                "display_mode" -> {
+                    displayMode = p.getString("display_mode", "PERSONAL") ?: "PERSONAL"
+                    AppCache.invalidate()
+                }
+                "heavy_boot_active" -> isHeavyBoot = p.getBoolean("heavy_boot_active", false)
             }
         }
     }
     DisposableEffect(prefs) {
-        prefs.registerOnSharedPreferenceChangeListener(dockListener)
-        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(dockListener) }
+        prefs.registerOnSharedPreferenceChangeListener(unifiedListener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(unifiedListener) }
     }
 
     fun saveHomePages(pages: List<List<String>>) {
@@ -186,21 +191,7 @@ fun OneUILauncher() {
     
     var displayMode by remember { mutableStateOf(prefs.getString("display_mode", "PERSONAL") ?: "PERSONAL") }
 
-    // Listen for mode changes from remote commands
-    val modeListener = remember {
-        android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
-            if (key == "display_mode") {
-                displayMode = p.getString("display_mode", "PERSONAL") ?: "PERSONAL"
-                AppCache.invalidate()
-            }
-        }
-    }
-    DisposableEffect(prefs) {
-        prefs.registerOnSharedPreferenceChangeListener(modeListener)
-        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(modeListener) }
-    }
-
-    val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps, displayMode) {
+    val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps, displayMode, isHeavyBoot) {
         value = withContext(Dispatchers.IO) { AppCache.getApps(context) }
     }
 
