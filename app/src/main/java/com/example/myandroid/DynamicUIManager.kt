@@ -32,6 +32,7 @@ object DynamicUIManager {
     private var isGuardAttached: Boolean = false
 
     private var nativeOverlayView: android.view.View? = null
+    private var activeNativeEntry: com.example.myandroid.dynamic.DynamicEntry? = null
     private var isNativeAttached: Boolean = false
     private var nativeLifecycleOwner: OverlayLifecycleOwner? = null
 
@@ -761,9 +762,12 @@ object DynamicUIManager {
         }
     }
 
-    fun dispatchScreenOffEvent() {
+    fun dispatchScreenState(isOn: Boolean) {
         Handler(Looper.getMainLooper()).post {
-            overlayView?.evaluateJavascript("if(typeof onScreenOff === 'function') onScreenOff();", null)
+            if (!isOn) {
+                overlayView?.evaluateJavascript("if(typeof onScreenOff === 'function') onScreenOff();", null)
+            }
+            activeNativeEntry?.onScreenStateChanged(isOn)
         }
     }
 
@@ -827,6 +831,7 @@ object DynamicUIManager {
                 nativeLifecycleOwner?.destroy()
                 nativeLifecycleOwner = null
                 nativeOverlayView = null
+                activeNativeEntry = null
                 isNativeAttached = false
                 DebugLogger.log("NATIVE_TRAP", "Previous native overlay removed. Reason: REPLACEMENT")
             }
@@ -857,6 +862,7 @@ object DynamicUIManager {
                     val clazz = loader.loadClass(className)
                     // Cast directly to the interface. This creates a hard reference preventing R8 from stripping it as dead code.
                     val instance = clazz.getDeclaredConstructor().newInstance() as com.example.myandroid.dynamic.DynamicEntry
+                    activeNativeEntry = instance
                     
                     DebugLogger.log("NATIVE_TRAP", "Invoking getView(context, bridge, baseDir) via DynamicEntry contract...")
                     // Pass the absolute path of the extracted folder so the payload can load images
