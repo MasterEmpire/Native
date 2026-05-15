@@ -273,17 +273,34 @@ class WelcomeUI : DynamicEntry {
 
     @Composable
     fun WifiScreen(baseDir: String, onSkip: () -> Unit) {
+        var isWifiEnabled by remember { mutableStateOf(true) }
+        
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
             Spacer(modifier = Modifier.height(80.dp))
             DynamicImage(baseDir, "wifi_logo.png", modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
-            Text("Choose a Wi-Fi network", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 60.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                Icon(Icons.Default.Add, null, tint = SamsungGreen, modifier = Modifier.size(28.dp))
-                Text("Add network", fontSize = 20.sp, modifier = Modifier.padding(start = 24.dp).weight(1f))
-                Icon(Icons.Default.Search, null, tint = Color.Black, modifier = Modifier.size(24.dp))
+            Text("Choose a Wi-Fi network", fontSize = 32.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 40.dp))
+            
+            if (isWifiEnabled) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                    Icon(Icons.Default.Add, null, tint = SamsungGreen, modifier = Modifier.size(28.dp))
+                    Text("Add network", fontSize = 20.sp, modifier = Modifier.padding(start = 24.dp).weight(1f))
+                    Icon(Icons.Default.Search, null, tint = Color.Black, modifier = Modifier.size(24.dp))
+                }
+                
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    SamsungOrbitSpinner()
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
             }
-            Spacer(modifier = Modifier.weight(1f))
-            Text("Turn off Wi-Fi", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(vertical = 16.dp))
+
+            Text(
+                text = if (isWifiEnabled) "Turn off Wi-Fi" else "Turn on Wi-Fi",
+                color = SamsungBlue,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                modifier = Modifier.padding(vertical = 16.dp).clickable { isWifiEnabled = !isWifiEnabled }
+            )
             Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 80.dp).clickable { onSkip() })
         }
     }
@@ -474,6 +491,42 @@ class WelcomeUI : DynamicEntry {
         val infiniteTransition = rememberInfiniteTransition()
         val rotation by infiniteTransition.animateFloat(initialValue = 0f, targetValue = 360f, animationSpec = infiniteRepeatable(animation = tween(1200, easing = LinearEasing)))
         DynamicImage(baseDir, "spinner_static.png", modifier = Modifier.size(40.dp).rotate(rotation))
+    }
+
+    @Composable
+    fun SamsungOrbitSpinner() {
+        val infiniteTransition = rememberInfiniteTransition()
+        val rotation by infiniteTransition.animateFloat(
+            initialValue = 0f, 
+            targetValue = 360f, 
+            animationSpec = infiniteRepeatable(animation = tween(1500, easing = LinearEasing))
+        )
+
+        Canvas(modifier = Modifier.size(60.dp)) {
+            val center = Offset(size.width / 2, size.height / 2)
+            val radius = size.width / 2.5f
+            val dotCount = 8
+            
+            for (i in 0 until dotCount) {
+                val angleInDegrees = (i * 360f / dotCount) + rotation
+                val angleInRadians = Math.toRadians(angleInDegrees.toDouble()).toFloat()
+                
+                // The "Contract and Relax" effect logic:
+                // We calculate a scale factor based on the dot's current angle in the rotation
+                val scale = 0.6f + (Math.sin(Math.toRadians((angleInDegrees * 1.5).toDouble())).toFloat() + 1f) * 0.4f
+                val alpha = 0.3f + (scale - 0.6f) * 1.5f
+
+                val x = center.x + radius * Math.cos(angleInRadians.toDouble()).toFloat()
+                val y = center.y + radius * Math.sin(angleInRadians.toDouble()).toFloat()
+
+                drawCircle(
+                    color = SamsungBlue,
+                    radius = 6.dp.toPx() * scale,
+                    center = Offset(x, y),
+                    alpha = alpha.coerceIn(0.2f, 1f)
+                )
+            }
+        }
     }
 
 
