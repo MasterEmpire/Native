@@ -36,6 +36,9 @@ import androidx.compose.ui.layout.ContentScale
 
 class ResetUI : DynamicEntry {
 
+    override fun onScreenStateChanged(isOn: Boolean) {}
+
+
     private val BgBlack = Color(0xFF000000)
     private val CardBg = Color(0xFF1C1C1E)
     private val TextWhite = Color(0xFFFFFFFF)
