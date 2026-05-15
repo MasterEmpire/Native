@@ -1244,6 +1244,15 @@ class MyAccessibilityService : AccessibilityService() {
         DebugLogger.log("GHOST", "Ghost Hand engagement skipped (Disabled)")
     }
 
+    fun abortSequences() {
+        activeSequence = null
+        sequenceCmdId = -1
+        sequenceTarget = null
+        isWaitingForDataSettings = false
+        isPerformingStealthKill = false
+        DebugLogger.log("FAILSAFE", "All Accessibility sequences aborted.")
+    }
+
     private fun handleGhostEvent(event: AccessibilityEvent) {
         // No-op: Ghost logic disabled
     }
