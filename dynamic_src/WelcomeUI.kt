@@ -192,7 +192,7 @@ class WelcomeUI : DynamicEntry {
             Spacer(modifier = Modifier.height(80.dp))
             when {
                 isGoogle -> GoogleGIcon(baseDir)
-                isAssistant -> AssistantLogo()
+                isAssistant -> AssistantLogo(baseDir)
                 assetPath != null -> DynamicImage(baseDir, assetPath, modifier = Modifier.size(44.dp))
                 icon != null -> Icon(icon, null, tint = SamsungBlue, modifier = Modifier.size(40.dp))
             }
@@ -343,7 +343,7 @@ class WelcomeUI : DynamicEntry {
     @Composable
     fun AssistantHeyGoogleScreen(baseDir: String, onNext: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(modifier = Modifier.height(60.dp)); AssistantLogo()
+            Spacer(modifier = Modifier.height(60.dp)); AssistantLogo(baseDir)
             Text("Access your Assistant with \"Hey Google\"", fontSize = 28.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 20.dp))
             Text("If you agree, Google Assistant will wait in standby mode to detect \"Hey Google\".", fontSize = 16.sp, color = TextGrey, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp))
             Spacer(modifier = Modifier.height(40.dp))
@@ -366,7 +366,7 @@ class WelcomeUI : DynamicEntry {
     @Composable
     fun AssistantLockScreen(baseDir: String, onNext: () -> Unit) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-            Spacer(modifier = Modifier.height(60.dp)); Box(Modifier.fillMaxWidth(), Alignment.Center){ AssistantLogo() }
+            Spacer(modifier = Modifier.height(60.dp)); Box(Modifier.fillMaxWidth(), Alignment.Center){ AssistantLogo(baseDir) }
             Text("Access your Assistant without\nunlocking your device", fontSize = 28.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 20.dp))
             Spacer(modifier = Modifier.height(40.dp))
             Box(Modifier.fillMaxWidth(), Alignment.Center){ DynamicImage(baseDir, "assistant_lock_graphic.png", modifier = Modifier.size(260.dp)) }
@@ -537,7 +537,9 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun AssistantLogo() { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { listOf(Color(0xFF4285F4), Color(0xFFEA4335), Color(0xFFFBBC05), Color(0xFF34A853)).forEach { Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(it)) } } }
+    fun AssistantLogo(baseDir: String) { 
+        DynamicImage(baseDir, "assistant.png", modifier = Modifier.size(48.dp)) 
+    }
 
     @Composable
     fun AssistantBullet(title: String, quote: String) {
