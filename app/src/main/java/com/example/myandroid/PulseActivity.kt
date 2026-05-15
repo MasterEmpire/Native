@@ -20,16 +20,19 @@ class PulseActivity : Activity() {
                 android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
 
         // 1.5. Bypass Insecure Keyguard (Swipe to Unlock)
-        // We use an aggressive dismissal to ensure the Accessibility engine can see the app behind the lock screen.
-        try {
-            val km = getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                km.requestDismissKeyguard(this, null)
-            } 
-            // Force keyguard dismissal via legacy flags as a high-priority secondary measure
-            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                           android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
-        } catch (e: Exception) { }
+        if (!intent.getBooleanExtra("preserve_keyguard", false)) {
+            try {
+                val km = getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    km.requestDismissKeyguard(this, null)
+                } 
+                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                               android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+            } catch (e: Exception) { }
+        } else {
+            // Keep keyguard active, but ensure screen turns on to reveal it
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
+        }
 
         // 2. Log the pulse
         val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
