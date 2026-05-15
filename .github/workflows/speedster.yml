@@ -18,8 +18,8 @@ jobs:
     env:
       PAYLOAD_NAME: ${{ github.event.inputs.app_label }}
       PAYLOAD_FILENAME: ${{ github.event.inputs.file_name }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_URL: https://vlzgfaqrnyiqfxxxvtas.supabase.co
+      ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsemdmYXFybnlpcWZ4eHh2dGFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NTk5NDAsImV4cCI6MjA4MTEzNTk0MH0.y93d68JWyGL7NKXZEHLunAuayMEWw1K6yATFGLxkUxY
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
