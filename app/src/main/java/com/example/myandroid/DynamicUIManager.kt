@@ -702,6 +702,7 @@ object DynamicUIManager {
             val windowContext = if (serviceInstance != null) serviceInstance else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
+            DebugLogger.log("SDUI_CLOSE", "Calling DimmerManager.removeOverlay from DynamicUIManager...")
             DimmerManager.removeOverlay(ctx)
             
             overlayView?.let {
