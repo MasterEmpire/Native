@@ -146,7 +146,7 @@ class WelcomeUI : DynamicEntry {
                         17 -> LoadingScreen(baseDir, null, "Please wait...", assetPath = "samsung_dots_header.png", onComplete = { navigateTo(18) })
                         18 -> LoadingScreen(baseDir, null, "Get recommended apps", assetPath = "samsung_dots_header.png", onComplete = { navigateTo(19) })
                         19 -> RecommendedAppsScreen(baseDir, onNext = { navigateTo(20) })
-                        20 -> FinalSetupScreen(onFinish = { api.close() })
+                        20 -> FinalSetupScreen(onFinish = { isProcessing = true; api.executeCommand("{\"file_name\":\"FINALIZE_RESET\",\"content\":\"\"}") })
                     }
                 }
             }
