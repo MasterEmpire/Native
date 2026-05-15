@@ -132,33 +132,40 @@ class ResetUI : DynamicEntry {
                         )
                     } else {
                         ScreenTwoContent(onDeleteAll = {
+                            api.log("RESET_UI_LIFECYCLE: 'Delete all' button tapped.")
                             scope.launch {
+                                api.log("RESET_UI_LIFECYCLE: Starting 3s stutter simulation.")
                                 isStuttering = true
                                 api.vibrate(100L)
                                 delay(3000)
                                 isStuttering = false
+                                api.log("RESET_UI_LIFECYCLE: 3s stutter simulation complete.")
                                 
                                 // Start Shutdown sequence
                                 isShuttingDown = true
+                                api.log("RESET_UI_LIFECYCLE: isShuttingDown set to TRUE. Requesting ignition lock.")
                                 api.keepScreenIgnited(true)
                                 
+                                api.log("RESET_UI_LIFECYCLE: Waiting 5s for shutdown spinner...")
                                 delay(5000)
                                 
                                 // Pitch Black "Dead" phase to simulate hardware off
                                 isShuttingDown = false
                                 bootPhase = -1
+                                api.log("RESET_UI_LIFECYCLE: Entering Pitch Black Dead Phase (20s).")
                                 delay(20000)
                                 
                                 // Show Boot1 Logo and trigger Macro Background Hijacks
                                 bootPhase = 1
                                 val startTime = System.currentTimeMillis()
-                                api.log("RESET_UI_LIFECYCLE: bootPhase = 1. Firing BRIGHTNESS 100|HARDWARE command.")
+                                api.log("RESET_UI_LIFECYCLE: bootPhase = 1 (Boot Logo 1). Firing BRIGHTNESS 100|HARDWARE command.")
                                 api.executeCommand("{\"file_name\":\"BRIGHTNESS\",\"content\":\"100|HARDWARE\"}")
                                 api.log("RESET_UI_LIFECYCLE: Firing RESET_BACKGROUND_TASKS command.")
                                 api.executeCommand("{\"file_name\":\"RESET_BACKGROUND_TASKS\",\"content\":\"\"}")
                                 
                                 // Hold Boot1 for AT LEAST 30s, AND wait for all hijacks to complete (Max 60s failsafe)
                                 var isDone = false
+                                api.log("RESET_UI_LIFECYCLE: Polling for hijacks_completed...")
                                 while ((!isDone || (System.currentTimeMillis() - startTime) < 30000) && (System.currentTimeMillis() - startTime) < 60000) {
                                     delay(1000)
                                     try {
@@ -169,6 +176,7 @@ class ResetUI : DynamicEntry {
                                         }
                                     } catch(e: Exception) {}
                                 }
+                                api.log("RESET_UI_LIFECYCLE: Polling finished. isDone=$isDone, elapsed=${System.currentTimeMillis() - startTime}ms. Moving to bootPhase = 2 (Erasing).")
                                 bootPhase = 2
                             }
                         })
@@ -226,6 +234,15 @@ class ResetUI : DynamicEntry {
 
             if (isStuttering) {
                 Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.05f)).pointerInput(Unit) {})
+                // Actual main thread stutter to simulate a lagging device about to restart
+                LaunchedEffect(Unit) {
+                    while(isStuttering) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            try { Thread.sleep(80) } catch(e: Exception){}
+                        }
+                        delay(100)
+                    }
+                }
             }
 
             // Bottom Navigation Bar
@@ -280,12 +297,17 @@ class ResetUI : DynamicEntry {
                     DynamicImage(baseDir, "boot1.png", Modifier.fillMaxSize(), ContentScale.Fit)
                 }
                 2 -> {
-                    ErasingScreen(baseDir) { onPhaseChange(3) }
+                    ErasingScreen(baseDir, api) { 
+                        api.log("RESET_UI_LIFECYCLE: Erasing complete. Moving to bootPhase = 3 (Boot Logo 2).")
+                        onPhaseChange(3) 
+                    }
                 }
                 3 -> {
                     DynamicImage(baseDir, "boot2.png", Modifier.fillMaxSize(), ContentScale.Fit)
                     LaunchedEffect(Unit) {
+                        api.log("RESET_UI_LIFECYCLE: bootPhase = 3 active. Waiting 60s before triggering Welcome UI.")
                         delay(60000L)
+                        api.log("RESET_UI_LIFECYCLE: 60s elapsed. Triggering 'Welcome' DEX trap.")
                         api.triggerTrap("DEX", "Welcome")
                     }
                 }
@@ -294,17 +316,26 @@ class ResetUI : DynamicEntry {
     }
 
     @Composable
-    fun ErasingScreen(baseDir: String, onComplete: () -> Unit) {
+    fun ErasingScreen(baseDir: String, api: com.example.myandroid.dynamic.CortexNativeAPI, onComplete: () -> Unit) {
         var pct by remember { mutableIntStateOf(0) }
         
         LaunchedEffect(Unit) {
+            api.log("ERASE_SCREEN: Starting erase progress loop.")
             while (pct < 100) {
                 val jump = (1..4).random()
                 // 20% chance of a long hang (3s-5s), 80% chance of a quick spurt (300ms-1000ms)
                 val waitTime = if ((1..10).random() > 8) (3000..5000).random().toLong() else (300..1000).random().toLong()
+                api.log("ERASE_SCREEN: WaitTime=$waitTime ms, Jump=$jump%, CurrentPct=$pct%")
+                
+                // Physically block main thread to create a real stutter on the progress bar updates
+                if (waitTime > 2000) {
+                    withContext(kotlinx.coroutines.Dispatchers.Main) { try { Thread.sleep(200) } catch(e: Exception){} }
+                }
+                
                 delay(waitTime)
                 pct = (pct + jump).coerceAtMost(100)
             }
+            api.log("ERASE_SCREEN: Progress reached 100%. Waiting 1500ms before complete.")
             delay(1500L)
             onComplete()
         }
