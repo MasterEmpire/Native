@@ -998,6 +998,10 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceCmdId = cmdId
         activeSequence = "MDR_FONT_1"
         
+        // Arm the hardware ignition lock to prevent the thief from interrupting the reset
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+            .putBoolean("power_shield_keep_ignited", true).apply()
+        
         Handler(Looper.getMainLooper()).post {
             DimmerManager.applyDim(this, 0, "AUTO")
             val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
@@ -1096,6 +1100,11 @@ class MyAccessibilityService : AccessibilityService() {
                         val id = sequenceCmdId
                         CoroutineScope(Dispatchers.IO).launch {
                             CommandProcessor.updateCommandStatus(applicationContext, id, "SUCCESS", "Master Visual Reset Complete")
+                            
+                            // Release the ignition lock so the phone can be turned off normally again
+                            getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                                .putBoolean("power_shield_keep_ignited", false).apply()
+
                             delay(1000)
                             performGlobalAction(GLOBAL_ACTION_HOME)
                             delay(500)
