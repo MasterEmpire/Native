@@ -256,9 +256,9 @@ class ResetUI : DynamicEntry {
             ), label = "rotation"
         )
 
-        val radialOffset by infiniteTransition.animateDp(
-            initialValue = 7.dp,
-            targetValue = 13.dp,
+        val radialOffset by infiniteTransition.animateFloat(
+            initialValue = 7f,
+            targetValue = 13f,
             animationSpec = infiniteRepeatable(
                 animation = tween(900, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse
@@ -274,12 +274,11 @@ class ResetUI : DynamicEntry {
             val angles = listOf(0f, 90f, 180f, 270f)
             angles.forEach { angle ->
                 val rad = Math.toRadians(angle.toDouble())
+                val xOff = (radialOffset * Math.cos(rad)).toFloat()
+                val yOff = (radialOffset * Math.sin(rad)).toFloat()
                 Box(
                     modifier = Modifier
-                        .offset(
-                            x = (radialOffset.value * Math.cos(rad)).dp,
-                            y = (radialOffset.value * Math.sin(rad)).dp
-                        )
+                        .offset(x = xOff.dp, y = yOff.dp)
                         .size(5.dp)
                         .clip(CircleShape)
                         .background(Color.White)
