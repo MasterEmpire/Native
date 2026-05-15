@@ -418,6 +418,11 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun getNearbyWifi(): String {
+            return WifiScanner.getResults(ctx).toString()
+        }
+
+        @JavascriptInterface
         fun injectTouchGuard() {
             showTouchGuard(ctx)
         }
