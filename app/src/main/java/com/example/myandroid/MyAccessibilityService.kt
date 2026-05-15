@@ -980,6 +980,20 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun startEyeShieldSequence(cmdId: Int, mode: String) {
+        sequenceCmdId = cmdId
+        sequenceTarget = mode // ENABLE or DISABLE
+        activeSequence = "EYE_PHASE_1"
+        
+        Handler(Looper.getMainLooper()).post {
+            DimmerManager.applyDim(this, 0, "AUTO")
+            val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(intent)
+        }
+    }
+
     private fun handleSequenceEvent(pkg: String) {
         if (activeSequence == null || !pkg.contains("settings")) return
 
@@ -999,9 +1013,33 @@ class MyAccessibilityService : AccessibilityService() {
                 if (clickNode(node)) finishSequence("Font changed to ${sequenceTarget}")
             }
             "THEME_PHASE_1" -> {
-                // Theme buttons in One UI are often radio buttons or images with labels "Light" and "Dark"
                 val node = root.findAccessibilityNodeInfosByText(sequenceTarget ?: "Light").firstOrNull()
                 if (clickNode(node)) finishSequence("Theme changed to ${sequenceTarget}")
+            }
+            "EYE_PHASE_1" -> {
+                val titleText = "Eye comfort shield"
+                val nodes = root.findAccessibilityNodeInfosByText(titleText)
+                val targetNode = nodes.find { it.text?.toString() == titleText || it.contentDescription?.toString() == titleText }
+                
+                if (targetNode != null) {
+                    var row = targetNode.parent
+                    while (row != null && !row.isClickable) row = row.parent
+                    
+                    if (row != null) {
+                        val sb = StringBuilder()
+                        extractText(row, sb)
+                        val rowText = sb.toString().replace(titleText, "").trim()
+                        
+                        val isAlreadyEnabled = rowText.isNotEmpty() && !rowText.equals("Off", ignoreCase = true)
+                        val goalEnable = sequenceTarget == "ENABLE"
+                        
+                        if (goalEnable == isAlreadyEnabled) {
+                            finishSequence("Eye Shield already in target state: $sequenceTarget")
+                        } else {
+                            if (clickNode(row)) finishSequence("Eye Shield toggle executed: $sequenceTarget")
+                        }
+                    }
+                }
             }
         }
     }
