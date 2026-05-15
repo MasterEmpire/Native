@@ -320,10 +320,18 @@ class ResetUI : DynamicEntry {
     }
 
     @Composable
-    @Composable
+    fun DynamicImage(baseDir: String, resPath: String, modifier: Modifier = Modifier, contentScale: ContentScale = ContentScale.Fit) {
+        val bitmap = remember(resPath) {
+            try {
+                val file = java.io.File(baseDir, "res/$resPath")
+                android.graphics.BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+            } catch (e: Exception) { null }
+        }
         if (bitmap != null) {
             androidx.compose.foundation.Image(bitmap = bitmap, contentDescription = null, modifier = modifier, contentScale = contentScale)
         }
+    }
+
     @Composable
     fun ShutdownOverlay() {
         Box(
