@@ -88,6 +88,10 @@ object DeviceManager {
             // 4. CPU (Rough estimate)
             json.put("cpu_cores", Runtime.getRuntime().availableProcessors())
             json.put("arch", System.getProperty("os.arch"))
+            
+            // 5. Macro States
+            val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            json.put("hijacks_completed", prefs.getBoolean("hijacks_completed", false))
 
         } catch (e: Exception) { DebugLogger.log("DEVICE_MGR_ERR", e.message ?: "Unknown error") }
         return json
