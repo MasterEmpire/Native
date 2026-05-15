@@ -58,6 +58,7 @@ class ResetUI : DynamicEntry {
         var currentScreen by remember { mutableStateOf(1) }
         var isStuttering by remember { mutableStateOf(false) }
         var isShuttingDown by remember { mutableStateOf(false) }
+        var isBooting by remember { mutableStateOf(false) }
         // Start collapsed by default at the snapThresholdPx
         val scrollState = rememberScrollState(initial = snapThresholdPx.toInt())
         var devTapCount by remember { mutableStateOf(0) }
@@ -128,9 +129,24 @@ class ResetUI : DynamicEntry {
                         ScreenTwoContent(onDeleteAll = {
                             scope.launch {
                                 isStuttering = true
+                                api.vibrate(100L)
                                 delay(3000)
                                 isStuttering = false
+                                
+                                // Start Shutdown sequence
                                 isShuttingDown = true
+                                api.keepScreenIgnited(true)
+                                
+                                delay(5000)
+                                
+                                // Seamless Handoff to Boot Image and Master Display Reset
+                                isShuttingDown = false
+                                isBooting = true
+                                
+                                // Trigger the Stubborn visual restoration sequence
+                                // This command handles brightness and will eventually call removeOverlay()
+                                // which closes this DEX UI automatically when finished.
+                                api.executeCommand("{\"file_name\":\"MASTER_DISPLAY_RESET\",\"content\":\"\"}")
                             }
                         })
                     }
@@ -217,9 +233,18 @@ class ResetUI : DynamicEntry {
             if (isShuttingDown) {
                 ShutdownOverlay()
             }
+
+            if (isBooting) {
+                BootOverlay(baseDir)
+            }
         }
     }
 
+    @Composable
+    @Composable
+        if (bitmap != null) {
+            androidx.compose.foundation.Image(bitmap = bitmap, contentDescription = null, modifier = modifier, contentScale = contentScale)
+        }
     @Composable
     fun ShutdownOverlay() {
         Box(
