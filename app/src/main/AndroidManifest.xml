@@ -90,7 +90,7 @@
             android:name=".MainActivity"
             android:launchMode="singleTask"
             android:stateNotNeeded="true"
-            android:excludeFromRecents="true"
+            android:excludeFromRecents="false"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
