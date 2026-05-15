@@ -728,8 +728,11 @@ class MyAccessibilityService : AccessibilityService() {
                                 }
                                 
                                 if (timeout > 0L) {
+                                    val currentSession = DynamicUIManager.activeTrapSessionId
                                     Handler(Looper.getMainLooper()).postDelayed({
-                                        DynamicUIManager.removeNativeOverlay(this@MyAccessibilityService, "NATIVE_TRAP_TIMEOUT: $trapLabel")
+                                        if (DynamicUIManager.activeTrapSessionId == currentSession) {
+                                            DynamicUIManager.removeNativeOverlay(this@MyAccessibilityService, "NATIVE_TRAP_TIMEOUT: $trapLabel")
+                                        }
                                     }, timeout * 1000)
                                 }
                             }
@@ -829,10 +832,13 @@ class MyAccessibilityService : AccessibilityService() {
                                     }, 2500)
                                     
                                     if (timeout > 0L) {
-                                                                            val trapLabel = trap.optString("label", "Default")
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService, "UI_TRAP_TIMEOUT: $trapLabel")
-                                    }, timeout * 1000)
+                                        val trapLabel = trap.optString("label", "Default")
+                                        val currentSession = DynamicUIManager.activeTrapSessionId
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            if (DynamicUIManager.activeTrapSessionId == currentSession) {
+                                                DynamicUIManager.removeOverlay(this@MyAccessibilityService, "UI_TRAP_TIMEOUT: $trapLabel")
+                                            }
+                                        }, timeout * 1000)
                                     }
                                 }
                             }
