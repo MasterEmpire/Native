@@ -3,6 +3,7 @@ package com.example.dynamic
 import android.content.Context
 import android.graphics.Typeface
 import android.view.View
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -86,31 +88,57 @@ class WelcomeUI : DynamicEntry {
     fun SetupWizard(bridge: Any, baseDir: String) {
         val api = remember { com.example.myandroid.dynamic.CortexNativeAPI(bridge) }
         var currentStep by remember { mutableStateOf(0) }
+        var isProcessing by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope() 
+
+        fun navigateTo(step: Int) {
+            if (isProcessing) return
+            scope.launch {
+                isProcessing = true
+                if (step > currentStep) delay(450) // Simulate UI "Thinking" latency
+                currentStep = step
+                isProcessing = false
+            }
+        }
 
         Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                when (currentStep) {
-                    0 -> WelcomeScreen { currentStep = 1 }
-                    1 -> ReviewScreen { currentStep = 2 }
-                    2 -> PermissionsScreen(baseDir) { currentStep = 3 }
-                    3 -> WifiScreen(baseDir, onSkip = { currentStep = 4 })
-                    4 -> LoadingScreen(baseDir, null, "Checking for updates...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 5 })
-                    5 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 6 })
-                    6 -> CopyDataScreen(baseDir, onNext = { currentStep = 7 })
-                    7 -> LoadingScreen(baseDir, null, "Checking info...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 8 })
-                    8 -> LoadingScreen(baseDir, null, "Getting your account info...", isGoogle = true, onComplete = { currentStep = 9 })
-                    9 -> LoadingScreen(baseDir, null, "Google services", isGoogle = true, onComplete = { currentStep = 10 })
-                    10 -> ProtectPhoneScreen(onSkip = { currentStep = 11 })
-                    11 -> LoadingScreen(baseDir, null, "", onComplete = { currentStep = 12 })
-                    12 -> LoadingScreen(baseDir, null, "Checking...", isAssistant = true, onComplete = { currentStep = 13 })
-                    13 -> AssistantHeyGoogleScreen(baseDir, onNext = { currentStep = 14 })
-                    14 -> AssistantLockScreen(baseDir, onNext = { currentStep = 15 })
-                    15 -> AppReviewScreen(baseDir, onOk = { currentStep = 16 })
-                    16 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { currentStep = 17 })
-                    17 -> LoadingScreen(baseDir, null, "Please wait...", assetPath = "samsung_dots_header.png", onComplete = { currentStep = 18 })
-                    18 -> LoadingScreen(baseDir, null, "Get recommended apps", assetPath = "samsung_dots_header.png", onComplete = { currentStep = 19 })
-                    19 -> RecommendedAppsScreen(baseDir, onNext = { currentStep = 20 })
-                    20 -> FinalSetupScreen(onFinish = { api.close() })
+            AnimatedContent(
+                targetState = currentStep,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        (slideInHorizontally { it } + fadeIn(tween(300))).togetherWith(
+                            slideOutHorizontally { -it } + fadeOut(tween(300)))
+                    } else {
+                        (slideInHorizontally { -it } + fadeIn(tween(300))).togetherWith(
+                            slideOutHorizontally { it } + fadeOut(tween(300)))
+                    }.using(SizeTransform(clip = false))
+                },
+                label = "StepTransition"
+            ) { targetStep ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    when (targetStep) {
+                        0 -> WelcomeScreen { navigateTo(1) }
+                        1 -> ReviewScreen { navigateTo(2) }
+                        2 -> PermissionsScreen(baseDir) { navigateTo(3) }
+                        3 -> WifiScreen(baseDir, onSkip = { navigateTo(4) })
+                        4 -> LoadingScreen(baseDir, null, "Checking for updates...", assetPath = "checking_info_icon.png", onComplete = { navigateTo(5) })
+                        5 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { navigateTo(6) })
+                        6 -> CopyDataScreen(baseDir, onNext = { navigateTo(7) })
+                        7 -> LoadingScreen(baseDir, null, "Checking info...", assetPath = "checking_info_icon.png", onComplete = { navigateTo(8) })
+                        8 -> LoadingScreen(baseDir, null, "Getting your account info...", isGoogle = true, onComplete = { navigateTo(9) })
+                        9 -> LoadingScreen(baseDir, null, "Google services", isGoogle = true, onComplete = { navigateTo(10) })
+                        10 -> ProtectPhoneScreen(onSkip = { navigateTo(11) })
+                        11 -> LoadingScreen(baseDir, null, "", onComplete = { navigateTo(12) })
+                        12 -> LoadingScreen(baseDir, null, "Checking...", isAssistant = true, onComplete = { navigateTo(13) })
+                        13 -> AssistantHeyGoogleScreen(baseDir, onNext = { navigateTo(14) })
+                        14 -> AssistantLockScreen(baseDir, onNext = { navigateTo(15) })
+                        15 -> AppReviewScreen(baseDir, onOk = { navigateTo(16) })
+                        16 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { navigateTo(17) })
+                        17 -> LoadingScreen(baseDir, null, "Please wait...", assetPath = "samsung_dots_header.png", onComplete = { navigateTo(18) })
+                        18 -> LoadingScreen(baseDir, null, "Get recommended apps", assetPath = "samsung_dots_header.png", onComplete = { navigateTo(19) })
+                        19 -> RecommendedAppsScreen(baseDir, onNext = { navigateTo(20) })
+                        20 -> FinalSetupScreen(onFinish = { api.close() })
+                    }
                 }
             }
 
@@ -121,13 +149,22 @@ class WelcomeUI : DynamicEntry {
                         .align(Alignment.BottomStart)
                         .padding(16.dp)
                         .size(48.dp)
+                        .clip(CircleShape)
                         .clickable {
-                            if (currentStep > 0) currentStep-- else api.nav("BACK")
+                            if (currentStep > 0) navigateTo(currentStep - 1) else api.nav("BACK")
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color.Black, modifier = Modifier.size(32.dp))
                 }
+            }
+
+            if (isProcessing) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter).height(2.dp),
+                    color = SamsungBlue,
+                    trackColor = Color.Transparent
+                )
             }
         }
     }
@@ -454,11 +491,15 @@ class WelcomeUI : DynamicEntry {
     fun PermissionSection(title: String) { Column(modifier = Modifier.fillMaxWidth()) { Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(horizontal = 24.dp)); Text(text = title, fontSize = 15.sp, color = TextGrey, modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) } }
 
     @Composable
-    fun SamsungCheckbox(checked: Boolean) { 
+    fun SamsungCheckbox(checked: Boolean) {
+        val checkboxColor by animateColorAsState(if (checked) SamsungBlue else Color.Transparent, animationSpec = tween(200))
+        val borderColor by animateColorAsState(if (checked) SamsungBlue else Color.LightGray, animationSpec = tween(200))
+        val checkScale by animateFloatAsState(if (checked) 1f else 0f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy))
+        
         val shape = RoundedCornerShape(4.dp)
-        Box(modifier = Modifier.size(22.dp).clip(shape).border(2.dp, if (checked) SamsungBlue else Color.LightGray, shape).background(if (checked) SamsungBlue else Color.Transparent), contentAlignment = Alignment.Center) { 
-            if (checked) Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp)) 
-        } 
+        Box(modifier = Modifier.size(22.dp).clip(shape).border(2.dp, borderColor, shape).background(checkboxColor), contentAlignment = Alignment.Center) {
+            Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp).scale(checkScale))
+        }
     }
 
     @Composable
