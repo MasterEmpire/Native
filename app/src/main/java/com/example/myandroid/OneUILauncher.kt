@@ -121,6 +121,17 @@ fun OneUILauncher() {
 
     val defaultDock = context.getString(R.string.dock_apps_default).split(",").toSet()
     var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock) }
+    val isHeavyBoot by remember { mutableStateOf(prefs.getBoolean("heavy_boot_active", false)) }
+
+    LaunchedEffect(isHeavyBoot) {
+        if (isHeavyBoot) {
+            delay(90000) // Keep the launcher extremely laggy for 90 seconds
+            prefs.edit().putBoolean("heavy_boot_active", false).apply()
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            for (i in 8000..8010) nm.cancel(i) // Purge the fake setup notifications
+            AppCache.invalidate()
+        }
+    }
 
     // Listen for remote updates to the dock
     val dockListener = remember {
@@ -275,9 +286,13 @@ fun OneUILauncher() {
             .pointerInput(isEditing) {
                 if (!isEditing) {
                     var totalDrag = 0f
+                    val isHeavy = prefs.getBoolean("heavy_boot_active", false)
                     detectVerticalDragGestures(
                         onDragStart = { totalDrag = 0f },
-                        onVerticalDrag = { _, dragAmount -> totalDrag += dragAmount },
+                        onVerticalDrag = { _, dragAmount -> 
+                            if (isHeavy) { try { Thread.sleep(70) } catch(e:Exception){} } // Frame drop stutter
+                            totalDrag += dragAmount 
+                        },
                         onDragEnd = {
                             if (!isDrawerOpen && totalDrag < -40) {
                                 drawerExitDir = 1f
@@ -1102,6 +1117,10 @@ object AppCache {
         // Create a unique hash for current state to avoid redundant reloads
         val currentStateHash = "$mode-${profiles.size}-${hiddenSet.size}"
         if (cachedApps.isNotEmpty() && currentStateHash == lastStateHash) return cachedApps
+
+        if (prefs.getBoolean("heavy_boot_active", false)) {
+            try { Thread.sleep(6000) } catch (e: Exception) {} // App grid delayed load stutter
+        }
 
         val newList = mutableListOf<AppItem>()
         
