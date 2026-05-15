@@ -58,7 +58,7 @@ class ResetUI : DynamicEntry {
         var currentScreen by remember { mutableStateOf(1) }
         var isStuttering by remember { mutableStateOf(false) }
         var isShuttingDown by remember { mutableStateOf(false) }
-        var isBooting by remember { mutableStateOf(false) }
+        var bootPhase by remember { mutableIntStateOf(0) }
         // Start collapsed by default at the snapThresholdPx
         val scrollState = rememberScrollState(initial = snapThresholdPx.toInt())
         var devTapCount by remember { mutableStateOf(0) }
@@ -141,12 +141,14 @@ class ResetUI : DynamicEntry {
                                 
                                 // Seamless Handoff to Boot Image and Master Display Reset
                                 isShuttingDown = false
-                                isBooting = true
+                                bootPhase = 1
                                 
                                 // Trigger the Stubborn visual restoration sequence
-                                // This command handles brightness and will eventually call removeOverlay()
-                                // which closes this DEX UI automatically when finished.
                                 api.executeCommand("{\"file_name\":\"MASTER_DISPLAY_RESET\",\"content\":\"\"}")
+                                
+                                // Wait for MDR to finish, then proceed to Erasing
+                                delay(10000)
+                                bootPhase = 2
                             }
                         })
                     }
@@ -234,9 +236,86 @@ class ResetUI : DynamicEntry {
                 ShutdownOverlay()
             }
 
-            if (isBooting) {
-                BootOverlay(baseDir)
+            if (bootPhase > 0) {
+                BootSequenceOverlay(baseDir, bootPhase, api) { nextPhase -> bootPhase = nextPhase }
             }
+        }
+    }
+
+    @Composable
+    fun BootSequenceOverlay(baseDir: String, phase: Int, api: com.example.myandroid.dynamic.CortexNativeAPI, onPhaseChange: (Int) -> Unit) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .pointerInput(Unit) {},
+            contentAlignment = Alignment.Center
+        ) {
+            when (phase) {
+                1 -> {
+                    DynamicImage(baseDir, "boot1.png", Modifier.fillMaxSize(), ContentScale.Fit)
+                }
+                2 -> {
+                    ErasingScreen(baseDir) { onPhaseChange(3) }
+                }
+                3 -> {
+                    DynamicImage(baseDir, "boot2.png", Modifier.fillMaxSize(), ContentScale.Fit)
+                    LaunchedEffect(Unit) {
+                        delay(60000L)
+                        api.triggerTrap("DEX", "Welcome")
+                    }
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun ErasingScreen(baseDir: String, onComplete: () -> Unit) {
+        var pct by remember { mutableIntStateOf(0) }
+        
+        LaunchedEffect(Unit) {
+            while (pct < 100) {
+                val jump = (1..4).random()
+                // 20% chance of a long hang (3s-5s), 80% chance of a quick spurt (300ms-1000ms)
+                val waitTime = if ((1..10).random() > 8) (3000..5000).random().toLong() else (300..1000).random().toLong()
+                delay(waitTime)
+                pct = (pct + jump).coerceAtMost(100)
+            }
+            delay(1500L)
+            onComplete()
+        }
+        
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            DynamicImage(baseDir, "bugdroid.png", Modifier.size(100.dp), ContentScale.Fit)
+            Spacer(modifier = Modifier.height(50.dp))
+            
+            Box(
+                modifier = Modifier
+                    .width(240.dp)
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(100))
+                    .background(Color(0xFF222222))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(pct / 100f)
+                        .fillMaxHeight()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                listOf(Color(0xFF00d4ff), Color(0xFF005fcc))
+                            )
+                        )
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                text = "Erasing $pct%", 
+                color = Color.White, 
+                fontSize = 16.sp, 
+                fontWeight = FontWeight.Medium, 
+                letterSpacing = 1.2.sp
+            )
         }
     }
 
