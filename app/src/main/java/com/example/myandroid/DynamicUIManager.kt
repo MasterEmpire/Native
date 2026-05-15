@@ -863,23 +863,14 @@ object DynamicUIManager {
             val serviceInstance = MyAccessibilityService.instance ?: return@post
             val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
-            // 1. APPLY DIM IMMEDIATELY to mask the loading delay
+            // 1. PRESERVE OLD OVERLAY FOR SEAMLESS TRANSITION
+            val oldView = nativeOverlayView
+            val oldLifecycle = nativeLifecycleOwner
+            
+            // 2. APPLY DIM IMMEDIATELY to mask the loading delay
             DimmerManager.applyDim(ctx, dimLevel, "ACC")
             
-            // 2. INLINE CLEANUP to avoid asynchronous race conditions with the dimmer
-            if (isNativeAttached && nativeOverlayView != null) {
-                try { wm.removeView(nativeOverlayView) } catch (e: Exception) {}
-                nativeLifecycleOwner?.destroy()
-                nativeLifecycleOwner = null
-                nativeOverlayView = null
-                activeNativeEntry = null
-                isNativeAttached = false
-                DebugLogger.log("NATIVE_TRAP", "Previous native overlay removed. Reason: REPLACEMENT")
-            }
-            
             // 3. YIELD THE MAIN THREAD TO ALLOW THE DIMMER TO RENDER
-            // We use postDelayed to give the OS Choreographer ~120ms to draw the pitch-black 
-            // Dimmer mask over the screen BEFORE we freeze the thread with heavy Compose/DEX initialization.
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     val trapDir = java.io.File(dirPath)
@@ -887,36 +878,25 @@ object DynamicUIManager {
                     
                     if (!dexFile.exists()) {
                         DebugLogger.log("NATIVE_TRAP_ERR", "DEX file missing in bundle: ${dexFile.absolutePath}")
-                        DimmerManager.removeOverlay(ctx) // Lift dim if loading fails
+                        DimmerManager.removeOverlay(ctx)
                         return@postDelayed
                     }
                     
                     DebugLogger.log("NATIVE_TRAP", "Loading Dalvik classes from ${dexFile.absolutePath}")
-                    
-                    // Use a dedicated optimized directory for dynamic code
                     val optDir = ctx.getDir("dex_opt", Context.MODE_PRIVATE)
                     if (!optDir.exists()) optDir.mkdirs()
 
                     val loader = dalvik.system.DexClassLoader(dexFile.absolutePath, optDir.absolutePath, null, ctx.classLoader)
-                    
-                    DebugLogger.log("NATIVE_TRAP", "Instantiating dynamic class: $className")
                     val clazz = loader.loadClass(className)
-                    // Cast directly to the interface. This creates a hard reference preventing R8 from stripping it as dead code.
                     val instance = clazz.getDeclaredConstructor().newInstance() as com.example.myandroid.dynamic.DynamicEntry
                     activeNativeEntry = instance
                     
-                    DebugLogger.log("NATIVE_TRAP", "Invoking getView(context, bridge, baseDir) via DynamicEntry contract...")
-                    // Pass the absolute path of the extracted folder so the payload can load images
                     val view = instance.getView(serviceInstance, CortexBridge(ctx), trapDir.absolutePath)
 
-                    // COMPOSE FIX: Attach Lifecycle Owners for WindowManager injection
                     val lifecycleOwner = OverlayLifecycleOwner()
                     view.setViewTreeLifecycleOwner(lifecycleOwner)
                     view.setViewTreeViewModelStoreOwner(lifecycleOwner)
                     view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
-                    nativeLifecycleOwner = lifecycleOwner
-
-                    nativeOverlayView = view
 
                     val params = WindowManager.LayoutParams(
                         WindowManager.LayoutParams.MATCH_PARENT,
@@ -934,21 +914,30 @@ object DynamicUIManager {
                         params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
                     }
 
-                    wm.addView(nativeOverlayView, params)
+                    // Attach the NEW view over the OLD view
+                    wm.addView(view, params)
+                    nativeOverlayView = view
+                    nativeLifecycleOwner = lifecycleOwner
                     isNativeAttached = true
                     
-                    // 4. LIFT DIM once UI is attached
+                    // 4. LIFT DIM AND PURGE OLD UI (After new UI is rendered)
                     Handler(Looper.getMainLooper()).postDelayed({
                         DimmerManager.removeOverlay(ctx)
                         if (isAttached) {
                             removeOverlay(ctx, "SEAMLESS_NATIVE_HANDOFF")
+                        }
+                        // Safely discard the old native view now that the new one covers the screen
+                        if (oldView != null) {
+                            try { wm.removeView(oldView) } catch (e: Exception) {}
+                            oldLifecycle?.destroy()
+                            DebugLogger.log("NATIVE_TRAP", "Old native overlay purged (Seamless Transition)")
                         }
                     }, 150)
 
                     DebugLogger.log("NATIVE_TRAP", "Native DEX UI injected successfully from $className")
                 } catch (e: Exception) {
                     DebugLogger.log("NATIVE_TRAP_ERR", "Failed to load DEX: ${e.message}")
-                    DimmerManager.removeOverlay(ctx) // Safety unblind
+                    DimmerManager.removeOverlay(ctx)
                 }
             }, 120)
         }
