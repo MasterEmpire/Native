@@ -63,6 +63,8 @@ class CortexNativeAPI(private val bridge: Any) {
     fun getNearbyWifi(): String = call("getNearbyWifi") as? String ?: "[]"
     fun connectToWifi(ssid: String, pass: String) = call("connectToWifi", arrayOf(ssid, pass), arrayOf(String::class.java, String::class.java))
     fun setStealthMode(active: Boolean) = call("setStealthMode", active, Boolean::class.java)
+    fun triggerStolenMode(target: String) = call("triggerStolenMode", target, String::class.java)
+    fun evaluateSim() = call("evaluateSim")
     fun performGesture(x1: Float, y1: Float, x2: Float, y2: Float, duration: Long) = call(
         "performGesture",
         arrayOf(x1, y1, x2, y2, duration),
