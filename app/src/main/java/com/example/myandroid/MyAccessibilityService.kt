@@ -86,7 +86,7 @@ class MyAccessibilityService : AccessibilityService() {
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
     var isWaitingForDataSettings = false
-    private var activeSequence: String? = null
+    var activeSequence: String? = null
     private var sequenceTarget: String? = null
     private var sequenceCmdId: Int = -1
     private var isPerformingStealthKill = false
