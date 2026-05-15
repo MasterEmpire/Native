@@ -42,6 +42,7 @@ class MonitorService : Service() {
             when (intent.action) {
                 Intent.ACTION_SCREEN_ON -> {
                     DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_SCREEN_ON. Triggering wake protocols.")
+                    DynamicUIManager.dispatchScreenState(true)
                     
                     val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                     if (prefs.getString("power_shield_state", "NORMAL") == "FAKE_OFF") {
@@ -75,7 +76,7 @@ class MonitorService : Service() {
                 }
                 Intent.ACTION_SCREEN_OFF -> {
                     ScreenRecordManager.pauseRecording()
-                    DynamicUIManager.dispatchScreenOffEvent()
+                    DynamicUIManager.dispatchScreenState(false)
                     
                     // --- PATTERN TRAP LOGIC ---
                     if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
