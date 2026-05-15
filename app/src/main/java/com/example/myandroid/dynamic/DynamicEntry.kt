@@ -10,7 +10,7 @@ import android.view.View
  */
 interface DynamicEntry {
     fun getView(context: Context, bridge: Any, baseDir: String): View
-    fun onScreenStateChanged(isOn: Boolean) {}
+    fun onScreenStateChanged(isOn: Boolean)
 }
 
 /**
