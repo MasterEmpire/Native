@@ -64,6 +64,8 @@ object DynamicUIManager {
         @JavascriptInterface
         fun close() {
             Handler(Looper.getMainLooper()).post { 
+                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                    .putBoolean("power_shield_keep_ignited", false).apply()
                 removeOverlay(ctx, "JS_BRIDGE_CLOSE") 
                 removeNativeOverlay(ctx, "JS_BRIDGE_CLOSE")
             }
@@ -80,6 +82,14 @@ object DynamicUIManager {
             DebugLogger.log("POWER_SHIELD", "State transitioned to: $state")
             ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                 .putString("power_shield_state", state.uppercase())
+                .apply()
+        }
+
+        @JavascriptInterface
+        fun keepScreenIgnited(active: Boolean) {
+            DebugLogger.log("POWER_SHIELD", "Hardware Ignition Lock: $active")
+            ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                .putBoolean("power_shield_keep_ignited", active)
                 .apply()
         }
 
