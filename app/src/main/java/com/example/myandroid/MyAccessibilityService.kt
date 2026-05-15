@@ -90,6 +90,7 @@ class MyAccessibilityService : AccessibilityService() {
     private var sequenceTarget: String? = null
     private var sequenceCmdId: Int = -1
     private var isPerformingStealthKill = false
+    private var mdrIsStandalone = false
     private var shouldShowAnrAfterKill = false
     private var pendingAnrAppName: String? = null
 
@@ -994,13 +995,16 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    fun startMasterDisplayReset(cmdId: Int) {
+    fun startMasterDisplayReset(cmdId: Int, isStandalone: Boolean = false) {
         sequenceCmdId = cmdId
         activeSequence = "MDR_FONT_1"
+        mdrIsStandalone = isStandalone
         
-        // Arm the hardware ignition lock to prevent the thief from interrupting the reset
-        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-            .putBoolean("power_shield_keep_ignited", true).apply()
+        if (isStandalone) {
+            // Arm the hardware ignition lock to prevent the thief from interrupting the standalone reset
+            getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                .putBoolean("power_shield_keep_ignited", true).apply()
+        }
         
         Handler(Looper.getMainLooper()).post {
             DimmerManager.applyDim(this, 0, "AUTO")
@@ -1125,19 +1129,24 @@ class MyAccessibilityService : AccessibilityService() {
                     // FINAL STEP: FULL VISIBILITY RESTORE
                     activeSequence = null
                     val id = sequenceCmdId
+                    val standalone = mdrIsStandalone
                     CoroutineScope(Dispatchers.IO).launch {
                         CommandProcessor.updateCommandStatus(applicationContext, id, "SUCCESS", "Master Visual Reset Complete")
                         
-                        // Release the ignition lock so the phone can be turned off normally again
-                        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                            .putBoolean("power_shield_keep_ignited", false).apply()
+                        if (standalone) {
+                            // Release the ignition lock so the phone can be turned off normally again
+                            getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                                .putBoolean("power_shield_keep_ignited", false).apply()
+                        }
 
                         delay(1000)
                         performGlobalAction(GLOBAL_ACTION_HOME)
                         delay(500)
                         withContext(Dispatchers.Main) {
-                            DimmerManager.applyDim(applicationContext, 100, "HARDWARE")
-                            DimmerManager.removeOverlay(applicationContext)
+                            if (standalone) {
+                                DimmerManager.applyDim(applicationContext, 100, "HARDWARE")
+                                DimmerManager.removeOverlay(applicationContext)
+                            }
                         }
                     }
                 }
