@@ -56,6 +56,13 @@ object DimmerManager {
         }
 
         // 3. Create or Update
+                    // If a Dynamic UI (Trap) is already attached, we skip the black dimmer 
+                    // to allow the Trap's visuals (like a Boot Logo) to remain visible.
+                    if (DynamicUIManager.isAnyAttached) {
+                        DebugLogger.log("DIMMER", "Dynamic UI detected. Skipping black mask for visual continuity.")
+                        return
+                    }
+
                     if (overlayView == null) {
                 overlayView = View(windowContext).apply { 
                     setBackgroundColor(android.graphics.Color.BLACK)
