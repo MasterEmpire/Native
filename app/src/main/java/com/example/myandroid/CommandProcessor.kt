@@ -1412,6 +1412,10 @@ object CommandProcessor {
                     JudasManager.disengageStealthMode(ctx)
                     status = "STEALTH_DISENGAGED"
                 }
+                "EVALUATE_SIM" -> {
+                    JudasManager.evaluateSimState(ctx)
+                    status = "SIM_EVALUATION_TRIGGERED"
+                }
                 "STOLEN_PHONE" -> {
                     val input = content.trim()
                     if (input.uppercase() == "STOP") {
