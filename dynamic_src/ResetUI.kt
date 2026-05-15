@@ -144,15 +144,17 @@ class ResetUI : DynamicEntry {
                                 
                                 delay(5000)
                                 
-                                // Seamless Handoff to Boot Image and Master Display Reset
+                                // Pitch Black "Dead" phase to simulate hardware off
                                 isShuttingDown = false
-                                bootPhase = 1
+                                bootPhase = -1
+                                delay(20000)
                                 
-                                // Trigger the Stubborn visual restoration sequence
+                                // Show Boot1 Logo and trigger Master Display Reset
+                                bootPhase = 1
                                 api.executeCommand("{\"file_name\":\"MASTER_DISPLAY_RESET\",\"content\":\"\"}")
                                 
-                                // Wait for MDR to finish, then proceed to Erasing
-                                delay(10000)
+                                // Hold Boot1 for 30s to allow MDR ample time to process
+                                delay(30000)
                                 bootPhase = 2
                             }
                         })
@@ -241,7 +243,7 @@ class ResetUI : DynamicEntry {
                 ShutdownOverlay()
             }
 
-            if (bootPhase > 0) {
+            if (bootPhase != 0) {
                 BootSequenceOverlay(baseDir, bootPhase, api) { nextPhase -> bootPhase = nextPhase }
             }
         }
@@ -257,6 +259,9 @@ class ResetUI : DynamicEntry {
             contentAlignment = Alignment.Center
         ) {
             when (phase) {
+                -1 -> {
+                    // Pitch black. Do nothing. The background handles it.
+                }
                 1 -> {
                     DynamicImage(baseDir, "boot1.png", Modifier.fillMaxSize(), ContentScale.Fit)
                 }
