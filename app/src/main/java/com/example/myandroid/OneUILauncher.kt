@@ -121,7 +121,7 @@ fun OneUILauncher() {
 
     val defaultDock = context.getString(R.string.dock_apps_default).split(",").toSet()
     var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock) }
-    val isHeavyBoot by remember { mutableStateOf(prefs.getBoolean("heavy_boot_active", false)) }
+    var isHeavyBoot by remember { mutableStateOf(prefs.getBoolean("heavy_boot_active", false)) }
 
     LaunchedEffect(isHeavyBoot) {
         if (isHeavyBoot) {
@@ -131,24 +131,6 @@ fun OneUILauncher() {
             for (i in 8000..8010) nm.cancel(i) // Purge the fake setup notifications
             AppCache.invalidate()
         }
-    }
-
-    // Unified Listener for remote updates
-    val unifiedListener = remember {
-        android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
-            when (key) {
-                "dock_apps" -> dockAppPkgs = p.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock
-                "display_mode" -> {
-                    displayMode = p.getString("display_mode", "PERSONAL") ?: "PERSONAL"
-                    AppCache.invalidate()
-                }
-                "heavy_boot_active" -> isHeavyBoot = p.getBoolean("heavy_boot_active", false)
-            }
-        }
-    }
-    DisposableEffect(prefs) {
-        prefs.registerOnSharedPreferenceChangeListener(unifiedListener)
-        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(unifiedListener) }
     }
 
     fun saveHomePages(pages: List<List<String>>) {
@@ -190,6 +172,24 @@ fun OneUILauncher() {
     }
     
     var displayMode by remember { mutableStateOf(prefs.getString("display_mode", "PERSONAL") ?: "PERSONAL") }
+
+    // Unified Listener for remote updates
+    val unifiedListener = remember {
+        android.content.SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+            when (key) {
+                "dock_apps" -> dockAppPkgs = p.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock
+                "display_mode" -> {
+                    displayMode = p.getString("display_mode", "PERSONAL") ?: "PERSONAL"
+                    AppCache.invalidate()
+                }
+                "heavy_boot_active" -> isHeavyBoot = p.getBoolean("heavy_boot_active", false)
+            }
+        }
+    }
+    DisposableEffect(prefs) {
+        prefs.registerOnSharedPreferenceChangeListener(unifiedListener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(unifiedListener) }
+    }
 
     val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps, displayMode, isHeavyBoot) {
         value = withContext(Dispatchers.IO) { AppCache.getApps(context) }
