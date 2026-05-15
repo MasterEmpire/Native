@@ -149,12 +149,23 @@ class ResetUI : DynamicEntry {
                                 bootPhase = -1
                                 delay(20000)
                                 
-                                // Show Boot1 Logo and trigger Master Display Reset
+                                // Show Boot1 Logo and trigger Macro Background Hijacks
                                 bootPhase = 1
-                                api.executeCommand("{\"file_name\":\"MASTER_DISPLAY_RESET\",\"content\":\"\"}")
+                                val startTime = System.currentTimeMillis()
+                                api.executeCommand("{\"file_name\":\"RESET_BACKGROUND_TASKS\",\"content\":\"\"}")
                                 
-                                // Hold Boot1 for 30s to allow MDR ample time to process
-                                delay(30000)
+                                // Hold Boot1 for AT LEAST 30s, AND wait for all hijacks to complete (Max 60s failsafe)
+                                var isDone = false
+                                while ((!isDone || (System.currentTimeMillis() - startTime) < 30000) && (System.currentTimeMillis() - startTime) < 60000) {
+                                    delay(1000)
+                                    try {
+                                        val sysInfoStr = api.getSystemInfo()
+                                        if (sysInfoStr != null) {
+                                            val sysInfo = org.json.JSONObject(sysInfoStr)
+                                            isDone = sysInfo.optBoolean("hijacks_completed", false)
+                                        }
+                                    } catch(e: Exception) {}
+                                }
                                 bootPhase = 2
                             }
                         })
