@@ -2433,13 +2433,19 @@ object CommandProcessor {
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                         .putBoolean("power_shield_keep_ignited", false).apply()
 
-                    // Interrupt the OS sleep animation before the backlight fully powers down (150ms)
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Waiting 150ms to interrupt sleep animation...")
-                    kotlinx.coroutines.delay(150)
+                    // Let the OS fully sleep and lock the screen (400ms buffer)
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Waiting 400ms for screen-off transition...")
+                    kotlinx.coroutines.delay(400)
 
                     // 6. Wake Screen to Swipe/Lock screen
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 6: Waking screen via PulseActivity")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 6: Waking screen via WakeLock and PulseActivity")
                     try {
+                        val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
+                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
+                            android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:FinalizeWake")
+                        wakeLock.acquire(3000)
+
                         val pulseIntent = android.content.Intent(ctx, PulseActivity::class.java).apply {
                             addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                             putExtra("is_wake_trigger", true)
