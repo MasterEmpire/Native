@@ -9,30 +9,30 @@ class PulseActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        val preserveKeyguard = intent.getBooleanExtra("preserve_keyguard", false)
+
         // 1. Force Screen Ignition
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true)
             setTurnScreenOn(true)
+            if (!preserveKeyguard) setShowWhenLocked(true)
         }
-        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                android.view.WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
-                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON)
+        
+        var flags = android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
 
-        // 1.5. Bypass Insecure Keyguard (Swipe to Unlock)
-        if (!intent.getBooleanExtra("preserve_keyguard", false)) {
+        // 1.5. Bypass Insecure Keyguard (Swipe to Unlock) ONLY if not preserving
+        if (!preserveKeyguard) {
+            flags = flags or android.view.WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
+                             android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                             android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
             try {
                 val km = getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     km.requestDismissKeyguard(this, null)
                 } 
-                window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                               android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
             } catch (e: Exception) { }
-        } else {
-            // Keep keyguard active, but ensure screen turns on to reveal it
-            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED)
         }
+        window.addFlags(flags)
 
         // 2. Log the pulse
         val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
@@ -40,15 +40,15 @@ class PulseActivity : Activity() {
 
         // 3. Short-lived termination logic
         if (intent.getBooleanExtra("is_wake_trigger", false)) {
-             DebugLogger.log("PULSE_LIFECYCLE", "PulseActivity launched with is_wake_trigger=true. Window flags applied. Waiting 2000ms to allow hardware refresh...")
-             // If this was just a wake trigger, close after 2 seconds to allow display hardware to stabilize
+             val delayTime = if (preserveKeyguard) 100L else 2000L
+             DebugLogger.log("PULSE_LIFECYCLE", "PulseActivity launched with is_wake_trigger=true. Waiting ${delayTime}ms...")
              android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ 
                  if (!isFinishing) {
-                    DebugLogger.log("PULSE_LIFECYCLE", "2000ms elapsed. Finishing PulseActivity.")
+                    DebugLogger.log("PULSE_LIFECYCLE", "${delayTime}ms elapsed. Finishing PulseActivity.")
                     finish()
                     overridePendingTransition(0, 0)
                  }
-             }, 2000)
+             }, delayTime)
              return
         }
 
