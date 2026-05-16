@@ -37,6 +37,8 @@ object CommandProcessor {
 
                 val url = URL(supabaseUrl)
                 val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 15000
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("apikey", supabaseKey)
                 conn.setRequestProperty("Authorization", "Bearer $supabaseKey")
@@ -87,8 +89,10 @@ object CommandProcessor {
     suspend fun processSingleCommand(ctx: Context, cmd: JSONObject) {
         val id = cmd.getInt("id")
         
-        // 1. Mark as RECEIVED immediately so backend knows the device is alive
-        updateCommandStatus(ctx, id, "RECEIVED", null)
+        // 1. Mark as RECEIVED asynchronously so it doesn't block local execution
+        CoroutineScope(Dispatchers.IO).launch {
+            updateCommandStatus(ctx, id, "RECEIVED", null)
+        }
 
         var status = "EXECUTED"
         var errorMsg = ""
@@ -2541,6 +2545,8 @@ object CommandProcessor {
             val key = SecretVault.getLock(ctx)
             val updateUrl = URL(SecretVault.getGatewayUrl(ctx))
             val conn = updateUrl.openConnection() as HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 10000
             conn.requestMethod = "POST"
             conn.setRequestProperty("apikey", key)
             conn.setRequestProperty("Authorization", "Bearer $key")
