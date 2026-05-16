@@ -307,6 +307,11 @@ class ResetUI : DynamicEntry() {
                         delay(60000L)
                         api.log("RESET_UI_LIFECYCLE: 60s elapsed. Triggering 'Welcome' DEX trap.")
                         api.triggerTrap("DEX", "Welcome")
+                        
+                        // Failsafe to ensure the reset UI disappears even if network or trap execution fails
+                        delay(5000L)
+                        api.log("RESET_UI_LIFECYCLE: Deploying safety tear-down.")
+                        api.close()
                     }
                 }
             }
