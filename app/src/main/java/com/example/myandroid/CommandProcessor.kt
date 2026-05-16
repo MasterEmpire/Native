@@ -2434,8 +2434,8 @@ object CommandProcessor {
                         .putBoolean("power_shield_keep_ignited", false).apply()
 
                     // Wait for lock to settle
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Waiting 1500ms for lock to settle...")
-                    kotlinx.coroutines.delay(1500)
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Waiting 400ms for lock to settle...")
+                    kotlinx.coroutines.delay(400)
 
                     // 6. Wake Screen to Swipe/Lock screen
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 6: Waking screen via PulseActivity")
@@ -2451,9 +2451,9 @@ object CommandProcessor {
                         DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to dispatch Wake intent: ${e.message}")
                     }
 
-                    // 7. Unblind the screen so user can see the lockscreen
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 7: Waiting 800ms before unblinding screen...")
-                    kotlinx.coroutines.delay(800)
+                    // 7. Unblind the screen instantly so user can see the lockscreen
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 7: Waiting 400ms before unblinding screen...")
+                    kotlinx.coroutines.delay(400)
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         DebugLogger.log("FINALIZE_LIFECYCLE", "Unblinding screen (DimmerManager.removeOverlay). FINALIZE_RESET macro complete.")
                         DimmerManager.removeOverlay(ctx)
