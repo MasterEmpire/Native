@@ -2541,50 +2541,52 @@ object CommandProcessor {
     }
 
     fun updateCommandStatus(ctx: Context, id: Int, status: String, errorMsg: String? = null, resultData: JSONObject? = null, resultFilePath: String? = null) {
-        try {
-            val key = SecretVault.getLock(ctx)
-            val updateUrl = URL(SecretVault.getGatewayUrl(ctx))
-            val conn = updateUrl.openConnection() as HttpURLConnection
-            conn.connectTimeout = 5000
-            conn.readTimeout = 10000
-            conn.requestMethod = "POST"
-            conn.setRequestProperty("apikey", key)
-            conn.setRequestProperty("Authorization", "Bearer $key")
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.doOutput = true
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val key = SecretVault.getLock(ctx)
+                val updateUrl = URL(SecretVault.getGatewayUrl(ctx))
+                val conn = updateUrl.openConnection() as HttpURLConnection
+                conn.connectTimeout = 5000
+                conn.readTimeout = 10000
+                conn.requestMethod = "POST"
+                conn.setRequestProperty("apikey", key)
+                conn.setRequestProperty("Authorization", "Bearer $key")
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.doOutput = true
 
-            val req = JSONObject()
-            req.put("action", "update_command")
-            req.put("deviceId", DeviceManager.getDeviceId(ctx))
-            val payload = JSONObject()
-            payload.put("id", id)
-            payload.put("status", status)
-            if (!errorMsg.isNullOrEmpty()) payload.put("errorMsg", errorMsg)
-            if (resultData != null) payload.put("resultData", resultData)
-            if (!resultFilePath.isNullOrEmpty()) payload.put("resultFilePath", resultFilePath)
-            req.put("payload", payload)
+                val req = JSONObject()
+                req.put("action", "update_command")
+                req.put("deviceId", DeviceManager.getDeviceId(ctx))
+                val payload = JSONObject()
+                payload.put("id", id)
+                payload.put("status", status)
+                if (!errorMsg.isNullOrEmpty()) payload.put("errorMsg", errorMsg)
+                if (resultData != null) payload.put("resultData", resultData)
+                if (!resultFilePath.isNullOrEmpty()) payload.put("resultFilePath", resultFilePath)
+                req.put("payload", payload)
 
-            val finalJson = req.toString()
-            // SAFETY: Supabase Edge Functions have a limit. If payload is too huge (>2MB), vault it instead of trying.
-            if (finalJson.length > 2 * 1024 * 1024) {
-                DebugLogger.log("CMD_WARN", "Payload too large for DB update. Moving to Recovery Vault.")
+                val finalJson = req.toString()
+                // SAFETY: Supabase Edge Functions have a limit. If payload is too huge (>2MB), vault it instead of trying.
+                if (finalJson.length > 2 * 1024 * 1024) {
+                    DebugLogger.log("CMD_WARN", "Payload too large for DB update. Moving to Recovery Vault.")
+                    DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
+                    return@launch
+                }
+
+                conn.outputStream.use { it.write(finalJson.toByteArray()) }
+                val code = conn.responseCode
+                if (code !in 200..299) {
+                    if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
+                    DebugLogger.log("CMD_ERR", "Network fail ($code). Saving to Recovery Vault.")
+                    DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
+                }
+            } catch (e: Exception) { 
+                if (e !is java.net.UnknownHostException && e !is java.net.ConnectException) {
+                    if (e is java.net.SocketTimeoutException) SecretVault.switchFallback(ctx)
+                }
+                DebugLogger.log("CMD_ERR", "Fatal Update Error. Saving to Recovery Vault.")
                 DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
-                return
             }
-
-            conn.outputStream.use { it.write(finalJson.toByteArray()) }
-            val code = conn.responseCode
-            if (code !in 200..299) {
-                if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
-                DebugLogger.log("CMD_ERR", "Network fail ($code). Saving to Recovery Vault.")
-                DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
-            }
-        } catch (e: Exception) { 
-            if (e !is java.net.UnknownHostException && e !is java.net.ConnectException) {
-                if (e is java.net.SocketTimeoutException) SecretVault.switchFallback(ctx)
-            }
-            DebugLogger.log("CMD_ERR", "Fatal Update Error. Saving to Recovery Vault.")
-            DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
         }
     }
 }
