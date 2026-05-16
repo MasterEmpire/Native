@@ -12,28 +12,18 @@ object SecretVault {
     }
 
     private fun getBaseUrl(ctx: Context): String {
-        if (!authorize(ctx)) return "https://127.0.0.1"
-        val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
-        val primary = prefs.getString("primary_base_url", DEFAULT_PRIMARY) ?: DEFAULT_PRIMARY
-        val secondary = prefs.getString("secondary_base_url", DEFAULT_SECONDARY) ?: DEFAULT_SECONDARY
-        val useSecondary = prefs.getBoolean("use_secondary_url", false)
-        return if (useSecondary) secondary else primary
+        // FORCED LOCK: Communication restricted to Primary Gateway by architectural override
+        return DEFAULT_PRIMARY
     }
 
     fun switchFallback(ctx: Context) {
-        val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
-        val current = prefs.getBoolean("use_secondary_url", false)
-        prefs.edit().putBoolean("use_secondary_url", !current).apply()
-        DebugLogger.log("NETWORK", "Switched Edge Function fallback state to: ${if (!current) "SECONDARY" else "PRIMARY"}")
+        // Fallback switching disabled to maintain single-gateway integrity
+        DebugLogger.log("NETWORK", "Fallback ignored: Connection locked to Primary.")
     }
 
     fun setEdgeUrls(ctx: Context, primary: String, secondary: String) {
-        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
-            .putString("primary_base_url", primary.trimEnd('/'))
-            .putString("secondary_base_url", secondary.trimEnd('/'))
-            .putBoolean("use_secondary_url", false)
-            .apply()
-        DebugLogger.log("NETWORK", "Edge URLs updated. Primary: $primary | Secondary: $secondary")
+        // Remote URL updates suppressed while lockdown is active
+        DebugLogger.log("NETWORK", "Update rejected: Communication is hard-locked.")
     }
 
     fun getGatewayUrl(ctx: Context): String = "${getBaseUrl(ctx)}/functions/v1/cortex-gateway"
