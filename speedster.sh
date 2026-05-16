@@ -40,6 +40,7 @@ $WORKDIR/kotlinc/bin/kotlinc \
     app/src/main/java/com/example/myandroid/dynamic/DynamicEntry.kt \
     -cp "$CP" \
     -Xplugin=$WORKDIR/compose-compiler.jar \
+    -jvm-target 17 \
     -d $CLASSES_DIR
 
 echo "🧹 CLEANING DUPLICATES..."
