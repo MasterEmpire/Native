@@ -21,10 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myandroid.dynamic.DynamicEntry
 
-class HelloUI : DynamicEntry {
-
-    override fun onScreenStateChanged(isOn: Boolean) {}
-
+class HelloUI : DynamicEntry() {
 
     override fun getView(context: Context, bridge: Any, baseDir: String): View {
         return ComposeView(context).apply {
