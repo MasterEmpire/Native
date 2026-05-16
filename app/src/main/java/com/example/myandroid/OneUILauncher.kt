@@ -123,7 +123,7 @@ fun OneUILauncher() {
     var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock) }
     var isHeavyBoot by remember { mutableStateOf(prefs.getBoolean("heavy_boot_active", false)) }
 
-    var showBootOverlay by remember { mutableStateOf(isHeavyBoot) }
+    var showBootOverlay by remember { mutableStateOf(prefs.getBoolean("show_boot_overlay", false)) }
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     var isResumed by remember { mutableStateOf(false) }
 
@@ -136,9 +136,15 @@ fun OneUILauncher() {
     }
 
     LaunchedEffect(showBootOverlay, isResumed) {
-        if (showBootOverlay && isResumed) {
-            delay(4500) // Hold the overlay for 4.5 seconds specifically AFTER the user unlocks
-            showBootOverlay = false
+        if (showBootOverlay) {
+            if (isResumed) {
+                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is VISIBLE. App is RESUMED (User is looking at it). Starting 4.5s countdown...")
+                delay(4500) // Hold the overlay for 4.5 seconds specifically AFTER the user unlocks
+                prefs.edit().putBoolean("show_boot_overlay", false).apply()
+                DebugLogger.log("LAUNCHER_BOOT", "4.5s countdown finished. Boot overlay dismissed.")
+            } else {
+                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is PENDING. App is NOT resumed yet (Likely behind Keyguard). Waiting for unlock...")
+            }
         }
     }
 
@@ -213,6 +219,7 @@ fun OneUILauncher() {
                     AppCache.invalidate()
                 }
                 "heavy_boot_active" -> isHeavyBoot = p.getBoolean("heavy_boot_active", false)
+                "show_boot_overlay" -> showBootOverlay = p.getBoolean("show_boot_overlay", false)
             }
         }
     }
