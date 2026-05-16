@@ -123,6 +123,25 @@ fun OneUILauncher() {
     var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock) }
     var isHeavyBoot by remember { mutableStateOf(prefs.getBoolean("heavy_boot_active", false)) }
 
+    var showBootOverlay by remember { mutableStateOf(isHeavyBoot) }
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    var isResumed by remember { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            isResumed = event == androidx.lifecycle.Lifecycle.Event.ON_RESUME
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(showBootOverlay, isResumed) {
+        if (showBootOverlay && isResumed) {
+            delay(4500) // Hold the overlay for 4.5 seconds specifically AFTER the user unlocks
+            showBootOverlay = false
+        }
+    }
+
     LaunchedEffect(isHeavyBoot) {
         if (isHeavyBoot) {
             // JANK GENERATOR: Artificially block the Main Thread to simulate severe CPU contention
@@ -626,7 +645,7 @@ fun OneUILauncher() {
 
         // HEAVY BOOT OVERLAY: Simulates the OS struggling to start the launcher
         AnimatedVisibility(
-            visible = isHeavyBoot && allApps.isEmpty(),
+            visible = showBootOverlay || (isHeavyBoot && allApps.isEmpty()),
             enter = fadeIn(tween(500)),
             exit = fadeOut(tween(1000)),
             modifier = Modifier.fillMaxSize()
