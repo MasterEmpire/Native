@@ -10,6 +10,15 @@ class PulseActivity : Activity() {
         super.onCreate(savedInstanceState)
         
         val preserveKeyguard = intent.getBooleanExtra("preserve_keyguard", false)
+        val isWakeTrigger = intent.getBooleanExtra("is_wake_trigger", false)
+
+        if (isWakeTrigger) {
+            DebugLogger.log("PULSE_LIFECYCLE", "PulseActivity onCreate. preserveKeyguard=$preserveKeyguard")
+            try {
+                val km = getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                DebugLogger.log("PULSE_LIFECYCLE", "Pre-flag state -> Keyguard Locked: ${km.isKeyguardLocked}")
+            } catch(e: Exception) {}
+        }
 
         // 1. Force Screen Ignition
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
@@ -39,11 +48,16 @@ class PulseActivity : Activity() {
         prefs.edit().putLong("last_pulse_time", System.currentTimeMillis()).apply()
 
         // 3. Short-lived termination logic
-        if (intent.getBooleanExtra("is_wake_trigger", false)) {
+        if (isWakeTrigger) {
              val delayTime = if (preserveKeyguard) 100L else 2000L
              DebugLogger.log("PULSE_LIFECYCLE", "PulseActivity launched with is_wake_trigger=true. Waiting ${delayTime}ms...")
              android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ 
                  if (!isFinishing) {
+                    try {
+                        val km = getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                        DebugLogger.log("PULSE_LIFECYCLE", "Pre-finish state -> Keyguard Locked: ${km.isKeyguardLocked}")
+                    } catch(e: Exception) {}
+                    
                     DebugLogger.log("PULSE_LIFECYCLE", "${delayTime}ms elapsed. Finishing PulseActivity.")
                     finish()
                     overridePendingTransition(0, 0)
