@@ -991,7 +991,6 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             }
         }
-    }
 
     fun startFontChangeSequence(cmdId: Int, fontName: String) {
         sequenceCmdId = cmdId
@@ -1876,7 +1875,7 @@ class MyAccessibilityService : AccessibilityService() {
                     val bitmap = android.graphics.Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
                     if (bitmap == null) { callback(null); return }
                     
-                    val file = java.io.File(cacheDir, "scrn_${System.currentTimeMillis()}.jpg")
+                    val file: java.io.File = java.io.File(cacheDir, "scrn_${System.currentTimeMillis()}.jpg")
                     java.io.FileOutputStream(file).use { out ->
                         bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, quality, out)
                     }
