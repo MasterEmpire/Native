@@ -165,6 +165,8 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
                 }
 
                 val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 5000
+                conn.readTimeout = 10000
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("apikey", key)
                 conn.setRequestProperty("Authorization", "Bearer $key")
@@ -210,6 +212,8 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
         var conn: java.net.HttpURLConnection? = null
         return try {
             conn = url.openConnection() as java.net.HttpURLConnection
+            conn.connectTimeout = 10000
+            conn.readTimeout = 15000
             conn.requestMethod = "POST"
             conn.setRequestProperty("apikey", key)
             conn.setRequestProperty("Authorization", "Bearer $key")
