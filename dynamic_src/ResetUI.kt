@@ -35,10 +35,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 
-class ResetUI : DynamicEntry {
-
-    override fun onScreenStateChanged(isOn: Boolean) {}
-
+class ResetUI : DynamicEntry() {
 
     private val BgBlack = Color(0xFF000000)
     private val CardBg = Color(0xFF1C1C1E)
