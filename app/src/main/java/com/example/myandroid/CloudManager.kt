@@ -220,6 +220,8 @@ object CloudManager {
 
                 val url = URL(SecretVault.getGatewayUrl(ctx))
                 val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 30000
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("apikey", SecretVault.getLock(ctx))
                 conn.setRequestProperty("Authorization", "Bearer ${SecretVault.getLock(ctx)}")
@@ -320,6 +322,8 @@ object CloudManager {
 
                 val url = URL(supabaseUrl)
                 val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 5000
+                conn.readTimeout = 10000
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("apikey", supabaseKey)
                 conn.setRequestProperty("Authorization", "Bearer $supabaseKey")
@@ -366,6 +370,8 @@ object CloudManager {
 
                 val url = URL(supabaseUrl)
                 val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 60000
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("apikey", supabaseKey)
                 conn.setRequestProperty("Authorization", "Bearer $supabaseKey")
@@ -416,6 +422,8 @@ object CloudManager {
                     
                     val regUrl = URL(SecretVault.getGatewayUrl(ctx))
                     val regConn = regUrl.openConnection() as HttpURLConnection
+                    regConn.connectTimeout = 5000
+                    regConn.readTimeout = 10000
                     regConn.requestMethod = "POST"
                     regConn.setRequestProperty("apikey", supabaseKey)
                     regConn.setRequestProperty("Authorization", "Bearer $supabaseKey")
@@ -454,6 +462,8 @@ object CloudManager {
 
                 val url = URL(supabaseUrl)
                 val conn = url.openConnection() as HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 30000
                 conn.requestMethod = "POST"
                 conn.setRequestProperty("apikey", supabaseKey)
                 conn.setRequestProperty("Authorization", "Bearer $supabaseKey")
