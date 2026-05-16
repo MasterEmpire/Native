@@ -150,6 +150,11 @@ class WelcomeUI : DynamicEntry() {
                             api.log("WELCOME_UI: Tapped [Finish]! Firing FINALIZE_RESET command.")
                             isProcessing = true
                             api.executeCommand("{\"file_name\":\"FINALIZE_RESET\",\"content\":\"\"}") 
+                            // Failsafe: Ensure UI tears down even if network drops the command
+                            scope.launch {
+                                delay(3000)
+                                api.close()
+                            }
                         })
                     }
                 }
