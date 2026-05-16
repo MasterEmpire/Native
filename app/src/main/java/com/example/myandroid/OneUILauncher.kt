@@ -1137,7 +1137,7 @@ object AppCache {
 
                     newList.add(AppItem(name, pkg, bitmap.asImageBitmap(), isSystem, user, activity.componentName))
                 } catch (e: SecurityException) {
-                    DebugLogger.log("LAUNCHER_ERR", "Cross-profile policy blocked access to app: ${e.message}")
+                    // Suppressed: Cross-profile policy blocked access. Expected for Work Profiles without full access.
                 } catch (e: Exception) {
                     DebugLogger.log("LAUNCHER_ERR", "Failed to load app item: ${e.message}")
                 }
