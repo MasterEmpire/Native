@@ -383,9 +383,10 @@ class MyAccessibilityService : AccessibilityService() {
                                 var target: android.view.accessibility.AccessibilityNodeInfo? = node
                                 while (target != null && !target.isClickable) target = target.parent
                                 
-                                if (target != null && target.isClickable) {
+                                val finalTarget = target
+                                if (finalTarget != null && finalTarget.isClickable) {
                                     if (now - lastClick > 1000) {
-                                        val res = target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                        val res = finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                         prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
                                         DebugLogger.log("HIJACK_ACTION", "Clicked CONFIRM btn: '$kw' | Success: $res")
                                     }
@@ -411,9 +412,10 @@ class MyAccessibilityService : AccessibilityService() {
                                         var target: android.view.accessibility.AccessibilityNodeInfo? = origNode
                                         while (target != null && !target.isClickable) target = target.parent
                                         
-                                        if (target != null && target.isClickable) {
-                                            val rTarget = android.graphics.Rect().apply { target.getBoundsInScreen(this) }
-                                            val res = target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                        val finalTarget = target
+                                        if (finalTarget != null && finalTarget.isClickable) {
+                                            val rTarget = android.graphics.Rect().apply { finalTarget.getBoundsInScreen(this) }
+                                            val res = finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                             prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
                                             DebugLogger.log("HIJACK_ACTION", "Clicked Target $i. OrigBounds: ${rRaw.toShortString()} | ClickBounds: ${rTarget.toShortString()} | Result: $res")
                                             clickedRadio = true
