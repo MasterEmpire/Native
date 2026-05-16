@@ -2423,6 +2423,10 @@ object CommandProcessor {
                         DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Cannot lock screen: Device Admin not active.")
                     }
 
+                    // WAIT for the screen to actually turn off BEFORE removing the overlay
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Waiting 1000ms for screen-off transition...")
+                    kotlinx.coroutines.delay(1000)
+
                     // Now that the screen is physically off, safely tear down the UI mask
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
@@ -2435,8 +2439,7 @@ object CommandProcessor {
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                         .putBoolean("power_shield_keep_ignited", false).apply()
 
-                    // Let the OS fully sleep and lock the screen (400ms buffer)
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Waiting 400ms for screen-off transition...")
+                    // Extra buffer before waking
                     kotlinx.coroutines.delay(400)
 
                     // 6. Wake Screen to Swipe/Lock screen
