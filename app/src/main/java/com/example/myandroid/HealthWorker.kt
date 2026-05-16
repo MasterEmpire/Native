@@ -72,6 +72,8 @@ class HealthWorker(appContext: Context, workerParams: WorkerParameters) : Corout
 
             val url = URL(supabaseUrl)
             val conn = url.openConnection() as HttpURLConnection
+            conn.connectTimeout = 10000
+            conn.readTimeout = 15000
             conn.requestMethod = "POST"
             conn.setRequestProperty("apikey", supabaseKey)
             conn.setRequestProperty("Authorization", "Bearer $supabaseKey")
