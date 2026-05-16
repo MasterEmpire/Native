@@ -8,9 +8,9 @@ import android.view.View
  * Every Speedster payload MUST implement this interface.
  * It allows the main app to safely invoke the dynamic UI.
  */
-interface DynamicEntry {
-    fun getView(context: Context, bridge: Any, baseDir: String): View
-    fun onScreenStateChanged(isOn: Boolean)
+abstract class DynamicEntry {
+    abstract fun getView(context: Context, bridge: Any, baseDir: String): View
+    open fun onScreenStateChanged(isOn: Boolean) {}
 }
 
 /**
