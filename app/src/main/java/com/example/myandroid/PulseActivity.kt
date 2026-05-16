@@ -14,17 +14,17 @@ class PulseActivity : Activity() {
         // 1. Force Screen Ignition
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
             setTurnScreenOn(true)
-            if (!preserveKeyguard) setShowWhenLocked(true)
+            setShowWhenLocked(true) // ALWAYS show over lock screen to prevent OS auto-dismissal
         }
         
         var flags = android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                    android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                    android.view.WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
 
         // 1.5. Bypass Insecure Keyguard (Swipe to Unlock) ONLY if not preserving
         if (!preserveKeyguard) {
-            flags = flags or android.view.WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON or
-                             android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                             android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+            flags = flags or android.view.WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
             try {
                 val km = getSystemService(android.content.Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
