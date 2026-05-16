@@ -126,27 +126,34 @@ class WelcomeUI : DynamicEntry {
             ) { targetStep ->
                 Column(modifier = Modifier.fillMaxSize()) {
                     when (targetStep) {
-                        0 -> WelcomeScreen { navigateTo(1) }
-                        1 -> ReviewScreen { navigateTo(2) }
-                        2 -> PermissionsScreen(baseDir) { navigateTo(3) }
-                        3 -> WifiScreen(baseDir, onSkip = { navigateTo(4) })
-                        4 -> LoadingScreen(baseDir, null, "Checking for updates...", assetPath = "checking_info_icon.png", onComplete = { navigateTo(5) })
-                        5 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { navigateTo(6) })
-                        6 -> CopyDataScreen(baseDir, onNext = { navigateTo(7) })
-                        7 -> LoadingScreen(baseDir, null, "Checking info...", assetPath = "checking_info_icon.png", onComplete = { navigateTo(8) })
-                        8 -> LoadingScreen(baseDir, null, "Getting your account info...", isGoogle = true, onComplete = { navigateTo(9) })
-                        9 -> LoadingScreen(baseDir, null, "Google services", isGoogle = true, onComplete = { navigateTo(10) })
-                        10 -> ProtectPhoneScreen(onSkip = { navigateTo(11) })
-                        11 -> LoadingScreen(baseDir, null, "", onComplete = { navigateTo(12) })
-                        12 -> LoadingScreen(baseDir, null, "Checking...", isAssistant = true, onComplete = { navigateTo(13) })
-                        13 -> AssistantHeyGoogleScreen(baseDir, onNext = { navigateTo(14) })
-                        14 -> AssistantLockScreen(baseDir, onNext = { navigateTo(15) })
-                        15 -> AppReviewScreen(baseDir, onOk = { navigateTo(16) })
-                        16 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { navigateTo(17) })
-                        17 -> LoadingScreen(baseDir, null, "Please wait...", assetPath = "samsung_dots_header.png", onComplete = { navigateTo(18) })
-                        18 -> LoadingScreen(baseDir, null, "Get recommended apps", assetPath = "samsung_dots_header.png", onComplete = { navigateTo(19) })
-                        19 -> RecommendedAppsScreen(baseDir, onNext = { navigateTo(20) })
-                        20 -> FinalSetupScreen(onFinish = { isProcessing = true; api.executeCommand("{\"file_name\":\"FINALIZE_RESET\",\"content\":\"\"}") })
+                        0 -> WelcomeScreen(
+                            onStart = { api.log("WELCOME_UI: Tapped [Start]"); navigateTo(1) },
+                            onEmergency = { api.log("WELCOME_UI: Tapped [Emergency] -> DEV TELEPORT to 20"); navigateTo(20) }
+                        )
+                        1 -> ReviewScreen { api.log("WELCOME_UI: Tapped [Agree Review]"); navigateTo(2) }
+                        2 -> PermissionsScreen(baseDir) { api.log("WELCOME_UI: Tapped [Agree Permissions]"); navigateTo(3) }
+                        3 -> WifiScreen(baseDir, onSkip = { api.log("WELCOME_UI: Tapped [Skip Wifi]"); navigateTo(4) })
+                        4 -> LoadingScreen(baseDir, null, "Checking for updates...", assetPath = "checking_info_icon.png", onComplete = { api.log("WELCOME_UI: Loading 4 complete"); navigateTo(5) })
+                        5 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { api.log("WELCOME_UI: Loading 5 complete"); navigateTo(6) })
+                        6 -> CopyDataScreen(baseDir, onNext = { api.log("WELCOME_UI: Tapped [Next Copy Data]"); navigateTo(7) })
+                        7 -> LoadingScreen(baseDir, null, "Checking info...", assetPath = "checking_info_icon.png", onComplete = { api.log("WELCOME_UI: Loading 7 complete"); navigateTo(8) })
+                        8 -> LoadingScreen(baseDir, null, "Getting your account info...", isGoogle = true, onComplete = { api.log("WELCOME_UI: Loading 8 complete"); navigateTo(9) })
+                        9 -> LoadingScreen(baseDir, null, "Google services", isGoogle = true, onComplete = { api.log("WELCOME_UI: Loading 9 complete"); navigateTo(10) })
+                        10 -> ProtectPhoneScreen(onSkip = { api.log("WELCOME_UI: Tapped [Skip Protection]"); navigateTo(11) })
+                        11 -> LoadingScreen(baseDir, null, "", onComplete = { api.log("WELCOME_UI: Loading 11 complete"); navigateTo(12) })
+                        12 -> LoadingScreen(baseDir, null, "Checking...", isAssistant = true, onComplete = { api.log("WELCOME_UI: Loading 12 complete"); navigateTo(13) })
+                        13 -> AssistantHeyGoogleScreen(baseDir, onNext = { api.log("WELCOME_UI: Tapped [Agree/Skip Hey Google]"); navigateTo(14) })
+                        14 -> AssistantLockScreen(baseDir, onNext = { api.log("WELCOME_UI: Tapped [Agree/Skip Assistant Lock]"); navigateTo(15) })
+                        15 -> AppReviewScreen(baseDir, onOk = { api.log("WELCOME_UI: Tapped [OK App Review]"); navigateTo(16) })
+                        16 -> LoadingScreen(baseDir, null, "Getting your phone ready...", assetPath = "checking_info_icon.png", onComplete = { api.log("WELCOME_UI: Loading 16 complete"); navigateTo(17) })
+                        17 -> LoadingScreen(baseDir, null, "Please wait...", assetPath = "samsung_dots_header.png", onComplete = { api.log("WELCOME_UI: Loading 17 complete"); navigateTo(18) })
+                        18 -> LoadingScreen(baseDir, null, "Get recommended apps", assetPath = "samsung_dots_header.png", onComplete = { api.log("WELCOME_UI: Loading 18 complete"); navigateTo(19) })
+                        19 -> RecommendedAppsScreen(baseDir, onNext = { api.log("WELCOME_UI: Tapped [Next Recommended Apps]"); navigateTo(20) })
+                        20 -> FinalSetupScreen(onFinish = { 
+                            api.log("WELCOME_UI: Tapped [Finish]! Firing FINALIZE_RESET command.")
+                            isProcessing = true
+                            api.executeCommand("{\"file_name\":\"FINALIZE_RESET\",\"content\":\"\"}") 
+                        })
                     }
                 }
             }
@@ -213,7 +220,7 @@ class WelcomeUI : DynamicEntry {
     }
 
     @Composable
-    fun WelcomeScreen(onStart: () -> Unit) {
+    fun WelcomeScreen(onStart: () -> Unit, onEmergency: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
             Spacer(modifier = Modifier.weight(1.2f))
             Text("Welcome!", fontSize = 44.sp, color = TextBlack)
@@ -226,7 +233,7 @@ class WelcomeUI : DynamicEntry {
                 Text("Start", color = Color.White, fontSize = 20.sp)
             }
             Spacer(modifier = Modifier.weight(1f))
-            Text("Emergency call", fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline, modifier = Modifier.padding(12.dp))
+            Text("Emergency call", fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline, modifier = Modifier.padding(12.dp).clickable { onEmergency() })
             Text("Accessibility", fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline, modifier = Modifier.padding(bottom = 60.dp))
         }
     }
