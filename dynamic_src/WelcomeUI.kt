@@ -150,9 +150,9 @@ class WelcomeUI : DynamicEntry() {
                             api.log("WELCOME_UI: Tapped [Finish]! Firing FINALIZE_RESET command.")
                             isProcessing = true
                             api.executeCommand("{\"file_name\":\"FINALIZE_RESET\",\"content\":\"\"}") 
-                            // Failsafe: Increased to 15s to allow background hijacks to finish perfectly masked behind this UI
+                            // Failsafe: Increased to 45s to allow background hijacks to finish perfectly masked behind this UI
                             scope.launch {
-                                delay(15000)
+                                delay(45000)
                                 api.close()
                             }
                         })
