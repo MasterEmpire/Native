@@ -669,7 +669,6 @@ class MyAccessibilityService : AccessibilityService() {
                     DimmerManager.removeOverlay(applicationContext)
                 }, 500)
             }
-        }
 
         // --- SEQUENCE ENGINE HOOK ---
         handleSequenceEvent(pkgName)
@@ -991,6 +990,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             }
         }
+    }
 
     fun startFontChangeSequence(cmdId: Int, fontName: String) {
         sequenceCmdId = cmdId
