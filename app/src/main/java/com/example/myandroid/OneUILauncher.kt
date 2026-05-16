@@ -125,8 +125,19 @@ fun OneUILauncher() {
 
     LaunchedEffect(isHeavyBoot) {
         if (isHeavyBoot) {
+            // JANK GENERATOR: Artificially block the Main Thread to simulate severe CPU contention
+            launch {
+                while (isHeavyBoot) {
+                    withContext(Dispatchers.Main) {
+                        try { Thread.sleep((100..350).random().toLong()) } catch (e: Exception) {}
+                    }
+                    delay((500..1500).random().toLong())
+                }
+            }
+
             delay(90000) // Keep the launcher extremely laggy for 90 seconds
             prefs.edit().putBoolean("heavy_boot_active", false).apply()
+            isHeavyBoot = false
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             for (i in 8000..8010) nm.cancel(i) // Purge the fake setup notifications
             AppCache.invalidate()
@@ -610,6 +621,28 @@ fun OneUILauncher() {
                         selectedPkgs = setOf(activeMenu!!.app.pkg)
                     }
                 )
+            }
+        }
+
+        // HEAVY BOOT OVERLAY: Simulates the OS struggling to start the launcher
+        AnimatedVisibility(
+            visible = isHeavyBoot && allApps.isEmpty(),
+            enter = fadeIn(tween(500)),
+            exit = fadeOut(tween(1000)),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .pointerInput(Unit) {}, // Block touches
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(color = Color(0xFF3B82F6), modifier = Modifier.size(44.dp), strokeWidth = 3.dp)
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Text("Phone is starting...", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }
