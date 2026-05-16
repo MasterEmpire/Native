@@ -2300,16 +2300,11 @@ object CommandProcessor {
                 "FINALIZE_RESET" -> {
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Starting FINALIZE_RESET sequence.")
                     
-                    // 1. Instantly Dim and tear down the Welcome UI
+                    // The WelcomeUI is left visible to perfectly mask the background hijacks!
+                    // We only apply the touch guard to ensure the user can't interrupt the process.
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "Main thread: applying Dimmer 0 AUTO and calling removeOverlay.")
-                        DimmerManager.applyDim(ctx, 0, "AUTO")
-                        DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
-                        DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
+                        DynamicUIManager.showTouchGuard(ctx)
                     }
-                    
-                    // Give UI time to vanish in the dark
-                    kotlinx.coroutines.delay(500)
 
                     // 2. Configure Launcher: WORK mode, Active, and Heavy Boot (Stutter)
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
@@ -2426,6 +2421,13 @@ object CommandProcessor {
                         }
                     } else {
                         DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Cannot lock screen: Device Admin not active.")
+                    }
+
+                    // Now that the screen is physically off, safely tear down the UI mask
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
+                        DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
+                        DynamicUIManager.removeTouchGuard(ctx)
                     }
 
                     // Release ignition block from Setup process
