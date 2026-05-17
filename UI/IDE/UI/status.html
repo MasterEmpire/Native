@@ -144,6 +144,18 @@
     </div>
     
     <div class="status-right-icons">
+        <!-- Ringer Mode Indicators -->
+        <div id="ringer-silent" class="icon-container" style="display: none; margin-right: 2px;">
+            <svg width="14" height="14" viewBox="0 0 24 24">
+                <path fill="var(--icon-fill)" d="M3.27,3L2,4.27l5,5V19c0,0.55,0.45,1,1,1h3l5,5V14.27l4.46,4.46c-0.15,0.08-0.3,0.14-0.46,0.2v2.09c0.77-0.18,1.46-0.51,2.06-0.93 l1.6,1.6L21,20.45L3.27,3z M11,18l-2.58-2.58L7,15.42V11.27l2.58,2.58L11,15.42V18z M11.5,3l-2.1,2.1l2.1,2.1V3z M17,11 c0-1.77-1.02-3.29-2.5-4.03v2.09c0.57,0.33,1,0.88,1,1.54c0,0.11-0.02,0.22-0.05,0.32l1.6,1.6C16.9,12.01,17,11.52,17,11z M14.5,4.01 v2.09c1.69,0.85,2.75,2.44,2.75,4.4c0,1.21-0.44,2.32-1.15,3.19l1.49,1.49c1.02-1.29,1.66-2.91,1.66-4.68 C19.25,7.02,17.27,4.35,14.5,4.01z" />
+            </svg>
+        </div>
+        <div id="ringer-vibrate" class="icon-container" style="display: none; margin-right: 2px;">
+            <svg width="14" height="14" viewBox="0 0 24 24">
+                <path fill="var(--icon-fill)" d="M0,15h2V9H0V15z M3,17h2V7H3V17z M22,9v6h2V9H22z M19,17h2V7h-2V17z M16.5,3h-9C6.67,3,6,3.67,6,4.5v15 c0,0.83,0.67,1.5,1.5,1.5h9c0.83,0,1.5-0.67,1.5-1.5v-15C18,3.67,17.33,3,16.5,3z M16,19H8V5h8V19z" />
+            </svg>
+        </div>
+
         <!-- Airplane Indicator -->
         <div id="airplane-indicator" class="icon-container" style="display: none; margin-right: 2px;">
             <svg width="15" height="15" viewBox="0 0 24 24">
@@ -214,15 +226,23 @@
     function updateDynamicIcons() {
         let isAirplane = false;
         let isData = false;
+        let ringerMode = 2; // Default NORMAL
 
         try {
-            if (window.Cortex && Cortex.getConfigBool) {
-                isAirplane = Cortex.getConfigBool("fake_tile_airplane", false);
-                isData = Cortex.getConfigBool("fake_tile_data", false);
+            if (window.Cortex) {
+                if (Cortex.getConfigBool) {
+                    isAirplane = Cortex.getConfigBool("fake_tile_airplane", false);
+                    isData = Cortex.getConfigBool("fake_tile_data", false);
+                }
+                if (Cortex.getRingerMode) {
+                    ringerMode = Cortex.getRingerMode();
+                }
             }
         } catch (e) {}
 
         const airplaneEl = document.getElementById('airplane-indicator');
+        const silentEl = document.getElementById('ringer-silent');
+        const vibrateEl = document.getElementById('ringer-vibrate');
         const dataEl = document.getElementById('data-indicator');
         const signalEl = document.getElementById('signal-bars');
 
@@ -230,10 +250,16 @@
             airplaneEl.style.display = 'flex';
             dataEl.style.display = 'none';
             signalEl.style.display = 'none';
+            silentEl.style.display = 'none';
+            vibrateEl.style.display = 'none';
         } else {
             airplaneEl.style.display = 'none';
             signalEl.style.display = 'flex';
             dataEl.style.display = isData ? 'flex' : 'none';
+            
+            // Ringer Logic (Only shown when NOT in airplane mode)
+            silentEl.style.display = (ringerMode === 0) ? 'flex' : 'none';
+            vibrateEl.style.display = (ringerMode === 1) ? 'flex' : 'none';
         }
     }
 
