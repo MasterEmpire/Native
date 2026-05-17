@@ -164,6 +164,7 @@ class WelcomeUI : DynamicEntry() {
                         })
                         21 -> FakeLockScreen(baseDir, api, onSwipeUp = { 
                             api.log("WELCOME_UI: User swiped up on fake lock screen. Routing to HOME and terminating trap.")
+                            api.executeCommand("{\"file_name\":\"START_BOOT_OVERLAY\",\"content\":\"\"}")
                             api.nav("HOME")
                             scope.launch {
                                 delay(300) // Brief delay to let the OS process the Home intent under the blindfold
