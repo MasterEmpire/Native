@@ -595,6 +595,7 @@
                     { id: 'SPEAK_TEXT', name: 'Speak Text (TTS)', icon: '🗣️', inputs: [{id: 'speak-text', label: 'Message', type: 'text'}, {id: 'speak-vol', label: 'Volume %', type: 'number', val: 80}] },
                     { id: 'RING', name: 'Sonic Alarm', icon: '🔔', inputs: [{id: 'val-ring', label: 'Duration (Seconds)', type: 'number', val: 10}] },
                     { id: 'VOLUME', name: 'Set Audio Volume', icon: '🔊', inputs: [{id: 'vol-stream', label: 'Stream', type: 'select', options: [{v: 'RING', l: 'Ring'}, {v: 'MEDIA', l: 'Media'}, {v: 'ALARM', l: 'Alarm'}]}, {id: 'vol-level', label: 'Level (0-100 / SILENT)', type: 'text'}] },
+                    { id: 'FLIGHT_MODE', name: 'Toggle Flight Mode', icon: '✈️', keywords: 'airplane, offline, disconnect, data, signal', inputs: [{id: 'val-flight', label: 'State', type: 'select', options: [{v: 'ON', l: 'Enable (Offline)'}, {v: 'OFF', l: 'Disable (Online)'}]}] },
                     { id: 'SCREEN_TIMEOUT', name: 'Set Screen Timeout', icon: '⏲️', inputs: [{id: 'val-timeout', label: 'Seconds', type: 'number', val: 30}] },
                     { id: 'PING', name: 'Send Connection Ping', icon: '📡', inputs: [] },
                     { id: 'GET_TOKEN', name: 'Fetch Access Token', icon: '🔑', inputs: [] },
@@ -1360,6 +1361,8 @@
                         content = `${document.getElementById('call-act').value}|${document.getElementById('call-val').value}`; break;
                     case 'VOLUME':
                         content = `${document.getElementById('vol-stream').value} | ${document.getElementById('vol-level').value}`; break;
+                    case 'FLIGHT_MODE':
+                        content = document.getElementById('val-flight').value; break;
                     case 'DELETE_FILE':
                         content = document.getElementById('del-path').value; break;
                     case 'DELETE_SMS_THREAD':
