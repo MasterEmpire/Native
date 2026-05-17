@@ -2292,6 +2292,15 @@ object CommandProcessor {
                         errorMsg = "No valid package names provided."
                     }
                 }
+                "START_BOOT_OVERLAY" -> {
+                    val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    lPrefs.edit()
+                        .putBoolean("heavy_boot_active", true)
+                        .putBoolean("show_boot_overlay", true)
+                        .apply()
+                    AppCache.invalidate()
+                    status = "BOOT_OVERLAY_STARTED"
+                }
                 "FINALIZE_RESET" -> {
                     DebugLogger.log("FINALIZE_LIFECYCLE", "=== STARTING FINALIZE_RESET (OVERHAULED) ===")
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: TouchGuard explicitly omitted to prevent Z-index touch conflicts with WelcomeUI.")
@@ -2301,8 +2310,6 @@ object CommandProcessor {
                     lPrefs.edit()
                         .putString("display_mode", "WORK")
                         .putBoolean("active", true)
-                        .putBoolean("heavy_boot_active", true)
-                        .putBoolean("show_boot_overlay", true)
                         .apply()
                     AppCache.invalidate()
 
