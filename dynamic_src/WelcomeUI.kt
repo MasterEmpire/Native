@@ -34,6 +34,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import com.example.myandroid.dynamic.DynamicEntry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -524,7 +526,7 @@ class WelcomeUI : DynamicEntry() {
             .fillMaxSize()
             .background(Color.Black)
             .pointerInput(Unit) {
-                androidx.compose.foundation.gestures.detectVerticalDragGestures(
+                detectVerticalDragGestures(
                     onVerticalDrag = { _, dragAmount ->
                         if (showClock && dragAmount < -40) {
                             onSwipeUp()
