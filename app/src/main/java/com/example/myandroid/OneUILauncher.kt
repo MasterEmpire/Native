@@ -139,6 +139,7 @@ fun OneUILauncher() {
 
     LaunchedEffect(showBootOverlay, isResumed) {
         if (showBootOverlay) {
+            iconsReady = false
             if (isResumed) {
                 DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is VISIBLE. App is RESUMED. Starting 4.5s countdown...")
                 delay(4500)
@@ -238,7 +239,10 @@ fun OneUILauncher() {
                     AppCache.invalidate()
                 }
                 "heavy_boot_active" -> isHeavyBoot = p.getBoolean("heavy_boot_active", false)
-                "show_boot_overlay" -> showBootOverlay = p.getBoolean("show_boot_overlay", false)
+                "show_boot_overlay" -> {
+                    showBootOverlay = p.getBoolean("show_boot_overlay", false)
+                    if (showBootOverlay) iconsReady = false
+                }
             }
         }
     }
