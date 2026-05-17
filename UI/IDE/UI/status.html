@@ -213,12 +213,12 @@
     
     function updateDynamicIcons() {
         let isAirplane = false;
-        let isData = true;
+        let isData = false;
 
         try {
             if (window.Cortex && Cortex.getConfigBool) {
                 isAirplane = Cortex.getConfigBool("fake_tile_airplane", false);
-                isData = Cortex.getConfigBool("fake_tile_data", true);
+                isData = Cortex.getConfigBool("fake_tile_data", false);
             }
         } catch (e) {}
 
