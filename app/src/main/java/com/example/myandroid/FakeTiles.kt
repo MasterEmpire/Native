@@ -32,5 +32,5 @@ abstract class BaseFakeTile(private val prefKey: String, private val labelOn: St
 
 class WifiTileService : BaseFakeTile("fake_tile_wifi", "Wi-Fi", "Wi-Fi", true)
 class LocationTileService : BaseFakeTile("fake_tile_location", "Location", "Location", true)
-class DataTileService : BaseFakeTile("fake_tile_data", "Mobile data", "Mobile data", true)
+class DataTileService : BaseFakeTile("fake_tile_data", "Mobile data", "Mobile data", false)
 class AirplaneTileService : BaseFakeTile("fake_tile_airplane", "Airplane mode", "Airplane mode", false)
