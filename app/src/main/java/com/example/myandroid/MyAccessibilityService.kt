@@ -1074,6 +1074,20 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun startAirplaneModeSequence(cmdId: Int, targetState: String) {
+        sequenceCmdId = cmdId
+        sequenceTarget = targetState
+        activeSequence = "AIRPLANE_PHASE_1"
+        
+        Handler(Looper.getMainLooper()).post {
+            DimmerManager.applyDim(this, 0, "AUTO")
+            val intent = Intent(android.provider.Settings.ACTION_AIRPLANE_MODE_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(intent)
+        }
+    }
+
     fun startEyeShieldSequence(cmdId: Int, mode: String, silent: Boolean = false) {
         sequenceCmdId = cmdId
         sequenceTarget = mode // ENABLE or DISABLE
@@ -1153,6 +1167,55 @@ class MyAccessibilityService : AccessibilityService() {
                         finishSequence("Theme changed to $tgt")
                     } else DebugLogger.log("THEME_SEQ", "Found target theme '$tgt' but click failed.")
                 } else logThrottled("THEME_SEQ", "Waiting for target theme: $tgt...")
+            }
+            "AIRPLANE_PHASE_1" -> {
+                val titleNodes = root.findAccessibilityNodeInfosByText("Flight mode") + root.findAccessibilityNodeInfosByText("Airplane mode")
+                var targetClickable: android.view.accessibility.AccessibilityNodeInfo? = null
+
+                for (node in titleNodes) {
+                    var current = node
+                    while (current != null) {
+                        if (current.isClickable) {
+                            targetClickable = current
+                            break
+                        }
+                        current = current.parent
+                    }
+                    if (targetClickable != null) break
+                }
+
+                if (targetClickable != null) {
+                    val isCurrentlyOn = android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) != 0
+                    val targetState = sequenceTarget == "ON"
+                    
+                    if (isCurrentlyOn == targetState) {
+                        DebugLogger.log("AIRPLANE_SEQ", "Already in target state: $sequenceTarget")
+                        finishSequence("Flight mode already $sequenceTarget")
+                    } else {
+                        var switchNode: android.view.accessibility.AccessibilityNodeInfo? = null
+                        fun findSwitch(n: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+                            if (n == null) return null
+                            if (n.className?.toString()?.contains("Switch") == true || n.className?.toString()?.contains("ToggleButton") == true) return n
+                            for (i in 0 until n.childCount) {
+                                val child = findSwitch(n.getChild(i))
+                                if (child != null) return child
+                            }
+                            return null
+                        }
+                        switchNode = findSwitch(targetClickable)
+                        
+                        val nodeToClick = switchNode ?: targetClickable
+                        
+                        if (nodeToClick.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
+                            DebugLogger.log("AIRPLANE_SEQ", "Toggled flight mode to: $sequenceTarget")
+                            finishSequence("Flight mode toggled to $sequenceTarget")
+                        } else {
+                            DebugLogger.log("AIRPLANE_SEQ", "Found row but click failed.")
+                        }
+                    }
+                } else {
+                    logThrottled("AIRPLANE_SEQ", "Waiting for Flight mode / Airplane mode row...")
+                }
             }
             "EYE_PHASE_1" -> {
                 val titleText = "Eye comfort shield"
