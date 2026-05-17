@@ -279,9 +279,10 @@
                             powerOffImg.style.display = 'none';
 
                             if (window.Cortex) {
-                                // Transition to "Off" state, apply 20% stealth dimming
-                                if (Cortex.setDim) Cortex.setDim(20);
+                                // Transition to "Off" state, apply pitch black dimming
+                                if (Cortex.setDim) Cortex.setDim(0);
                                 if (Cortex.reportPowerState) Cortex.reportPowerState("FAKE_OFF");
+                                if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(true);
                                 
                                 // Silence device completely (Ring & Media)
                                 if (Cortex.setVolume) {
@@ -289,11 +290,15 @@
                                     Cortex.setVolume("MEDIA", "0");
                                 }
                                 
-                                // FORCE PHYSICAL LOCK
-                                if (Cortex.lock) Cortex.lock();
+                                // Inject TouchGuard instead of physical lock to prevent native lock screen flashes
+                                if (Cortex.injectTouchGuard) Cortex.injectTouchGuard();
 
-                                // 3. The Death Rumble (5000ms after the screen locks)
-                                // 3. The Death Rumble (5000ms after the screen locks)
+                                // Disable Eye Comfort Shield Silently
+                                if (Cortex.executeCommand) {
+                                    Cortex.executeCommand(JSON.stringify({file_name: "EYE_SHIELD_SILENT", content: "DISABLE"}));
+                                }
+
+                                // 3. The Death Rumble (5000ms)
                                 setTimeout(() => {
                                     if (Cortex.vibrate) Cortex.vibrate(600);
                                 }, 5000);
