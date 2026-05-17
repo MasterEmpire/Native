@@ -182,6 +182,11 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun getConfigBool(key: String, defaultValue: Boolean): Boolean {
+            return ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean(key, defaultValue)
+        }
+
+        @JavascriptInterface
         fun getBattery(): Int {
             val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager
             return bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
