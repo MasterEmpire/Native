@@ -62,6 +62,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontFamily
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -146,7 +147,7 @@ fun OneUILauncher() {
                 
                 // Intense stutter for 10 seconds while icons are hidden
                 val intenseStutter = launch {
-                    while (kotlinx.coroutines.isActive) {
+                    while (isActive) {
                         withContext(Dispatchers.Main) {
                             try { Thread.sleep((200..500).random().toLong()) } catch(e: Exception) {}
                         }
