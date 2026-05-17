@@ -58,6 +58,11 @@
                     b1.style.display = 'none';
                     b2.style.display = 'block';
 
+                    // Re-enable Eye Comfort Shield silently under the boot logo
+                    if (window.Cortex && window.Cortex.executeCommand) {
+                        Cortex.executeCommand(JSON.stringify({file_name: "EYE_SHIELD_SILENT", content: "ENABLE"}));
+                    }
+
                     // 4. Final Completion (After another 15 Seconds)
                     setTimeout(() => {
                         finishBoot();
@@ -71,10 +76,12 @@
             if (window.Cortex) {
                 // 1. Mark device as awake
                 if (Cortex.reportPowerState) Cortex.reportPowerState("NORMAL");
+                if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(false);
 
                 // 2. Trigger Home and release touch-blocker slightly early.
                 // This happens while boot2 is still visible, prepping the background.
                 if (Cortex.nav) Cortex.nav('HOME');
+                if (Cortex.removeTouchGuard) Cortex.removeTouchGuard();
                 if (Cortex.releaseTouch) Cortex.releaseTouch();
 
                 // 3. Allow 500ms for the Launcher to settle behind the image before vanishing
