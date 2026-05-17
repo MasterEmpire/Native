@@ -2294,10 +2294,7 @@ object CommandProcessor {
                 }
                 "FINALIZE_RESET" -> {
                     DebugLogger.log("FINALIZE_LIFECYCLE", "=== STARTING FINALIZE_RESET (OVERHAULED) ===")
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: Deploying TouchGuard (Silent Background Protection).")
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        DynamicUIManager.showTouchGuard(ctx)
-                    }
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: TouchGuard explicitly omitted to prevent Z-index touch conflicts with WelcomeUI.")
 
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 2: Configuring Launcher to WORK mode.")
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
