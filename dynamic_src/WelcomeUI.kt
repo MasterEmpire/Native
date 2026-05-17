@@ -514,6 +514,7 @@ class WelcomeUI : DynamicEntry() {
     fun FakeLockScreen(baseDir: String, api: com.example.myandroid.dynamic.CortexNativeAPI, onSwipeUp: () -> Unit) {
         var showClock by remember { mutableStateOf(false) }
         var isVideoReady by remember { mutableStateOf(false) }
+        var hasSwiped by remember { mutableStateOf(false) }
         
         LaunchedEffect(Unit) {
             api.log("FAKE_LOCK: Launched. Waiting for video readiness...")
@@ -522,19 +523,7 @@ class WelcomeUI : DynamicEntry() {
             showClock = true
         }
 
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { _, dragAmount ->
-                        if (showClock && dragAmount < -40) {
-                            onSwipeUp()
-                        }
-                    }
-                )
-            }
-        ) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
             // Video Player
             androidx.compose.ui.viewinterop.AndroidView(
                 factory = { ctx ->
@@ -599,6 +588,26 @@ class WelcomeUI : DynamicEntry() {
                     Text(date, color = Color.White, fontSize = 18.sp, modifier = Modifier.offset(y = (-8).dp))
                 }
             }
+
+            // TOUCH INTERCEPTOR OVERLAY (Highest Z-Index)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
+                    .pointerInput(Unit) {
+                        var totalDrag = 0f
+                        detectVerticalDragGestures(
+                            onDragStart = { totalDrag = 0f },
+                            onVerticalDrag = { _, dragAmount ->
+                                totalDrag += dragAmount
+                                if (showClock && !hasSwiped && totalDrag < -100f) {
+                                    hasSwiped = true
+                                    onSwipeUp()
+                                }
+                            }
+                        )
+                    }
+            )
         }
     }
 
