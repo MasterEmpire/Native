@@ -124,6 +124,7 @@ fun OneUILauncher() {
     var isHeavyBoot by remember { mutableStateOf(prefs.getBoolean("heavy_boot_active", false)) }
 
     var showBootOverlay by remember { mutableStateOf(prefs.getBoolean("show_boot_overlay", false)) }
+    var iconsReady by remember { mutableStateOf(!prefs.getBoolean("show_boot_overlay", false)) }
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     var isResumed by remember { mutableStateOf(false) }
 
@@ -138,13 +139,30 @@ fun OneUILauncher() {
     LaunchedEffect(showBootOverlay, isResumed) {
         if (showBootOverlay) {
             if (isResumed) {
-                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is VISIBLE. App is RESUMED (User is looking at it). Starting 4.5s countdown...")
-                delay(4500) // Hold the overlay for 4.5 seconds specifically AFTER the user unlocks
+                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is VISIBLE. App is RESUMED. Starting 4.5s countdown...")
+                delay(4500)
                 prefs.edit().putBoolean("show_boot_overlay", false).apply()
-                DebugLogger.log("LAUNCHER_BOOT", "4.5s countdown finished. Boot overlay dismissed.")
+                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay dismissed. Initiating 10s icon population delay & aggressive stutter...")
+                
+                // Intense stutter for 10 seconds while icons are hidden
+                val intenseStutter = launch {
+                    while (kotlinx.coroutines.isActive) {
+                        withContext(Dispatchers.Main) {
+                            try { Thread.sleep((200..500).random().toLong()) } catch(e: Exception) {}
+                        }
+                        delay((100..300).random().toLong())
+                    }
+                }
+                
+                delay(10000)
+                intenseStutter.cancel()
+                iconsReady = true
+                DebugLogger.log("LAUNCHER_BOOT", "10s delay elapsed. Icons populated.")
             } else {
-                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is PENDING. App is NOT resumed yet (Likely behind Keyguard). Waiting for unlock...")
+                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is PENDING. Waiting for unlock...")
             }
+        } else {
+            iconsReady = true
         }
     }
 
@@ -350,8 +368,10 @@ fun OneUILauncher() {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black))
         }
 
+        val displayApps = if (iconsReady) allApps else emptyList()
+
         HomeWorkspace(
-            apps = allApps,
+            apps = displayApps,
             gridCols = gridCols,
             iconSize = iconSizeDp,
             vGap = vGapDp,
@@ -425,7 +445,7 @@ fun OneUILauncher() {
                         translationY = (1f - drawerProgress) * size.height * drawerExitDir
                         alpha = drawerProgress.coerceIn(0f, 1f)
                     },
-                allApps = allApps,
+                allApps = displayApps,
                 gridCols = gridCols,
                 itemsPerPage = itemsPerPage,
                 iconSize = iconSizeDp,
