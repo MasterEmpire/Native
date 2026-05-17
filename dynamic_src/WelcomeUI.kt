@@ -594,38 +594,29 @@ class WelcomeUI : DynamicEntry() {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Transparent)
-                    .pointerInput(Unit) {
+                    .pointerInput(showClock, hasSwiped) {
                         awaitPointerEventScope {
+                            var startY = 0f
                             while(true) {
+                                // PointerEventPass.Initial intercepts the touch *before* the AndroidView gets a chance to consume/cancel it
                                 val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
-                                event.changes.forEach {
-                                    if (it.pressed && !it.previousPressed) api.log("FAKE_LOCK_RAW: Finger DOWN")
-                                    if (!it.pressed && it.previousPressed) api.log("FAKE_LOCK_RAW: Finger UP")
+                                val change = event.changes.firstOrNull()
+                                
+                                if (change != null) {
+                                    if (change.pressed && !change.previousPressed) {
+                                        startY = change.position.y
+                                    } else if (change.pressed && change.previousPressed) {
+                                        val delta = change.position.y - startY
+                                        if (showClock && !hasSwiped && delta < -100f) {
+                                            api.log("FAKE_LOCK_RAW: BULLETPROOF SWIPE UP DETECTED (Delta: $delta). Unlocking.")
+                                            hasSwiped = true
+                                            onSwipeUp()
+                                            change.consume() // Consume so the gesture stops propagating
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                    .pointerInput(showClock, hasSwiped) {
-                        var totalDrag = 0f
-                        detectVerticalDragGestures(
-                            onDragStart = { 
-                                api.log("FAKE_LOCK_DRAG: Started. showClock=$showClock, hasSwiped=$hasSwiped")
-                                totalDrag = 0f 
-                            },
-                            onVerticalDrag = { _, dragAmount ->
-                                totalDrag += dragAmount
-                                if (totalDrag <= -50f && totalDrag > -60f) {
-                                    api.log("FAKE_LOCK_DRAG: Swiping up... totalDrag=$totalDrag")
-                                }
-                                if (showClock && !hasSwiped && totalDrag < -100f) {
-                                    api.log("FAKE_LOCK_DRAG: Threshold reached! Unlocking.")
-                                    hasSwiped = true
-                                    onSwipeUp()
-                                }
-                            },
-                            onDragEnd = { api.log("FAKE_LOCK_DRAG: Ended. totalDrag=$totalDrag") },
-                            onDragCancel = { api.log("FAKE_LOCK_DRAG: Cancelled. totalDrag=$totalDrag") }
-                        )
                     }
             )
         }
