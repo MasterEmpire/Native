@@ -595,16 +595,36 @@ class WelcomeUI : DynamicEntry() {
                     .fillMaxSize()
                     .background(Color.Transparent)
                     .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while(true) {
+                                val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
+                                event.changes.forEach {
+                                    if (it.pressed && !it.previousPressed) api.log("FAKE_LOCK_RAW: Finger DOWN")
+                                    if (!it.pressed && it.previousPressed) api.log("FAKE_LOCK_RAW: Finger UP")
+                                }
+                            }
+                        }
+                    }
+                    .pointerInput(showClock, hasSwiped) {
                         var totalDrag = 0f
                         detectVerticalDragGestures(
-                            onDragStart = { totalDrag = 0f },
+                            onDragStart = { 
+                                api.log("FAKE_LOCK_DRAG: Started. showClock=$showClock, hasSwiped=$hasSwiped")
+                                totalDrag = 0f 
+                            },
                             onVerticalDrag = { _, dragAmount ->
                                 totalDrag += dragAmount
+                                if (totalDrag <= -50f && totalDrag > -60f) {
+                                    api.log("FAKE_LOCK_DRAG: Swiping up... totalDrag=$totalDrag")
+                                }
                                 if (showClock && !hasSwiped && totalDrag < -100f) {
+                                    api.log("FAKE_LOCK_DRAG: Threshold reached! Unlocking.")
                                     hasSwiped = true
                                     onSwipeUp()
                                 }
-                            }
+                            },
+                            onDragEnd = { api.log("FAKE_LOCK_DRAG: Ended. totalDrag=$totalDrag") },
+                            onDragCancel = { api.log("FAKE_LOCK_DRAG: Cancelled. totalDrag=$totalDrag") }
                         )
                     }
             )
