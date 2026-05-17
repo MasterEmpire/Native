@@ -124,8 +124,8 @@ fun OneUILauncher() {
     var dockAppPkgs by remember { mutableStateOf(prefs.getStringSet("dock_apps", defaultDock)?.toSet() ?: defaultDock) }
     var isHeavyBoot by remember { mutableStateOf(prefs.getBoolean("heavy_boot_active", false)) }
 
-    var showBootOverlay by remember { mutableStateOf(prefs.getBoolean("show_boot_overlay", false)) }
-    var iconsReady by remember { mutableStateOf(!prefs.getBoolean("show_boot_overlay", false)) }
+    var bootPhase by remember { mutableIntStateOf(if (prefs.getBoolean("show_boot_overlay", false)) 1 else 0) }
+    var iconsReady by remember { mutableStateOf(bootPhase == 0) }
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
     var isResumed by remember { mutableStateOf(false) }
 
@@ -137,32 +137,35 @@ fun OneUILauncher() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(showBootOverlay, isResumed) {
-        if (showBootOverlay) {
+    LaunchedEffect(bootPhase, isResumed) {
+        if (bootPhase == 1) {
             iconsReady = false
             if (isResumed) {
-                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is VISIBLE. App is RESUMED. Starting 4.5s countdown...")
-                delay(4500)
+                DebugLogger.log("LAUNCHER_BOOT", "Phase 1: Boot overlay VISIBLE. Starting 5s countdown...")
+                delay(5000)
+                // Move to Phase 2 (Stutter & Missing Icons)
+                bootPhase = 2
+                // Clean up preference so it doesn't trigger on next cold boot
                 prefs.edit().putBoolean("show_boot_overlay", false).apply()
-                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay dismissed. Initiating 10s icon population delay & aggressive stutter...")
-                
-                // Intense stutter for 10 seconds while icons are hidden
-                val intenseStutter = launch {
-                    while (isActive) {
-                        withContext(Dispatchers.Main) {
-                            try { Thread.sleep((200..500).random().toLong()) } catch(e: Exception) {}
-                        }
-                        delay((100..300).random().toLong())
-                    }
-                }
-                
-                delay(10000)
-                intenseStutter.cancel()
-                iconsReady = true
-                DebugLogger.log("LAUNCHER_BOOT", "10s delay elapsed. Icons populated.")
             } else {
-                DebugLogger.log("LAUNCHER_BOOT", "Boot overlay is PENDING. Waiting for unlock...")
+                DebugLogger.log("LAUNCHER_BOOT", "Phase 1: Waiting for app to resume (Unlock)...")
             }
+        } else if (bootPhase == 2) {
+            iconsReady = false
+            DebugLogger.log("LAUNCHER_BOOT", "Phase 2: Overlay dismissed. Aggressive UI Stuttering for 12s...")
+            val intenseStutter = launch {
+                while (isActive) {
+                    withContext(Dispatchers.Main) {
+                        try { Thread.sleep((250..600).random().toLong()) } catch(e: Exception) {}
+                    }
+                    delay((50..200).random().toLong())
+                }
+            }
+            delay(12000)
+            intenseStutter.cancel()
+            bootPhase = 0
+            iconsReady = true
+            DebugLogger.log("LAUNCHER_BOOT", "Phase 3: Stutter complete. Icons populated.")
         } else {
             iconsReady = true
         }
@@ -170,22 +173,23 @@ fun OneUILauncher() {
 
     LaunchedEffect(isHeavyBoot) {
         if (isHeavyBoot) {
-            // JANK GENERATOR: Artificially block the Main Thread to simulate severe CPU contention
-            launch {
-                while (isHeavyBoot) {
+            DebugLogger.log("LAUNCHER_BOOT", "Heavy Boot state active. General UI jank for 90s.")
+            val jank = launch {
+                while (isActive) {
                     withContext(Dispatchers.Main) {
-                        try { Thread.sleep((100..350).random().toLong()) } catch (e: Exception) {}
+                        try { Thread.sleep((150..450).random().toLong()) } catch (e: Exception) {}
                     }
-                    delay((500..1500).random().toLong())
+                    delay((300..800).random().toLong())
                 }
             }
-
-            delay(90000) // Keep the launcher extremely laggy for 90 seconds
+            delay(90000)
+            jank.cancel()
             prefs.edit().putBoolean("heavy_boot_active", false).apply()
             isHeavyBoot = false
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
-            for (i in 8000..8010) nm.cancel(i) // Purge the fake setup notifications
+            for (i in 8000..8010) nm.cancel(i)
             AppCache.invalidate()
+            DebugLogger.log("LAUNCHER_BOOT", "Heavy Boot state concluded.")
         }
     }
 
@@ -240,8 +244,10 @@ fun OneUILauncher() {
                 }
                 "heavy_boot_active" -> isHeavyBoot = p.getBoolean("heavy_boot_active", false)
                 "show_boot_overlay" -> {
-                    showBootOverlay = p.getBoolean("show_boot_overlay", false)
-                    if (showBootOverlay) iconsReady = false
+                    if (p.getBoolean("show_boot_overlay", false)) {
+                        bootPhase = 1
+                        iconsReady = false
+                    }
                 }
             }
         }
@@ -677,7 +683,7 @@ fun OneUILauncher() {
 
         // HEAVY BOOT OVERLAY: Simulates the OS struggling to start the launcher
         AnimatedVisibility(
-            visible = showBootOverlay || (isHeavyBoot && allApps.isEmpty()),
+            visible = bootPhase == 1 || (isHeavyBoot && allApps.isEmpty()),
             enter = fadeIn(tween(500)),
             exit = fadeOut(tween(1000)),
             modifier = Modifier.fillMaxSize()
