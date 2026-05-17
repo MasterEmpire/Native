@@ -74,9 +74,10 @@
 
         function finishBoot() {
             if (window.Cortex) {
-                // 1. Mark device as awake
+                // 1. Mark device as awake and restore hardware display settings
                 if (Cortex.reportPowerState) Cortex.reportPowerState("NORMAL");
                 if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(false);
+                if (Cortex.executeCommand) Cortex.executeCommand(JSON.stringify({file_name: "UNBLIND", content: ""}));
 
                 // 2. Trigger Home and release touch-blocker slightly early.
                 // This happens while boot2 is still visible, prepping the background.
