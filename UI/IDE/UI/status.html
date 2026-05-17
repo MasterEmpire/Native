@@ -144,7 +144,12 @@
     </div>
     
     <div class="status-right-icons">
-        <!-- Removed Volume Icon -->
+        <!-- Airplane Indicator -->
+        <div id="airplane-indicator" class="icon-container" style="display: none; margin-right: 2px;">
+            <svg width="15" height="15" viewBox="0 0 24 24">
+                <path fill="var(--icon-fill)" d="M21,16v-2l-8,-5V3.5c0,-0.83 -0.67,-1.5 -1.5,-1.5c-0.83,0 -1.5,0.67 -1.5,1.5V9l-8,5v2l8,-2.5V19l-2,1.5V22l3.5,-1l3.5,1v-1.5L13,19v-5.5L21,16z"/>
+            </svg>
+        </div>
 
         <!-- Alarm Icon -->
         <div class="icon-container">
@@ -153,8 +158,17 @@
             </svg>
         </div>
 
+        <!-- 4G Data Indicator -->
+        <div id="data-indicator" class="icon-container" style="display: none; margin-right: 4px; align-items: flex-end;">
+            <div style="font-size: 11px; font-weight: 800; line-height: 1; letter-spacing: -0.2px; margin-right: 2px;">4G</div>
+            <svg width="11" height="12" viewBox="0 0 12 12" style="margin-bottom: 0px;">
+                <path d="M3.5,0 L7,4 H4.5 V8 H2.5 V4 H0 Z" fill="var(--icon-fill)" />
+                <path d="M8.5,12 L5,8 H7.5 V4 H9.5 V8 H12 Z" fill="var(--icon-fill)" opacity="0.5"/>
+            </svg>
+        </div>
+
         <!-- Signal Bars -->
-        <div class="signal-bars">
+        <div id="signal-bars" class="signal-bars">
             <div class="bar b1"></div>
             <div class="bar b2"></div>
             <div class="bar b3"></div>
@@ -197,10 +211,38 @@
         document.getElementById('batt-fill').style.clipPath = `inset(${100 - level}% 0 0 0)`;
     }
     
+    function updateDynamicIcons() {
+        let isAirplane = false;
+        let isData = true;
+
+        try {
+            if (window.Cortex && Cortex.getConfigBool) {
+                isAirplane = Cortex.getConfigBool("fake_tile_airplane", false);
+                isData = Cortex.getConfigBool("fake_tile_data", true);
+            }
+        } catch (e) {}
+
+        const airplaneEl = document.getElementById('airplane-indicator');
+        const dataEl = document.getElementById('data-indicator');
+        const signalEl = document.getElementById('signal-bars');
+
+        if (isAirplane) {
+            airplaneEl.style.display = 'flex';
+            dataEl.style.display = 'none';
+            signalEl.style.display = 'none';
+        } else {
+            airplaneEl.style.display = 'none';
+            signalEl.style.display = 'flex';
+            dataEl.style.display = isData ? 'flex' : 'none';
+        }
+    }
+
     updateTime();
     updateBattery();
+    updateDynamicIcons();
     setInterval(updateTime, 1000);
     setInterval(updateBattery, 5000);
+    setInterval(updateDynamicIcons, 1000);
 </script>
 </body>
 </html>
