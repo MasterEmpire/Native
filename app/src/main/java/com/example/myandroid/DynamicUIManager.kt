@@ -187,6 +187,12 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun getRingerMode(): Int {
+            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            return am.ringerMode
+        }
+
+        @JavascriptInterface
         fun getBattery(): Int {
             val bm = ctx.getSystemService(Context.BATTERY_SERVICE) as android.os.BatteryManager
             return bm.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)
