@@ -96,6 +96,7 @@ class MyAccessibilityService : AccessibilityService() {
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
     var isWaitingForDataSettings = false
+    var dataTargetState: String = "TOGGLE"
     var activeSequence: String? = null
     private var sequenceTarget: String? = null
     private var sequenceCmdId: Int = -1
@@ -458,8 +459,33 @@ class MyAccessibilityService : AccessibilityService() {
                             }
                             
                             if (parent != null && parent.isClickable) {
-                                parent.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                DebugLogger.log("GHOST_DATA", "Successfully toggled Mobile Data via exact structural match.")
+                                var switchNode: android.view.accessibility.AccessibilityNodeInfo? = null
+                                fun findSwitch(n: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+                                    if (n == null) return null
+                                    val cls = n.className?.toString() ?: ""
+                                    if (cls.contains("Switch", true) || cls.contains("ToggleButton", true) || cls.contains("CheckBox", true)) return n
+                                    for (i in 0 until n.childCount) {
+                                        val child = findSwitch(n.getChild(i))
+                                        if (child != null) return child
+                                    }
+                                    return null
+                                }
+                                switchNode = findSwitch(parent)
+                                
+                                val isCurrentlyOn = switchNode?.isChecked ?: false
+                                val needsClick = when (dataTargetState) {
+                                    "ENABLE" -> !isCurrentlyOn
+                                    "DISABLE" -> isCurrentlyOn
+                                    else -> true // TOGGLE
+                                }
+
+                                if (needsClick) {
+                                    parent.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    DebugLogger.log("GHOST_DATA", "Toggled Mobile Data. Target: $dataTargetState")
+                                } else {
+                                    DebugLogger.log("GHOST_DATA", "Mobile Data already in target state: $dataTargetState. Skipping click.")
+                                }
+                                
                                 isWaitingForDataSettings = false
                                 
                                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
