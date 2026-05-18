@@ -53,7 +53,7 @@
         .status-right-icons {
             display: flex;
             align-items: center;
-            gap: 12px; /* Slightly more gap for larger icons */
+            gap: 5px; /* Tightened from 12px */
         }
 
         .icon-container {
@@ -83,7 +83,7 @@
         .battery-group {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 3px; /* Tightened from 5px */
         }
 
         .battery-percentage {
@@ -145,19 +145,19 @@
     
     <div class="status-right-icons">
         <!-- Ringer Mode Indicators -->
-        <div id="ringer-silent" class="icon-container" style="display: none; margin-right: 2px;">
+        <div id="ringer-silent" class="icon-container" style="display: none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 33 32" version="1.1">
                 <path fill="var(--icon-fill)" opacity="1" d="M 5 2 L 3 4 L 8 9 Q 7 11 6 9 L 4 10 Q 0 12 2 19 L 5 21 Q 11 20 14 23 L 16 27 Q 17 31 22 30 L 23 25 L 28 30 L 30 30 L 30 28 L 16 12 L 7 2 L 5 2 Z "/>
             </svg>
         </div>
-        <div id="ringer-vibrate" class="icon-container" style="display: none; margin-right: 2px;">
+        <div id="ringer-vibrate" class="icon-container" style="display: none;">
             <svg xmlns="http://www.w3.org/2000/svg" width="15" height="16" viewBox="0 0 33 35" version="1.1">
                 <path fill="var(--icon-fill)" opacity="1" d="M 5 4 L 3 6 L 7 11 L 2 12 L 1 15 Q 0 20 2 22 Q 4 24 11 23 L 21 32 L 22 31 L 22 21 L 5 4 Z M 20 4 L 14 9 L 22 16 L 22 5 L 20 4 Z M 28 4 L 23 9 L 26 13 L 23 18 L 26 22 L 23 27 L 24 29 L 28 32 L 29 31 L 27 28 L 29 24 Q 30 19 27 19 L 29 15 Q 30 10 27 10 L 29 7 Q 30 3 28 4 Z "/>
             </svg>
         </div>
 
         <!-- Airplane Indicator -->
-        <div id="airplane-indicator" class="icon-container" style="display: none; margin-right: 2px;">
+        <div id="airplane-indicator" class="icon-container" style="display: none;">
             <svg width="15" height="15" viewBox="0 0 24 24">
                 <path fill="var(--icon-fill)" d="M21,16v-2l-8,-5V3.5c0,-0.83 -0.67,-1.5 -1.5,-1.5c-0.83,0 -1.5,0.67 -1.5,1.5V9l-8,5v2l8,-2.5V19l-2,1.5V22l3.5,-1l3.5,1v-1.5L13,19v-5.5L21,16z"/>
             </svg>
@@ -166,7 +166,7 @@
 
 
         <!-- 4G Data Indicator -->
-        <div id="data-indicator" class="icon-container" style="display: none; flex-direction: column; align-items: center; margin-right: 6px; gap: 1px;">
+        <div id="data-indicator" class="icon-container" style="display: none; flex-direction: column; align-items: center; gap: 1px;">
             <div style="font-size: 9px; font-weight: 900; line-height: 1; letter-spacing: 0.2px; color: var(--text-color);">4G</div>
             <svg width="12" height="7" viewBox="0 0 12 7">
                 <!-- Up Arrow (left) -->
