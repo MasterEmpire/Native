@@ -380,6 +380,19 @@
             android:noHistory="true"
             android:taskAffinity="" />
 
+        <!-- TILE LONG PRESS HANDLER -->
+        <activity
+            android:name=".TilePreferencesActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE_PREFERENCES" />
+            </intent-filter>
+        </activity>
+
     </application>
 
 </manifest>
