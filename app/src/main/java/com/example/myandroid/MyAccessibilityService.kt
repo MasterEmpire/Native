@@ -1079,8 +1079,9 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceTarget = targetState
         activeSequence = "AIRPLANE_PHASE_1"
         
+        DebugLogger.log("AIRPLANE_SEQ", "Starting sequence. Dimming to 20%.")
         Handler(Looper.getMainLooper()).post {
-            DimmerManager.applyDim(this, 0, "AUTO")
+            DimmerManager.applyDim(this, 20, "AUTO")
             val intent = Intent(android.provider.Settings.ACTION_AIRPLANE_MODE_SETTINGS).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
@@ -1170,51 +1171,73 @@ class MyAccessibilityService : AccessibilityService() {
             }
             "AIRPLANE_PHASE_1" -> {
                 val titleNodes = root.findAccessibilityNodeInfosByText("Flight mode") + root.findAccessibilityNodeInfosByText("Airplane mode")
-                var targetClickable: android.view.accessibility.AccessibilityNodeInfo? = null
-
-                for (node in titleNodes) {
-                    var current = node
-                    while (current != null) {
-                        if (current.isClickable) {
-                            targetClickable = current
-                            break
-                        }
-                        current = current.parent
-                    }
-                    if (targetClickable != null) break
+                
+                if (titleNodes.isEmpty()) {
+                    logThrottled("AIRPLANE_SEQ", "Waiting for Flight mode / Airplane mode text...")
+                    return
                 }
 
-                if (targetClickable != null) {
-                    val isCurrentlyOn = android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) != 0
-                    val targetState = sequenceTarget == "ON"
-                    
-                    if (isCurrentlyOn == targetState) {
-                        DebugLogger.log("AIRPLANE_SEQ", "Already in target state: $sequenceTarget")
-                        finishSequence("Flight mode already $sequenceTarget")
-                    } else {
-                        var switchNode: android.view.accessibility.AccessibilityNodeInfo? = null
-                        fun findSwitch(n: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
-                            if (n == null) return null
-                            if (n.className?.toString()?.contains("Switch") == true || n.className?.toString()?.contains("ToggleButton") == true) return n
-                            for (i in 0 until n.childCount) {
-                                val child = findSwitch(n.getChild(i))
-                                if (child != null) return child
-                            }
-                            return null
-                        }
-                        switchNode = findSwitch(targetClickable)
-                        
-                        val nodeToClick = switchNode ?: targetClickable
-                        
-                        if (nodeToClick.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
-                            DebugLogger.log("AIRPLANE_SEQ", "Toggled flight mode to: $sequenceTarget")
-                            finishSequence("Flight mode toggled to $sequenceTarget")
-                        } else {
-                            DebugLogger.log("AIRPLANE_SEQ", "Found row but click failed.")
-                        }
+                val isCurrentlyOn = android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) != 0
+                val targetState = sequenceTarget == "ON"
+                
+                if (isCurrentlyOn == targetState) {
+                    DebugLogger.log("AIRPLANE_SEQ", "Already in target state: $sequenceTarget")
+                    finishSequence("Flight mode already $sequenceTarget")
+                    return
+                }
+
+                var clicked = false
+                
+                fun findSwitch(n: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+                    if (n == null) return null
+                    val cls = n.className?.toString() ?: ""
+                    if (cls.contains("Switch", true) || cls.contains("ToggleButton", true)) return n
+                    for (i in 0 until n.childCount) {
+                        val child = findSwitch(n.getChild(i))
+                        if (child != null) return child
                     }
-                } else {
-                    logThrottled("AIRPLANE_SEQ", "Waiting for Flight mode / Airplane mode row...")
+                    return null
+                }
+
+                for (node in titleNodes) {
+                    DebugLogger.log("AIRPLANE_SEQ", "Analyzing text node: ${node.text}")
+                    var parent = node.parent
+                    var switchNode: android.view.accessibility.AccessibilityNodeInfo? = null
+                    
+                    var depth = 0
+                    while (parent != null && depth < 3) {
+                        switchNode = findSwitch(parent)
+                        if (switchNode != null) {
+                            DebugLogger.log("AIRPLANE_SEQ", "Found Switch at parent depth $depth")
+                            break
+                        }
+                        parent = parent.parent
+                        depth++
+                    }
+
+                    val nodeToClick = switchNode ?: run {
+                        var curr = node
+                        while (curr != null && !curr.isClickable) curr = curr.parent
+                        curr
+                    }
+
+                    if (nodeToClick != null && nodeToClick.isClickable) {
+                        DebugLogger.log("AIRPLANE_SEQ", "Attempting click on ${nodeToClick.className}")
+                        if (nodeToClick.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
+                            DebugLogger.log("AIRPLANE_SEQ", "Click succeeded! Flight mode toggled to $sequenceTarget")
+                            clicked = true
+                            finishSequence("Flight mode toggled to $sequenceTarget")
+                            break
+                        } else {
+                            DebugLogger.log("AIRPLANE_SEQ", "Click failed on ${nodeToClick.className}")
+                        }
+                    } else {
+                        DebugLogger.log("AIRPLANE_SEQ", "No clickable node found near text.")
+                    }
+                }
+                
+                if (!clicked) {
+                    logThrottled("AIRPLANE_SEQ", "Text found but couldn't click the switch or row.")
                 }
             }
             "EYE_PHASE_1" -> {
