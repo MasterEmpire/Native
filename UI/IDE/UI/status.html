@@ -95,11 +95,10 @@
         /* 50% Larger Battery Icon */
         .battery-wrapper {
             position: relative;
-            width: 11px;  /* Tightened to remove internal SVG whitespace */
+            width: 14px; 
             height: 24px;
             display: flex;
             align-items: center;
-            overflow: hidden; /* Ensure no overlap */
         }
 
         .battery-icon-shell {
@@ -189,11 +188,15 @@
         <div class="battery-group">
             <span class="battery-percentage" id="batt-level">--%</span>
             <div class="battery-wrapper">
-                <svg class="battery-icon-shell" viewBox="0 0 24 24">
+                <svg class="battery-icon-shell" viewBox="0 0 24 24" style="width: 100%; height: 100%;">
                     <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/>
                 </svg>
-                <svg id="batt-fill" class="battery-fill-clip" viewBox="0 0 24 24">
+                <svg id="batt-fill" class="battery-fill-clip" viewBox="0 0 24 24" style="width: 100%; height: 100%;">
                     <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/>
+                </svg>
+                <!-- Charging Bolt -->
+                <svg id="charging-icon" viewBox="0 0 24 24" style="position: absolute; width: 12px; height: 12px; left: 1px; top: 7px; display: none; z-index: 10;">
+                    <path d="M7 2v11h3v9l7-12h-4l4-8z" fill="#FFFFFF" stroke="#000000" stroke-width="1" />
                 </svg>
             </div>
         </div>
@@ -216,9 +219,17 @@
 
     function updateBattery() {
         let level = 100;
-        try { if (window.Cortex) level = Cortex.getBattery(); } catch (e) {}
+        let isCharging = false;
+        try {
+            if (window.Cortex) {
+                level = Cortex.getBattery();
+                if (Cortex.isCharging) isCharging = Cortex.isCharging();
+            }
+        } catch (e) {}
+        
         document.getElementById('batt-level').textContent = level + '%';
         document.getElementById('batt-fill').style.clipPath = `inset(${100 - level}% 0 0 0)`;
+        document.getElementById('charging-icon').style.display = isCharging ? 'block' : 'none';
     }
     
     function updateDynamicIcons() {
