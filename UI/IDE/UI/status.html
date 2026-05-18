@@ -83,7 +83,7 @@
         .battery-group {
             display: flex;
             align-items: center;
-            gap: 3px; /* Tightened from 5px */
+            gap: 0px; 
         }
 
         .battery-percentage {
@@ -95,10 +95,11 @@
         /* 50% Larger Battery Icon */
         .battery-wrapper {
             position: relative;
-            width: 16px;  /* Was 11px */
-            height: 24px; /* Was 16px */
+            width: 11px;  /* Tightened to remove internal SVG whitespace */
+            height: 24px;
             display: flex;
             align-items: center;
+            overflow: hidden; /* Ensure no overlap */
         }
 
         .battery-icon-shell {
