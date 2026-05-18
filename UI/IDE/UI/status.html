@@ -92,13 +92,14 @@
             color: var(--text-color);
         }
 
-        /* 50% Larger Battery Icon */
+        /* Large Roomy Battery Icon */
         .battery-wrapper {
             position: relative;
-            width: 14px; 
+            width: 11px; 
             height: 24px;
             display: flex;
             align-items: center;
+            justify-content: center;
         }
 
         .battery-icon-shell {
@@ -188,15 +189,17 @@
         <div class="battery-group">
             <span class="battery-percentage" id="batt-level">--%</span>
             <div class="battery-wrapper">
+                <!-- Roomy Shell Path -->
                 <svg class="battery-icon-shell" viewBox="0 0 24 24" style="width: 100%; height: 100%;">
-                    <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/>
+                    <path d="M14.5 2h-5v2h-4.5c-.8 0-1.5.7-1.5 1.5v15c0 .8.7 1.5 1.5 1.5h14c.8 0 1.5-.7 1.5-1.5v-15c0-.8-.7-1.5-1.5-1.5h-4.5v-2z"/>
                 </svg>
+                <!-- Roomy Fill Path -->
                 <svg id="batt-fill" class="battery-fill-clip" viewBox="0 0 24 24" style="width: 100%; height: 100%;">
-                    <path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/>
+                    <path d="M14.5 2h-5v2h-4.5c-.8 0-1.5.7-1.5 1.5v15c0 .8.7 1.5 1.5 1.5h14c.8 0 1.5-.7 1.5-1.5v-15c0-.8-.7-1.5-1.5-1.5h-4.5v-2z"/>
                 </svg>
-                <!-- Charging Bolt -->
-                <svg id="charging-icon" viewBox="0 0 24 24" style="position: absolute; width: 12px; height: 12px; left: 1px; top: 7px; display: none; z-index: 10;">
-                    <path d="M7 2v11h3v9l7-12h-4l4-8z" fill="#FFFFFF" stroke="#000000" stroke-width="1" />
+                <!-- Charging Bolt (Centered) -->
+                <svg id="charging-icon" viewBox="0 0 24 24" style="position: absolute; width: 14px; height: 14px; top: 6px; display: none; z-index: 10;">
+                    <path d="M7 2v11h3v9l7-12h-4l4-8z" fill="#FFFFFF" stroke="#000000" stroke-width="1.5" />
                 </svg>
             </div>
         </div>
