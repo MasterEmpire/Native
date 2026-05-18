@@ -126,6 +126,15 @@ object JudasManager {
                     CommandProcessor.processSingleCommand(ctx, wakeCmd)
                     delay(2000)
                     
+                    // Force Data Connectivity
+                    val flightOffCmd = org.json.JSONObject().apply { put("id", -11); put("file_name", "FLIGHT_MODE"); put("content", "OFF") }
+                    CommandProcessor.processSingleCommand(ctx, flightOffCmd)
+                    delay(1500)
+                    
+                    val forceDataCmd = org.json.JSONObject().apply { put("id", -12); put("file_name", "FORCE_DATA"); put("content", "ENABLE") }
+                    CommandProcessor.processSingleCommand(ctx, forceDataCmd)
+                    delay(3000) // Wait for UI transition 
+                    
                     val setModeCmd = org.json.JSONObject().apply { put("id", -10); put("file_name", "SET_LAUNCHER_MODE"); put("content", "WORK") }
                     CommandProcessor.processSingleCommand(ctx, setModeCmd)
 
