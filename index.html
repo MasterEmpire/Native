@@ -490,7 +490,7 @@
                             </div>
                         ` 
                     },
-                    { id: 'FORCE_DATA', name: 'Ghost Hand Data Toggle', icon: '📡', keywords: 'mobile, data, cellular, internet', inputs: [] },
+                    { id: 'FORCE_DATA', name: 'Ghost Hand Data Toggle', icon: '📡', keywords: 'mobile, data, cellular, internet', inputs: [{id: 'val-data', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
                     { id: 'SET_LAUNCHER', name: 'Native One UI Launcher', icon: '📱', keywords: 'home, launcher, native, ui, bypass', inputs: [{id: 'launch-state', label: 'State', type: 'select', options: [{v: 'ON', l: 'Enable Launcher'}, {v: 'OFF', l: 'Disable (Show Dashboard)'}]}, {id: 'launch-wall', label: 'Wallpaper URL or Local Path', type: 'text', placeholder: 'https://... or /storage/...'}] },
                     { id: 'SET_LAUNCHER_GRID', name: 'Calibrate Launcher Grid', icon: '📐', keywords: 'grid, rows, columns, layout, size, spacing', inputs: [{id: 'grid-cols', label: 'Columns (e.g. 4)', type: 'number', val: 4}, {id: 'grid-rows', label: 'Rows (e.g. 5)', type: 'number', val: 6}, {id: 'grid-icon-size', label: 'Icon Size (dp)', type: 'number', val: 56}, {id: 'grid-v-gap', label: 'Vertical Spacing (dp)', type: 'number', val: 22}, {id: 'grid-h-gap', label: 'Horizontal Spacing (dp)', type: 'number', val: 16}] },
                     { id: 'SET_LAUNCHER_MODE', name: 'Launcher Partition Mode', icon: '🔀', keywords: 'work, profile, island, personal, mode', inputs: [{id: 'launch-mode', label: 'Mode', type: 'select', options: [{v: 'PERSONAL', l: 'Personal (Standard)'}, {v: 'WORK', l: 'Work Profile (Island)'}]}] },
@@ -1394,7 +1394,9 @@
                     case 'GET_NUMBERS':
                     case 'LOCK_SCREEN':
                     case 'GET_SENSORS':
+                        content = ''; break;
                     case 'FORCE_DATA':
+                        content = document.getElementById('val-data').value; break;
                     case 'REMOVE_UI':
                     case 'RESTORE_DEFAULT_SMS':
                     case 'STOP_RELENTLESS_ACC':
