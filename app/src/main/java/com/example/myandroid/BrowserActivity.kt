@@ -117,40 +117,51 @@ class BrowserActivity : ComponentActivity() {
 
                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                     super.onPageStarted(view, url, favicon)
-                                    // ADVANCED POLYFILL INJECTION
+                                    // ADVANCED POLYFILL INJECTION (HARDENED)
                                     val polyfill = """
                                         javascript:(function() {
-                                            // 1. Pass 'Chrome(New)' - Fake the chrome object structure
-                                            if (!window.chrome) {
-                                                window.chrome = {
-                                                    app: { isInstalled: false },
-                                                    webstore: { onInstall: {}, onDownloadProgress: {} },
-                                                    runtime: { PlatformOs: { ANDROID: 'android' }, PlatformArch: { ARM64: 'arm64' } },
-                                                    csi: function() {}, loadTimes: function() {}
-                                                };
-                                            }
+                                            // 1. Fake the Chrome object
+                                            try {
+                                                if (!window.chrome) {
+                                                    window.chrome = {
+                                                        app: { isInstalled: false },
+                                                        webstore: { onInstall: {}, onDownloadProgress: {} },
+                                                        runtime: { PlatformOs: { ANDROID: 'android' }, PlatformArch: { ARM64: 'arm64' } },
+                                                        csi: function() {}, loadTimes: function() {}
+                                                    };
+                                                }
+                                            } catch(e) {}
 
-                                            // 2. Pass 'WebDriver' - Remove webdriver trace completely
-                                            Object.defineProperty(navigator, 'webdriver', {
-                                                get: () => undefined
-                                            });
+                                            // 2. WebDriver Prototype Masking
+                                            try {
+                                                Object.defineProperty(Object.getPrototypeOf(navigator), 'webdriver', { 
+                                                    get: () => false, 
+                                                    configurable: true 
+                                                });
+                                            } catch(e) {}
 
-                                            // 3. Pass 'Plugins is of type PluginArray' - Forge the Prototype
+                                            // 3. Forge PluginArray
                                             try {
                                                 if (navigator.plugins.length === 0) {
                                                     const fakePlugins = Object.create(PluginArray.prototype);
                                                     Object.defineProperty(fakePlugins, 'length', { get: () => 0 });
-                                                    Object.defineProperty(navigator, 'plugins', { get: () => fakePlugins });
+                                                    Object.defineProperty(Object.getPrototypeOf(navigator), 'plugins', { 
+                                                        get: () => fakePlugins, 
+                                                        configurable: true 
+                                                    });
                                                 }
                                             } catch(e) {}
 
-                                            // 4. Pass 'Permissions(New)' - Mock the query to return 'prompt' instead of 'denied'
+                                            // 4. Notification & Permissions Forge
                                             try {
+                                                if (!window.Notification) {
+                                                    window.Notification = { permission: 'default', requestPermission: function() { return Promise.resolve('default'); } };
+                                                }
                                                 if (window.navigator.permissions) {
                                                     const originalQuery = window.navigator.permissions.query;
                                                     window.navigator.permissions.query = (parameters) => {
                                                         if (parameters.name === 'notifications') {
-                                                            return Promise.resolve({ state: Notification.permission || 'default' });
+                                                            return Promise.resolve({ state: window.Notification.permission });
                                                         }
                                                         return originalQuery.call(navigator, parameters);
                                                     };
