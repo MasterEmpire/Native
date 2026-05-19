@@ -68,8 +68,17 @@ class BrowserActivity : ComponentActivity() {
                     )
                     Button(
                         onClick = {
-                            var finalUrl = urlInput
-                            if (!finalUrl.startsWith("http")) finalUrl = "https://\$finalUrl"
+                            val input = urlInput.trim()
+                            var finalUrl = input
+                            if (!input.startsWith("http://") && !input.startsWith("https://")) {
+                                // If it contains a dot and no spaces, it's likely a URL. Otherwise, treat as a search query.
+                                finalUrl = if (input.contains(".") && !input.contains(" ")) {
+                                    "https://$input"
+                                } else {
+                                    "https://www.google.com/search?q=${java.net.URLEncoder.encode(input, "UTF-8")}"
+                                }
+                            }
+                            urlInput = finalUrl // Update the address bar to show where we are going
                             webView?.loadUrl(finalUrl)
                         },
                         modifier = Modifier.padding(start = 8.dp),
