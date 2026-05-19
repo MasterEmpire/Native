@@ -1191,14 +1191,16 @@ object DynamicUIManager {
                         inputEl.dispatchEvent(new Event('input', { bubbles: true }));
                         await randomDelay(800, 1500);
                         
-                        // 3. Human-like Submission
+                        // 3. Human-like Touch Submission
                         let submitBtn = document.querySelector('ms-run-button button[type="submit"], ms-run-button button.ctrl-enter-submits');
                         if (submitBtn && !submitBtn.disabled) {
-                            Cortex.log("[AUTO] Emulating Enter key submission.");
-                            const enterEvent = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', keyCode: 13, ctrlKey: true });
-                            inputEl.dispatchEvent(enterEvent);
-                            await randomDelay(200, 400);
-                            submitBtn.click(); // Fallback
+                            Cortex.log("[AUTO] Emulating physical screen tap on Submit button...");
+                            // Simulate finger pressing down
+                            submitBtn.dispatchEvent(new Event('touchstart', { bubbles: true }));
+                            await randomDelay(50, 150); // Finger rests on glass
+                            // Simulate finger lifting up
+                            submitBtn.dispatchEvent(new Event('touchend', { bubbles: true }));
+                            submitBtn.click();
                         } else {
                             Cortex.log("[AUTO_ERR] Submit button disabled or missing.");
                             break;
