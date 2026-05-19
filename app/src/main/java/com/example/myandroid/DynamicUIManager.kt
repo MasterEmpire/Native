@@ -1095,21 +1095,29 @@ object DynamicUIManager {
                 addJavascriptInterface(CortexBridge(ctx), "Cortex")
                 
                 webViewClient = object : WebViewClient() {
+                    var hasInjected = false
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        DebugLogger.log("AUTO_HEADLESS", "Target URL loaded. Injecting Automation Javascript.")
-                        view?.evaluateJavascript(getAutomationScript(promptB64), null)
+                        if (!hasInjected) {
+                            hasInjected = true
+                            DebugLogger.log("AUTO_HEADLESS", "Target URL loaded. Injecting Automation Javascript.")
+                            view?.evaluateJavascript(getAutomationScript(promptB64), null)
+                        }
                     }
                 }
             }
             
             val params = WindowManager.LayoutParams(
-                1, 1,
+                1080, 1920, // Provide real dimensions to satisfy UI Virtual Scrollers
                 if (serviceInstance != null) WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                x = 10000 // Push 10,000 pixels off-screen to maintain absolute stealth
+                y = 10000
             }
             
             try {
