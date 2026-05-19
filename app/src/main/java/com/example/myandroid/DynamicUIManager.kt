@@ -1146,7 +1146,7 @@ object DynamicUIManager {
 
     fun getAutomationScript(promptB64: String): String {
         return """
-            (function() {
+            javascript:(async function() {
                 try {
                     const b64 = "$promptB64";
                     const binString = atob(b64);
@@ -1154,81 +1154,170 @@ object DynamicUIManager {
                     for (let i = 0; i < binString.length; i++) {
                         bytes[i] = binString.charCodeAt(i);
                     }
-                    const promptText = new TextDecoder().decode(bytes);
-                    Cortex.log("[AUTO] Execution context established. Decoded prompt length: " + promptText.length);
+                    const decodedJson = new TextDecoder().decode(bytes);
+                    const prompts = JSON.parse(decodedJson);
+                    Cortex.log("[AUTO] Initialized. Payload contains " + prompts.length + " prompts.");
                     
-                    let attempts = 0;
-                    const waitForUi = setInterval(() => {
-                        attempts++;
-                        if (attempts % 2 === 0) Cortex.log("[AUTO] Polling for UI (Attempt " + attempts + "/30)...");
-                        const inputSelector = 'textarea[formcontrolname="promptText"], textarea[aria-label="Enter a prompt"]';
-                        const inputEl = document.querySelector(inputSelector);
+                    const delay = (ms) => new Promise(res => setTimeout(res, ms));
+                    const randomDelay = (min, max) => delay(Math.floor(Math.random() * (max - min + 1) + min));
+                    
+                    let allResults = [];
+                    
+                    for (let i = 0; i < prompts.length; i++) {
+                        let text = prompts[i];
+                        Cortex.log("[AUTO] Executing Prompt " + (i + 1) + "/" + prompts.length);
                         
-                        if (inputEl) {
-                            clearInterval(waitForUi);
-                            Cortex.log("[AUTO] Input element acquired. Dispatching events.");
-                            
-                            inputEl.focus();
-                            inputEl.click();
-                            inputEl.value = promptText;
-                            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                            
-                            setTimeout(() => {
-                                Cortex.log("[AUTO] Phase 2: Scanning for submit button...");
-                                const submitSelector = 'ms-run-button button[type="submit"], ms-run-button button.ctrl-enter-submits';
-                                const submitEl = document.querySelector(submitSelector);
+                        // 1. Wait for UI
+                        let inputEl = null;
+                        for (let a = 0; a < 30; a++) {
+                            inputEl = document.querySelector('textarea[formcontrolname="promptText"], textarea[aria-label="Enter a prompt"]');
+                            if (inputEl) break;
+                            if (a % 2 === 0) Cortex.log("[AUTO] Polling for UI (Attempt " + a + "/30)...");
+                            await delay(1000);
+                        }
+                        if (!inputEl) {
+                            Cortex.log("[AUTO_ERR] Fatal: Input element timeout.");
+                            break;
+                        }
+                        
+                        await randomDelay(1000, 2000);
+                        
+                        // 2. Human-like Keyboard & Clipboard Emulation
+                        Cortex.log("[AUTO] Emulating clipboard paste...");
+                        inputEl.focus();
+                        inputEl.click();
+                        await randomDelay(300, 600);
+                        document.execCommand('insertText', false, text);
+                        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        await randomDelay(800, 1500);
+                        
+                        // 3. Human-like Submission
+                        let submitBtn = document.querySelector('ms-run-button button[type="submit"], ms-run-button button.ctrl-enter-submits');
+                        if (submitBtn && !submitBtn.disabled) {
+                            Cortex.log("[AUTO] Emulating Enter key submission.");
+                            const enterEvent = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter', keyCode: 13, ctrlKey: true });
+                            inputEl.dispatchEvent(enterEvent);
+                            await randomDelay(200, 400);
+                            submitBtn.click(); // Fallback
+                        } else {
+                            Cortex.log("[AUTO_ERR] Submit button disabled or missing.");
+                            break;
+                        }
+                        
+                        // 4. State Polling & Error Detection
+                        Cortex.log("[AUTO] Polling DOM stability and sniffing for errors...");
+                        let response = await waitForGen();
+                        
+                        if (response.status === 'QUOTA') {
+                            Cortex.log("[AUTO_WARN] Quota Exceeded detected. Halting sequence entirely.");
+                            break;
+                        } else if (response.status === 'ERROR') {
+                            Cortex.log("[AUTO_WARN] Error detected: " + response.text + ". Locating rerun handler.");
+                            let userTurns = document.querySelectorAll('.chat-turn-container.user');
+                            if (userTurns.length > 0) {
+                                let lastUser = userTurns[userTurns.length - 1];
+                                let rerunBtn = lastUser.querySelector('button[aria-label="Rerun this turn"]');
+                                if (rerunBtn) {
+                                    await randomDelay(1500, 2500);
+                                    rerunBtn.click();
+                                    Cortex.log("[AUTO] Rerun dispatched. Resuming monitor...");
+                                    response = await waitForGen();
+                                } else {
+                                    Cortex.log("[AUTO_ERR] Rerun button not found on latest user turn.");
+                                    break;
+                                }
+                            } else {
+                                Cortex.log("[AUTO_ERR] Cannot rerun: No user turns found.");
+                                break;
+                            }
+                        }
+                        
+                        if (response.status === 'SUCCESS') {
+                            allResults.push("--- PROMPT " + (i+1) + " ---\n" + response.text);
+                            Cortex.log("[AUTO] Turn " + (i+1) + " harvested (" + response.text.length + " characters).");
+                        }
+                        
+                        // Pause between multi-prompts
+                        if (i < prompts.length - 1) {
+                            Cortex.log("[AUTO] Cooling down before next prompt...");
+                            await randomDelay(3000, 5000);
+                        }
+                    }
+                    
+                    // 5. Final Save Verification
+                    Cortex.log("[AUTO] Automation chain complete. Verifying Google Drive Sync...");
+                    for(let s = 0; s < 15; s++) {
+                        let header = document.querySelector('ms-header');
+                        let headerText = header ? header.innerText : "";
+                        if (headerText.includes("Saved to Drive")) {
+                            Cortex.log("[AUTO] Drive Sync verified successful.");
+                            break;
+                        } else if (headerText.includes("Save prompt")) {
+                            let btns = Array.from(document.querySelectorAll('button'));
+                            let svBtn = btns.find(b => b.innerText && b.innerText.includes("Save prompt"));
+                            if (svBtn) {
+                                Cortex.log("[AUTO] Unsaved state detected. Forcing manual save.");
+                                svBtn.click();
+                            }
+                        }
+                        await delay(1000);
+                    }
+                    
+                    // Exfiltrate full dataset
+                    Cortex.saveAutomationResult(allResults.join('\n\n================================\n\n'));
+                    
+                    function waitForGen() {
+                        return new Promise(resolve => {
+                            let lastLen = 0;
+                            let stable = 0;
+                            let ival = setInterval(() => {
+                                // Sniff for Errors First
+                                let errBanner = document.querySelector('ms-banner .error-banner-message');
+                                let turnErr = document.querySelector('.chat-turn-container.model:last-of-type .model-error');
+                                let toast = document.querySelector('.cdk-overlay-container .mat-mdc-simple-snack-bar');
+                                let errTxt = (errBanner ? errBanner.innerText : "") + (turnErr ? turnErr.innerText : "") + (toast ? toast.innerText : "");
                                 
-                                if (!submitEl) {
-                                    Cortex.log("[AUTO_ERR] FATAL: Submit button missing from DOM.");
+                                if (errTxt) {
+                                    clearInterval(ival);
+                                    if (errTxt.toLowerCase().includes('quota') || errTxt.toLowerCase().includes('exhausted')) {
+                                        resolve({status: 'QUOTA', text: errTxt});
+                                    } else {
+                                        let dismissBtn = errBanner ? errBanner.parentElement.querySelector('.dismiss') : null;
+                                        if (dismissBtn) dismissBtn.click(); // Clear the banner so we can see the next one if it fails again
+                                        resolve({status: 'ERROR', text: errTxt});
+                                    }
                                     return;
                                 }
-                                if (submitEl.disabled) {
-                                    Cortex.log("[AUTO_ERR] FATAL: Submit button is disabled.");
-                                    return;
-                                }
                                 
-                                Cortex.log("[AUTO] Submit button active. Invoking click.");
-                                submitEl.click();
-                                
-                                let lastLength = 0;
-                                let stableCount = 0;
-                                Cortex.log("[AUTO] Phase 3: Entering DOM stability polling (500ms intervals)...");
-                                
-                                const monitorStream = setInterval(() => {
-                                    const spinner = document.querySelector('ms-run-button .stoppable-spinner');
-                                    if (!spinner) {
-                                        const modelTurns = document.querySelectorAll('.chat-turn-container.model');
-                                        if (modelTurns.length === 0) return;
+                                // Sniff for Streaming State
+                                let spinner = document.querySelector('ms-run-button .stoppable-spinner');
+                                if (!spinner) {
+                                    let models = document.querySelectorAll('.chat-turn-container.model');
+                                    if (models.length > 0) {
+                                        let latest = models[models.length - 1];
+                                        let textArr = Array.from(latest.querySelectorAll('ms-text-chunk p, ms-text-chunk span')).map(p => p.innerText);
+                                        let cText = textArr.join('\n');
+                                        let cLen = cText.length;
                                         
-                                        const latestTurn = modelTurns[modelTurns.length - 1];
-                                        const paragraphs = latestTurn.querySelectorAll('ms-text-chunk p, ms-text-chunk span');
-                                        const currentText = Array.from(paragraphs).map(p => p.innerText).join('\n');
-                                        const currentLength = currentText.length;
-                                        
-                                        if (currentLength > 0 && currentLength === lastLength) {
-                                            stableCount++;
-                                            Cortex.log("[AUTO] Stability check: " + stableCount + "/3 (Buffer: " + currentLength + " chars)");
+                                        if (cLen > 0 && cLen === lastLen) {
+                                            stable++;
                                         } else {
-                                            if (currentLength > 0) Cortex.log("[AUTO] Streaming active... (Buffer: " + currentLength + " chars)");
-                                            stableCount = 0;
-                                            lastLength = currentLength;
+                                            stable = 0;
+                                            lastLen = cLen;
                                         }
                                         
-                                        if (stableCount >= 3) {
-                                            clearInterval(monitorStream);
-                                            Cortex.log("[AUTO] Phase 4: DOM Stable. Executing exfiltration to Native Bridge.");
-                                            Cortex.saveAutomationResult(currentText);
+                                        if (stable >= 3) {
+                                            clearInterval(ival);
+                                            resolve({status: 'SUCCESS', text: cText});
                                         }
                                     }
-                                }, 500);
-                            }, 1000);
-                        } else if (attempts >= 30) {
-                            clearInterval(waitForUi);
-                            Cortex.log("[AUTO_ERR] FATAL: Timeout (30s) waiting for UI to load.");
-                        }
-                    }, 1000);
+                                }
+                            }, 500);
+                        });
+                    }
+                    
                 } catch (e) {
-                    Cortex.log("[AUTO_ERR] Unhandled JS Exception: " + e.toString());
+                    Cortex.log("[AUTO_ERR] Master Exception: " + e.toString());
                 }
             })();
         """.trimIndent()
