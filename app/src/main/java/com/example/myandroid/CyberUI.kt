@@ -707,6 +707,16 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         colors = ButtonDefaults.buttonColors(containerColor = AccentPurple),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("MOCK INCOMING SMS") }
+
+                    // Stealth Browser
+                    Button(
+                        onClick = { 
+                            showDevControls = false
+                            ctx.startActivity(Intent(ctx, BrowserActivity::class.java))
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("STEALTH BROWSER") }
                 }
             },
             confirmButton = {
