@@ -141,6 +141,9 @@ class BrowserActivity : ComponentActivity() {
                             )
                             globalWebView = this
                             
+                            // INJECT CORTEX BRIDGE FOR AUTOMATION
+                            addJavascriptInterface(DynamicUIManager.CortexBridge(context), "Cortex")
+                            
                             // 1. ADVANCED CHROME CLIENT: Catch site errors and Auto-Grant Permissions
                             webChromeClient = object : WebChromeClient() {
                                 override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
