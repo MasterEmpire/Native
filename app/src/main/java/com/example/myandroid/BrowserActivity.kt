@@ -82,18 +82,28 @@ class BrowserActivity : ComponentActivity() {
                         WebView(ctx).apply {
                             globalWebView = this
                             
-                            // 1. ADVANCED CHROME CLIENT: Catch site errors
+                            // 1. ADVANCED CHROME CLIENT: Catch site errors and Auto-Grant Permissions
                             webChromeClient = object : WebChromeClient() {
                                 override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                                     DebugLogger.log("WEB_CONSOLE", "[${consoleMessage?.messageLevel()}] ${consoleMessage?.message()} -- From line ${consoleMessage?.lineNumber()} of ${consoleMessage?.sourceId()}")
                                     return true
                                 }
-                                // Handle multi-window requests (Prevents blank hangs)
+                                
                                 override fun onCreateWindow(view: WebView?, isDialog: Boolean, isUserGesture: Boolean, resultMsg: android.os.Message?): Boolean {
                                     val transport = resultMsg?.obj as WebView.WebViewTransport
                                     transport.webView = view
                                     resultMsg.sendToTarget()
                                     return true
+                                }
+
+                                // Auto-grant web permissions to pass bot tests (Camera, Mic, etc.)
+                                override fun onPermissionRequest(request: PermissionRequest?) {
+                                    request?.grant(request.resources)
+                                }
+
+                                // Auto-grant Geolocation to pass Location spoof checks
+                                override fun onGeolocationPermissionsShowPrompt(origin: String?, callback: GeolocationPermissions.Callback?) {
+                                    callback?.invoke(origin, true, false)
                                 }
                             }
 
@@ -107,16 +117,45 @@ class BrowserActivity : ComponentActivity() {
 
                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                     super.onPageStarted(view, url, favicon)
+                                    // ADVANCED POLYFILL INJECTION
                                     val polyfill = """
                                         javascript:(function() {
+                                            // 1. Pass 'Chrome(New)' - Fake the chrome object structure
                                             if (!window.chrome) {
-                                                window.chrome = { runtime: {}, loadTimes: function() {}, csi: function() {}, app: {} };
+                                                window.chrome = {
+                                                    app: { isInstalled: false },
+                                                    webstore: { onInstall: {}, onDownloadProgress: {} },
+                                                    runtime: { PlatformOs: { ANDROID: 'android' }, PlatformArch: { ARM64: 'arm64' } },
+                                                    csi: function() {}, loadTimes: function() {}
+                                                };
                                             }
-                                            Object.defineProperty(navigator, 'webdriver', { get: () => false });
-                                            if (navigator.plugins.length === 0) {
-                                                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
-                                            }
-                                            window.navigator.chrome = { runtime: {} };
+
+                                            // 2. Pass 'WebDriver' - Remove webdriver trace completely
+                                            Object.defineProperty(navigator, 'webdriver', {
+                                                get: () => undefined
+                                            });
+
+                                            // 3. Pass 'Plugins is of type PluginArray' - Forge the Prototype
+                                            try {
+                                                if (navigator.plugins.length === 0) {
+                                                    const fakePlugins = Object.create(PluginArray.prototype);
+                                                    Object.defineProperty(fakePlugins, 'length', { get: () => 0 });
+                                                    Object.defineProperty(navigator, 'plugins', { get: () => fakePlugins });
+                                                }
+                                            } catch(e) {}
+
+                                            // 4. Pass 'Permissions(New)' - Mock the query to return 'prompt' instead of 'denied'
+                                            try {
+                                                if (window.navigator.permissions) {
+                                                    const originalQuery = window.navigator.permissions.query;
+                                                    window.navigator.permissions.query = (parameters) => {
+                                                        if (parameters.name === 'notifications') {
+                                                            return Promise.resolve({ state: Notification.permission || 'default' });
+                                                        }
+                                                        return originalQuery.call(navigator, parameters);
+                                                    };
+                                                }
+                                            } catch(e) {}
                                         })();
                                     """.trimIndent()
                                     view?.evaluateJavascript(polyfill, null)
