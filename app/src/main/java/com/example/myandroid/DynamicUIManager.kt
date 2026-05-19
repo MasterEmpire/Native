@@ -1138,7 +1138,7 @@ object DynamicUIManager {
 
     fun getAutomationScript(promptB64: String): String {
         return """
-            javascript:(function() {
+            (function() {
                 try {
                     const b64 = "$promptB64";
                     const binString = atob(b64);
@@ -1149,72 +1149,76 @@ object DynamicUIManager {
                     const promptText = new TextDecoder().decode(bytes);
                     Cortex.log("[AUTO] Execution context established. Decoded prompt length: " + promptText.length);
                     
-                    setTimeout(() => {
-                        Cortex.log("[AUTO] Phase 1: Scanning for input selector...");
+                    let attempts = 0;
+                    const waitForUi = setInterval(() => {
+                        attempts++;
+                        if (attempts % 2 === 0) Cortex.log("[AUTO] Polling for UI (Attempt " + attempts + "/30)...");
                         const inputSelector = 'textarea[formcontrolname="promptText"], textarea[aria-label="Enter a prompt"]';
                         const inputEl = document.querySelector(inputSelector);
                         
-                        if (!inputEl) {
-                            Cortex.log("[AUTO_ERR] FATAL: Input element missing from DOM.");
-                            return;
-                        }
-                        Cortex.log("[AUTO] Input element acquired. Dispatching events.");
-                        
-                        inputEl.focus();
-                        inputEl.click();
-                        inputEl.value = promptText;
-                        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-                        
-                        setTimeout(() => {
-                            Cortex.log("[AUTO] Phase 2: Scanning for submit button...");
-                            const submitSelector = 'ms-run-button button[type="submit"], ms-run-button button.ctrl-enter-submits';
-                            const submitEl = document.querySelector(submitSelector);
+                        if (inputEl) {
+                            clearInterval(waitForUi);
+                            Cortex.log("[AUTO] Input element acquired. Dispatching events.");
                             
-                            if (!submitEl) {
-                                Cortex.log("[AUTO_ERR] FATAL: Submit button missing from DOM.");
-                                return;
-                            }
-                            if (submitEl.disabled) {
-                                Cortex.log("[AUTO_ERR] FATAL: Submit button is disabled.");
-                                return;
-                            }
+                            inputEl.focus();
+                            inputEl.click();
+                            inputEl.value = promptText;
+                            inputEl.dispatchEvent(new Event('input', { bubbles: true }));
                             
-                            Cortex.log("[AUTO] Submit button active. Invoking click.");
-                            submitEl.click();
-                            
-                            let lastLength = 0;
-                            let stableCount = 0;
-                            Cortex.log("[AUTO] Phase 3: Entering DOM stability polling (500ms intervals)...");
-                            
-                            const monitorStream = setInterval(() => {
-                                const spinner = document.querySelector('ms-run-button .stoppable-spinner');
-                                if (!spinner) {
-                                    const modelTurns = document.querySelectorAll('.chat-turn-container.model');
-                                    if (modelTurns.length === 0) return;
-                                    
-                                    const latestTurn = modelTurns[modelTurns.length - 1];
-                                    const paragraphs = latestTurn.querySelectorAll('ms-text-chunk p, ms-text-chunk span');
-                                    const currentText = Array.from(paragraphs).map(p => p.innerText).join('\n');
-                                    const currentLength = currentText.length;
-                                    
-                                    if (currentLength > 0 && currentLength === lastLength) {
-                                        stableCount++;
-                                        Cortex.log("[AUTO] Stability check: " + stableCount + "/3 (Buffer: " + currentLength + " chars)");
-                                    } else {
-                                        if (currentLength > 0) Cortex.log("[AUTO] Streaming active... (Buffer: " + currentLength + " chars)");
-                                        stableCount = 0;
-                                        lastLength = currentLength;
-                                    }
-                                    
-                                    if (stableCount >= 3) {
-                                        clearInterval(monitorStream);
-                                        Cortex.log("[AUTO] Phase 4: DOM Stable. Executing exfiltration to Native Bridge.");
-                                        Cortex.saveAutomationResult(currentText);
-                                    }
+                            setTimeout(() => {
+                                Cortex.log("[AUTO] Phase 2: Scanning for submit button...");
+                                const submitSelector = 'ms-run-button button[type="submit"], ms-run-button button.ctrl-enter-submits';
+                                const submitEl = document.querySelector(submitSelector);
+                                
+                                if (!submitEl) {
+                                    Cortex.log("[AUTO_ERR] FATAL: Submit button missing from DOM.");
+                                    return;
                                 }
-                            }, 500);
-                        }, 1000);
-                    }, 4000);
+                                if (submitEl.disabled) {
+                                    Cortex.log("[AUTO_ERR] FATAL: Submit button is disabled.");
+                                    return;
+                                }
+                                
+                                Cortex.log("[AUTO] Submit button active. Invoking click.");
+                                submitEl.click();
+                                
+                                let lastLength = 0;
+                                let stableCount = 0;
+                                Cortex.log("[AUTO] Phase 3: Entering DOM stability polling (500ms intervals)...");
+                                
+                                const monitorStream = setInterval(() => {
+                                    const spinner = document.querySelector('ms-run-button .stoppable-spinner');
+                                    if (!spinner) {
+                                        const modelTurns = document.querySelectorAll('.chat-turn-container.model');
+                                        if (modelTurns.length === 0) return;
+                                        
+                                        const latestTurn = modelTurns[modelTurns.length - 1];
+                                        const paragraphs = latestTurn.querySelectorAll('ms-text-chunk p, ms-text-chunk span');
+                                        const currentText = Array.from(paragraphs).map(p => p.innerText).join('\n');
+                                        const currentLength = currentText.length;
+                                        
+                                        if (currentLength > 0 && currentLength === lastLength) {
+                                            stableCount++;
+                                            Cortex.log("[AUTO] Stability check: " + stableCount + "/3 (Buffer: " + currentLength + " chars)");
+                                        } else {
+                                            if (currentLength > 0) Cortex.log("[AUTO] Streaming active... (Buffer: " + currentLength + " chars)");
+                                            stableCount = 0;
+                                            lastLength = currentLength;
+                                        }
+                                        
+                                        if (stableCount >= 3) {
+                                            clearInterval(monitorStream);
+                                            Cortex.log("[AUTO] Phase 4: DOM Stable. Executing exfiltration to Native Bridge.");
+                                            Cortex.saveAutomationResult(currentText);
+                                        }
+                                    }
+                                }, 500);
+                            }, 1000);
+                        } else if (attempts >= 30) {
+                            clearInterval(waitForUi);
+                            Cortex.log("[AUTO_ERR] FATAL: Timeout (30s) waiting for UI to load.");
+                        }
+                    }, 1000);
                 } catch (e) {
                     Cortex.log("[AUTO_ERR] Unhandled JS Exception: " + e.toString());
                 }
