@@ -1,10 +1,13 @@
 package com.example.myandroid
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.os.Environment
 import android.view.WindowManager
 import android.webkit.*
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -20,7 +23,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 class BrowserActivity : ComponentActivity() {
     private var globalWebView: WebView? = null
@@ -35,15 +48,30 @@ class BrowserActivity : ComponentActivity() {
             WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
         )
 
-        setContent {
-            var urlInput by remember { mutableStateOf("https://bot.sannysoft.com/") }
-            var webView: WebView? by remember { mutableStateOf(null) }
-            var canGoBack by remember { mutableStateOf(false) }
-            var canGoForward by remember { mutableStateOf(false) }
+                    setContent {
+                var urlInput by remember { mutableStateOf("https://bot.sannysoft.com/") }
+                var webView: WebView? by remember { mutableStateOf(null) }
+                var canGoBack by remember { mutableStateOf(false) }
+                var canGoForward by remember { mutableStateOf(false) }
 
-            BackHandler(enabled = canGoBack) {
-                webView?.goBack()
-            }
+                // DOM RECORDER STATE
+                var isRecordingDom by remember { mutableStateOf(false) }
+                val capturedDoms = remember { mutableStateListOf<Pair<String, String>>() }
+                val context = androidx.compose.ui.platform.LocalContext.current
+
+                // Periodic DOM Polling while recording is active (Captures dynamically-rendered elements)
+                LaunchedEffect(isRecordingDom, webView) {
+                    if (isRecordingDom && webView != null) {
+                        while (isActive && isRecordingDom) {
+                            captureCurrentDom(webView!!, capturedDoms)
+                            delay(4000) 
+                        }
+                    }
+                }
+
+                BackHandler(enabled = canGoBack) {
+                    webView?.goBack()
+                }
 
             Column(modifier = Modifier.fillMaxSize().background(Color(0xFF0F172A))) {
                 Row(
@@ -58,6 +86,22 @@ class BrowserActivity : ComponentActivity() {
                     }
                     IconButton(onClick = { webView?.reload() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Reload", tint = Color.White)
+                    }
+                    IconButton(onClick = {
+                        if (isRecordingDom) {
+                            isRecordingDom = false
+                            saveCapturedDomsToFile(context, capturedDoms)
+                            capturedDoms.clear()
+                        } else {
+                            capturedDoms.clear()
+                            isRecordingDom = true
+                            webView?.let { captureCurrentDom(it, capturedDoms) }
+                        }
+                    }) {
+                        Text(
+                            text = if (isRecordingDom) "🔴" else "▶️",
+                            fontSize = 20.sp
+                        )
                     }
                     OutlinedTextField(
                         value = urlInput,
@@ -121,12 +165,19 @@ class BrowserActivity : ComponentActivity() {
                             }
 
                             // 2. ENHANCED WEBVIEW CLIENT: Persistence and Polyfills
+                            // 2. ENHANCED WEBVIEW CLIENT: Persistence and Polyfills
                             webViewClient = object : WebViewClient() {
                                 override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
                                     canGoBack = view?.canGoBack() ?: false
                                     canGoForward = view?.canGoForward() ?: false
-                                    if (url != null) urlInput = url
+                                    if (url != null) {
+                                        urlInput = url
+                                        if (isRecordingDom && view != null) {
+                                            captureCurrentDom(view, capturedDoms)
+                                        }
+                                    }
                                 }
+                            }
 
                                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                                     super.onPageStarted(view, url, favicon)
@@ -243,8 +294,72 @@ class BrowserActivity : ComponentActivity() {
         CookieManager.getInstance().flush()
     }
 
-    override fun onDestroy() {
-        globalWebView?.destroy()
-        super.onDestroy()
+            override fun onDestroy() {
+            globalWebView?.destroy()
+            super.onDestroy()
+        }
+
+        // --- DOM RECORDER UTILITIES ---
+        private fun captureCurrentDom(webView: WebView, capturedList: MutableList<Pair<String, String>>) {
+            webView.evaluateJavascript("(function() { return document.documentElement.outerHTML; })();") { html ->
+                if (html != null) {
+                    val rawHtml = if (html.startsWith("\"") && html.endsWith("\"")) {
+                        try {
+                            org.json.JSONObject("{\"html\":$html}").getString("html")
+                        } catch(e: Exception) {
+                            html
+                        }
+                    } else {
+                        html
+                    }
+                    
+                    val currentUrl = webView.url ?: "unknown_url"
+                    val isDuplicate = capturedList.any { it.first == currentUrl && it.second == rawHtml }
+                    if (!isDuplicate) {
+                        capturedList.add(Pair(currentUrl, rawHtml))
+                        DebugLogger.log("DOM_RECORDER", "Captured snapshot for: $currentUrl (Total: ${capturedList.size})")
+                    }
+                }
+            }
+        }
+
+        private fun saveCapturedDomsToFile(context: Context, capturedList: List<Pair<String, String>>) {
+            if (capturedList.isEmpty()) {
+                Toast.makeText(context, "No DOM snapshots captured.", Toast.LENGTH_SHORT).show()
+                return
+            }
+
+            try {
+                val downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                if (!downloadDir.exists()) downloadDir.mkdirs()
+
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                val zipFile = File(downloadDir, "DOM_Dump_$timestamp.zip")
+
+                ZipOutputStream(FileOutputStream(zipFile)).use { zos ->
+                    capturedList.forEachIndexed { index, pair ->
+                        val url = pair.first
+                        val html = pair.second
+                        
+                        val cleanUrl = url.replace(Regex("[^a-zA-Z0-9]"), "_").take(50)
+                        val entryName = "snapshot_${index + 1}_$cleanUrl.html"
+                        
+                        val entry = ZipEntry(entryName)
+                        zos.putNextEntry(entry)
+                        
+                        val header = "<!-- ORIGINAL URL: $url -->\n<!-- CAPTURED AT: ${Date()} -->\n"
+                        val fullContent = header + html
+                        
+                        zos.write(fullContent.toByteArray(Charsets.UTF_8))
+                        zos.closeEntry()
+                    }
+                }
+
+                DebugLogger.log("DOM_RECORDER", "Saved ${capturedList.size} snapshots to: ${zipFile.absolutePath}")
+                Toast.makeText(context, "Saved to Downloads/DOM_Dump_$timestamp.zip", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                DebugLogger.log("DOM_RECORDER_ERR", "Save failed: ${e.message}")
+                Toast.makeText(context, "Failed to save ZIP: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
-}
