@@ -107,6 +107,11 @@ class MonitorService : Service() {
                         ScreenRecordManager.stopRecording()
                     }
                 }
+                Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
+                    val isOn = intent.getBooleanExtra("state", false)
+                    DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_AIRPLANE_MODE_CHANGED. State: $isOn")
+                    MyAccessibilityService.instance?.handleAirplaneModeChange(isOn)
+                }
             }
         }
     }
@@ -164,6 +169,7 @@ class MonitorService : Service() {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
+            addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
         }
         // ANDROID 14 FIX: Must specify export visibility for dynamic receivers
         androidx.core.content.ContextCompat.registerReceiver(
