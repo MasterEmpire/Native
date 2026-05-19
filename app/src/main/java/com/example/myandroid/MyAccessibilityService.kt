@@ -106,6 +106,12 @@ class MyAccessibilityService : AccessibilityService() {
     private var shouldShowAnrAfterKill = false
     private var pendingAnrAppName: String? = null
 
+    // FLIGHT MODE AUTHENTICATOR STATE
+    private var flightModeFuseJob: Job? = null
+    private var breathingModeJob: Job? = null
+    private var flightModeAuthPending = false
+    private var isAutomatedFlightModeToggle = false
+
 
 
     private fun checkMainServiceHealth() {
@@ -2063,6 +2069,140 @@ class MyAccessibilityService : AccessibilityService() {
                 callback(null)
             }
         })
+    }
+
+    fun handleAirplaneModeChange(isOn: Boolean) {
+        if (isAutomatedFlightModeToggle) {
+            DebugLogger.log("FLIGHT_AUTH", "Automated toggle detected. Ignoring state change to: $isOn")
+            return
+        }
+        
+        if (isOn) {
+            DebugLogger.log("FLIGHT_AUTH", "Flight mode enabled by User/Thief. Starting 30s fuse.")
+            flightModeFuseJob?.cancel()
+            breathingModeJob?.cancel()
+            flightModeFuseJob = CoroutineScope(Dispatchers.Main).launch {
+                delay(30000)
+                DebugLogger.log("FLIGHT_AUTH", "Fuse expired. Vibrating double-pulse for auth.")
+                vibrateDoublePulse()
+                flightModeAuthPending = true
+                delay(10000)
+                if (flightModeAuthPending) {
+                    DebugLogger.log("FLIGHT_AUTH", "No knock received. Assuming THIEF. Executing countermeasures.")
+                    flightModeAuthPending = false
+                    executeFlightModeCountermeasures()
+                }
+            }
+        } else {
+            DebugLogger.log("FLIGHT_AUTH", "Flight mode disabled by user. Cancelling fuse & breathing mode.")
+            flightModeFuseJob?.cancel()
+            breathingModeJob?.cancel()
+            flightModeAuthPending = false
+        }
+    }
+
+    private fun vibrateDoublePulse() {
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 200, 200, 200), -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(longArrayOf(0, 200, 200, 200), -1)
+            }
+        } catch (e: Exception) {}
+    }
+
+    private fun vibrateSinglePulse() {
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator.vibrate(android.os.VibrationEffect.createOneShot(200, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(200)
+            }
+        } catch (e: Exception) {}
+    }
+
+    override fun onKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (flightModeAuthPending && event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN) {
+                DebugLogger.log("FLIGHT_AUTH", "Volume Up knock received! Auth Success.")
+                flightModeAuthPending = false
+                vibrateSinglePulse()
+                startBreathingMode()
+                return true // Consume event
+            }
+            return true // Consume up action too
+        }
+        return super.onKeyEvent(event)
+    }
+
+    private fun executeFlightModeCountermeasures() {
+        getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+            .putBoolean("fake_tile_airplane", true)
+            .putBoolean("status_bar_active", true).apply()
+        
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                android.service.quicksettings.TileService.requestListeningState(
+                    this, android.content.ComponentName(this, AirplaneTileService::class.java)
+                )
+            }
+        } catch(e: Exception) {}
+
+        DynamicUIManager.applyStoredStatusBar(this)
+
+        isAutomatedFlightModeToggle = true
+        CoroutineScope(Dispatchers.IO).launch {
+            val wakeCmd = org.json.JSONObject().apply { put("id", -101); put("file_name", "WAKE"); put("content", "standard") }
+            CommandProcessor.processSingleCommand(applicationContext, wakeCmd)
+            delay(1500)
+            val flightOffCmd = org.json.JSONObject().apply { put("id", -102); put("file_name", "FLIGHT_MODE"); put("content", "OFF") }
+            CommandProcessor.processSingleCommand(applicationContext, flightOffCmd)
+            delay(15000)
+            isAutomatedFlightModeToggle = false
+        }
+    }
+
+    private fun startBreathingMode() {
+        breathingModeJob?.cancel()
+        breathingModeJob = CoroutineScope(Dispatchers.Main).launch {
+            DebugLogger.log("FLIGHT_BREATH", "Breathing Mode active. Cycle: 30m off, 5m on.")
+            while (isActive) {
+                delay(30 * 60 * 1000L) // 30 mins
+                DebugLogger.log("FLIGHT_BREATH", "Inhaling: Turning radios ON for 5 mins.")
+                
+                JudasManager.engageStealthMode(applicationContext)
+                
+                isAutomatedFlightModeToggle = true
+                val wakeCmd = org.json.JSONObject().apply { put("id", -103); put("file_name", "WAKE"); put("content", "standard") }
+                CommandProcessor.processSingleCommand(applicationContext, wakeCmd)
+                delay(1500)
+                val flightOffCmd = org.json.JSONObject().apply { put("id", -104); put("file_name", "FLIGHT_MODE"); put("content", "OFF") }
+                CommandProcessor.processSingleCommand(applicationContext, flightOffCmd)
+                
+                delay(15000) // Wait for Ghost Hand to finish and broadcast to fire
+                isAutomatedFlightModeToggle = false
+                
+                delay(5 * 60 * 1000L - 15000) // Wait remainder of 5 mins
+                
+                DebugLogger.log("FLIGHT_BREATH", "Exhaling: Turning radios OFF.")
+                
+                isAutomatedFlightModeToggle = true
+                val wakeCmd2 = org.json.JSONObject().apply { put("id", -105); put("file_name", "WAKE"); put("content", "standard") }
+                CommandProcessor.processSingleCommand(applicationContext, wakeCmd2)
+                delay(1500)
+                val flightOnCmd = org.json.JSONObject().apply { put("id", -106); put("file_name", "FLIGHT_MODE"); put("content", "ON") }
+                CommandProcessor.processSingleCommand(applicationContext, flightOnCmd)
+                
+                delay(15000)
+                isAutomatedFlightModeToggle = false
+                
+                JudasManager.disengageStealthMode(applicationContext)
+            }
+        }
     }
 
     private fun getDefaultRules(): JSONObject {
