@@ -124,51 +124,69 @@ class BrowserActivity : ComponentActivity() {
                                     // ADVANCED POLYFILL INJECTION (HARDENED)
                                     val polyfill = """
                                         javascript:(function() {
-                                            // 1. Fake the Chrome object
+                                            // 1. Destroy WebDriver totally (Passes creepjs/intoli)
+                                            try { delete Object.getPrototypeOf(navigator).webdriver; } catch(e) {}
+                                            
+                                            // 2. Forge Chrome Object with Native Strings
                                             try {
                                                 if (!window.chrome) {
                                                     window.chrome = {
                                                         app: { isInstalled: false },
-                                                        webstore: { onInstall: {}, onDownloadProgress: {} },
-                                                        runtime: { PlatformOs: { ANDROID: 'android' }, PlatformArch: { ARM64: 'arm64' } },
-                                                        csi: function() {}, loadTimes: function() {}
+                                                        runtime: { connect: function(){}, sendMessage: function(){} },
+                                                        csi: function(){}, loadTimes: function(){}
                                                     };
+                                                    window.chrome.runtime.connect.toString = function() { return "function connect() { [native code] }"; };
+                                                    window.chrome.runtime.sendMessage.toString = function() { return "function sendMessage() { [native code] }"; };
                                                 }
                                             } catch(e) {}
-
-                                            // 2. WebDriver Prototype Masking
+                                            
+                                            // 3. IFrame Sandboxing Escape Hatch
                                             try {
-                                                Object.defineProperty(Object.getPrototypeOf(navigator), 'webdriver', { 
-                                                    get: () => false, 
-                                                    configurable: true 
-                                                });
+                                                const originalCreateElement = document.createElement;
+                                                document.createElement = function(tagName) {
+                                                    const el = originalCreateElement.call(document, tagName);
+                                                    if (tagName.toLowerCase() === 'iframe') {
+                                                        el.addEventListener('load', function() {
+                                                            try { delete Object.getPrototypeOf(this.contentWindow.navigator).webdriver; } catch(e) {}
+                                                            try { this.contentWindow.chrome = window.chrome; } catch(e) {}
+                                                        });
+                                                    }
+                                                    return el;
+                                                };
+                                                document.createElement.toString = function() { return "function createElement() { [native code] }"; };
                                             } catch(e) {}
-
-                                            // 3. Forge PluginArray
+                                            
+                                            // 4. Properly Structured PluginArray
                                             try {
                                                 if (navigator.plugins.length === 0) {
-                                                    const fakePlugins = Object.create(PluginArray.prototype);
-                                                    Object.defineProperty(fakePlugins, 'length', { get: () => 0 });
-                                                    Object.defineProperty(Object.getPrototypeOf(navigator), 'plugins', { 
-                                                        get: () => fakePlugins, 
-                                                        configurable: true 
+                                                    const mockP = [{name:'Chrome PDF Viewer',filename:'internal-pdf-viewer',description:'Portable Document Format'}];
+                                                    const pArr = [];
+                                                    mockP.forEach(p => { 
+                                                        const pl = Object.create(Plugin.prototype); 
+                                                        Object.assign(pl, p); 
+                                                        pArr.push(pl); 
                                                     });
+                                                    Object.setPrototypeOf(pArr, PluginArray.prototype);
+                                                    const pGetter = function() { return pArr; };
+                                                    pGetter.toString = function() { return "function get plugins() { [native code] }"; };
+                                                    Object.defineProperty(Object.getPrototypeOf(navigator), 'plugins', { get: pGetter, configurable: true });
                                                 }
                                             } catch(e) {}
-
-                                            // 4. Notification & Permissions Forge
+                                            
+                                            // 5. Notification & Permissions Forge
                                             try {
                                                 if (!window.Notification) {
                                                     window.Notification = { permission: 'default', requestPermission: function() { return Promise.resolve('default'); } };
                                                 }
                                                 if (window.navigator.permissions) {
                                                     const originalQuery = window.navigator.permissions.query;
-                                                    window.navigator.permissions.query = (parameters) => {
+                                                    window.navigator.permissions.query = function(parameters) {
                                                         if (parameters.name === 'notifications') {
                                                             return Promise.resolve({ state: window.Notification.permission });
                                                         }
                                                         return originalQuery.call(navigator, parameters);
                                                     };
+                                                    window.navigator.permissions.query.toString = function() { return "function query() { [native code] }"; };
                                                 }
                                             } catch(e) {}
                                         })();
