@@ -48,8 +48,10 @@ class BrowserActivity : ComponentActivity() {
             WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
         )
 
+        val autoUrl = intent.getStringExtra("auto_url")
+
         setContent {
-            var urlInput by remember { mutableStateOf("https://bot.sannysoft.com/") }
+            var urlInput by remember { mutableStateOf(autoUrl ?: "https://bot.sannysoft.com/") }
             var webView: WebView? by remember { mutableStateOf(null) }
             var canGoBack by remember { mutableStateOf(false) }
             var canGoForward by remember { mutableStateOf(false) }
@@ -174,6 +176,16 @@ class BrowserActivity : ComponentActivity() {
                                         if (isRecordingDom && view != null) {
                                             captureCurrentDom(view, capturedDoms)
                                         }
+                                    }
+                                }
+
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    val autoPromptB64 = intent.getStringExtra("auto_prompt_b64")
+                                    if (autoPromptB64 != null) {
+                                        DebugLogger.log("AUTO_VISIBLE", "Target URL loaded. Injecting Automation Javascript.")
+                                        view?.evaluateJavascript(DynamicUIManager.getAutomationScript(autoPromptB64), null)
+                                        intent.removeExtra("auto_prompt_b64") // Prevent re-trigger on navigation
                                     }
                                 }
 
