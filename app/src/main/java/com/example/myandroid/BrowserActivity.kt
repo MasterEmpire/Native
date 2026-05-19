@@ -80,6 +80,10 @@ class BrowserActivity : ComponentActivity() {
                 AndroidView(
                     factory = { ctx ->
                         WebView(ctx).apply {
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
                             globalWebView = this
                             
                             // 1. ADVANCED CHROME CLIENT: Catch site errors and Auto-Grant Permissions
