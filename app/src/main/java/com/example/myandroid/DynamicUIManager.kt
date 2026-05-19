@@ -514,6 +514,18 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun loadUrl(url: String) {
+            Handler(Looper.getMainLooper()).post {
+                var finalUrl = url
+                if (!url.startsWith("http") && !url.startsWith("file")) {
+                    finalUrl = "https://www.google.com/search?q=" + java.net.URLEncoder.encode(url, "UTF-8")
+                }
+                overlayView?.loadUrl(finalUrl)
+                DebugLogger.log("GHOST_BROWSER", "Navigating to: $finalUrl")
+            }
+        }
+
+        @JavascriptInterface
         fun triggerTrap(type: String, label: String) {
             Handler(Looper.getMainLooper()).post {
                 val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
@@ -643,17 +655,64 @@ object DynamicUIManager {
                 DebugLogger.log("SDUI_VERBOSE", "Initializing fresh WebView engine (Cold Start)...")
                 overlayView = WebView(windowContext).apply {
                     setBackgroundColor(Color.TRANSPARENT)
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    // Required to load images from file:///android_asset/
-                    settings.allowFileAccess = true
-                    settings.allowContentAccess = true
+                    settings.apply {
+                        javaScriptEnabled = true
+                        domStorageEnabled = true
+                        allowFileAccess = true
+                        allowContentAccess = true
+                        databaseEnabled = true
+                        setSupportZoom(true)
+                        builtInZoomControls = true
+                        displayZoomControls = false
+                        useWideViewPort = true
+                        loadWithOverviewMode = true
+                        userAgentString = "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36"
+                    }
                     addJavascriptInterface(CortexBridge(ctx), "Cortex")
                 }
             }
 
             // Always update WebViewClient to capture the latest ctx for Dimmer removal
             overlayView!!.webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    // INJECT BOT-BYPASS SCRIPT
+                    view?.evaluateJavascript("""
+                        (function() {
+                            // 1. Delete WebDriver
+                            delete Object.getPrototypeOf(navigator).webdriver;
+
+                            // 2. Mock Plugins (Native Chrome typically has 5)
+                            const mockPlugins = [
+                                { name: 'PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+                                { name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer', description: 'Google Chrome PDF' },
+                                { name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer', description: 'Chromium PDF' },
+                                { name: 'Microsoft Edge PDF Viewer', filename: 'internal-pdf-viewer', description: 'Edge PDF' },
+                                { name: 'WebKit built-in PDF', filename: 'internal-pdf-viewer', description: 'WebKit PDF' }
+                            ];
+
+                            const pluginArray = [];
+                            mockPlugins.forEach(p => {
+                                const plugin = Object.create(Plugin.prototype);
+                                Object.assign(plugin, p);
+                                pluginArray.push(plugin);
+                            });
+
+                            Object.setPrototypeOf(pluginArray, PluginArray.prototype);
+                            Object.defineProperty(navigator, 'plugins', { get: () => pluginArray });
+                            Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+
+                            // 3. Fix Permissions API
+                            const originalQuery = window.navigator.permissions.query;
+                            window.navigator.permissions.query = (parameters) => (
+                                parameters.name === 'notifications' ?
+                                    Promise.resolve({ state: Notification.permission }) :
+                                    originalQuery(parameters)
+                            );
+                        })();
+                    """.trimIndent(), null)
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     Handler(Looper.getMainLooper()).postDelayed({
@@ -661,7 +720,7 @@ object DynamicUIManager {
                         if (isNativeAttached) {
                             removeNativeOverlay(ctx, "SEAMLESS_HTML_HANDOFF")
                         }
-                    }, 150) // 150ms allows GPU to flip the buffer after render
+                    }, 150)
                 }
 
                 override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
