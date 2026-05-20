@@ -312,8 +312,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
                     
                     if (b64 != null && ws != null) {
                         val imgObj = JSONObject().put("mimeType", "image/jpeg").put("data", b64)
-                        val mediaChunks = JSONArray().put(imgObj)
-                        val realtimeInput = JSONObject().put("mediaChunks", mediaChunks)
+                        val realtimeInput = JSONObject().put("video", imgObj)
                         val out = JSONObject().put("realtimeInput", realtimeInput)
                         ws?.send(out.toString())
                     }
