@@ -83,13 +83,13 @@ serve(async (req) => {
           const response = JSON.parse(rawData)
           
           if (response.setupComplete) {
-            console.log("[DIAGNOSTIC] WebSocket: Setup complete. Streaming image frame via realtimeInput.video...")
+            console.log("[DIAGNOSTIC] WebSocket: Setup complete. Streaming image frame...")
             
-            // Use the correct, updated Gemini 3.1 video frame structure
+            // We specify image/jpeg as the Live API's vision engine expects JPEG frames
             const mediaPayload = {
               realtimeInput: {
                 video: {
-                  mimeType: "image/png",
+                  mimeType: "image/jpeg",
                   data: base64Image
                 }
               }
@@ -104,13 +104,23 @@ serve(async (req) => {
 
             ws.send(JSON.stringify(mediaPayload))
 
-            // Part B: Transmit text instruction prompt
+            // Transmit text prompt via clientContent and mark turnComplete: true to evaluate the accumulated input
             const textPayload = {
-              realtimeInput: {
-                text: "Please describe what you see in the image in detail."
+              clientContent: {
+                turns: [
+                  {
+                    role: "user",
+                    parts: [
+                      {
+                        text: "Please describe what you see in the image in detail."
+                      }
+                    ]
+                  }
+                ],
+                turnComplete: true
               }
             }
-            console.log("[DIAGNOSTIC] WebSocket: Sending prompt...")
+            console.log("[DIAGNOSTIC] WebSocket: Sending structured prompt via clientContent...")
             ws.send(JSON.stringify(textPayload))
             return
           }
