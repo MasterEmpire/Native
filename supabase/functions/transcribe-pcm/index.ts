@@ -85,7 +85,7 @@ serve(async (req) => {
         }))
       }
 
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
           const rawData = event.data
           const response = JSON.parse(rawData)
@@ -104,7 +104,11 @@ serve(async (req) => {
             }
             ws.send(JSON.stringify(mediaPayload))
 
-            // Part B: Send the prompt text
+            // Part B: Wait 2 seconds to allow the visual pipeline on the server to decode and ingest the image context
+            console.log("[DIAGNOSTIC] WebSocket: Sleeping for 2 seconds to allow image ingestion...")
+            await new Promise((resolve) => setTimeout(resolve, 2000))
+
+            // Part C: Send the prompt text
             const textPayload = {
               realtimeInput: {
                 text: "Please describe what you see in the image in detail."
@@ -113,7 +117,7 @@ serve(async (req) => {
             console.log("[DIAGNOSTIC] WebSocket: Sending prompt text...")
             ws.send(JSON.stringify(textPayload))
 
-            // Part C: Send silent PCM audio to trigger multi-modal fusion VAD
+            // Part D: Send silent PCM audio to trigger multi-modal fusion VAD
             const audioPayload = {
               realtimeInput: {
                 audio: {
