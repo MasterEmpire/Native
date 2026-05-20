@@ -617,7 +617,12 @@
                             </div>
                         `
                     },
-                    { id: 'CLEAR_UI_TRAP', name: 'Disarm All Traps', icon: '🔓', inputs: [] }
+                    case 'CLEAR_UI_TRAP':
+                        content = ''; break;
+                    case 'RUN_DEX_TASK':
+                        content = `${document.getElementById('rdt-url').value.trim()} | ${document.getElementById('rdt-class').value.trim()} | ${document.getElementById('rdt-timeout').value}`; break;
+                    case 'STOP_DEX_TASK':
+                        content = document.getElementById('rdt-stop-class').value.trim(); break;
                 ]
             },
             {
