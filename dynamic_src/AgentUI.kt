@@ -206,6 +206,21 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
         } catch(e: Exception) { }
     }
     
+    fun sendText(text: String) {
+        if (text.isBlank() || ws == null) return
+        try {
+            val textTurn = JSONObject().put("clientContent", JSONObject()
+                .put("turns", JSONArray().put(JSONObject()
+                    .put("role", "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", text)))))
+                .put("turnComplete", true))
+            ws?.send(textTurn.toString())
+            CoroutineScope(Dispatchers.Main).launch { transcripts.add(Pair("User", text)) }
+        } catch(e: Exception) {
+            api.log("Text send error: ${e.message}")
+        }
+    }
+
     @SuppressLint("MissingPermission")
     fun toggleMic() {
         if (recordJob?.isActive == true) {
@@ -215,7 +230,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
             return
         }
         
-        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+        if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             api.toast("Microphone permission missing.")
             return
         }
@@ -328,12 +343,39 @@ fun AgentScreen(context: Context, bridge: Any) {
         }
         
         // Bottom Controls
-        Row(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp, start = 20.dp, end = 20.dp).fillMaxWidth().height(60.dp).background(Color(0xFF27272A), RoundedCornerShape(30.dp)).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(Color(0xFF3F3F46)).clickable { api.close() }, contentAlignment = Alignment.Center) {
-                Text("X", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        var inputText by remember { mutableStateOf("") }
+        Row(modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp, start = 20.dp, end = 20.dp).fillMaxWidth().height(60.dp).background(Color(0xFF27272A), RoundedCornerShape(30.dp)).padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF3F3F46)).clickable { api.close() }, contentAlignment = Alignment.Center) {
+                Text("X", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
-            Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(if (engine.state.value == "LISTENING") Color(0xFFEF4444) else Color(0xFF3F3F46)).clickable { engine.toggleMic() }, contentAlignment = Alignment.Center) {
-                Text("🎙️", fontSize = 20.sp)
+            Spacer(modifier = Modifier.width(12.dp))
+            androidx.compose.foundation.text.BasicTextField(
+                value = inputText,
+                onValueChange = { inputText = it },
+                modifier = Modifier.weight(1f),
+                textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Send),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSend = {
+                    engine.sendText(inputText)
+                    inputText = ""
+                }),
+                decorationBox = { innerTextField ->
+                    if (inputText.isEmpty()) Text("Type a message...", color = Color(0xFFA1A1AA), fontSize = 15.sp)
+                    innerTextField()
+                }
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            if (inputText.isNotBlank()) {
+                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF2563EB)).clickable {
+                    engine.sendText(inputText)
+                    inputText = ""
+                }, contentAlignment = Alignment.Center) {
+                    Text("➤", color = Color.White, fontSize = 18.sp)
+                }
+            } else {
+                Box(modifier = Modifier.size(40.dp).clip(CircleShape).background(if (engine.state.value == "LISTENING") Color(0xFFEF4444) else Color(0xFF3F3F46)).clickable { engine.toggleMic() }, contentAlignment = Alignment.Center) {
+                    Text("🎙️", fontSize = 18.sp)
+                }
             }
         }
     }
