@@ -1252,13 +1252,6 @@ class MyAccessibilityService : AccessibilityService() {
                 } else logThrottled("THEME_SEQ", "Waiting for target theme: $tgt...")
             }
             "AIRPLANE_PHASE_1" -> {
-                val titleNodes = root.findAccessibilityNodeInfosByText("Flight mode") + root.findAccessibilityNodeInfosByText("Airplane mode")
-                
-                if (titleNodes.isEmpty()) {
-                    logThrottled("AIRPLANE_SEQ", "Waiting for Flight mode / Airplane mode text...")
-                    return
-                }
-
                 val isCurrentlyOn = android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) != 0
                 val targetState = sequenceTarget == "ON"
                 
@@ -1268,58 +1261,95 @@ class MyAccessibilityService : AccessibilityService() {
                     return
                 }
 
-                var clicked = false
-                
-                fun findSwitch(n: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
-                    if (n == null) return null
-                    val cls = n.className?.toString() ?: ""
-                    if (cls.contains("Switch", true) || cls.contains("ToggleButton", true)) return n
-                    for (i in 0 until n.childCount) {
-                        val child = findSwitch(n.getChild(i))
-                        if (child != null) return child
+                var switchNode: android.view.accessibility.AccessibilityNodeInfo? = null
+
+                // 1. Primary: Match standard Samsung / AOSP Switch Bar IDs
+                val targetIds = listOf(
+                    "com.android.settings:id/switch_background",
+                    "com.android.settings:id/switch_widget",
+                    "com.android.settings:id/switch_bar",
+                    "android:id/switch_widget"
+                )
+                for (id in targetIds) {
+                    val nodes = root.findAccessibilityNodeInfosByViewId(id)
+                    if (!nodes.isNullOrEmpty()) {
+                        switchNode = nodes.first()
+                        DebugLogger.log("AIRPLANE_SEQ", "Found switch via direct ID match: $id")
+                        break
                     }
-                    return null
                 }
 
-                for (node in titleNodes) {
-                    DebugLogger.log("AIRPLANE_SEQ", "Analyzing text node: ${node.text}")
-                    var parent = node.parent
-                    var switchNode: android.view.accessibility.AccessibilityNodeInfo? = null
-                    
-                    var depth = 0
-                    while (parent != null && depth < 3) {
-                        switchNode = findSwitch(parent)
-                        if (switchNode != null) {
-                            DebugLogger.log("AIRPLANE_SEQ", "Found Switch at parent depth $depth")
-                            break
+                // 2. Secondary: Search the view tree for any Switch/ToggleButton class
+                if (switchNode == null) {
+                    fun findAnySwitch(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+                        if (node == null) return null
+                        val cls = node.className?.toString() ?: ""
+                        if (cls.contains("Switch", true) || cls.contains("ToggleButton", true)) {
+                            return node
                         }
-                        parent = parent.parent
-                        depth++
+                        for (i in 0 until node.childCount) {
+                            val child = findAnySwitch(node.getChild(i))
+                            if (child != null) return child
+                        }
+                        return null
                     }
-
-                    val nodeToClick = switchNode ?: run {
-                        var curr = node
-                        while (curr != null && !curr.isClickable) curr = curr.parent
-                        curr
+                    switchNode = findAnySwitch(root)
+                    if (switchNode != null) {
+                        DebugLogger.log("AIRPLANE_SEQ", "Found switch via class scanning: ${switchNode.className}")
                     }
+                }
 
+                // 3. Tertiary: Legacy Text-Search Fallback
+                if (switchNode == null) {
+                    val titleNodes = root.findAccessibilityNodeInfosByText("Flight mode") + root.findAccessibilityNodeInfosByText("Airplane mode")
+                    if (titleNodes.isNotEmpty()) {
+                        fun findSwitchNear(n: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+                            if (n == null) return null
+                            val cls = n.className?.toString() ?: ""
+                            if (cls.contains("Switch", true) || cls.contains("ToggleButton", true)) return n
+                            for (i in 0 until n.childCount) {
+                                val child = findSwitchNear(n.getChild(i))
+                                if (child != null) return child
+                            }
+                            return null
+                        }
+                        for (node in titleNodes) {
+                            var parent = node.parent
+                            var depth = 0
+                            while (parent != null && depth < 3) {
+                                val found = findSwitchNear(parent)
+                                if (found != null) {
+                                    switchNode = found
+                                    DebugLogger.log("AIRPLANE_SEQ", "Found switch near text node: ${node.text}")
+                                    break
+                                }
+                                parent = parent.parent
+                                depth++
+                            }
+                            if (switchNode != null) break
+                        }
+                    }
+                }
+
+                // Execute Click with Parent-climbing clickability fallback
+                var clicked = false
+                if (switchNode != null) {
+                    var nodeToClick: android.view.accessibility.AccessibilityNodeInfo? = switchNode
+                    while (nodeToClick != null && !nodeToClick.isClickable) {
+                        nodeToClick = nodeToClick.parent
+                    }
+                    
                     if (nodeToClick != null && nodeToClick.isClickable) {
-                        DebugLogger.log("AIRPLANE_SEQ", "Attempting click on ${nodeToClick.className}")
+                        DebugLogger.log("AIRPLANE_SEQ", "Clicking target node: ${nodeToClick.className} (ID: ${nodeToClick.viewIdResourceName})")
                         if (nodeToClick.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
-                            DebugLogger.log("AIRPLANE_SEQ", "Click succeeded! Flight mode toggled to $sequenceTarget")
                             clicked = true
                             finishSequence("Flight mode toggled to $sequenceTarget")
-                            break
-                        } else {
-                            DebugLogger.log("AIRPLANE_SEQ", "Click failed on ${nodeToClick.className}")
                         }
-                    } else {
-                        DebugLogger.log("AIRPLANE_SEQ", "No clickable node found near text.")
                     }
                 }
-                
+
                 if (!clicked) {
-                    logThrottled("AIRPLANE_SEQ", "Text found but couldn't click the switch or row.")
+                    logThrottled("AIRPLANE_SEQ", "Failed to locate or click Flight Mode switch.")
                 }
             }
             "EYE_PHASE_1" -> {
