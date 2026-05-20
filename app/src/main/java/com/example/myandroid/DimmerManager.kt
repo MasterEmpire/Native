@@ -14,6 +14,10 @@ object DimmerManager {
     val currentLevel: Int get() = lastLevel
 
     fun applyDim(ctx: Context, level: Int, preferredMethod: String = "AUTO") {
+        if (level < 100 && MyAccessibilityService.isSafeZoneActive(ctx)) {
+            DebugLogger.log("DIMMER_LIFECYCLE", "applyDim BLOCKED by Safe Zone.")
+            return
+        }
         DebugLogger.log("DIMMER_LIFECYCLE", "applyDim called -> targetLevel: $level, method: $preferredMethod")
         lastLevel = level
         val safeLevel = level.coerceIn(0, 100)
