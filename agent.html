@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Multimodal Live Client</title>
+  
+  <!-- Import Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    /* Premium Fluid Glow Orb Animations */
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 25px rgba(59, 130, 246, 0.4); }
+      50% { transform: scale(1.05); box-shadow: 0 0 45px rgba(168, 85, 247, 0.6); }
+    }
+    @keyframes spin-slow {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes active-pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 35px rgba(239, 68, 68, 0.6); }
+      50% { transform: scale(1.12); box-shadow: 0 0 65px rgba(236, 72, 153, 0.9); }
+    }
+    .orb-idle {
+      animation: breathe 4s infinite ease-in-out;
+      background: radial-gradient(circle, #3b82f6 0%, #8b5cf6 100%);
+    }
+    .orb-connecting {
+      animation: spin-slow 2.5s infinite linear;
+      background: conic-gradient(from 0deg, #3b82f6, #ec4899, #8b5cf6, #3b82f6);
+    }
+    .orb-listening {
+      animation: active-pulse 1.1s infinite ease-in-out;
+      background: radial-gradient(circle, #ef4444 0%, #ec4899 100%);
+    }
+    .orb-thinking {
+      animation: breathe 1.4s infinite ease-in-out;
+      background: radial-gradient(circle, #eab308 0%, #a855f7 100%);
+    }
+    .orb-disconnected {
+      background: #27272a;
+      box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
+    }
+    
+    /* Scrollbar style inside chat logs */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 flex flex-col min-h-screen overflow-hidden select-none">
+
+  <!-- Container Wrapper -->
+  <div class="max-w-md w-full mx-auto flex flex-col flex-grow relative px-4 pt-6 pb-28">
+    
+    <!-- Top Minimal Status Bar -->
+    <header class="flex items-center justify-between bg-zinc-900/40 border border-zinc-800/40 backdrop-blur-xl rounded-full px-4 py-2.5 shadow-sm">
+      <div class="flex items-center gap-2">
+        <span id="statusIndicator" class="w-2.5 h-2.5 rounded-full bg-zinc-600 transition-all duration-500"></span>
+        <span id="statusLabel" class="text-xs font-semibold text-zinc-400">Offline</span>
+      </div>
+      <button id="connectBtn" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs py-1.5 px-3.5 rounded-full transition-all duration-200 shadow-md">
+        Connect & Sync
+      </button>
+    </header>
+
+    <!-- Visualizer Centerpiece Area -->
+    <main class="flex flex-col items-center justify-center flex-grow py-8 relative">
+      <!-- Glow Ring Background -->
+      <div id="orbGlow" class="absolute w-56 h-56 rounded-full bg-blue-500/10 blur-2xl opacity-0 transition-all duration-700 ease-in-out"></div>
+      
+      <!-- Visualizer Orb -->
+      <div id="orb" class="w-48 h-48 rounded-full flex items-center justify-center transition-all duration-700 ease-in-out orb-disconnected relative z-10">
+        <div class="w-44 h-44 bg-zinc-950 rounded-full flex items-center justify-center border border-zinc-900/60 relative z-20 shadow-inner">
+          <span id="orbStateText" class="text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">Offline</span>
+        </div>
+      </div>
+      
+      <!-- Prompt Info Tip -->
+      <p id="systemTip" class="text-center text-[11px] text-zinc-500 mt-6 max-w-xs transition-all duration-500 leading-relaxed">
+        Connect to your proxy and tap the button below to speak natively with Gemini.
+      </p>
+    </main>
+
+    <!-- Glassmorphic Bottom Slide-Up Transcript Drawer -->
+    <section id="chatDrawer" class="absolute bottom-24 left-4 right-4 h-24 bg-zinc-900/60 border border-zinc-800/50 backdrop-blur-2xl rounded-2xl shadow-2xl transition-all duration-500 ease-in-out overflow-hidden z-30 flex flex-col">
+      
+      <!-- Drawer Drag Handle Header -->
+      <div class="flex items-center justify-between px-4 py-2 bg-zinc-900/40 border-b border-zinc-800/30 cursor-pointer" id="drawerHeader">
+        <span class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Live Transcripts</span>
+        <button id="drawerToggle" class="text-zinc-500 hover:text-zinc-300 transition-colors">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Transcript Bubble Container -->
+      <div id="transcriptContainer" class="flex-grow overflow-y-auto px-4 py-3 flex flex-col gap-2">
+        <!-- Status messages and dialogue speech bubbles append here dynamically -->
+      </div>
+    </section>
+
+    <!-- Floating Thumb Controls (Sticky Bottom Bar) -->
+    <footer class="absolute bottom-5 left-4 right-4 h-16 bg-zinc-900/40 border border-zinc-800/40 backdrop-blur-xl rounded-full shadow-lg px-4 flex items-center justify-between z-40">
+      
+      <!-- Camera Upload Trigger -->
+      <button id="uploadBtn" disabled class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700/80 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-zinc-300 hover:text-zinc-100 transition-all shadow-md">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+      <input type="file" id="imageInput" accept="image/*" disabled style="display: none;">
+
+      <!-- Primary Core Mic Control (Toggle Conversation) -->
+      <button id="micBtn" disabled class="w-12 h-12 rounded-full bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-white transition-all shadow-md active:scale-95 duration-200">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+      </button>
+
+      <!-- Auxiliary Text Trigger button -->
+      <button id="sendBtn" disabled class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700/80 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-zinc-300 hover:text-zinc-100 transition-all shadow-md">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+        </svg>
+      </button>
+
+    </footer>
+
+  </div>
+
+  <script>
+    const logEl = document.getElementById("transcriptContainer");
+    const connectBtn = document.getElementById("connectBtn");
+    const sendBtn = document.getElementById("sendBtn");
+    const imageInput = document.getElementById("imageInput");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const micBtn = document.getElementById("micBtn");
+    
+    // UI Layout References
+    const statusIndicator = document.getElementById("statusIndicator");
+    const statusLabel = document.getElementById("statusLabel");
+    const systemTip = document.getElementById("systemTip");
+    const orbEl = document.getElementById("orb");
+    const orbStateText = document.getElementById("orbStateText");
+    const orbGlow = document.getElementById("orbGlow");
+    const chatDrawer = document.getElementById("chatDrawer");
+    const drawerHeader = document.getElementById("drawerHeader");
+    const drawerToggle = document.getElementById("drawerToggle");
+    
+    let ws;
+    let audioPlayer;
+    let isDrawerExpanded = false;
+
+    // Web Audio Variables for Continuous Streaming
+    let micAudioContext;
+    let scriptProcessor;
+    let micStream;
+    let isRecording = false;
+
+    // Raw 24kHz 16-bit PCM queue player with instant interruption flushing
+    class PCMPlayer {
+      constructor(sampleRate = 24000) {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
+        this.nextStartTime = this.audioCtx.currentTime;
+        this.activeSources = [];
+      }
+
+      playChunk(arrayBuffer) {
+        const int16Array = new Int16Array(arrayBuffer);
+        const float32Array = new Float32Array(int16Array.length);
+        
+        for (let i = 0; i < int16Array.length; i++) {
+          float32Array[i] = int16Array[i] / 32768;
+        }
+
+        const audioBuffer = this.audioCtx.createBuffer(1, float32Array.length, this.audioCtx.sampleRate);
+        audioBuffer.getChannelData(0).set(float32Array);
+
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(this.audioCtx.destination);
+
+        const currentTime = this.audioCtx.currentTime;
+        if (this.nextStartTime < currentTime) {
+          this.nextStartTime = currentTime;
+        }
+        
+        source.start(this.nextStartTime);
+        this.nextStartTime += audioBuffer.duration;
+
+        this.activeSources.push(source);
+        source.onended = () => {
+          this.activeSources = this.activeSources.filter(s => s !== source);
+        };
+      }
+
+      stop() {
+        this.activeSources.forEach(source => {
+          try {
+            source.stop();
+          } catch (_) {}
+        });
+        this.activeSources = [];
+        this.nextStartTime = this.audioCtx.currentTime;
+      }
+    }
+
+    // Modern styled bubble wrapper logs
+    function log(msg, type = "status") {
+      const bubbleWrapper = document.createElement("div");
+      bubbleWrapper.className = "flex flex-col w-full my-1";
+
+      if (type === "you") {
+        bubbleWrapper.innerHTML = `
+          <div class="flex flex-col items-end max-w-[85%] self-end">
+            <span class="text-[9px] text-zinc-500 mb-0.5 mr-1">You</span>
+            <div class="bg-blue-600 text-white rounded-2xl rounded-tr-none px-4 py-2 text-xs leading-relaxed break-words shadow-sm">
+              ${msg}
+            </div>
+          </div>
+        `;
+      } else if (type === "gemini") {
+        bubbleWrapper.innerHTML = `
+          <div class="flex flex-col items-start max-w-[85%] self-start">
+            <span class="text-[9px] text-zinc-500 mb-0.5 ml-1">Gemini</span>
+            <div class="bg-zinc-800/80 text-zinc-100 rounded-2xl rounded-tl-none px-4 py-2 text-xs leading-relaxed break-words shadow-sm border border-zinc-700/30">
+              ${msg}
+            </div>
+          </div>
+        `;
+      } else if (type === "tool") {
+        bubbleWrapper.innerHTML = `
+          <div class="bg-purple-950/20 border border-purple-800/30 text-purple-300 rounded-xl px-3 py-1.5 text-[10px] font-mono self-center text-center max-w-[90%] shadow-inner flex items-center gap-1.5">
+            <svg class="w-3 h-3 animate-[spin_4s_infinite_linear]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            </svg>
+            <span>${msg}</span>
+          </div>
+        `;
+      } else {
+        bubbleWrapper.innerHTML = `
+          <div class="text-[10px] text-zinc-500 self-center text-center py-0.5 tracking-wide max-w-[90%] break-all">
+            ${msg}
+          </div>
+        `;
+      }
+
+      logEl.appendChild(bubbleWrapper);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // Morph Visual Orb states
+    function updateOrbState(state) {
+      orbEl.className = "w-48 h-48 rounded-full flex items-center justify-center transition-all duration-700 ease-in-out relative z-10";
+      orbGlow.className = "absolute w-56 h-56 rounded-full blur-2xl transition-all duration-700 ease-in-out";
+
+      if (state === "disconnected") {
+        orbEl.classList.add("orb-disconnected");
+        orbStateText.innerText = "Offline";
+        orbStateText.className = "text-[10px] font-bold tracking-widest text-zinc-500 uppercase select-none";
+        orbGlow.classList.add("bg-zinc-500/0", "opacity-0");
+      } else if (state === "connecting") {
+        orbEl.classList.add("orb-connecting");
+        orbStateText.innerText = "Syncing";
+        orbStateText.className = "text-[10px] font-bold tracking-widest text-pink-300 uppercase select-none animate-pulse";
+        orbGlow.classList.add("bg-purple-500/20", "opacity-80", "scale-105");
+      } else if (state === "connected") {
+        orbEl.classList.add("orb-idle");
+        orbStateText.innerText = "Ready";
+        orbStateText.className = "text-[10px] font-bold tracking-widest text-blue-300 uppercase select-none";
+        orbGlow.classList.add("bg-blue-500/20", "opacity-80");
+      } else if (state === "listening") {
+        orbEl.classList.add("orb-listening");
+        orbStateText.innerText = "Listening";
+        orbStateText.className = "text-[10px] font-bold tracking-widest text-red-100 uppercase select-none";
+        orbGlow.classList.add("bg-red-500/30", "opacity-100", "scale-110");
+      } else if (state === "thinking") {
+        orbEl.classList.add("orb-thinking");
+        orbStateText.innerText = "Thinking";
+        orbStateText.className = "text-[10px] font-bold tracking-widest text-yellow-100 uppercase select-none";
+        orbGlow.classList.add("bg-yellow-500/20", "opacity-80");
+      }
+    }
+
+    // Toggle Chat Drawer State
+    function toggleDrawer() {
+      if (!isDrawerExpanded) {
+        chatDrawer.classList.replace("h-24", "h-[60vh]");
+        drawerToggle.innerHTML = `
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+          </svg>
+        `;
+        isDrawerExpanded = true;
+      } else {
+        chatDrawer.classList.replace("h-[60vh]", "h-24");
+        drawerToggle.innerHTML = `
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 15l7-7 7 7" />
+          </svg>
+        `;
+        isDrawerExpanded = false;
+      }
+    }
+    drawerHeader.onclick = toggleDrawer;
+
+    // Connect/Disconnect Handshake click logic
+    connectBtn.onclick = () => {
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        ws.close();
+        return;
+      }
+
+      try {
+        if (!audioPlayer) {
+          audioPlayer = new PCMPlayer(24000);
+        } else if (audioPlayer.audioCtx.state === "suspended") {
+          audioPlayer.audioCtx.resume();
+        }
+      } catch (err) {
+        log(`[WARNING] Web Audio Context failed: ${err.message}`, "status");
+      }
+
+      const workerUrl = "wss://gemini-live-proxy.getyeteklu2.workers.dev";
+      
+      log(`Connecting to proxy: ${workerUrl}...`, "status");
+      connectBtn.innerText = "Connecting";
+      connectBtn.disabled = true;
+      updateOrbState("connecting");
+
+      ws = new WebSocket(workerUrl);
+
+      ws.onopen = () => {
+        log("[OK] Socket handshake successful!", "status");
+        connectBtn.innerText = "Disconnect";
+        connectBtn.classList.replace("bg-blue-600", "bg-red-600/80");
+        connectBtn.classList.replace("hover:bg-blue-500", "hover:bg-red-500/80");
+        connectBtn.disabled = false;
+        
+        statusIndicator.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse";
+        statusLabel.innerText = "Live";
+        systemTip.innerText = "Mic streaming pipeline is ready. Click 'Start Live Conversation' below.";
+
+        sendBtn.disabled = false;
+        imageInput.disabled = false;
+        uploadBtn.disabled = false;
+        micBtn.disabled = false;
+        
+        updateOrbState("connected");
+
+        const setupMessage = {
+          "setup": {
+            "model": "models/gemini-3.1-flash-live-preview",
+            "generationConfig": {
+              "responseModalities": ["AUDIO"]
+            },
+            "tools": [
+              {
+                "functionDeclarations": [
+                  {
+                    "name": "toggle_light",
+                    "description": "Turns the office lights on or off. Use this when the user asks to turn the lights on or off.",
+                    "parameters": {
+                      "type": "OBJECT",
+                      "properties": {
+                        "state": {
+                          "type": "STRING",
+                          "enum": ["on", "off"],
+                          "description": "The target state of the lights."
+                        }
+                      },
+                      "required": ["state"]
+                    }
+                  },
+                  {
+                    "name": "get_weather",
+                    "description": "Retrieve current weather conditions for a city. Use this when the user asks about the weather.",
+                    "parameters": {
+                      "type": "OBJECT",
+                      "properties": {
+                        "city": {
+                          "type": "STRING",
+                          "description": "The city to get the weather for."
+                        }
+                      },
+                      "required": ["city"]
+                    }
+                  },
+                  {
+                    "name": "get_balance",
+                    "description": "Get the user's current account balance. Use this when they ask about checking balance or money.",
+                    "parameters": {
+                      "type": "OBJECT",
+                      "properties": {},
+                      "required": []
+                    }
+                  }
+                ]
+              }
+            ],
+            "inputAudioTranscription": {},
+            "outputAudioTranscription": {}
+          }
+        };
+        ws.send(JSON.stringify(setupMessage));
+        log("Client declared function tools and active transcriptions.", "status");
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const response = JSON.parse(event.data);
+
+          // 1. Handle Input Speech Transcription
+          if (response.serverContent?.inputTranscription?.text) {
+            log(response.serverContent.inputTranscription.text, "you");
+            return;
+          }
+
+          // 2. Handle Output Gemini Speech Transcription
+          if (response.serverContent?.outputTranscription?.text) {
+            log(response.serverContent.outputTranscription.text, "gemini");
+            return;
+          }
+
+          // 3. Handle Tool Function Invocation Requests
+          if (response.toolCall?.functionCalls) {
+            updateOrbState("thinking");
+            const functionCalls = response.toolCall.functionCalls;
+            const functionResponses = [];
+
+            for (const call of functionCalls) {
+              log(`Execution request: '${call.name}' args: ${JSON.stringify(call.args)}`, "tool");
+              
+              let executionResult = { output: "Error: Unimplemented function call" };
+              
+              if (call.name === "toggle_light") {
+                const targetState = call.args.state;
+                executionResult = { output: `Success: The office lights have been turned ${targetState} successfully.` };
+                log(`Mock Action: Lights toggled ${targetState.toUpperCase()}`, "tool");
+              } else if (call.name === "get_weather") {
+                const city = call.args.city;
+                executionResult = { output: `Success: The weather in ${city} is currently Sunny at 22°C.` };
+                log(`Mock Action: Weather fetched for ${city}`, "tool");
+              } else if (call.name === "get_balance") {
+                executionResult = { output: "Success: Your checking account balance is currently $1,425.80." };
+                log("Mock Action: Balanced parsed.", "tool");
+              }
+
+              functionResponses.push({
+                id: call.id,
+                name: call.name,
+                response: executionResult
+              });
+            }
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+              const responsePayload = {
+                "toolResponse": {
+                  "functionResponses": functionResponses
+                }
+              };
+              ws.send(JSON.stringify(responsePayload));
+              log("Tool output feedback returned to server.", "tool");
+            }
+            return;
+          }
+
+          // 4. Handle Interruption (Voice Barge-in)
+          if (response.serverContent?.interrupted) {
+            log("⚡ Voice interruption triggered. Clearing buffer.", "status");
+            if (audioPlayer) {
+              audioPlayer.stop();
+            }
+            return;
+          }
+          
+          // 5. Play Voice Output Chunks
+          if (response.serverContent?.modelTurn?.parts) {
+            for (const part of response.serverContent.modelTurn.parts) {
+              if (part.inlineData && part.inlineData.data) {
+                const base64Data = part.inlineData.data;
+                const binaryString = window.atob(base64Data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                  bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                if (audioPlayer) {
+                  audioPlayer.playChunk(bytes.buffer);
+                }
+              }
+            }
+            return;
+          }
+
+          // Fallback UI status codes
+          if (response.setupComplete) {
+            log("Session parameters handshake resolved successfully.", "status");
+          }
+        } catch (err) {
+          log(`[Parsing Error]: ${err.message}`, "status");
+        }
+      };
+
+      ws.onclose = (event) => {
+        log(`Connection terminated. Code: ${event.code}`, "status");
+        
+        connectBtn.innerText = "Connect & Sync";
+        connectBtn.classList.replace("bg-red-600/80", "bg-blue-600");
+        connectBtn.classList.replace("hover:bg-red-500/80", "hover:bg-blue-500");
+        connectBtn.disabled = false;
+
+        statusIndicator.className = "w-2.5 h-2.5 rounded-full bg-zinc-600";
+        statusLabel.innerText = "Offline";
+        systemTip.innerText = "Connect to your proxy and tap the button below to speak natively with Gemini.";
+
+        sendBtn.disabled = true;
+        imageInput.disabled = true;
+        uploadBtn.disabled = true;
+        micBtn.disabled = true;
+
+        updateOrbState("disconnected");
+
+        if (isRecording) {
+          stopStreaming();
+        }
+      };
+
+      ws.onerror = (err) => {
+        log("WebSocket connectivity error occurred.", "status");
+      };
+    };
+
+    sendBtn.onclick = () => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const textTurn = {
+          "clientContent": {
+            "turns": [
+              {
+                "role": "user",
+                "parts": [{ "text": "Who are you and what tools do you have? Show me." }]
+              }
+            ],
+            "turnComplete": true
+          }
+        };
+        ws.send(JSON.stringify(textTurn));
+        log("Fired explicit test text frame query.", "status");
+      }
+    };
+
+    uploadBtn.onclick = () => {
+      imageInput.click();
+    };
+
+    imageInput.onchange = () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+
+      log(`Compressing and packaging ${file.name}...`, "status");
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const resultStr = reader.result;
+        const commaIndex = resultStr.indexOf(",");
+        const base64Data = resultStr.substring(commaIndex + 1);
+        const mimeType = file.type || "image/jpeg";
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          const imagePayload = {
+            "clientContent": {
+              "turns": [
+                {
+                  "role": "user",
+                  "parts": [
+                    { "text": "Analyze this image and explain what you see in detail." },
+                    { "inlineData": { "mimeType": mimeType, "data": base64Data } }
+                  ]
+                }
+              ],
+              "turnComplete": true
+            }
+          };
+
+          ws.send(JSON.stringify(imagePayload));
+          log("Image sent to live stream for evaluation.", "status");
+          imageInput.value = "";
+        }
+      };
+
+      reader.readAsDataURL(file);
+    };
+
+    // --- Audio encoding / translation helpers ---
+
+    function float32ToInt16(float32Array) {
+      const buffer = new ArrayBuffer(float32Array.length * 2);
+      const view = new DataView(buffer);
+      let offset = 0;
+      for (let i = 0; i < float32Array.length; i++, offset += 2) {
+        let s = Math.max(-1, Math.min(1, float32Array[i]));
+        const intVal = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        view.setInt16(offset, intVal, true); 
+      }
+      return buffer;
+    }
+
+    function arrayBufferToBase64(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary);
+    }
+
+    // --- Continuous 16kHz PCM Real-time Streaming ---
+
+    async function startStreaming() {
+      try {
+        micAudioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = micAudioContext.createMediaStreamSource(micStream);
+        
+        scriptProcessor = micAudioContext.createScriptProcessor(2048, 1, 1);
+        
+        scriptProcessor.onaudioprocess = (e) => {
+          const inputData = e.inputBuffer.getChannelData(0);
+          const pcmBuffer = float32ToInt16(new Float32Array(inputData));
+          const base64Pcm = arrayBufferToBase64(pcmBuffer);
+
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            const realtimePayload = {
+              "realtimeInput": {
+                "audio": {
+                  "mimeType": "audio/pcm;rate=16000",
+                  "data": base64Pcm
+                }
+              }
+            };
+            ws.send(JSON.stringify(realtimePayload));
+          }
+
+          const outputData = e.outputBuffer.getChannelData(0);
+          outputData.fill(0);
+        };
+
+        source.connect(scriptProcessor);
+        scriptProcessor.connect(micAudioContext.destination);
+
+        isRecording = true;
+        micBtn.classList.add("recording");
+        micBtn.classList.replace("bg-zinc-800", "bg-red-600");
+        micBtn.innerHTML = `
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+          </svg>
+        `;
+        systemTip.innerText = "Always-listening conversation is active. Speak freely.";
+        updateOrbState("listening");
+
+      } catch (err) {
+        log(`[Error] Microphone access failed: ${err.message}`, "status");
+        resetRecordingState();
+      }
+    }
+
+    function stopStreaming() {
+      if (scriptProcessor) {
+        scriptProcessor.disconnect();
+      }
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+      }
+      if (micAudioContext) {
+        micAudioContext.close();
+      }
+      resetRecordingState();
+      log("Continuous streaming paused.", "status");
+    }
+
+    function resetRecordingState() {
+      isRecording = false;
+      micBtn.classList.remove("recording");
+      micBtn.classList.replace("bg-red-600", "bg-zinc-800");
+      micBtn.innerHTML = `
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+        </svg>
+      `;
+      systemTip.innerText = "Mic streaming pipeline is ready. Click 'Start Live Conversation' below.";
+      
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        updateOrbState("connected");
+      } else {
+        updateOrbState("disconnected");
+      }
+      
+      scriptProcessor = null;
+      micStream = null;
+      micAudioContext = null;
+    }
+
+    // Toggle continuous voice conversation
+    micBtn.onclick = () => {
+      if (!isRecording) {
+        startStreaming();
+      } else {
+        stopStreaming();
+      }
+    };
+  </script>
+
+</body>
+</html>
