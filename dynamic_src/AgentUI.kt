@@ -72,8 +72,10 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
     
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var recordJob: Job? = null
+    private var videoJob: Job? = null
     
     val state = mutableStateOf("OFFLINE")
+    val isVideoActive = mutableStateOf(false)
     val transcripts = mutableStateListOf<Pair<String, String>>()
     
     fun connect() {
@@ -98,7 +100,8 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
             }
             
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                api.log("Agent WS Failure: ${t.message}")
+                val respBody = try { response?.body?.string() } catch(e: Exception) { "none" }
+                api.log("Agent WS Failure:\nMessage: ${t.message}\nTrace: ${t.stackTraceToString()}\nResponse Code: ${response?.code}\nResponse Body: $respBody")
                 disconnect()
             }
         })
@@ -146,6 +149,10 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
     private fun handleMessage(text: String) {
         try {
             val json = JSONObject(text)
+            
+            if (json.has("error") || json.has("fatal")) {
+                api.log("GEMINI_BACKEND_ERROR RAW: $text")
+            }
             
             if (json.has("serverContent")) {
                 val sc = json.getJSONObject("serverContent")
@@ -279,8 +286,51 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
         }
     }
     
+    fun toggleVideo() {
+        if (videoJob?.isActive == true) {
+            videoJob?.cancel()
+            videoJob = null
+            isVideoActive.value = false
+            api.log("Video streaming stopped.")
+            return
+        }
+
+        if (ws == null || state.value == "OFFLINE") {
+            api.toast("Connect to Agent first.")
+            return
+        }
+
+        isVideoActive.value = true
+        api.log("Video streaming started at 1FPS.")
+        videoJob = scope.launch {
+            while (isActive) {
+                try {
+                    val deferred = CompletableDeferred<String?>()
+                    api.getScreenB64 { b64 -> deferred.complete(b64) }
+                    val b64 = deferred.await()
+                    
+                    if (b64 != null && ws != null) {
+                        val imgObj = JSONObject().put("mimeType", "image/jpeg").put("data", b64)
+                        val mediaChunks = JSONArray().put(imgObj)
+                        val realtimeInput = JSONObject().put("mediaChunks", mediaChunks)
+                        val out = JSONObject().put("realtimeInput", realtimeInput)
+                        ws?.send(out.toString())
+                    } else if (b64 == null) {
+                        api.log("Screen capture returned null.")
+                    }
+                } catch(e: Exception) {
+                    api.log("Video loop error: ${e.message}\n${e.stackTraceToString()}")
+                }
+                delay(1000)
+            }
+        }
+    }
+    
     fun disconnect() {
         recordJob?.cancel()
+        videoJob?.cancel()
+        videoJob = null
+        isVideoActive.value = false
         audioRecord?.release()
         audioRecord = null
         audioTrack?.release()
@@ -329,12 +379,27 @@ fun AgentScreen(context: Context, bridge: Any) {
                 Text(engine.state.value, color = Color(0xFFA1A1AA), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             
-            Button(
-                onClick = { if (engine.state.value == "OFFLINE") engine.connect() else engine.disconnect() },
-                colors = ButtonDefaults.buttonColors(containerColor = if (engine.state.value == "OFFLINE") Color(0xFF2563EB) else Color(0xFFDC2626)),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Text(if (engine.state.value == "OFFLINE") "SYNC" else "DISCONNECT", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (engine.state.value != "OFFLINE") {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (engine.isVideoActive.value) Color(0xFF10B981) else Color(0xFF3F3F46))
+                            .clickable { engine.toggleVideo() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("👁️", fontSize = 16.sp)
+                    }
+                }
+                
+                Button(
+                    onClick = { if (engine.state.value == "OFFLINE") engine.connect() else engine.disconnect() },
+                    colors = ButtonDefaults.buttonColors(containerColor = if (engine.state.value == "OFFLINE") Color(0xFF2563EB) else Color(0xFFDC2626)),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text(if (engine.state.value == "OFFLINE") "SYNC" else "DISCONNECT", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
 
