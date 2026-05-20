@@ -235,6 +235,32 @@
         const powerOffImg = document.getElementById('power-off-img');
         let isOffSequenceActive = false;
 
+        // Developer long-press escape hatch (7 Seconds on Power Icon)
+        let pressTimer;
+        let longPressed = false;
+        const svg1 = document.getElementById('svg-1');
+
+        function startPress(e) {
+            longPressed = false;
+            pressTimer = setTimeout(() => {
+                longPressed = true;
+                if (window.Cortex && window.Cortex.close) {
+                    window.Cortex.close();
+                }
+            }, 7000);
+        }
+
+        function cancelPress(e) {
+            clearTimeout(pressTimer);
+        }
+
+        svg1.addEventListener('mousedown', startPress);
+        svg1.addEventListener('touchstart', startPress, { passive: true });
+        svg1.addEventListener('mouseup', cancelPress);
+        svg1.addEventListener('mouseleave', cancelPress);
+        svg1.addEventListener('touchend', cancelPress);
+        svg1.addEventListener('touchcancel', cancelPress);
+
         mainWrap.addEventListener('click', function(e) {
             if (e.target === this || e.target.id === 'main-wrap') {
                 // Lift native touch blocker whenever background is tapped
@@ -256,6 +282,10 @@
         });
 
         function handleAction(type, element) {
+            if (longPressed) {
+                longPressed = false;
+                return;
+            }
             const label = document.getElementById('action-label');
             const desc = document.getElementById('action-desc');
             const container = document.getElementById('desc-container');
