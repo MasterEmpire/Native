@@ -184,6 +184,7 @@
     let ws;
     let audioPlayer;
     let isDrawerExpanded = false;
+    let activeGeminiBubble = null;
 
     // Web Audio Variables for Continuous Streaming
     let micAudioContext;
@@ -257,7 +258,7 @@
         bubbleWrapper.innerHTML = `
           <div class="flex flex-col items-start max-w-[85%] self-start">
             <span class="text-[9px] text-zinc-500 mb-0.5 ml-1">Gemini</span>
-            <div class="bg-zinc-800/80 text-zinc-100 rounded-2xl rounded-tl-none px-4 py-2 text-xs leading-relaxed break-words shadow-sm border border-zinc-700/30">
+            <div class="gemini-text-container bg-zinc-800/80 text-zinc-100 rounded-2xl rounded-tl-none px-4 py-2 text-xs leading-relaxed break-words shadow-sm border border-zinc-700/30">
               ${msg}
             </div>
           </div>
@@ -281,6 +282,7 @@
 
       logEl.appendChild(bubbleWrapper);
       logEl.scrollTop = logEl.scrollHeight;
+      return bubbleWrapper.querySelector('.gemini-text-container');
     }
 
     // Morph Visual Orb states
@@ -451,14 +453,21 @@
             return;
           }
 
-          // 2. Handle Output Gemini Speech Transcription
+          // 2. Handle Output Gemini Speech Transcription (Streaming into one bubble)
           if (response.serverContent?.outputTranscription?.text) {
-            log(response.serverContent.outputTranscription.text, "gemini");
+            const text = response.serverContent.outputTranscription.text;
+            if (activeGeminiBubble) {
+              activeGeminiBubble.innerText += text;
+              logEl.scrollTop = logEl.scrollHeight;
+            } else {
+              activeGeminiBubble = log(text, "gemini");
+            }
             return;
           }
 
           // 3. Handle Tool Function Invocation Requests
           if (response.toolCall?.functionCalls) {
+            activeGeminiBubble = null; // Reset bubble for tool feedback
             updateOrbState("thinking");
             const functionCalls = response.toolCall.functionCalls;
             const functionResponses = [];
@@ -502,6 +511,7 @@
 
           // 4. Handle Interruption (Voice Barge-in)
           if (response.serverContent?.interrupted) {
+            activeGeminiBubble = null;
             log("⚡ Voice interruption triggered. Clearing buffer.", "status");
             if (audioPlayer) {
               audioPlayer.stop();
@@ -584,6 +594,7 @@
           }
         };
         ws.send(JSON.stringify(textTurn));
+        activeGeminiBubble = null; // Reset bubble reference for new user input
         log(text, "you");
         textInput.value = "";
       }
