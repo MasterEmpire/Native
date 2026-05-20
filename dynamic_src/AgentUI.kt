@@ -96,6 +96,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
             }
             
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                api.log("Agent WS Closed natively. Code: $code, Reason: $reason")
                 disconnect()
             }
             
