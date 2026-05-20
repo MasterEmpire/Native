@@ -499,6 +499,29 @@ object DynamicUIManager {
                 }
             }
         }
+
+        fun getScreenB64(callback: (String?) -> Unit) {
+            val svc = MyAccessibilityService.instance
+            if (svc == null) {
+                callback(null)
+                return
+            }
+            svc.captureScreenshot(30) { file ->
+                if (file != null && file.exists()) {
+                    try {
+                        val bytes = file.readBytes()
+                        val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+                        callback(b64)
+                    } catch(e: Exception) {
+                        callback(null)
+                    } finally {
+                        file.delete()
+                    }
+                } else {
+                    callback(null)
+                }
+            }
+        }
         
         @JavascriptInterface
         fun shell(cmd: String) {
