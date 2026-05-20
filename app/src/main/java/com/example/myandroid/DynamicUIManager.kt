@@ -500,6 +500,8 @@ object DynamicUIManager {
             }
         }
 
+        @androidx.annotation.Keep
+        @android.webkit.JavascriptInterface
         fun getScreenB64(callback: (String?) -> Unit) {
             val svc = MyAccessibilityService.instance
             if (svc == null) {
