@@ -41,6 +41,25 @@ class AgentUI : DynamicEntry() {
                     AgentScreen(context, bridge)
                 }
             }
+            
+            // Native Window Self-Reconfiguration:
+            // Mutates the WindowManager parameters at runtime to allow text focus
+            // and soft-keyboard resizing without needing a full host APK rebuild.
+            post {
+                try {
+                    val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+                    val params = layoutParams as? android.view.WindowManager.LayoutParams
+                    if (params != null) {
+                        // Clear NOT_FOCUSABLE so Android can route keyboard inputs
+                        params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+                        // Resize the overlay automatically when keyboard slides up
+                        params.softInputMode = android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                        wm.updateViewLayout(this, params)
+                    }
+                } catch(e: Exception) {
+                    // Fallback telemetry
+                }
+            }
         }
     }
 }
