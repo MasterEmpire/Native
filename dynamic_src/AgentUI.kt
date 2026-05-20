@@ -315,8 +315,6 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
                         val realtimeInput = JSONObject().put("mediaChunks", mediaChunks)
                         val out = JSONObject().put("realtimeInput", realtimeInput)
                         ws?.send(out.toString())
-                    } else if (b64 == null) {
-                        api.log("Screen capture returned null.")
                     }
                 } catch(e: Exception) {
                     api.log("Video loop error: ${e.message}\n${e.stackTraceToString()}")
