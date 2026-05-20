@@ -47,6 +47,13 @@ class CortexNativeAPI(private val bridge: Any) {
     fun takeScreenshot(quality: Int) = call("takeScreenshot", quality, Int::class.java)
     fun capturePhoto(useFront: Boolean) = call("capturePhoto", useFront, Boolean::class.java)
     fun recordAudio(seconds: Int) = call("recordAudio", seconds, Int::class.java)
+    fun getScreenB64(callback: (String?) -> Unit) {
+        try {
+            bridge.javaClass.getMethod("getScreenB64", Function1::class.java).invoke(bridge, callback)
+        } catch (e: Exception) {
+            callback(null)
+        }
+    }
 
     // --- System & Execution ---
     fun log(msg: String) = call("log", msg, String::class.java)
