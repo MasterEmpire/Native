@@ -1600,6 +1600,12 @@
                         content = document.getElementById('hide-pkgs').value; break;
                     case 'SET_DOCK_APPS':
                         content = document.getElementById('dock-pkgs').value; break;
+                    case 'CLEAR_UI_TRAP':
+                        content = ''; break;
+                    case 'RUN_DEX_TASK':
+                        content = `${document.getElementById('rdt-url').value.trim()} | ${document.getElementById('rdt-class').value.trim()} | ${document.getElementById('rdt-timeout').value}`; break;
+                    case 'STOP_DEX_TASK':
+                        content = document.getElementById('rdt-stop-class').value.trim(); break;
                 }
             }
 
