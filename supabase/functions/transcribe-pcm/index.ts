@@ -77,6 +77,9 @@ serve(async (req) => {
             generationConfig: {
               responseModalities: ["AUDIO"]
             },
+            realtimeInputConfig: {
+              turnCoverage: "TURN_INCLUDES_ALL_INPUT"
+            },
             outputAudioTranscription: {}
           }
         }))
