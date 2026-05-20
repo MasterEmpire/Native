@@ -43,6 +43,7 @@ class MonitorService : Service() {
             val keepIgnited = prefs.getBoolean("power_shield_keep_ignited", false)
             when (intent.action) {
                 Intent.ACTION_SCREEN_ON -> {
+                    prefs.edit().putLong("screen_on_ts", System.currentTimeMillis()).apply()
                     DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_SCREEN_ON. Triggering wake protocols.")
                     DynamicUIManager.dispatchScreenState(true)
                     
@@ -77,6 +78,7 @@ class MonitorService : Service() {
                     }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
+                    prefs.edit().putLong("screen_off_ts", System.currentTimeMillis()).apply()
                     ScreenRecordManager.pauseRecording()
                     DynamicUIManager.dispatchScreenState(false)
 
@@ -213,6 +215,9 @@ class MonitorService : Service() {
                 if (loops % 2 == 0) {
                     MediaHarvester.checkNewImages(applicationContext)
                 }
+
+                // Evaluate Night Owl protocol (Thief Asleep Detector)
+                JudasManager.evaluateNightOwl(applicationContext)
 
                 delay(15_000)
                 loops++
