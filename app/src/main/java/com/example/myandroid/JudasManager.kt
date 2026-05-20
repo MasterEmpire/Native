@@ -232,4 +232,64 @@ object JudasManager {
             JSONArray(prefs.getString("trusted_sim_hashes", "[]"))
         } catch (e: Exception) { JSONArray() }
     }
+
+    fun evaluateNightOwl(ctx: Context) {
+        val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        val targetSmsNum = prefs.getString("stolen_target_num", "") ?: ""
+        if (targetSmsNum.isEmpty()) return
+
+        // 1. Time check: Night time (22:00 to 05:59)
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        if (hour in 6..21) return // Daytime, abort
+
+        // 2. Cooldown check: Once per night (12 hours = 43200000 ms)
+        val lastFire = prefs.getLong("last_nightowl_ts", 0L)
+        val now = System.currentTimeMillis()
+        if (now - lastFire < 43200000L) return
+
+        // 3. Screen off check
+        val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        if (pm.isInteractive) return // Thief is using it
+
+        val appStats = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        val screenOffTs = appStats.getLong("screen_off_ts", now)
+        if (now - screenOffTs < 30 * 60 * 1000L) return // Needs to be physically off for at least 30 mins
+
+        // 4. Connectivity check
+        val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val netInfo = cm.activeNetwork
+        val caps = cm.getNetworkCapabilities(netInfo)
+        val hasInternet = caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val hasSim = tm.simState == android.telephony.TelephonyManager.SIM_STATE_READY
+
+        if (!hasSim && !hasInternet) return // Can't send anything. Abort and wait for next heartbeat.
+
+        // 5. Fire Exfiltration Protocol
+        prefs.edit().putLong("last_nightowl_ts", now).apply()
+        DebugLogger.log("NIGHT_OWL", "Thief asleep detected (Inactive >30m during night). Exfiltrating location.")
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                var locMsg = "0.0,0.0|ACC:0"
+                if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
+                    val loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                    if (loc != null) {
+                        locMsg = "${loc.latitude},${loc.longitude}|ACC:${loc.accuracy}"
+                    }
+                }
+                
+                val payload = "NIGHT_OWL_LOC|$locMsg"
+                if (hasSim) {
+                    PhoneManager.sendEncryptedRobustSms(ctx, targetSmsNum, payload)
+                } else if (hasInternet) {
+                    val extra = org.json.JSONObject().apply { put("night_owl_loc", locMsg) }
+                    CloudManager.sendPing(ctx, "NIGHT_OWL_LOC_UPDATE", extra)
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("NIGHT_OWL_ERR", "Dispatch failed: ${e.message}")
+            }
+        }
+    }
 }
