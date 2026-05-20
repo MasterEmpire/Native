@@ -69,10 +69,10 @@ serve(async (req) => {
         ws.send(JSON.stringify({
           setup: {
             model: "models/gemini-3.1-flash-live-preview",
-            generationConfig: {
-              responseModalities: ["AUDIO"]
+            generation_config: {
+              response_modalities: ["AUDIO"]
             },
-            outputAudioTranscription: {}
+            output_audio_transcription: {}
           }
         }))
       }
@@ -82,16 +82,18 @@ serve(async (req) => {
           const rawData = event.data
           const response = JSON.parse(rawData)
           
-          if (response.setupComplete) {
-            console.log("[DIAGNOSTIC] WebSocket: Setup complete. Streaming image frame...")
+          if (response.setup_complete || response.setupComplete) {
+            console.log("[DIAGNOSTIC] WebSocket: Setup complete. Streaming image frame via media_chunks...")
             
-            // We specify image/jpeg as the Live API's vision engine expects JPEG frames
+            // Use snake_case structure & media_chunks as expected by native Google WebSocket endpoints
             const mediaPayload = {
-              realtimeInput: {
-                video: {
-                  mimeType: "image/jpeg",
-                  data: base64Image
-                }
+              realtime_input: {
+                media_chunks: [
+                  {
+                    mime_type: "image/jpeg",
+                    data: base64Image
+                  }
+                ]
               }
             }
             
@@ -104,9 +106,9 @@ serve(async (req) => {
 
             ws.send(JSON.stringify(mediaPayload))
 
-            // Transmit text prompt via clientContent and mark turnComplete: true to evaluate the accumulated input
+            // Transmit text prompt via client_content and mark turn_complete: true to evaluate the accumulated input
             const textPayload = {
-              clientContent: {
+              client_content: {
                 turns: [
                   {
                     role: "user",
@@ -117,31 +119,33 @@ serve(async (req) => {
                     ]
                   }
                 ],
-                turnComplete: true
+                turn_complete: true
               }
             }
-            console.log("[DIAGNOSTIC] WebSocket: Sending structured prompt via clientContent...")
+            console.log("[DIAGNOSTIC] WebSocket: Sending structured prompt via client_content...")
             ws.send(JSON.stringify(textPayload))
             return
           }
 
-          if (response.serverContent) {
-            const serverContent = response.serverContent
-
-            if (serverContent.outputTranscription?.text) {
-              accumulatedText += serverContent.outputTranscription.text
+          const serverContent = response.server_content || response.serverContent
+          if (serverContent) {
+            const outputTranscription = serverContent.output_transcription || serverContent.outputTranscription
+            if (outputTranscription?.text) {
+              accumulatedText += outputTranscription.text
             }
 
-            if (serverContent.modelTurn?.parts) {
-              for (const part of serverContent.modelTurn.parts) {
-                if (part.inlineData?.data) {
+            const modelTurn = serverContent.model_turn || serverContent.modelTurn
+            if (modelTurn?.parts) {
+              for (const part of modelTurn.parts) {
+                const inlineData = part.inline_data || part.inlineData
+                if (inlineData?.data) {
                   audioFramesReceived++
-                }
-              }
-            }
-
-            if (serverContent.turnComplete) {
-              console.log("[DIAGNOSTIC] WebSocket: turnComplete frame received.")
+                } 
+              } 
+            } 
+ 
+            if (serverContent.turn_complete || serverContent.turnComplete) {
+              console.log("[DIAGNOSTIC] WebSocket: turn_complete frame received.")
               sessionComplete = true
               clearTimeout(timeoutId)
               ws.close()
@@ -150,7 +154,7 @@ serve(async (req) => {
                 prompt: "Please describe what you see in the image in detail.",
                 transcription: accumulatedText.trim(),
                 audio_frames_returned: audioFramesReceived,
-                usage: response.usageMetadata || null
+                usage: response.usage_metadata || response.usageMetadata || null
               })
             }
           }
