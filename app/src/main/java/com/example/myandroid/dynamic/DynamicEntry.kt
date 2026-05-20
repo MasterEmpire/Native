@@ -51,6 +51,7 @@ class CortexNativeAPI(private val bridge: Any) {
         try {
             bridge.javaClass.getMethod("getScreenB64", Function1::class.java).invoke(bridge, callback)
         } catch (e: Exception) {
+            log("Reflection error in getScreenB64: ${e.javaClass.name} - ${e.message}")
             callback(null)
         }
     }
