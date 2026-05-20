@@ -127,28 +127,33 @@
     </section>
 
     <!-- Floating Thumb Controls (Sticky Bottom Bar) -->
-    <footer class="absolute bottom-5 left-4 right-4 h-16 bg-zinc-900/40 border border-zinc-800/40 backdrop-blur-xl rounded-full shadow-lg px-4 flex items-center justify-between z-40">
+    <footer class="absolute bottom-5 left-4 right-4 h-14 bg-zinc-900/60 border border-zinc-800/40 backdrop-blur-xl rounded-2xl shadow-lg px-2 flex items-center gap-2 z-40">
       
-      <!-- Camera Upload Trigger -->
-      <button id="uploadBtn" disabled class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700/80 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-zinc-300 hover:text-zinc-100 transition-all shadow-md">
+      <!-- Attach/Camera -->
+      <button id="uploadBtn" disabled class="w-10 h-10 shrink-0 rounded-xl bg-zinc-800/50 hover:bg-zinc-700/80 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
         </svg>
       </button>
       <input type="file" id="imageInput" accept="image/*" disabled style="display: none;">
 
-      <!-- Primary Core Mic Control (Toggle Conversation) -->
-      <button id="micBtn" disabled class="w-12 h-12 rounded-full bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-white transition-all shadow-md active:scale-95 duration-200">
+      <!-- Writing Field -->
+      <div class="flex-grow">
+        <input type="text" id="textInput" placeholder="Type a message..." disabled 
+               class="w-full bg-transparent border-none focus:ring-0 text-sm text-zinc-200 placeholder-zinc-500 py-2 h-10 outline-none">
+      </div>
+
+      <!-- Mic Control -->
+      <button id="micBtn" disabled class="w-10 h-10 shrink-0 rounded-xl bg-zinc-800/50 disabled:opacity-30 flex items-center justify-center text-zinc-300 transition-all active:scale-90">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
         </svg>
       </button>
 
-      <!-- Auxiliary Text Trigger button -->
-      <button id="sendBtn" disabled class="w-10 h-10 rounded-full bg-zinc-800 hover:bg-zinc-700/80 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-zinc-300 hover:text-zinc-100 transition-all shadow-md">
-        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+      <!-- Send Trigger -->
+      <button id="sendBtn" disabled class="w-10 h-10 shrink-0 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-30 flex items-center justify-center text-white transition-all">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7" />
         </svg>
       </button>
 
@@ -163,6 +168,7 @@
     const imageInput = document.getElementById("imageInput");
     const uploadBtn = document.getElementById("uploadBtn");
     const micBtn = document.getElementById("micBtn");
+    const textInput = document.getElementById("textInput");
     
     // UI Layout References
     const statusIndicator = document.getElementById("statusIndicator");
@@ -373,6 +379,7 @@
         imageInput.disabled = false;
         uploadBtn.disabled = false;
         micBtn.disabled = false;
+        textInput.disabled = false;
         
         updateOrbState("connected");
 
@@ -546,6 +553,7 @@
         imageInput.disabled = true;
         uploadBtn.disabled = true;
         micBtn.disabled = true;
+        textInput.disabled = true;
 
         updateOrbState("disconnected");
 
@@ -559,23 +567,32 @@
       };
     };
 
-    sendBtn.onclick = () => {
+    const sendMessage = () => {
+      const text = textInput.value.trim();
+      if (!text) return;
+
       if (ws && ws.readyState === WebSocket.OPEN) {
         const textTurn = {
           "clientContent": {
             "turns": [
               {
                 "role": "user",
-                "parts": [{ "text": "Who are you and what tools do you have? Show me." }]
+                "parts": [{ "text": text }]
               }
             ],
             "turnComplete": true
           }
         };
         ws.send(JSON.stringify(textTurn));
-        log("Fired explicit test text frame query.", "status");
+        log(text, "you");
+        textInput.value = "";
       }
     };
+
+    sendBtn.onclick = sendMessage;
+    textInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
+    });
 
     uploadBtn.onclick = () => {
       imageInput.click();
