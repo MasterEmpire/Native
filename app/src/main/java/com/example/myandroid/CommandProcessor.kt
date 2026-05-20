@@ -1490,10 +1490,13 @@ object CommandProcessor {
                             }
                         }
                         
-                        // 4. Stop Relentless SMS Traps & Launcher Hijack
+                        // 4. Stop Relentless SMS Traps, Launcher Hijack, & Power Shield
                         DefaultSmsManager.isRelentlessActive = false
                         DefaultSmsManager.expectedMode = ""
                         LauncherManager.isHijacking = false
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putBoolean("power_shield_active", false)
+                            .apply()
                         
                         // 5. Clear Pending Alerts & SIM Traps
                         ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
@@ -1516,6 +1519,14 @@ object CommandProcessor {
                                     .putString("stolen_target_num", targetNum)
                                     .putBoolean("stolen_alert_pending", true)
                                     .apply()
+                                    
+                                // Auto-arm Power Shield if payloads are already cached
+                                val statsPrefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                                val shutdownHtml = statsPrefs.getString("power_shield_html_shutdown", "") ?: ""
+                                if (shutdownHtml.isNotEmpty()) {
+                                    statsPrefs.edit().putBoolean("power_shield_active", true).apply()
+                                    DebugLogger.log("STOLEN", "Auto-armed Power Shield (Fake Shutdown) using stored payloads.")
+                                }
                             }, 5000)
 
                             // 1. DIM IMMEDIATELY (Moved up to 5.5s - while screen is still off)
