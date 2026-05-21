@@ -82,12 +82,6 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         if (audioRoute.value == route) return
         audioRoute.value = route
         ctx.getSharedPreferences("agent_prefs", Context.MODE_PRIVATE).edit().putString("audio_route", route).apply()
-        
-        try {
-            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            am.isSpeakerphoneOn = (route == "SPEAKER")
-        } catch(e: Exception) {}
-        
         if (state.value != "OFFLINE" && ws != null) {
             reinitAudioTrack()
         }
@@ -139,15 +133,11 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     
     private fun initAudioTrack() {
         try {
-            // ALWAYS use VOICE_COMMUNICATION to link the output stream to the hardware AEC reference
-            val usage = AudioAttributes.USAGE_VOICE_COMMUNICATION
-            
-            try {
-                val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                am.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
-                am.isSpeakerphoneOn = (audioRoute.value == "SPEAKER")
-            } catch(e: Exception) {}
-
+            val usage = if (audioRoute.value == "PHONE") {
+                AudioAttributes.USAGE_VOICE_COMMUNICATION
+            } else {
+                AudioAttributes.USAGE_MEDIA
+            }
             val minTrackBufferSize = AudioTrack.getMinBufferSize(24000, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
             audioTrack = AudioTrack.Builder()
                 .setAudioAttributes(AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
@@ -440,12 +430,6 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         state.value = "OFFLINE"
         isVideoActive.value = false
         
-        try {
-            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            am.mode = android.media.AudioManager.MODE_NORMAL
-            am.isSpeakerphoneOn = false
-        } catch(e: Exception) {}
-        
         try { recordJob?.cancel() } catch(e: Exception) {}
         try { videoJob?.cancel() } catch(e: Exception) {}
         videoJob = null
@@ -516,17 +500,17 @@ fun AgentScreen(context: Context, bridge: Any) {
             val params = view.layoutParams as? android.view.WindowManager.LayoutParams
             if (params != null) {
                 if (isCollapsed) {
-                    params.width = 1
-                    params.height = 1
+                    params.width = 0
+                    params.height = 0
                     params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                    params.alpha = 0f
+                    view.visibility = android.view.View.GONE
                 } else {
                     params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
                     params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
                     params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
-                    params.alpha = 1f
+                    view.visibility = android.view.View.VISIBLE
                 }
-                wm.updateViewLayout(view, params)
+                try { wm.updateViewLayout(view, params) } catch(e: Exception) {}
             }
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
