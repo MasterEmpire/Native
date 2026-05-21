@@ -75,6 +75,9 @@
 </head>
 <body class="bg-zinc-950 text-zinc-100 flex flex-col h-dvh overflow-hidden select-none">
 
+  <!-- Hidden Audio Element for Browser AEC Sync -->
+  <audio id="aec-reference-audio" autoplay style="display:none;"></audio>
+
   <!-- Container Wrapper -->
   <div class="max-w-md w-full mx-auto flex flex-col flex-grow relative px-4 pt-6 pb-28">
     
@@ -185,6 +188,7 @@
     let audioPlayer;
     let isDrawerExpanded = false;
     let activeGeminiBubble = null;
+    let isSpeaking = false; // Global track of Gemini's speaking state for software mute failsafe
 
     // Web Audio Variables for Continuous Streaming
     let micAudioContext;
@@ -198,6 +202,25 @@
         this.audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate });
         this.nextStartTime = this.audioCtx.currentTime;
         this.activeSources = [];
+        
+        // AEC FIX: Route AudioContext output to a DOM audio element so mobile browsers detect playback for echo cancellation
+        try {
+          const dest = this.audioCtx.createMediaStreamDestination();
+          this.masterGain = this.audioCtx.createGain();
+          this.masterGain.connect(dest);
+          this.masterGain.connect(this.audioCtx.destination); // Fallback dual-route
+          
+          const audioEl = document.getElementById("aec-reference-audio");
+          if (audioEl) {
+            audioEl.srcObject = dest.stream;
+            audioEl.play().catch(e => console.error("[AEC_AUDIO_PLAY_ERR]", e));
+            console.log("[PCM_PLAYER] Successfully routed WebAudio to DOM for AEC Reference.");
+          } else {
+             console.warn("[PCM_PLAYER_WARN] aec-reference-audio element not found!");
+          }
+        } catch(e) {
+          console.error("[PCM_PLAYER_ERR] Failed to setup AEC routing:", e);
+        }
       }
 
       playChunk(arrayBuffer) {
@@ -213,7 +236,12 @@
 
         const source = this.audioCtx.createBufferSource();
         source.buffer = audioBuffer;
-        source.connect(this.audioCtx.destination);
+        
+        if (this.masterGain) {
+            source.connect(this.masterGain);
+        } else {
+            source.connect(this.audioCtx.destination);
+        }
 
         const currentTime = this.audioCtx.currentTime;
         if (this.nextStartTime < currentTime) {
@@ -518,6 +546,19 @@
             }
             return;
           }
+
+          // 4.5 Detect Speaking State for Muting
+          if (response.serverContent?.modelTurn) {
+             isSpeaking = true;
+             updateOrbState("speaking"); // Force visual feedback
+          }
+
+          // 4.6 End of Speech Detection
+          if (response.serverContent?.turnComplete) {
+             isSpeaking = false;
+             updateOrbState("listening");
+             log("⚡ Turn complete received. Resuming mic processing.", "status");
+          }
           
           // 5. Play Voice Output Chunks
           if (response.serverContent?.modelTurn?.parts) {
@@ -675,15 +716,36 @@
 
     async function startStreaming() {
       try {
+        log("[MIC_INIT] Requesting audio stream with strict echo cancellation...", "status");
         micAudioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
         
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const source = micAudioContext.createMediaStreamSource(micStream);
+        micStream = await navigator.mediaDevices.getUserMedia({ 
+            audio: { 
+                echoCancellation: true, 
+                noiseSuppression: true, 
+                autoGainControl: true 
+            } 
+        });
+        log("[MIC_INIT] Stream acquired. Hardware/Browser AEC is active.", "status");
         
+        const source = micAudioContext.createMediaStreamSource(micStream);
         scriptProcessor = micAudioContext.createScriptProcessor(2048, 1, 1);
         
+        let muteLogThrottle = 0;
+
         scriptProcessor.onaudioprocess = (e) => {
           const inputData = e.inputBuffer.getChannelData(0);
+          
+          // SOFTWARE ECHO SHIELD (Failsafe)
+          if (isSpeaking) {
+              inputData.fill(0);
+              const now = Date.now();
+              if (now - muteLogThrottle > 1000) {
+                  console.log("[MIC_SHIELD] Muting mic buffer to prevent echo loop.");
+                  muteLogThrottle = now;
+              }
+          }
+
           const pcmBuffer = float32ToInt16(new Float32Array(inputData));
           const base64Pcm = arrayBufferToBase64(pcmBuffer);
 
