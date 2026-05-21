@@ -655,7 +655,7 @@ fun AgentScreen(context: Context, bridge: Any) {
                     inputText = ""
                 }),
                 decorationBox = { innerTextField ->
-                    if (inputText.isEmpty()) Text("Type a message...", color = Color(0xFFA1A1AA), fontSize = 15.sp)
+                    if (inputText.isEmpty()) Text("Type a message... V3", color = Color(0xFFA1A1AA), fontSize = 15.sp)
                     innerTextField()
                 }
             )
