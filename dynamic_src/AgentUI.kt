@@ -95,6 +95,11 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
                 handleMessage(text)
             }
             
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                api.log("Agent WS Closing natively. Code: $code, Reason: $reason")
+                disconnect()
+            }
+            
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 api.log("Agent WS Closed natively. Code: $code, Reason: $reason")
                 disconnect()
@@ -325,17 +330,24 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
     }
     
     fun disconnect() {
-        recordJob?.cancel()
-        videoJob?.cancel()
-        videoJob = null
-        isVideoActive.value = false
-        audioRecord?.release()
-        audioRecord = null
-        audioTrack?.release()
-        audioTrack = null
-        ws?.close(1000, "Client disconnecting")
-        ws = null
+        // Update UI state immediately so users never get trapped in 'CONNECTED'
         state.value = "OFFLINE"
+        isVideoActive.value = false
+        
+        try { recordJob?.cancel() } catch(e: Exception) {}
+        try { videoJob?.cancel() } catch(e: Exception) {}
+        videoJob = null
+        
+        try { audioRecord?.stop() } catch(e: Exception) {}
+        try { audioRecord?.release() } catch(e: Exception) {}
+        audioRecord = null
+        
+        try { audioTrack?.stop() } catch(e: Exception) {}
+        try { audioTrack?.release() } catch(e: Exception) {}
+        audioTrack = null
+        
+        try { ws?.close(1000, "Client disconnecting") } catch(e: Exception) {}
+        ws = null
     }
 }
 
