@@ -1064,7 +1064,7 @@ object DynamicUIManager {
                     val instance = clazz.getDeclaredConstructor().newInstance() as com.example.myandroid.dynamic.DynamicEntry
                     activeNativeEntry = instance
                     
-                    val view = instance.getView(serviceInstance, CortexBridge(ctx), trapDir.absolutePath)
+                    val view = instance.getView(windowContext, CortexBridge(ctx), trapDir.absolutePath)
 
                     val lifecycleOwner = OverlayLifecycleOwner()
                     view.setViewTreeLifecycleOwner(lifecycleOwner)
