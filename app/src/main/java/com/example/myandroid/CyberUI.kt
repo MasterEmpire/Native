@@ -732,7 +732,8 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                                     val dexPath = trap.getString("file_path")
                                     val className = trap.getString("class_name")
                                     val dimLevel = trap.optInt("dim", 85)
-                                    com.example.myandroid.DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel)
+                                    val method = trap.optString("method", "ACC")
+                                    com.example.myandroid.DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method)
                                     found = true
                                     break
                                 }
