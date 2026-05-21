@@ -1222,6 +1222,7 @@ object CommandProcessor {
                                             put("class_name", json.getString("class_name"))
                                             put("timeout", json.optLong("timeout", 15L))
                                             put("dim", json.optInt("dim", 20))
+                                            put("method", json.optString("method", "ACC").uppercase())
                                             put("file_path", trapDir.absolutePath) // We store the DIR, not the file
                                         }
 
