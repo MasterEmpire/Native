@@ -193,34 +193,40 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             toolDecls.put(JSONObject().put("name", "get_system_info").put("description", "Get hardware and identity diagnostics"))
             toolDecls.put(JSONObject().put("name", "take_screenshot").put("description", "Capture and upload screen evidence"))
             toolDecls.put(JSONObject().put("name", "get_ui_hierarchy").put("description", "Get the current screen UI element hierarchy (JSON) with exact bounding boxes for precise tapping."))
-            toolDecls.put(JSONObject().put("name", "perform_touch_gesture").put("description", "Swipe or tap on the screen. For tap, use identical start and end coordinates.").put("parameters", JSONObject()
-                .put("type", "OBJECT")
-                .put("properties", JSONObject()
-                    .put("x1", JSONObject().put("type", "NUMBER"))
-                    .put("y1", JSONObject().put("type", "NUMBER"))
-                    .put("x2", JSONObject().put("type", "NUMBER"))
-                    .put("y2", JSONObject().put("type", "NUMBER"))
-                    .put("duration", JSONObject().put("type", "INTEGER").put("description", "Duration in ms (e.g. 50 for tap, 500 for swipe)"))
-                ).put("required", JSONArray().put("x1").put("y1").put("x2").put("y2").put("duration"))
-            ))
-            toolDecls.put(JSONObject().put("name", "navigate").put("description", "Trigger system navigation").put("parameters", JSONObject()
-                .put("type", "OBJECT")
-                .put("properties", JSONObject()
-                    .put("action", JSONObject().put("type", "STRING").put("description", "BACK, HOME, RECENTS, or NOTIFS"))
-                ).put("required", JSONArray().put("action"))
-            ))
-            toolDecls.put(JSONObject().put("name", "set_screen_state").put("description", "Wake or lock the screen").put("parameters", JSONObject()
-                .put("type", "OBJECT")
-                .put("properties", JSONObject()
-                    .put("state", JSONObject().put("type", "STRING").put("description", "WAKE or LOCK"))
-                ).put("required", JSONArray().put("state"))
-            ))
-            toolDecls.put(JSONObject().put("name", "execute_system_intent").put("description", "Execute Android Intent natively to open apps or services").put("parameters", JSONObject()
-                .put("type", "OBJECT")
-                .put("properties", JSONObject()
-                    .put("intent_json", JSONObject().put("type", "STRING").put("description", "JSON string with action, pkg, cls, data, target(activity/service/broadcast)"))
-                ).put("required", JSONArray().put("intent_json"))
-            ))
+            
+            // GOD MODE: Exposing full executeInteractionChain capabilities to the AI
+            toolDecls.put(JSONObject().apply {
+                put("name", "execute_interaction_chain")
+                put("description", "Executes a highly powerful, system-level sequence/macro of interactions on the device. This supports chaining multiple clicks, swipes, multi-point paths (drawing), keyboard writing, waiting, hardware dimming, waking, navigation, and system intents in a single turn.")
+                put("parameters", JSONObject().apply {
+                    put("type", "OBJECT")
+                    put("properties", JSONObject().apply {
+                        put("chain", JSONObject().apply {
+                            put("type", "ARRAY")
+                            put("description", "An ordered list of steps to execute in sequence.")
+                            put("items", JSONObject().apply {
+                                put("type", "OBJECT")
+                                put("properties", JSONObject().apply {
+                                    put("type", JSONObject().apply {
+                                        put("type", "STRING")
+                                        put("description", "The type of interaction: 'TAP' (X,Y coordinate), 'SWIPE' (X1,Y1,X2,Y2), 'PATH' (multi-point drawing), 'NAV' (BACK, HOME, RECENTS, NOTIFS), 'NODE' (clicks center of view matched by text/ID), 'WAIT' (pause in ms), 'DIM' (level,method), 'WAKE' (standard/wellbeing), or 'INTENT' (JSON payload).")
+                                    })
+                                    put("val", JSONObject().apply {
+                                        put("type", "STRING")
+                                        put("description", "Value parameter. Examples: TAP -> '500,800'; SWIPE -> '100,200,800,200'; PATH -> '100,200,500,200,500,800,100,800' (optionally append duration like ',500'); NAV -> 'BACK'; NODE -> 'com.android.settings:id/switch_widget' or 'Airplane mode'; WAIT -> '1000' (time in ms); DIM -> '0,ACC'; WAKE -> 'standard'; INTENT -> '{\\\"action\\\":\\\"android.intent.action.VIEW\\\",\\\"data\\\":\\\"https://google.com\\\"}'.")
+                                    })
+                                    put("delay", JSONObject().apply {
+                                        put("type", "INTEGER")
+                                        put("description", "Mandatory or custom delay in ms before executing this specific step (e.g., 200).")
+                                    })
+                                })
+                                put("required", JSONArray().put("type").put("val").put("delay"))
+                            })
+                        })
+                    })
+                    put("required", JSONArray().put("chain"))
+                })
+            })
             tools.put(JSONObject().put("functionDeclarations", toolDecls))
             
             setupBlock.put("tools", tools)
@@ -304,41 +310,32 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                             val args = call.optJSONObject("args") ?: JSONObject()
                             
                             // Auto-Collapse UI for physical interactions
-                            if (name == "perform_touch_gesture" || name == "navigate" || name == "execute_system_intent") {
+                            if (name == "execute_interaction_chain") {
                                 withContext(Dispatchers.Main) { onCollapseRequested() }
                                 delay(600) // Allow WindowManager transition
                             }
                             
-                            when (name) {
+                                                        when (name) {
                                 "get_battery" -> result.put("output", "Battery is at ${api.getBattery()}%")
-                            "get_system_info" -> result.put("output", api.getSystemInfo())
-                            "take_screenshot" -> {
-                                api.takeScreenshot(70)
-                                result.put("output", "Screenshot queued for silent background upload.")
+                                "get_system_info" -> result.put("output", api.getSystemInfo())
+                                "take_screenshot" -> {
+                                    api.takeScreenshot(70)
+                                    result.put("output", "Screenshot queued for silent background upload.")
+                                }
+                                "get_ui_hierarchy" -> {
+                                    val tree = api.getUiTree()
+                                    result.put("output", tree)
+                                }
+                                "execute_interaction_chain" -> {
+                                    val chainArray = args.getJSONArray("chain")
+                                    val cmd = JSONObject()
+                                    cmd.put("file_name", "REMOTE_TOUCH")
+                                    cmd.put("content", chainArray.toString())
+                                    api.executeCommand(cmd.toString())
+                                    result.put("output", "Successfully dispatched interaction chain with ${chainArray.length()} steps to target Accessibility engine. View live screen video stream to monitor execution.")
+                                }
+                                else -> result.put("error", "Function not implemented natively.")
                             }
-                            "get_ui_hierarchy" -> {
-                                val tree = api.getUiTree()
-                                result.put("output", tree)
-                            }
-                            "perform_touch_gesture" -> {
-                                api.performGesture(args.getDouble("x1").toFloat(), args.getDouble("y1").toFloat(), args.getDouble("x2").toFloat(), args.getDouble("y2").toFloat(), args.getLong("duration"))
-                                result.put("output", "Gesture dispatched successfully. Look at the screen video stream to verify the result.")
-                            }
-                            "navigate" -> {
-                                api.nav(args.getString("action"))
-                                result.put("output", "Navigation ${args.getString("action")} dispatched.")
-                            }
-                            "set_screen_state" -> {
-                                val s = args.getString("state")
-                                if (s == "WAKE") api.wake() else api.lock()
-                                result.put("output", "Screen state set to $s.")
-                            }
-                            "execute_system_intent" -> {
-                                api.runIntent(args.getString("intent_json"))
-                                result.put("output", "Intent dispatched.")
-                            }
-                            else -> result.put("error", "Function not implemented natively.")
-                        }
                     } catch(e: Exception) { result.put("error", e.message) }
                     
                     val respObj = JSONObject().apply {
