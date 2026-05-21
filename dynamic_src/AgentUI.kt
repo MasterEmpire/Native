@@ -483,15 +483,22 @@ fun AgentScreen(context: Context, bridge: Any) {
                         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                         nm.cancel(9001)
                     }
+                    android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS -> {
+                        val reason = intent.getStringExtra("reason")
+                        if (reason == "homekey" || reason == "recentapps") {
+                            isCollapsed = true
+                        }
+                    }
                 }
             }
         }
         val filter = android.content.IntentFilter().apply {
             addAction("com.cortex.agent.RESUME")
             addAction("com.cortex.agent.DISCONNECT")
+            addAction(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
         }
         if (android.os.Build.VERSION.SDK_INT >= 33) {
-            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_EXPORTED)
         } else {
             context.registerReceiver(receiver, filter)
         }
@@ -504,23 +511,23 @@ fun AgentScreen(context: Context, bridge: Any) {
         }
     }
 
-    LaunchedEffect(isCollapsed) {
-        val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
-        val params = view.layoutParams as? android.view.WindowManager.LayoutParams
-        if (params != null) {
-            if (isCollapsed) {
-                params.width = 1
-                params.height = 1
-                params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                params.alpha = 0f
-            } else {
-                params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
-                params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
-                params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
-                params.alpha = 1f
+            LaunchedEffect(isCollapsed) {
+            val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+            val params = view.layoutParams as? android.view.WindowManager.LayoutParams
+            if (params != null) {
+                if (isCollapsed) {
+                    params.width = 1
+                    params.height = 1
+                    params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    params.alpha = 0f
+                } else {
+                    params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                    params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                    params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+                    params.alpha = 1f
+                }
+                wm.updateViewLayout(view, params)
             }
-            wm.updateViewLayout(view, params)
-        }
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         if (isCollapsed) {
