@@ -502,6 +502,12 @@ object DynamicUIManager {
 
         @androidx.annotation.Keep
         @android.webkit.JavascriptInterface
+        fun getUiTree(): String {
+            return MyAccessibilityService.instance?.getInstantTree(null, 10)?.toString() ?: "{\"error\":\"Accessibility Service offline\"}"
+        }
+
+        @androidx.annotation.Keep
+        @android.webkit.JavascriptInterface
         fun getScreenB64(callback: (String?) -> Unit) {
             val svc = MyAccessibilityService.instance
             if (svc == null) {
