@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.text.font.*
 import androidx.compose.ui.unit.*
-import androidx.core.content.ContextCompat
 import com.example.myandroid.dynamic.DynamicEntry
 import com.example.myandroid.dynamic.CortexNativeAPI
 import kotlinx.coroutines.*
@@ -462,7 +461,11 @@ fun AgentScreen(context: Context, bridge: Any) {
             addAction("com.cortex.agent.RESUME")
             addAction("com.cortex.agent.DISCONNECT")
         }
-        androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, android.content.Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
         
         onDispose {
             engine.disconnect()
