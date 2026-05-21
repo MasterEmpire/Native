@@ -603,7 +603,6 @@ fun AgentScreen(context: Context, bridge: Any) {
                         Text("👁️", fontSize = 16.sp)
                     }
                 }
-            }
                 
                 Button(
                     onClick = { if (engine.state.value == "OFFLINE") engine.connect() else engine.disconnect() },
