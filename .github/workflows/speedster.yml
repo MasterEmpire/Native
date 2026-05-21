@@ -57,6 +57,23 @@ jobs:
 
       - name: Ship to Supabase (The Injection)
         run: |
+          echo "--- SHIPMENT MANIFEST ---"
+          if [ -z "$PAYLOAD_NAME" ]; then
+            echo "⚠️  NOTICE: App Label is MISSING. Falling back to build number context."
+            PAYLOAD_NAME="Build_#${{ github.run_number }}"
+          else
+            echo "🏷️  App Label: $PAYLOAD_NAME"
+          fi
+
+          if [ -z "$PAYLOAD_FILENAME" ]; then
+            echo "⚠️  NOTICE: Filename is MISSING. Defaulting to system bundle.zip"
+            PAYLOAD_FILENAME="bundle.zip"
+          else
+            echo "📦 Target Filename: $PAYLOAD_FILENAME"
+          fi
+          echo "🌐 Destination: $SUPABASE_URL/storage/v1/object/payloads/$PAYLOAD_FILENAME"
+          echo "-------------------------"
+
           echo "🚀 Uploading to Supabase Storage..."
           RESPONSE=$(curl -s -o response_body.txt -w "%{http_code}" -X POST "$SUPABASE_URL/storage/v1/object/payloads/$PAYLOAD_FILENAME" \
             -H "Authorization: Bearer $ANON_KEY" \
