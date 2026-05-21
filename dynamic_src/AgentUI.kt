@@ -90,7 +90,10 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         try {
             val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
             am.isSpeakerphoneOn = (route == "SPEAKER")
-        } catch(e: Exception) {}
+            api.log("[AUDIO_ROUTE] Route changed to $route. Speakerphone is now: ${am.isSpeakerphoneOn}")
+        } catch(e: Exception) {
+            api.log("[AUDIO_ROUTE_ERR] Failed to set speakerphone state: ${e.message}")
+        }
         
         if (state.value != "OFFLINE" && ws != null) {
             reinitAudioTrack()
@@ -99,11 +102,19 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
 
     private fun reinitAudioTrack() {
         try {
+            api.log("[AUDIO_REINIT] Tearing down existing AudioTrack...")
             audioTrack?.stop()
             audioTrack?.release()
             audioTrack = null
-        } catch(e: Exception) {}
-        initAudioTrack()
+        } catch(e: Exception) { api.log("[AUDIO_REINIT_ERR] Teardown failed: ${e.message}") }
+        
+        val sessionId = audioRecord?.audioSessionId
+        if (sessionId != null) {
+            api.log("[AUDIO_REINIT] Active AudioRecord found. Rebuilding track with shared SessionID: $sessionId")
+            initAudioTrack(sessionId)
+        } else {
+            api.log("[AUDIO_REINIT] No active AudioRecord found. Deferring AudioTrack initialization until mic starts.")
+        }
     }
     
     fun connect() {
@@ -114,8 +125,8 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         ws = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 state.value = "CONNECTED"
-                api.log("Agent WS Connected natively.")
-                initAudioTrack()
+                api.log("[WS_CONN] Agent WS Connected natively. Handshake successful.")
+                // DO NOT initAudioTrack() here. Wait for toggleMic to supply the hardware SessionID.
                 sendSetup()
             }
             
@@ -141,27 +152,30 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         })
     }
     
-    private fun initAudioTrack() {
+    private fun initAudioTrack(sessionId: Int) {
         try {
-            // ALWAYS use VOICE_COMMUNICATION to link the output stream to the hardware AEC reference
+            api.log("[AUDIO_INIT] Building AudioTrack with Shared SessionID: $sessionId")
             val usage = AudioAttributes.USAGE_VOICE_COMMUNICATION
             
             try {
                 val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                 am.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
                 am.isSpeakerphoneOn = (audioRoute.value == "SPEAKER")
-            } catch(e: Exception) {}
+                api.log("[AUDIO_INIT] Set Audio Mode IN_COMMUNICATION. Speakerphone: ${am.isSpeakerphoneOn}")
+            } catch(e: Exception) { api.log("[AUDIO_INIT_ERR] AudioManager config failed: ${e.message}") }
 
             val minTrackBufferSize = AudioTrack.getMinBufferSize(24000, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
             audioTrack = AudioTrack.Builder()
+                .setSessionId(sessionId) // CRITICAL: This explicitly binds output to the AEC reference
                 .setAudioAttributes(AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(24000).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
                 .setBufferSizeInBytes(minTrackBufferSize)
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
             audioTrack?.play()
+            api.log("[AUDIO_INIT] AudioTrack playing successfully on SessionID: ${audioTrack?.audioSessionId}")
         } catch(e: Exception) {
-            api.log("AudioTrack init failed: ${e.message}")
+            api.log("[AUDIO_INIT_ERR] AudioTrack creation failed: ${e.message}\n${e.stackTraceToString()}")
         }
     }
     
@@ -251,7 +265,10 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 }
                 
                 if (sc.has("modelTurn")) {
-                    state.value = "SPEAKING"
+                    if (state.value != "SPEAKING") {
+                        api.log("[STATE_CHANGE] LISTENING -> SPEAKING")
+                        state.value = "SPEAKING"
+                    }
                     val parts = sc.getJSONObject("modelTurn").getJSONArray("parts")
                     for (i in 0 until parts.length()) {
                         val part = parts.getJSONObject(i)
@@ -261,6 +278,12 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                             audioTrack?.write(bytes, 0, bytes.size)
                         }
                     }
+                }
+
+                // FAILSAFE: Always transition back to listening when Gemini finishes to disable Software Mute
+                if (sc.optBoolean("turnComplete", false)) {
+                    api.log("[STATE_CHANGE] Turn Complete. SPEAKING -> LISTENING")
+                    state.value = "LISTENING"
                 }
             }
             
@@ -367,32 +390,56 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         }
         
         try {
+            api.log("[MIC_INIT] Requesting AudioRecord...")
             val minBuf = AudioRecord.getMinBufferSize(16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
             audioRecord = AudioRecord(MediaRecorder.AudioSource.VOICE_COMMUNICATION, 16000, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, minBuf)
             
+            val hardwareSessionId = audioRecord!!.audioSessionId
+            api.log("[MIC_INIT] AudioRecord constructed. Hardware SessionID: $hardwareSessionId")
+
             // Explicitly attach hardware Acoustic Echo Cancellation (AEC) and Noise Suppression
             try {
                 if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
-                    aec = android.media.audiofx.AcousticEchoCanceler.create(audioRecord!!.audioSessionId)
+                    aec = android.media.audiofx.AcousticEchoCanceler.create(hardwareSessionId)
                     aec?.enabled = true
+                    api.log("[AEC_HOOK] AcousticEchoCanceler created and enabled: ${aec?.enabled}")
+                } else {
+                    api.log("[AEC_WARN] AcousticEchoCanceler NOT AVAILABLE on this hardware.")
                 }
                 if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
-                    ns = android.media.audiofx.NoiseSuppressor.create(audioRecord!!.audioSessionId)
+                    ns = android.media.audiofx.NoiseSuppressor.create(hardwareSessionId)
                     ns?.enabled = true
+                    api.log("[AEC_HOOK] NoiseSuppressor created and enabled: ${ns?.enabled}")
                 }
             } catch (e: Exception) {
-                api.log("AEC hardware hook failed: ${e.message}")
+                api.log("[AEC_ERR] Hardware hook failed: ${e.message}")
             }
             
+            // CRITICAL: Initialize the AudioTrack output using the Mic's SessionID so AEC has a reference signal
+            initAudioTrack(hardwareSessionId)
+            
             audioRecord?.startRecording()
+            api.log("[MIC_INIT] Start recording successful.")
             
             state.value = "LISTENING"
             
             recordJob = scope.launch {
                 val buffer = ByteArray(2048)
+                var muteThrottleLog = 0L
                 while (isActive) {
                     val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (read > 0 && ws != null) {
+                        
+                        // SOFTWARE ECHO SHIELD: Absolute failsafe to prevent endless loop
+                        if (state.value == "SPEAKING") {
+                            buffer.fill(0) // Flood Gemini with absolute silence while it speaks
+                            val now = System.currentTimeMillis()
+                            if (now - muteThrottleLog > 1000) {
+                                api.log("[ECHO_SHIELD] Muting mic buffer output. Gemini is speaking.")
+                                muteThrottleLog = now
+                            }
+                        }
+
                         val b64 = Base64.encodeToString(buffer, 0, read, Base64.NO_WRAP)
                         val audioObj = JSONObject().put("mimeType", "audio/pcm;rate=16000").put("data", b64)
                         val ri = JSONObject().put("audio", audioObj)
@@ -402,7 +449,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 }
             }
         } catch(e: Exception) {
-            api.log("Mic Error: ${e.message}")
+            api.log("[MIC_FATAL] Error initializing mic stream: ${e.message}\n${e.stackTraceToString()}")
         }
     }
     
