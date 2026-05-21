@@ -64,7 +64,7 @@ class AgentUI : DynamicEntry() {
     }
 }
 
-class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
+class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequested: () -> Unit) {
     private val client = OkHttpClient.Builder().readTimeout(0, TimeUnit.MILLISECONDS).build()
     private var ws: WebSocket? = null
     private var audioTrack: AudioTrack? = null
@@ -231,18 +231,26 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
                 state.value = "THINKING"
                 val toolCall = json.getJSONObject("toolCall")
                 val calls = toolCall.getJSONArray("functionCalls")
-                val responses = JSONArray()
                 
-                for (i in 0 until calls.length()) {
-                    val call = calls.getJSONObject(i)
-                    val id = call.getString("id")
-                    val name = call.getString("name")
-                    
-                    val result = JSONObject()
-                    try {
-                        val args = call.optJSONObject("args") ?: JSONObject()
-                        when (name) {
-                            "get_battery" -> result.put("output", "Battery is at ${api.getBattery()}%")
+                scope.launch {
+                    val responses = JSONArray()
+                    for (i in 0 until calls.length()) {
+                        val call = calls.getJSONObject(i)
+                        val id = call.getString("id")
+                        val name = call.getString("name")
+                        
+                        val result = JSONObject()
+                        try {
+                            val args = call.optJSONObject("args") ?: JSONObject()
+                            
+                            // Auto-Collapse UI for physical interactions
+                            if (name == "perform_touch_gesture" || name == "navigate" || name == "execute_system_intent") {
+                                withContext(Dispatchers.Main) { onCollapseRequested() }
+                                delay(600) // Allow WindowManager transition
+                            }
+                            
+                            when (name) {
+                                "get_battery" -> result.put("output", "Battery is at ${api.getBattery()}%")
                             "get_system_info" -> result.put("output", api.getSystemInfo())
                             "take_screenshot" -> {
                                 api.takeScreenshot(70)
@@ -279,12 +287,13 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
                         put("response", result)
                     }
                     responses.put(respObj)
-                    CoroutineScope(Dispatchers.Main).launch { transcripts.add(Pair("System", "Executed Native Tool: $name")) }
+                    withContext(Dispatchers.Main) { transcripts.add(Pair("System", "Executed Native Tool: $name")) }
                 }
                 
                 val tr = JSONObject().put("toolResponse", JSONObject().put("functionResponses", responses))
                 ws?.send(tr.toString())
             }
+        }
             
         } catch(e: Exception) { }
     }
@@ -405,12 +414,86 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
 @Composable
 fun AgentScreen(context: Context, bridge: Any) {
     val api = remember { CortexNativeAPI(bridge) }
-    val engine = remember { AgentEngine(context, api) }
+    var isCollapsed by remember { mutableStateOf(false) }
+    val engine = remember { AgentEngine(context, api) { isCollapsed = true } }
+    
+    val view = LocalView.current
     
     DisposableEffect(Unit) {
-        onDispose { engine.disconnect() }
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: android.content.Intent) {
+                when (intent.action) {
+                    "com.cortex.agent.RESUME" -> isCollapsed = false
+                    "com.cortex.agent.DISCONNECT" -> {
+                        isCollapsed = false
+                        engine.disconnect()
+                        api.close()
+                        val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                        nm.cancel(9001)
+                    }
+                }
+            }
+        }
+        val filter = android.content.IntentFilter().apply {
+            addAction("com.cortex.agent.RESUME")
+            addAction("com.cortex.agent.DISCONNECT")
+        }
+        androidx.core.content.ContextCompat.registerReceiver(context, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+        
+        onDispose {
+            engine.disconnect()
+            context.unregisterReceiver(receiver)
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+            nm.cancel(9001)
+        }
+    }
+
+    LaunchedEffect(isCollapsed) {
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+        val params = view.layoutParams as? android.view.WindowManager.LayoutParams
+        if (params != null) {
+            if (isCollapsed) {
+                params.width = 1
+                params.height = 1
+                params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                params.alpha = 0f
+            } else {
+                params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                params.alpha = 1f
+            }
+            wm.updateViewLayout(view, params)
+        }
+
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        if (isCollapsed) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                val chan = android.app.NotificationChannel("agent_channel", "Agent Status", android.app.NotificationManager.IMPORTANCE_LOW)
+                nm.createNotificationChannel(chan)
+            }
+            val resumeIntent = android.app.PendingIntent.getBroadcast(context, 1, android.content.Intent("com.cortex.agent.RESUME"), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+            val stopIntent = android.app.PendingIntent.getBroadcast(context, 2, android.content.Intent("com.cortex.agent.DISCONNECT"), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+
+            val notif = androidx.core.app.NotificationCompat.Builder(context, "agent_channel")
+                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+                .setContentTitle("Cortex Agent Active")
+                .setContentText("Voice and screen streaming in background.")
+                .setOngoing(true)
+                .addAction(android.R.drawable.ic_menu_revert, "Resume UI", resumeIntent)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "End Session", stopIntent)
+                .build()
+            nm.notify(9001, notif)
+        } else {
+            nm.cancel(9001)
+        }
     }
     
+    if (isCollapsed) {
+        Box(modifier = Modifier.size(1.dp))
+        return
+    }
+
     val inf = rememberInfiniteTransition()
     val scale by inf.animateFloat(
         initialValue = 1f, targetValue = 1.1f,
@@ -442,6 +525,16 @@ fun AgentScreen(context: Context, bridge: Any) {
             
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (engine.state.value != "OFFLINE") {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF3F3F46))
+                            .clickable { isCollapsed = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("🗕", fontSize = 16.sp, color = Color.White)
+                    }
                     Box(
                         modifier = Modifier
                             .size(36.dp)
