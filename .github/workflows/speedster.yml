@@ -11,6 +11,10 @@ on:
         description: 'ZIP filename (e.g. payload.zip)'
         required: true
         default: 'samsung_power.zip'
+      skip_res:
+        description: 'Ignore dynamic_res folder'
+        required: false
+        default: 'false'
 
 jobs:
   build-hot-payload:
@@ -18,6 +22,7 @@ jobs:
     env:
       PAYLOAD_NAME: ${{ github.event.inputs.app_label }}
       PAYLOAD_FILENAME: ${{ github.event.inputs.file_name }}
+      SKIP_RESOURCES: ${{ github.event.inputs.skip_res }}
       SUPABASE_URL: https://vlzgfaqrnyiqfxxxvtas.supabase.co
       ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsemdmYXFybnlpcWZ4eHh2dGFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NTk5NDAsImV4cCI6MjA4MTEzNTk0MH0.y93d68JWyGL7NKXZEHLunAuayMEWw1K6yATFGLxkUxY
     steps:
@@ -71,6 +76,13 @@ jobs:
           else
             echo "📦 Target Filename: $PAYLOAD_FILENAME"
           fi
+
+          if [ "$SKIP_RESOURCES" = "true" ]; then
+            echo "🔥 MODE: Code Only (Resources Stripped)"
+          else
+            echo "🎨 MODE: Full Bundle (Resources Included)"
+          fi
+
           echo "🌐 Destination: $SUPABASE_URL/storage/v1/object/payloads/$PAYLOAD_FILENAME"
           echo "-------------------------"
 
