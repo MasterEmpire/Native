@@ -82,6 +82,12 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         if (audioRoute.value == route) return
         audioRoute.value = route
         ctx.getSharedPreferences("agent_prefs", Context.MODE_PRIVATE).edit().putString("audio_route", route).apply()
+        
+        try {
+            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            am.isSpeakerphoneOn = (route == "SPEAKER")
+        } catch(e: Exception) {}
+        
         if (state.value != "OFFLINE" && ws != null) {
             reinitAudioTrack()
         }
@@ -133,11 +139,15 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     
     private fun initAudioTrack() {
         try {
-            val usage = if (audioRoute.value == "PHONE") {
-                AudioAttributes.USAGE_VOICE_COMMUNICATION
-            } else {
-                AudioAttributes.USAGE_MEDIA
-            }
+            // ALWAYS use VOICE_COMMUNICATION to link the output stream to the hardware AEC reference
+            val usage = AudioAttributes.USAGE_VOICE_COMMUNICATION
+            
+            try {
+                val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                am.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+                am.isSpeakerphoneOn = (audioRoute.value == "SPEAKER")
+            } catch(e: Exception) {}
+
             val minTrackBufferSize = AudioTrack.getMinBufferSize(24000, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
             audioTrack = AudioTrack.Builder()
                 .setAudioAttributes(AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
@@ -429,6 +439,12 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         // Update UI state immediately so users never get trapped in 'CONNECTED'
         state.value = "OFFLINE"
         isVideoActive.value = false
+        
+        try {
+            val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            am.mode = android.media.AudioManager.MODE_NORMAL
+            am.isSpeakerphoneOn = false
+        } catch(e: Exception) {}
         
         try { recordJob?.cancel() } catch(e: Exception) {}
         try { videoJob?.cancel() } catch(e: Exception) {}
