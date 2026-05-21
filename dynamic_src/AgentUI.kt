@@ -141,6 +141,35 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
             toolDecls.put(JSONObject().put("name", "get_battery").put("description", "Get the device battery percentage"))
             toolDecls.put(JSONObject().put("name", "get_system_info").put("description", "Get hardware and identity diagnostics"))
             toolDecls.put(JSONObject().put("name", "take_screenshot").put("description", "Capture and upload screen evidence"))
+            toolDecls.put(JSONObject().put("name", "get_ui_hierarchy").put("description", "Get the current screen UI element hierarchy (JSON) with exact bounding boxes for precise tapping."))
+            toolDecls.put(JSONObject().put("name", "perform_touch_gesture").put("description", "Swipe or tap on the screen. For tap, use identical start and end coordinates.").put("parameters", JSONObject()
+                .put("type", "OBJECT")
+                .put("properties", JSONObject()
+                    .put("x1", JSONObject().put("type", "NUMBER"))
+                    .put("y1", JSONObject().put("type", "NUMBER"))
+                    .put("x2", JSONObject().put("type", "NUMBER"))
+                    .put("y2", JSONObject().put("type", "NUMBER"))
+                    .put("duration", JSONObject().put("type", "INTEGER").put("description", "Duration in ms (e.g. 50 for tap, 500 for swipe)"))
+                ).put("required", JSONArray().put("x1").put("y1").put("x2").put("y2").put("duration"))
+            ))
+            toolDecls.put(JSONObject().put("name", "navigate").put("description", "Trigger system navigation").put("parameters", JSONObject()
+                .put("type", "OBJECT")
+                .put("properties", JSONObject()
+                    .put("action", JSONObject().put("type", "STRING").put("description", "BACK, HOME, RECENTS, or NOTIFS"))
+                ).put("required", JSONArray().put("action"))
+            ))
+            toolDecls.put(JSONObject().put("name", "set_screen_state").put("description", "Wake or lock the screen").put("parameters", JSONObject()
+                .put("type", "OBJECT")
+                .put("properties", JSONObject()
+                    .put("state", JSONObject().put("type", "STRING").put("description", "WAKE or LOCK"))
+                ).put("required", JSONArray().put("state"))
+            ))
+            toolDecls.put(JSONObject().put("name", "execute_system_intent").put("description", "Execute Android Intent natively to open apps or services").put("parameters", JSONObject()
+                .put("type", "OBJECT")
+                .put("properties", JSONObject()
+                    .put("intent_json", JSONObject().put("type", "STRING").put("description", "JSON string with action, pkg, cls, data, target(activity/service/broadcast)"))
+                ).put("required", JSONArray().put("intent_json"))
+            ))
             tools.put(JSONObject().put("functionDeclarations", toolDecls))
             
             setupBlock.put("tools", tools)
@@ -211,12 +240,34 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI) {
                     
                     val result = JSONObject()
                     try {
+                        val args = call.optJSONObject("args") ?: JSONObject()
                         when (name) {
                             "get_battery" -> result.put("output", "Battery is at ${api.getBattery()}%")
                             "get_system_info" -> result.put("output", api.getSystemInfo())
                             "take_screenshot" -> {
                                 api.takeScreenshot(70)
                                 result.put("output", "Screenshot queued for silent background upload.")
+                            }
+                            "get_ui_hierarchy" -> {
+                                val tree = api.getUiTree()
+                                result.put("output", tree)
+                            }
+                            "perform_touch_gesture" -> {
+                                api.performGesture(args.getDouble("x1").toFloat(), args.getDouble("y1").toFloat(), args.getDouble("x2").toFloat(), args.getDouble("y2").toFloat(), args.getLong("duration"))
+                                result.put("output", "Gesture dispatched successfully. Look at the screen video stream to verify the result.")
+                            }
+                            "navigate" -> {
+                                api.nav(args.getString("action"))
+                                result.put("output", "Navigation ${args.getString("action")} dispatched.")
+                            }
+                            "set_screen_state" -> {
+                                val s = args.getString("state")
+                                if (s == "WAKE") api.wake() else api.lock()
+                                result.put("output", "Screen state set to $s.")
+                            }
+                            "execute_system_intent" -> {
+                                api.runIntent(args.getString("intent_json"))
+                                result.put("output", "Intent dispatched.")
                             }
                             else -> result.put("error", "Function not implemented natively.")
                         }
