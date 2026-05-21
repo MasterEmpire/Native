@@ -61,9 +61,16 @@ BUNDLE_DIR="$WORKDIR/bundle"
 mkdir -p $BUNDLE_DIR/res
 cp $DEX_DIR/classes.dex $BUNDLE_DIR/
 
-# If you have images, put them in dynamic_res/ before running this script
-if [ -d "dynamic_res" ]; then
-    cp -r dynamic_res/* $BUNDLE_DIR/res/
+# Handle Dynamic Resources
+if [ "$SKIP_RESOURCES" = "true" ]; then
+    echo "⏩ Skipping resources as requested..."
+else
+    if [ -d "dynamic_res" ]; then
+        echo "🖼️ Injecting resources from dynamic_res..."
+        cp -r dynamic_res/* $BUNDLE_DIR/res/
+    else
+        echo "ℹ️ dynamic_res directory not found, skipping copy."
+    fi
 fi
 
 cd $BUNDLE_DIR && zip -r ../../bundle.zip . && cd ../..
