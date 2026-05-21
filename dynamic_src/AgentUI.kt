@@ -69,6 +69,10 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     private var audioTrack: AudioTrack? = null
     private var audioRecord: AudioRecord? = null
     
+    // Strong references to prevent GC from disabling hardware audio filters
+    private var aec: android.media.audiofx.AcousticEchoCanceler? = null
+    private var ns: android.media.audiofx.NoiseSuppressor? = null
+    
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var recordJob: Job? = null
     private var videoJob: Job? = null
@@ -351,6 +355,8 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         if (recordJob?.isActive == true) {
             recordJob?.cancel()
             audioRecord?.stop()
+            try { aec?.release(); aec = null } catch(e: Exception){}
+            try { ns?.release(); ns = null } catch(e: Exception){}
             state.value = "CONNECTED"
             return
         }
@@ -367,10 +373,12 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             // Explicitly attach hardware Acoustic Echo Cancellation (AEC) and Noise Suppression
             try {
                 if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
-                    android.media.audiofx.AcousticEchoCanceler.create(audioRecord!!.audioSessionId)?.enabled = true
+                    aec = android.media.audiofx.AcousticEchoCanceler.create(audioRecord!!.audioSessionId)
+                    aec?.enabled = true
                 }
                 if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
-                    android.media.audiofx.NoiseSuppressor.create(audioRecord!!.audioSessionId)?.enabled = true
+                    ns = android.media.audiofx.NoiseSuppressor.create(audioRecord!!.audioSessionId)
+                    ns?.enabled = true
                 }
             } catch (e: Exception) {
                 api.log("AEC hardware hook failed: ${e.message}")
@@ -450,6 +458,8 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         try { videoJob?.cancel() } catch(e: Exception) {}
         videoJob = null
         
+        try { aec?.release(); aec = null } catch(e: Exception){}
+        try { ns?.release(); ns = null } catch(e: Exception){}
         try { audioRecord?.stop() } catch(e: Exception) {}
         try { audioRecord?.release() } catch(e: Exception) {}
         audioRecord = null
