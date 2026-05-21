@@ -502,7 +502,13 @@ fun AgentScreen(context: Context, bridge: Any) {
             val resumeIntent = android.app.PendingIntent.getBroadcast(context, 1, android.content.Intent("com.cortex.agent.RESUME"), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
             val stopIntent = android.app.PendingIntent.getBroadcast(context, 2, android.content.Intent("com.cortex.agent.DISCONNECT"), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
 
-            val notif = androidx.core.app.NotificationCompat.Builder(context, "agent_channel")
+            val builder = if (android.os.Build.VERSION.SDK_INT >= 26) {
+                android.app.Notification.Builder(context, "agent_channel")
+            } else {
+                @Suppress("DEPRECATION")
+                android.app.Notification.Builder(context)
+            }
+            val notif = builder
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setContentTitle("Cortex Agent Active")
                 .setContentText("Voice and screen streaming in background.")
