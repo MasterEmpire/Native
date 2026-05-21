@@ -77,6 +77,25 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     val state = mutableStateOf("OFFLINE")
     val isVideoActive = mutableStateOf(false)
     val transcripts = mutableStateListOf<Pair<String, String>>()
+    val audioRoute = mutableStateOf(ctx.getSharedPreferences("agent_prefs", Context.MODE_PRIVATE).getString("audio_route", "SPEAKER") ?: "SPEAKER")
+
+    fun setAudioRoute(route: String) {
+        if (audioRoute.value == route) return
+        audioRoute.value = route
+        ctx.getSharedPreferences("agent_prefs", Context.MODE_PRIVATE).edit().putString("audio_route", route).apply()
+        if (state.value != "OFFLINE" && ws != null) {
+            reinitAudioTrack()
+        }
+    }
+
+    private fun reinitAudioTrack() {
+        try {
+            audioTrack?.stop()
+            audioTrack?.release()
+            audioTrack = null
+        } catch(e: Exception) {}
+        initAudioTrack()
+    }
     
     fun connect() {
         if (ws != null) return
@@ -115,9 +134,14 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     
     private fun initAudioTrack() {
         try {
+            val usage = if (audioRoute.value == "PHONE") {
+                AudioAttributes.USAGE_VOICE_COMMUNICATION
+            } else {
+                AudioAttributes.USAGE_MEDIA
+            }
             val minTrackBufferSize = AudioTrack.getMinBufferSize(24000, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)
             audioTrack = AudioTrack.Builder()
-                .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setAudioAttributes(AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(24000).setChannelMask(AudioFormat.CHANNEL_OUT_MONO).build())
                 .setBufferSizeInBytes(minTrackBufferSize)
                 .setTransferMode(AudioTrack.MODE_STREAM)
@@ -525,6 +549,39 @@ fun AgentScreen(context: Context, bridge: Any) {
             
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (engine.state.value != "OFFLINE") {
+                    var showRouteMenu by remember { mutableStateOf(false) }
+                    Box {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF3F3F46))
+                                .clickable { showRouteMenu = true },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(if (engine.audioRoute.value == "PHONE") "📞" else "🔊", fontSize = 16.sp)
+                        }
+                        DropdownMenu(
+                            expanded = showRouteMenu,
+                            onDismissRequest = { showRouteMenu = false },
+                            modifier = Modifier.background(Color(0xFF27272A))
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("📞 Phone (Earpiece)", color = Color.White) },
+                                onClick = {
+                                    engine.setAudioRoute("PHONE")
+                                    showRouteMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("🔊 Speaker (Loudspeaker)", color = Color.White) },
+                                onClick = {
+                                    engine.setAudioRoute("SPEAKER")
+                                    showRouteMenu = false
+                                }
+                            )
+                        }
+                    }
                     Box(
                         modifier = Modifier
                             .size(36.dp)
@@ -546,6 +603,7 @@ fun AgentScreen(context: Context, bridge: Any) {
                         Text("👁️", fontSize = 16.sp)
                     }
                 }
+            }
                 
                 Button(
                     onClick = { if (engine.state.value == "OFFLINE") engine.connect() else engine.disconnect() },
