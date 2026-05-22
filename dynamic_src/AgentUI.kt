@@ -660,35 +660,38 @@ fun AgentScreen(context: Context, bridge: Any) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             nm.cancel(9001)
             try { context.sendBroadcast(android.content.Intent("com.cortex.agent.DISCONNECT")) } catch(e: Exception){}
+            com.example.myandroid.DynamicUIManager.removeFloatingBubble(context)
         }
     }
 
-    LaunchedEffect(isCollapsed) {
-        val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
-        
-        // Robustly traverse up to find the view actually attached to the WindowManager
-        var targetView: android.view.View = view
-        var params: android.view.WindowManager.LayoutParams? = targetView.layoutParams as? android.view.WindowManager.LayoutParams
-        
-        while (params == null && targetView.parent is android.view.View) {
-            targetView = targetView.parent as android.view.View
-            params = targetView.layoutParams as? android.view.WindowManager.LayoutParams
-        }
-
-        if (params != null) {
-            if (isCollapsed) {
-                params.width = 0
-                params.height = 0
-                params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                targetView.visibility = android.view.View.GONE
-            } else {
-                params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
-                params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
-                params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
-                targetView.visibility = android.view.View.VISIBLE
+            LaunchedEffect(isCollapsed) {
+            val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+            
+            // Robustly traverse up to find the view actually attached to the WindowManager
+            var targetView: android.view.View = view
+            var params: android.view.WindowManager.LayoutParams? = targetView.layoutParams as? android.view.WindowManager.LayoutParams
+            
+            while (params == null && targetView.parent is android.view.View) {
+                targetView = targetView.parent as android.view.View
+                params = targetView.layoutParams as? android.view.WindowManager.LayoutParams
             }
-            try { wm.updateViewLayout(targetView, params) } catch(e: Exception) {}
-        }
+
+            if (params != null) {
+                if (isCollapsed) {
+                    params.width = 0
+                    params.height = 0
+                    params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                    targetView.visibility = android.view.View.GONE
+                    com.example.myandroid.DynamicUIManager.showFloatingBubble(context)
+                } else {
+                    params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                    params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                    params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+                    targetView.visibility = android.view.View.VISIBLE
+                    com.example.myandroid.DynamicUIManager.removeFloatingBubble(context)
+                }
+                try { wm.updateViewLayout(targetView, params) } catch(e: Exception) {}
+            }
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         if (isCollapsed) {
