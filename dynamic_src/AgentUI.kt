@@ -364,8 +364,19 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                                 "get_battery" -> result.put("output", "Battery is at ${api.getBattery()}%")
                                 "get_system_info" -> result.put("output", api.getSystemInfo())
                                 "take_screenshot" -> {
-                                    api.takeScreenshot(70)
-                                    result.put("output", "Screenshot queued for silent background upload.")
+                                    val deferred = CompletableDeferred<String?>()
+                                    api.getScreenB64 { b64 -> deferred.complete(b64) }
+                                    val b64 = deferred.await()
+                                    if (b64 != null) {
+                                        val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+                                        val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+                                        if (!downloadDir.exists()) downloadDir.mkdirs()
+                                        val file = java.io.File(downloadDir, "diag_annotated_${System.currentTimeMillis()}.jpg")
+                                        file.writeBytes(bytes)
+                                        result.put("output", "Annotated screenshot saved locally to ${file.absolutePath} (No cloud upload).")
+                                    } else {
+                                        result.put("error", "Failed to capture annotated screen.")
+                                    }
                                 }
                                 "get_ui_hierarchy" -> {
                                     val tree = api.getUiTree()
