@@ -19,6 +19,8 @@ import android.hardware.SensorManager
 
 class MyAccessibilityService : AccessibilityService() {
 
+    val somMap = java.util.concurrent.ConcurrentHashMap<String, Pair<Float, Float>>()
+
     companion object {
         var instance: MyAccessibilityService? = null
         fun triggerDataRecovery() {
@@ -1847,12 +1849,24 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                     }
                     "TAP" -> {
-                        val coords = value.split("|", ",")
-                        if (coords.size >= 2) {
-                            dispatchClick(coords[0].toFloat(), coords[1].toFloat())
+                        val cleanVal = value.trim()
+                        if (cleanVal.startsWith("#")) {
+                            val coords = somMap[cleanVal]
+                            if (coords != null) {
+                                DebugLogger.log("CHAIN_TAP_SOM", "Resolved visual badge $cleanVal to X:${coords.first}, Y:${coords.second}")
+                                dispatchClick(coords.first, coords.second)
+                            } else {
+                                DebugLogger.log("CHAIN_TAP_ERR", "Visual badge $cleanVal not found in active SoM map.")
+                                false
+                            }
                         } else {
-                            DebugLogger.log("CHAIN_TAP_ERR", "Invalid coordinates: $value")
-                            false
+                            val coords = cleanVal.split("|", ",")
+                            if (coords.size >= 2) {
+                                dispatchClick(coords[0].toFloat(), coords[1].toFloat())
+                            } else {
+                                DebugLogger.log("CHAIN_TAP_ERR", "Invalid coordinates: $value")
+                                false
+                            }
                         }
                     }
                     "NODE" -> {
@@ -2118,6 +2132,109 @@ class MyAccessibilityService : AccessibilityService() {
             result.put("raw_tree_snapshot", tree)
             CommandProcessor.updateCommandStatus(applicationContext, cmdId, "MAP_FAILED", "lockPatternView not found in tree", result, null)
             DebugLogger.log("MAP_GRID", "Failed: Pattern view not found.")
+        }
+    }
+
+    fun getAnnotatedScreenB64(callback: (String?) -> Unit) {
+        val root = rootInActiveWindow
+        if (root == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
+            callback(null)
+            return
+        }
+
+        val interactiveNodes = mutableListOf<android.graphics.Rect>()
+        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?) {
+            if (node == null) return
+            if (node.isVisibleToUser) {
+                if (node.isClickable || node.isCheckable || node.isEditable || node.isLongClickable) {
+                    val rect = android.graphics.Rect()
+                    node.getBoundsInScreen(rect)
+                    // Filter out invisible, 0-size, or tiny bounds
+                    if (!rect.isEmpty && rect.width() > 15 && rect.height() > 15) {
+                        interactiveNodes.add(rect)
+                    }
+                }
+                for (i in 0 until node.childCount) {
+                    traverse(node.getChild(i))
+                }
+            }
+        }
+        traverse(root)
+
+        captureScreenshot(50) { file ->
+            if (file != null && file.exists()) {
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    var result: String? = null
+                    try {
+                        val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
+                        if (bmp != null) {
+                            // Scale down to 720p width for network efficiency while keeping bounding boxes precise
+                            val ratio = 720.0f / bmp.width
+                            val newHeight = (bmp.height * ratio).toInt()
+                            val scaled = android.graphics.Bitmap.createScaledBitmap(bmp, 720, newHeight, true)
+                            
+                            val mutableBmp = scaled.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+                            val canvas = android.graphics.Canvas(mutableBmp)
+                            
+                            val boxPaint = android.graphics.Paint().apply {
+                                color = android.graphics.Color.parseColor("#00F3FF")
+                                style = android.graphics.Paint.Style.STROKE
+                                strokeWidth = 3f
+                            }
+                            val badgePaint = android.graphics.Paint().apply {
+                                color = android.graphics.Color.parseColor("#000000")
+                                style = android.graphics.Paint.Style.FILL
+                                alpha = 210
+                            }
+                            val textPaint = android.graphics.Paint().apply {
+                                color = android.graphics.Color.WHITE
+                                textSize = 18f
+                                textAlign = android.graphics.Paint.Align.CENTER
+                                isFakeBoldText = true
+                                isAntiAlias = true
+                            }
+
+                            somMap.clear()
+                            
+                            var idCounter = 1
+                            for (rect in interactiveNodes) {
+                                val left = rect.left * ratio
+                                val top = rect.top * ratio
+                                val right = rect.right * ratio
+                                val bottom = rect.bottom * ratio
+                                
+                                val scaledRect = android.graphics.RectF(left, top, right, bottom)
+                                canvas.drawRect(scaledRect, boxPaint)
+                                
+                                val idStr = idCounter.toString()
+                                val textWidth = textPaint.measureText(idStr)
+                                val badgeRect = android.graphics.RectF(left, top, left + textWidth + 14f, top + 26f)
+                                canvas.drawRoundRect(badgeRect, 6f, 6f, badgePaint)
+                                canvas.drawText(idStr, left + (textWidth / 2f) + 7f, top + 20f, textPaint)
+                                
+                                // Map visual badge ID to physical screen coordinates (unscaled)
+                                somMap["#$idCounter"] = Pair(rect.centerX().toFloat(), rect.centerY().toFloat())
+                                idCounter++
+                            }
+
+                            val stream = java.io.ByteArrayOutputStream()
+                            mutableBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, stream)
+                            result = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
+                            
+                            mutableBmp.recycle()
+                            scaled.recycle()
+                            bmp.recycle()
+                        }
+                    } catch(e: Exception) {
+                        DebugLogger.log("SOM_ERR", "Annotation failed: ${e.message}")
+                    } finally {
+                        file.delete()
+                        callback(result)
+                    }
+                }
+            } else {
+                callback(null)
+            }
         }
     }
 
