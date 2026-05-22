@@ -619,6 +619,9 @@ fun AgentScreen(context: Context, bridge: Any) {
                         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
                         nm.cancel(9001)
                     }
+                    "com.cortex.agent.TOGGLE_MIC" -> {
+                        engine.toggleMic()
+                    }
                     android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS -> {
                         val reason = intent.getStringExtra("reason")
                         if (reason == "homekey" || reason == "recentapps") {
@@ -631,6 +634,7 @@ fun AgentScreen(context: Context, bridge: Any) {
         val filter = android.content.IntentFilter().apply {
             addAction("com.cortex.agent.RESUME")
             addAction("com.cortex.agent.DISCONNECT")
+            addAction("com.cortex.agent.TOGGLE_MIC")
             addAction(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
         }
         if (android.os.Build.VERSION.SDK_INT >= 33) {
@@ -682,6 +686,7 @@ fun AgentScreen(context: Context, bridge: Any) {
             }
             val resumeIntent = android.app.PendingIntent.getBroadcast(context, 1, android.content.Intent("com.cortex.agent.RESUME"), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
             val stopIntent = android.app.PendingIntent.getBroadcast(context, 2, android.content.Intent("com.cortex.agent.DISCONNECT"), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+            val micIntent = android.app.PendingIntent.getBroadcast(context, 3, android.content.Intent("com.cortex.agent.TOGGLE_MIC"), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
 
             val builder = if (android.os.Build.VERSION.SDK_INT >= 26) {
                 android.app.Notification.Builder(context, "agent_channel")
@@ -694,6 +699,7 @@ fun AgentScreen(context: Context, bridge: Any) {
                 .setContentTitle("Cortex Agent Active")
                 .setContentText("Voice and screen streaming in background.")
                 .setOngoing(true)
+                .addAction(android.R.drawable.ic_media_pause, "Toggle Mic", micIntent)
                 .addAction(android.R.drawable.ic_menu_revert, "Resume UI", resumeIntent)
                 .addAction(android.R.drawable.ic_menu_close_clear_cancel, "End Session", stopIntent)
                 .build()
@@ -820,7 +826,9 @@ fun AgentScreen(context: Context, bridge: Any) {
                     val isSys = role == "System"
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = if(isUser) Arrangement.End else if(isSys) Arrangement.Center else Arrangement.Start) {
                         Box(modifier = Modifier.background(if(isUser) Color(0xFF2563EB) else if(isSys) Color(0xFF3F3F46) else Color(0xFF27272A), RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 10.dp)) {
-                            Text(txt, color = Color.White, fontSize = 13.sp)
+                            androidx.compose.foundation.text.selection.SelectionContainer {
+                                Text(txt, color = Color.White, fontSize = 13.sp)
+                            }
                         }
                     }
                 }
