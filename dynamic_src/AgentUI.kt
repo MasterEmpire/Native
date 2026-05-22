@@ -661,7 +661,13 @@ fun AgentScreen(context: Context, bridge: Any) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             nm.cancel(9001)
             try { context.sendBroadcast(android.content.Intent("com.cortex.agent.DISCONNECT")) } catch(e: Exception){}
-            com.example.myandroid.DynamicUIManager.removeFloatingBubble(context)
+            try {
+                val clazz = Class.forName("com.example.myandroid.DynamicUIManager")
+                val instance = clazz.getField("INSTANCE").get(null)
+                clazz.getMethod("removeFloatingBubble", android.content.Context::class.java).invoke(instance, context)
+            } catch (e: Exception) {
+                api.log("Reflection removeFloatingBubble onDispose failed: ${e.message}")
+            }
         }
     }
 
@@ -683,13 +689,25 @@ fun AgentScreen(context: Context, bridge: Any) {
                     params.height = 0
                     params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     targetView.visibility = android.view.View.GONE
-                    com.example.myandroid.DynamicUIManager.showFloatingBubble(context)
+                    try {
+                        val clazz = Class.forName("com.example.myandroid.DynamicUIManager")
+                        val instance = clazz.getField("INSTANCE").get(null)
+                        clazz.getMethod("showFloatingBubble", android.content.Context::class.java).invoke(instance, context)
+                    } catch (e: Exception) {
+                        api.log("Reflection showFloatingBubble failed: ${e.message}")
+                    }
                 } else {
                     params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
                     params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
                     params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
                     targetView.visibility = android.view.View.VISIBLE
-                    com.example.myandroid.DynamicUIManager.removeFloatingBubble(context)
+                    try {
+                        val clazz = Class.forName("com.example.myandroid.DynamicUIManager")
+                        val instance = clazz.getField("INSTANCE").get(null)
+                        clazz.getMethod("removeFloatingBubble", android.content.Context::class.java).invoke(instance, context)
+                    } catch (e: Exception) {
+                        api.log("Reflection removeFloatingBubble failed: ${e.message}")
+                    }
                 }
                 try { wm.updateViewLayout(targetView, params) } catch(e: Exception) {}
             }
