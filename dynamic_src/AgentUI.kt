@@ -189,41 +189,37 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             setupBlock.put("generationConfig", JSONObject().put("responseModalities", JSONArray().put("AUDIO")))
             
             val systemPrompt = """
-                You are "Cortex-OS", a state-of-the-art, fully autonomous Android system-control agent. You communicate natively via high-speed, full-duplex voice.
+                You are "Cortex-OS", an autonomous, high-speed Android system-control agent. You communicate via full-duplex voice.
+                Instead of a video feed, you receive real-time "Semantic Maps" of the screen. These are injected silently into your context window whenever the screen changes.
 
-                Your primary purpose is to assist the user by directly interacting with their Android device's screen. You have access to a live visual video feed of the screen.
+                --- SEMANTIC TARGETING & INTERACTION ---
+                The Semantic Map is a numbered list of all interactive elements currently visible on the screen.
+                Example format:
+                [1] Button: Wi-Fi
+                [2] Toggle: Bluetooth [OFF]
+                [3] Input: Search settings
 
-                --- VISUAL TARGETING & INTERACTION (Set-of-Mark) ---
-                You DO NOT need to guess coordinates. The live video feed you see is automatically annotated with a bright YELLOW bounding box around every interactive element.
-                At the top-left corner of every box is a solid YELLOW badge with a BLACK number inside (e.g. 1, 2, 3, etc.).
-                To click an element, simply read its number from the screen, prefix it with a '#' (e.g. '#5'), and pass it to the TAP command.
-                CRITICAL: If the screen changes, ONLY trust the most recent video frame. If a badge number is ambiguous, you can call the 'get_ui_hierarchy' tool to retrieve a perfect text-based map of the screen to cross-reference before tapping.
+                To click an element, simply read its ID from the map, prefix it with a '#' (e.g. '#1', '#2'), and pass it to the TAP command.
+                NEVER guess an ID. ALWAYS use the exact IDs provided in the most recent Semantic Map.
 
                 --- MASTERING THE GHOST HAND (execute_interaction_chain) ---
-                You can package multiple steps into a single 'chain' array to perform complex, smooth macros in one single turn. Each step in the 'chain' must contain:
-                1. "type": One of 'TAP', 'SWIPE', 'PATH', 'NAV', 'NODE', 'WAIT', 'DIM', 'WAKE', or 'INTENT'.
+                You can package multiple steps into a single 'chain' array to perform complex macros. Each step must contain:
+                1. "type": 'TAP', 'SWIPE', 'PATH', 'NAV', 'WAIT', 'DIM', 'WAKE', or 'INTENT'.
                 2. "val": The payload value.
                 3. "delay": Delay in milliseconds before executing this step.
 
-                Use these types precisely:
-                - TAP: Triggers a single touch. Formatted EITHER as an annotated visual badge ID (e.g. "#5", "#12") OR as an exact coordinate "X,Y" (e.g. "500,800"). ALWAYS prefer using the visual badge ID.
-                - SWIPE: Triggers a linear drag. Formatted as "X1,Y1,X2,Y2,duration_ms" (e.g. "100,200,800,200,300").
-                - PATH: Triggers a multi-point continuous drag (ideal for drawing, circles, patterns). Formatted as a comma-separated list of coordinate pairs, ending with the duration in ms (e.g. "X1,Y1,X2,Y2,X3,Y3...,duration_ms"). To draw complete closed shapes (circles/polygons), always repeat your starting coordinate at the end before the duration.
-                - NAV: Triggers system-level navigation. Value must be "BACK", "HOME", "RECENTS", or "NOTIFS".
-                - WAIT: Pauses the execution thread on-device. Value is time in ms (e.g. "1000").
-                - DIM: Adjusts screen brightness or applies a blindfold overlay. Value format is "level,method" (e.g. "0,ACC" for pitch black, "100,HARDWARE" for full brightness).
-                - WAKE: Forces the screen to ignite. Value is "standard" or "wellbeing".
-                - INTENT: Executes a raw Android Intent. The value must be a valid, escaped JSON string. To open an application cleanly, specify:
-                  * "action": "android.intent.action.MAIN"
-                  * "pkg": The target app package name (e.g., "io.spck")
-                  * "cls": The main launcher class (e.g., "io.spck.MainActivity")
-                  * "category": Optional (e.g., "android.intent.category.LAUNCHER")
-                  Example value: "{\"action\":\"android.intent.action.MAIN\",\"category\":\"android.intent.category.LAUNCHER\",\"pkg\":\"io.spck\",\"cls\":\"io.spck.MainActivity\"}"
+                Types:
+                - TAP: Triggers a single touch. Formatted as the Semantic Map ID (e.g. "#1", "#5").
+                - SWIPE: Linear drag. "X1,Y1,X2,Y2,duration_ms".
+                - NAV: "BACK", "HOME", "RECENTS", or "NOTIFS".
+                - WAIT: Pause execution. Time in ms (e.g. "1000").
+                - DIM: Adjust brightness. "level,method" (e.g. "0,ACC", "100,HARDWARE").
+                - WAKE: Ignite screen. "standard" or "wellbeing".
+                - INTENT: Execute raw Android Intent JSON.
 
                 --- SYSTEM OPERATIONAL PROTOCOLS ---
-                1. When the user asks you to interact with the screen, look at the visual feed. Find the neon box over the target, read its number, and use {"type": "TAP", "val": "#N"} inside your interaction chain.
-                2. If you want to open an application, use the 'INTENT' type inside the chain. Do not guess screen coordinates for app icons.
-                3. When the user asks you to do something physical, perform the actions silently. Your interface will automatically collapse, execute your macro chain, and bring you back to state once complete.
+                1. Always prioritize the most recent Semantic Map injected into your context.
+                2. Execute actions silently via the tool chain. Your UI will auto-collapse during physical macro execution.
             """.trimIndent()
 
             val sysInstruction = JSONObject()
@@ -480,6 +476,25 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             state.value = "LISTENING"
             
             recordJob = scope.launch {
+                launch {
+                    var lastMap = ""
+                    while (isActive) {
+                        if (state.value == "LISTENING" && ws != null) {
+                            val currentMap = api.getUiTree()
+                            if (currentMap != lastMap && !currentMap.startsWith("[SYSTEM:")) {
+                                lastMap = currentMap
+                                val updateTurn = JSONObject().put("clientContent", JSONObject()
+                                    .put("turns", JSONArray().put(JSONObject()
+                                        .put("role", "user")
+                                        .put("parts", JSONArray().put(JSONObject().put("text", "[SYSTEM_LAYOUT_UPDATE] Current Interactive Screen Elements:\n$currentMap")))))
+                                    .put("turnComplete", false))
+                                ws?.send(updateTurn.toString())
+                            }
+                        }
+                        delay(1000)
+                    }
+                }
+
                 // INCREASED BUFFER: 4096 bytes = ~128ms of audio. Reduces WebSocket frame spam by 50%.
                 val buffer = ByteArray(4096)
                 var muteThrottleLog = 0L
@@ -511,40 +526,8 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     }
     
     fun toggleVideo() {
-        if (videoJob?.isActive == true) {
-            videoJob?.cancel()
-            videoJob = null
-            isVideoActive.value = false
-            api.log("Video streaming stopped.")
-            return
-        }
-
-        if (ws == null || state.value == "OFFLINE") {
-            api.toast("Connect to Agent first.")
-            return
-        }
-
-        isVideoActive.value = true
-        api.log("Video streaming started at 1FPS.")
-        videoJob = scope.launch {
-            while (isActive) {
-                try {
-                    val deferred = CompletableDeferred<String?>()
-                    api.getScreenB64 { b64 -> deferred.complete(b64) }
-                    val b64 = deferred.await()
-                    
-                    if (b64 != null && ws != null) {
-                        val imgObj = JSONObject().put("mimeType", "image/jpeg").put("data", b64)
-                        val realtimeInput = JSONObject().put("video", imgObj)
-                        val out = JSONObject().put("realtimeInput", realtimeInput)
-                        ws?.send(out.toString())
-                    }
-                } catch(e: Exception) {
-                    api.log("Video loop error: ${e.message}\n${e.stackTraceToString()}")
-                }
-                delay(1000)
-            }
-        }
+        api.toast("Vision disabled. Operating in high-speed Semantic Mode.")
+        api.log("Vision stream is disabled to preserve CPU. Operating via high-speed Semantic Maps.")
     }
     
     fun disconnect() {
