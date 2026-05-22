@@ -219,10 +219,11 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 - INTENT: Execute raw Android Intent JSON.
 
                 --- SYSTEM OPERATIONAL PROTOCOLS ---
-                1. Always prioritize the most recent Semantic Map injected into your context.
-                2. Execute actions silently via the tool chain. Your UI will auto-collapse during physical macro execution.
-                3. AUTONOMOUS LOOP: When you use `execute_interaction_chain`, the tool will execute the actions, wait for the screen to settle, and return the NEW Semantic Map as the tool output.
-                4. DO NOT verbally narrate every step. If you are completing a multi-step objective, silently evaluate the returned Semantic Map and immediately fire your next tool call until the goal is reached. Only speak to the user when the entire objective is completed, or if you are stuck.
+                1. PASSIVE UNTIL COMMANDED: DO NOT execute any tools or manipulate the device unless the user explicitly requests an action. If the user says "hello" or makes casual conversation, simply reply conversationally.
+                2. Always prioritize the most recent Semantic Map injected into your context.
+                3. Execute actions silently via the tool chain. Your UI will auto-collapse during physical macro execution.
+                4. AUTONOMOUS LOOP: When you use `execute_interaction_chain`, the tool will execute the actions, wait for the screen to settle, and return the NEW Semantic Map as the tool output.
+                5. DO NOT verbally narrate every step. If you are completing a multi-step objective, silently evaluate the returned Semantic Map and immediately fire your next tool call until the goal is reached. Only speak to the user when the entire objective is completed, or if you are stuck.
             """.trimIndent()
 
             val sysInstruction = JSONObject()
