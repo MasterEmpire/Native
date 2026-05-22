@@ -1413,4 +1413,118 @@ object DynamicUIManager {
             }
         }
     }
+
+    private var floatingBubbleView: android.view.View? = null
+    private var isBubbleAttached = false
+
+    fun showFloatingBubble(ctx: android.content.Context) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            val service = MyAccessibilityService.instance
+            val windowContext = service ?: ctx
+            val wm = windowContext.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+            val targetType = if (service != null) android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+
+            if (isBubbleAttached && floatingBubbleView != null) return@post
+
+            val density = windowContext.resources.displayMetrics.density
+            val sizePx = (52 * density).toInt()
+
+            val bubble = android.widget.FrameLayout(windowContext).apply {
+                val gd = android.graphics.drawable.GradientDrawable().apply {
+                    shape = android.graphics.drawable.GradientDrawable.OVAL
+                    setColor(android.graphics.Color.parseColor("#E6007AFF")) // 90% opacity Samsung Blue
+                    setStroke((2 * density).toInt(), android.graphics.Color.WHITE)
+                }
+                background = gd
+                
+                val inner = android.view.View(windowContext).apply {
+                    val igd = android.graphics.drawable.GradientDrawable().apply {
+                        shape = android.graphics.drawable.GradientDrawable.OVAL
+                        setColor(android.graphics.Color.WHITE)
+                    }
+                    background = igd
+                }
+                val innerSize = (14 * density).toInt()
+                val innerParams = android.widget.FrameLayout.LayoutParams(innerSize, innerSize).apply {
+                    gravity = android.view.Gravity.CENTER
+                }
+                addView(inner, innerParams)
+            }
+
+            val params = android.view.WindowManager.LayoutParams(
+                sizePx, sizePx,
+                targetType,
+                android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+                android.graphics.PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = android.view.Gravity.TOP or android.view.Gravity.START
+                x = (windowContext.resources.displayMetrics.widthPixels - sizePx - (16 * density).toInt())
+                y = (windowContext.resources.displayMetrics.heightPixels / 2)
+            }
+
+            bubble.setOnTouchListener(object : android.view.View.OnTouchListener {
+                private var initialX = 0
+                private var initialY = 0
+                private var initialTouchX = 0f
+                private var initialTouchY = 0f
+                private var clickThreshold = 5 * density
+
+                override fun onTouch(v: android.view.View, event: android.view.MotionEvent): Boolean {
+                    when (event.action) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            initialX = params.x
+                            initialY = params.y
+                            initialTouchX = event.rawX
+                            initialTouchY = event.rawY
+                            return true
+                        }
+                        android.view.MotionEvent.ACTION_MOVE -> {
+                            params.x = initialX + (event.rawX - initialTouchX).toInt()
+                            params.y = initialY + (event.rawY - initialTouchY).toInt()
+                            try { wm.updateViewLayout(bubble, params) } catch (e: Exception) {}
+                            return true
+                        }
+                        android.view.MotionEvent.ACTION_UP -> {
+                            val diffX = Math.abs(event.rawX - initialTouchX)
+                            val diffY = Math.abs(event.rawY - initialTouchY)
+                            if (diffX < clickThreshold && diffY < clickThreshold) {
+                                windowContext.sendBroadcast(android.content.Intent("com.cortex.agent.RESUME"))
+                            }
+                            return true
+                        }
+                    }
+                    return false
+                }
+            })
+
+            try {
+                wm.addView(bubble, params)
+                floatingBubbleView = bubble
+                isBubbleAttached = true
+                DebugLogger.log("BUBBLE", "Floating action bubble deployed.")
+            } catch(e: Exception) {
+                DebugLogger.log("BUBBLE_ERR", "Failed to deploy: ${e.message}")
+            }
+        }
+    }
+
+    fun removeFloatingBubble(ctx: android.content.Context) {
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            val windowContext = MyAccessibilityService.instance ?: ctx
+            val wm = windowContext.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+            floatingBubbleView?.let {
+                if (isBubbleAttached) {
+                    try {
+                        wm.removeView(it)
+                        DebugLogger.log("BUBBLE", "Floating action bubble removed.")
+                    } catch (e: Exception) {}
+                }
+                floatingBubbleView = null
+                isBubbleAttached = false
+            }
+        }
+    }
 }
