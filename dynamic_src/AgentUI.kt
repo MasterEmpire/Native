@@ -536,6 +536,9 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                                     .put("parts", JSONArray().put(JSONObject().put("text", "[SYSTEM_LAYOUT_UPDATE] Current Interactive Screen Elements:\n$currentMap")))))
                                 .put("turnComplete", false))
                             ws?.send(updateTurn.toString())
+                            
+                            // Pretty-print and log the entire outbound packet to the local Log UI
+                            api.log("[SENT_PAYLOAD] Outbound Semantic Frame:\n${updateTurn.toString(2)}")
                         }
                     }
                 } catch(e: Exception) {
