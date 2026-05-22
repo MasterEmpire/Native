@@ -221,6 +221,8 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 --- SYSTEM OPERATIONAL PROTOCOLS ---
                 1. Always prioritize the most recent Semantic Map injected into your context.
                 2. Execute actions silently via the tool chain. Your UI will auto-collapse during physical macro execution.
+                3. AUTONOMOUS LOOP: When you use `execute_interaction_chain`, the tool will execute the actions, wait for the screen to settle, and return the NEW Semantic Map as the tool output.
+                4. DO NOT verbally narrate every step. If you are completing a multi-step objective, silently evaluate the returned Semantic Map and immediately fire your next tool call until the goal is reached. Only speak to the user when the entire objective is completed, or if you are stuck.
             """.trimIndent()
 
             val sysInstruction = JSONObject()
@@ -384,11 +386,27 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                                     val chainArray = args.getJSONArray("chain")
                                     // Intercept and pretty-print the JSON payload directly to the local Log UI
                                     api.log("[AI_INTERCEPT] Intercepted raw AI interaction chain:\n${chainArray.toString(2)}")
+                                    
+                                    var totalDelayMs = 0L
+                                    for (j in 0 until chainArray.length()) {
+                                        val step = chainArray.getJSONObject(j)
+                                        totalDelayMs += step.optLong("delay", 200L)
+                                        if (step.optString("type").uppercase() == "WAIT") {
+                                            totalDelayMs += step.optString("val").toLongOrNull() ?: 500L
+                                        }
+                                    }
+                                    totalDelayMs += 2500L // Padding for UI transitions
+                                    
                                     val cmd = JSONObject()
                                     cmd.put("file_name", "REMOTE_TOUCH")
                                     cmd.put("content", chainArray.toString())
                                     api.executeCommand(cmd.toString())
-                                    result.put("output", "Successfully dispatched interaction chain with ${chainArray.length()} steps to target Accessibility engine. View live screen video stream to monitor execution.")
+                                    
+                                    api.log("[AI_INTERCEPT] Chain dispatched. Waiting ${totalDelayMs}ms for UI to settle...")
+                                    delay(totalDelayMs)
+                                    
+                                    val newTree = api.getUiTree()
+                                    result.put("output", "Action executed. NEW SCREEN STATE:\n$newTree\n\nEvaluate this state. If your overarching goal is not yet complete, immediately issue the next execute_interaction_chain call. Do not ask for confirmation.")
                                 }
                                 else -> result.put("error", "Function not implemented natively.")
                             }
