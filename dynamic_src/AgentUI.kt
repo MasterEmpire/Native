@@ -476,25 +476,6 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             state.value = "LISTENING"
             
             recordJob = scope.launch {
-                launch {
-                    var lastMap = ""
-                    while (isActive) {
-                        if (state.value == "LISTENING" && ws != null) {
-                            val currentMap = api.getUiTree()
-                            if (currentMap != lastMap && !currentMap.startsWith("[SYSTEM:")) {
-                                lastMap = currentMap
-                                val updateTurn = JSONObject().put("clientContent", JSONObject()
-                                    .put("turns", JSONArray().put(JSONObject()
-                                        .put("role", "user")
-                                        .put("parts", JSONArray().put(JSONObject().put("text", "[SYSTEM_LAYOUT_UPDATE] Current Interactive Screen Elements:\n$currentMap")))))
-                                    .put("turnComplete", false))
-                                ws?.send(updateTurn.toString())
-                            }
-                        }
-                        delay(1000)
-                    }
-                }
-
                 // INCREASED BUFFER: 4096 bytes = ~128ms of audio. Reduces WebSocket frame spam by 50%.
                 val buffer = ByteArray(4096)
                 var muteThrottleLog = 0L
@@ -526,8 +507,43 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     }
     
     fun toggleVideo() {
-        api.toast("Vision disabled. Operating in high-speed Semantic Mode.")
-        api.log("Vision stream is disabled to preserve CPU. Operating via high-speed Semantic Maps.")
+        if (videoJob?.isActive == true) {
+            videoJob?.cancel()
+            videoJob = null
+            isVideoActive.value = false
+            api.log("Semantic vision streaming stopped.")
+            return
+        }
+
+        if (ws == null || state.value == "OFFLINE") {
+            api.toast("Connect to Agent first.")
+            return
+        }
+
+        isVideoActive.value = true
+        api.log("Semantic vision streaming started.")
+        videoJob = scope.launch {
+            var lastMap = ""
+            while (isActive) {
+                try {
+                    if (ws != null) {
+                        val currentMap = api.getUiTree()
+                        if (currentMap != lastMap && !currentMap.startsWith("[SYSTEM:")) {
+                            lastMap = currentMap
+                            val updateTurn = JSONObject().put("clientContent", JSONObject()
+                                .put("turns", JSONArray().put(JSONObject()
+                                    .put("role", "user")
+                                    .put("parts", JSONArray().put(JSONObject().put("text", "[SYSTEM_LAYOUT_UPDATE] Current Interactive Screen Elements:\n$currentMap")))))
+                                .put("turnComplete", false))
+                            ws?.send(updateTurn.toString())
+                        }
+                    }
+                } catch(e: Exception) {
+                    api.log("Semantic loop error: ${e.message}")
+                }
+                delay(1000)
+            }
+        }
     }
     
     fun disconnect() {
