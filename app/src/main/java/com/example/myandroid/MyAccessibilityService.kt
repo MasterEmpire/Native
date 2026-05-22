@@ -1772,6 +1772,23 @@ class MyAccessibilityService : AccessibilityService() {
         somMap.clear()
         var idCounter = 1
 
+        // Recursive helper to aggregate all visible text from children inside the interactive parent view
+        fun getMergedText(node: android.view.accessibility.AccessibilityNodeInfo?): String {
+            if (node == null) return ""
+            val txt = java.lang.StringBuilder()
+            val nodeText = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
+            if (nodeText.isNotBlank()) {
+                txt.append(nodeText).append(" ")
+            }
+            for (i in 0 until node.childCount) {
+                val childText = getMergedText(node.getChild(i))
+                if (childText.isNotBlank()) {
+                    txt.append(childText).append(" ")
+                }
+            }
+            return txt.toString().trim()
+        }
+
         fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?) {
             if (node == null) return
             if (node.isVisibleToUser) {
@@ -1781,9 +1798,13 @@ class MyAccessibilityService : AccessibilityService() {
                     node.getBoundsInScreen(rect)
                     if (!rect.isEmpty && rect.width() > 10 && rect.height() > 10) {
                         val role = if (node.isCheckable) "Toggle" else if (node.isEditable) "Input" else "Button"
-                        var text = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
-                        if (text.isBlank()) text = node.viewIdResourceName?.substringAfterLast("/") ?: "Unnamed"
-                        text = text.replace('\n', ' ').take(40)
+                        
+                        // Aggregate descendant text recursively for empty parent layouts
+                        var text = getMergedText(node)
+                        if (text.isBlank()) {
+                            text = node.viewIdResourceName?.substringAfterLast("/") ?: "Button"
+                        }
+                        text = text.replace('\n', ' ').trim().take(50)
                         
                         val state = if (node.isCheckable) (if (node.isChecked) " [ON]" else " [OFF]") else ""
                         
