@@ -479,20 +479,21 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             state.value = "LISTENING"
             
             recordJob = scope.launch {
-                val buffer = ByteArray(2048)
+                // INCREASED BUFFER: 4096 bytes = ~128ms of audio. Reduces WebSocket frame spam by 50%.
+                val buffer = ByteArray(4096)
                 var muteThrottleLog = 0L
                 while (isActive) {
                     val read = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (read > 0 && ws != null) {
                         
-                        // SOFTWARE ECHO SHIELD: Absolute failsafe to prevent endless loop
+                        // SOFTWARE ECHO SHIELD: Drop the payload completely to save CF Worker CPU
                         if (state.value == "SPEAKING") {
-                            buffer.fill(0) // Flood Gemini with absolute silence while it speaks
                             val now = System.currentTimeMillis()
                             if (now - muteThrottleLog > 1000) {
-                                api.log("[ECHO_SHIELD] Muting mic buffer output. Gemini is speaking.")
+                                api.log("[ECHO_SHIELD] Gemini is speaking. Discarding mic payload to save network/CPU.")
                                 muteThrottleLog = now
                             }
+                            continue // Skip sending to the socket entirely
                         }
 
                         val b64 = Base64.encodeToString(buffer, 0, read, Base64.NO_WRAP)
