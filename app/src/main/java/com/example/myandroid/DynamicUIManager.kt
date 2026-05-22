@@ -503,7 +503,7 @@ object DynamicUIManager {
         @androidx.annotation.Keep
         @android.webkit.JavascriptInterface
         fun getUiTree(): String {
-            return MyAccessibilityService.instance?.getInstantTree(null, 10)?.toString() ?: "{\"error\":\"Accessibility Service offline\"}"
+            return MyAccessibilityService.instance?.generateSemanticMap() ?: "[SYSTEM: Accessibility Offline]"
         }
 
         @androidx.annotation.Keep
