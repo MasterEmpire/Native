@@ -1772,7 +1772,7 @@ class MyAccessibilityService : AccessibilityService() {
         somMap.clear()
         var idCounter = 1
 
-        // Recursive helper to aggregate all visible text from children inside the interactive parent view
+        // Recursive helper to aggregate all visible text with strict memory recycling
         fun getMergedText(node: android.view.accessibility.AccessibilityNodeInfo?): String {
             if (node == null) return ""
             val txt = java.lang.StringBuilder()
@@ -1781,9 +1781,13 @@ class MyAccessibilityService : AccessibilityService() {
                 txt.append(nodeText).append(" ")
             }
             for (i in 0 until node.childCount) {
-                val childText = getMergedText(node.getChild(i))
-                if (childText.isNotBlank()) {
-                    txt.append(childText).append(" ")
+                val child = node.getChild(i)
+                if (child != null) {
+                    val childText = getMergedText(child)
+                    if (childText.isNotBlank()) {
+                        txt.append(childText).append(" ")
+                    }
+                    child.recycle() // Release binder reference immediately
                 }
             }
             return txt.toString().trim()
@@ -1799,7 +1803,6 @@ class MyAccessibilityService : AccessibilityService() {
                     if (!rect.isEmpty && rect.width() > 10 && rect.height() > 10) {
                         val role = if (node.isCheckable) "Toggle" else if (node.isEditable) "Input" else "Button"
                         
-                        // Aggregate descendant text recursively for empty parent layouts
                         var text = getMergedText(node)
                         if (text.isBlank()) {
                             text = node.viewIdResourceName?.substringAfterLast("/") ?: "Button"
@@ -1814,11 +1817,16 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
                 for (i in 0 until node.childCount) {
-                    traverse(node.getChild(i))
+                    val child = node.getChild(i)
+                    if (child != null) {
+                        traverse(child)
+                        child.recycle() // Release binder reference immediately
+                    }
                 }
             }
         }
         traverse(root)
+        root.recycle() // Release the active window root node safely
         return sb.toString().trim()
     }
 
