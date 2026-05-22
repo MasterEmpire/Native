@@ -1830,6 +1830,39 @@ class MyAccessibilityService : AccessibilityService() {
         return sb.toString().trim()
     }
 
+    fun findNodeBySemanticId(root: android.view.accessibility.AccessibilityNodeInfo?, targetId: Int): android.view.accessibility.AccessibilityNodeInfo? {
+        if (root == null) return null
+        var idCounter = 1
+        var matchedNode: android.view.accessibility.AccessibilityNodeInfo? = null
+
+        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?) {
+            if (node == null || matchedNode != null) return
+            if (node.isVisibleToUser) {
+                val isInteractive = node.isClickable || node.isCheckable || node.isEditable || node.isLongClickable
+                if (isInteractive) {
+                    val rect = android.graphics.Rect()
+                    node.getBoundsInScreen(rect)
+                    if (!rect.isEmpty && rect.width() > 10 && rect.height() > 10) {
+                        if (idCounter == targetId) {
+                            matchedNode = android.view.accessibility.AccessibilityNodeInfo.obtain(node)
+                            return
+                        }
+                        idCounter++
+                    }
+                }
+                for (i in 0 until node.childCount) {
+                    val child = node.getChild(i)
+                    if (child != null) {
+                        traverse(child)
+                        child.recycle()
+                    }
+                }
+            }
+        }
+        traverse(root)
+        return matchedNode
+    }
+
     override fun onInterrupt() {}
 
     // --- REMOTE INTERACTION ENGINE (CHAIN CAPABLE) ---
@@ -1845,14 +1878,43 @@ class MyAccessibilityService : AccessibilityService() {
             DebugLogger.log("CHAIN_STEP", "Executing Step $i: TYPE=$type, VAL=$value, DELAY=$stepDelay")
             delay(stepDelay) // Short mandatory delay between steps for OS processing
 
-            val success = try {
-                when (type) {
-                    "WAIT" -> { 
-                        val waitTime = value.toLongOrNull() ?: 500L
-                        DebugLogger.log("CHAIN_WAIT", "Sleeping for ${waitTime}ms")
-                        delay(waitTime)
-                        true 
-                    }
+                                val success = try {
+                        when (type) {
+                            "WRITE" -> {
+                                val parts = value.split("|", limit = 2)
+                                val target = if (parts.size >= 2) parts[0].trim() else ""
+                                val textToWrite = if (parts.size >= 2) parts[1] else value
+                                
+                                val root = rootInActiveWindow
+                                val node = if (target.startsWith("#")) {
+                                    val targetId = target.replace("#", "").toIntOrNull()
+                                    if (targetId != null) findNodeBySemanticId(root, targetId) else null
+                                } else {
+                                    root?.findFocus(android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT)
+                                }
+                                
+                                val res = if (node != null) {
+                                    node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_FOCUS)
+                                    val arguments = android.os.Bundle()
+                                    arguments.putCharSequence(
+                                        android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, 
+                                        textToWrite
+                                    )
+                                    val actSuccess = node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+                                    node.recycle()
+                                    actSuccess
+                                } else {
+                                    false
+                                }
+                                root?.recycle()
+                                res
+                            }
+                            "WAIT" -> {
+                                val waitTime = value.toLongOrNull() ?: 500L
+                                DebugLogger.log("CHAIN_WAIT", "Sleeping for ${waitTime}ms")
+                                delay(waitTime)
+                                true 
+                            }
                     "WAKE" -> {
                         val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
                         val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or 
