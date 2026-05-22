@@ -1902,7 +1902,8 @@ class MyAccessibilityService : AccessibilityService() {
                                 points.add(Pair(p[j].toFloat(), p[j+1].toFloat()))
                             }
                             val duration = if (hasDuration) p.last().toLongOrNull() ?: 1000L else 1000L
-                            dispatchGesturePath(points, duration)
+                            // Clamp duration to at least 100ms to prevent Android Gesture API crash
+                            dispatchGesturePath(points, duration.coerceAtLeast(100L))
                         } else {
                             DebugLogger.log("CHAIN_PATH_ERR", "Invalid path coords. Need pairs of X,Y: $value")
                             false
