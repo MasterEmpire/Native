@@ -514,33 +514,8 @@ object DynamicUIManager {
                 callback(null)
                 return
             }
-            svc.captureScreenshot(30) { file ->
-                if (file != null && file.exists()) {
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        var result: String? = null
-                        try {
-                            val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
-                            if (bmp != null) {
-                                val ratio = 480.0f / bmp.width
-                                val newHeight = (bmp.height * ratio).toInt()
-                                val scaled = android.graphics.Bitmap.createScaledBitmap(bmp, 480, newHeight, true)
-                                val stream = java.io.ByteArrayOutputStream()
-                                scaled.compress(android.graphics.Bitmap.CompressFormat.JPEG, 50, stream)
-                                result = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
-                                scaled.recycle()
-                                bmp.recycle()
-                            }
-                        } catch(e: Exception) {
-                            // Ignore failure and let finally block return null
-                        } finally {
-                            file.delete()
-                            callback(result)
-                        }
-                    }
-                } else {
-                    callback(null)
-                }
-            }
+            // Trigger the Set-of-Mark (SoM) Annotated Screen Capture
+            svc.getAnnotatedScreenB64(callback)
         }
         
         @JavascriptInterface
