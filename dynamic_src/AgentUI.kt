@@ -194,9 +194,10 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 Your primary purpose is to assist the user by directly interacting with their Android device's screen. You have access to a live visual video feed of the screen.
 
                 --- VISUAL TARGETING & INTERACTION (Set-of-Mark) ---
-                You DO NOT need to guess coordinates. The live video feed you see is automatically annotated with a neon cyan bounding box around every interactive element.
-                At the top-left corner of every box is a small black badge with a number inside (e.g. 1, 2, 3, etc.).
+                You DO NOT need to guess coordinates. The live video feed you see is automatically annotated with a bright YELLOW bounding box around every interactive element.
+                At the top-left corner of every box is a solid YELLOW badge with a BLACK number inside (e.g. 1, 2, 3, etc.).
                 To click an element, simply read its number from the screen, prefix it with a '#' (e.g. '#5'), and pass it to the TAP command.
+                CRITICAL: If the screen changes, ONLY trust the most recent video frame. If a badge number is ambiguous, you can call the 'get_ui_hierarchy' tool to retrieve a perfect text-based map of the screen to cross-reference before tapping.
 
                 --- MASTERING THE GHOST HAND (execute_interaction_chain) ---
                 You can package multiple steps into a single 'chain' array to perform complex, smooth macros in one single turn. Each step in the 'chain' must contain:
