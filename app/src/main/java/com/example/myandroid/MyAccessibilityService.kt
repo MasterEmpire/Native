@@ -2170,26 +2170,26 @@ class MyAccessibilityService : AccessibilityService() {
                         val bmp = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
                         if (bmp != null) {
                             // Scale down to 720p width for network efficiency while keeping bounding boxes precise
-                            val ratio = 720.0f / bmp.width
+                            val ratio = 1024.0f / bmp.width
                             val newHeight = (bmp.height * ratio).toInt()
-                            val scaled = android.graphics.Bitmap.createScaledBitmap(bmp, 720, newHeight, true)
+                            val scaled = android.graphics.Bitmap.createScaledBitmap(bmp, 1024, newHeight, true)
                             
                             val mutableBmp = scaled.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
                             val canvas = android.graphics.Canvas(mutableBmp)
                             
                             val boxPaint = android.graphics.Paint().apply {
-                                color = android.graphics.Color.parseColor("#00F3FF")
+                                color = android.graphics.Color.YELLOW
                                 style = android.graphics.Paint.Style.STROKE
-                                strokeWidth = 3f
+                                strokeWidth = 5f
                             }
                             val badgePaint = android.graphics.Paint().apply {
-                                color = android.graphics.Color.parseColor("#000000")
+                                color = android.graphics.Color.YELLOW
                                 style = android.graphics.Paint.Style.FILL
-                                alpha = 210
+                                alpha = 255
                             }
                             val textPaint = android.graphics.Paint().apply {
-                                color = android.graphics.Color.WHITE
-                                textSize = 18f
+                                color = android.graphics.Color.BLACK
+                                textSize = 44f
                                 textAlign = android.graphics.Paint.Align.CENTER
                                 isFakeBoldText = true
                                 isAntiAlias = true
@@ -2209,9 +2209,9 @@ class MyAccessibilityService : AccessibilityService() {
                                 
                                 val idStr = idCounter.toString()
                                 val textWidth = textPaint.measureText(idStr)
-                                val badgeRect = android.graphics.RectF(left, top, left + textWidth + 14f, top + 26f)
-                                canvas.drawRoundRect(badgeRect, 6f, 6f, badgePaint)
-                                canvas.drawText(idStr, left + (textWidth / 2f) + 7f, top + 20f, textPaint)
+                                val badgeRect = android.graphics.RectF(left, top, left + textWidth + 24f, top + 56f)
+                                canvas.drawRoundRect(badgeRect, 8f, 8f, badgePaint)
+                                canvas.drawText(idStr, left + (textWidth / 2f) + 12f, top + 44f, textPaint)
                                 
                                 // Map visual badge ID to physical screen coordinates (unscaled)
                                 somMap["#$idCounter"] = Pair(rect.centerX().toFloat(), rect.centerY().toFloat())
@@ -2219,7 +2219,7 @@ class MyAccessibilityService : AccessibilityService() {
                             }
 
                             val stream = java.io.ByteArrayOutputStream()
-                            mutableBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 60, stream)
+                            mutableBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, stream)
                             result = android.util.Base64.encodeToString(stream.toByteArray(), android.util.Base64.NO_WRAP)
                             
                             mutableBmp.recycle()
