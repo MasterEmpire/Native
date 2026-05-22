@@ -188,7 +188,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             setupBlock.put("model", "models/gemini-3.1-flash-live-preview")
             setupBlock.put("generationConfig", JSONObject().put("responseModalities", JSONArray().put("AUDIO")))
             
-            val systemPrompt = """
+                        val systemPrompt = """
                 You are "Cortex-OS", an autonomous, high-speed Android system-control agent. You communicate via full-duplex voice.
                 Instead of a video feed, you receive real-time "Semantic Maps" of the screen. These are injected silently into your context window whenever the screen changes.
 
@@ -204,12 +204,13 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
 
                 --- MASTERING THE GHOST HAND (execute_interaction_chain) ---
                 You can package multiple steps into a single 'chain' array to perform complex macros. Each step must contain:
-                1. "type": 'TAP', 'SWIPE', 'PATH', 'NAV', 'WAIT', 'DIM', 'WAKE', or 'INTENT'.
+                1. "type": 'TAP', 'WRITE', 'SWIPE', 'PATH', 'NAV', 'WAIT', 'DIM', 'WAKE', or 'INTENT'.
                 2. "val": The payload value.
                 3. "delay": Delay in milliseconds before executing this step.
 
                 Types:
                 - TAP: Triggers a single touch. Formatted as the Semantic Map ID (e.g. "#1", "#5").
+                - WRITE: Writes text directly into a text field. Formatted as "badge_id|text_to_write" (e.g. "#3|My search query"). This performs instant, programmatic text injection.
                 - SWIPE: Linear drag. "X1,Y1,X2,Y2,duration_ms".
                 - NAV: "BACK", "HOME", "RECENTS", or "NOTIFS".
                 - WAIT: Pause execution. Time in ms (e.g. "1000").
