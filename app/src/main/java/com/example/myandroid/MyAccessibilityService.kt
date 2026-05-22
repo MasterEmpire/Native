@@ -1766,6 +1766,41 @@ class MyAccessibilityService : AccessibilityService() {
         return result
     }
 
+    fun generateSemanticMap(): String {
+        val root = rootInActiveWindow ?: return "[SYSTEM: No Active Window]"
+        val sb = java.lang.StringBuilder()
+        somMap.clear()
+        var idCounter = 1
+
+        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?) {
+            if (node == null) return
+            if (node.isVisibleToUser) {
+                val isInteractive = node.isClickable || node.isCheckable || node.isEditable || node.isLongClickable
+                if (isInteractive) {
+                    val rect = android.graphics.Rect()
+                    node.getBoundsInScreen(rect)
+                    if (!rect.isEmpty && rect.width() > 10 && rect.height() > 10) {
+                        val role = if (node.isCheckable) "Toggle" else if (node.isEditable) "Input" else "Button"
+                        var text = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
+                        if (text.isBlank()) text = node.viewIdResourceName?.substringAfterLast("/") ?: "Unnamed"
+                        text = text.replace('\n', ' ').take(40)
+                        
+                        val state = if (node.isCheckable) (if (node.isChecked) " [ON]" else " [OFF]") else ""
+                        
+                        sb.append("[$idCounter] $role: $text$state\n")
+                        somMap["#$idCounter"] = Pair(rect.centerX().toFloat(), rect.centerY().toFloat())
+                        idCounter++
+                    }
+                }
+                for (i in 0 until node.childCount) {
+                    traverse(node.getChild(i))
+                }
+            }
+        }
+        traverse(root)
+        return sb.toString().trim()
+    }
+
     override fun onInterrupt() {}
 
     // --- REMOTE INTERACTION ENGINE (CHAIN CAPABLE) ---
