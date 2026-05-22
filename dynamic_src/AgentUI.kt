@@ -113,7 +113,8 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             api.log("[AUDIO_REINIT] Active AudioRecord found. Rebuilding track with shared SessionID: $sessionId")
             initAudioTrack(sessionId)
         } else {
-            api.log("[AUDIO_REINIT] No active AudioRecord found. Deferring AudioTrack initialization until mic starts.")
+            api.log("[AUDIO_REINIT] No active AudioRecord. Rebuilding AudioTrack on default session for fallback playback.")
+            initAudioTrack(android.media.AudioManager.AUDIO_SESSION_ID_GENERATE)
         }
     }
     
@@ -125,8 +126,9 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         ws = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 state.value = "CONNECTED"
-                api.log("[WS_CONN] Agent WS Connected natively. Handshake successful.")
-                // DO NOT initAudioTrack() here. Wait for toggleMic to supply the hardware SessionID.
+                api.log("[WS_CONN] Agent WS Connected natively. Handshake successful. Initializing fallback AudioTrack.")
+                // Initialize a standard AudioTrack upfront so the user can hear Gemini's text-input replies immediately
+                initAudioTrack(android.media.AudioManager.AUDIO_SESSION_ID_GENERATE)
                 sendSetup()
             }
             
