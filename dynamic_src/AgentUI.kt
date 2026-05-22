@@ -624,32 +624,32 @@ fun AgentScreen(context: Context, bridge: Any) {
         }
     }
 
-            LaunchedEffect(isCollapsed) {
-            val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
-            
-            // Robustly traverse up to find the view actually attached to the WindowManager
-            var targetView: android.view.View = view
-            var params: android.view.WindowManager.LayoutParams? = targetView.layoutParams as? android.view.WindowManager.LayoutParams
-            
-            while (params == null && targetView.parent is android.view.View) {
-                targetView = targetView.parent as android.view.View
-                params = targetView.layoutParams as? android.view.WindowManager.LayoutParams
-            }
+    LaunchedEffect(isCollapsed) {
+        val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+        
+        // Robustly traverse up to find the view actually attached to the WindowManager
+        var targetView: android.view.View = view
+        var params: android.view.WindowManager.LayoutParams? = targetView.layoutParams as? android.view.WindowManager.LayoutParams
+        
+        while (params == null && targetView.parent is android.view.View) {
+            targetView = targetView.parent as android.view.View
+            params = targetView.layoutParams as? android.view.WindowManager.LayoutParams
+        }
 
-            if (params != null) {
-                if (isCollapsed) {
-                    params.width = 0
-                    params.height = 0
-                    params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                    targetView.visibility = android.view.View.GONE
-                } else {
-                    params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
-                    params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
-                    params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
-                    targetView.visibility = android.view.View.VISIBLE
-                }
-                try { wm.updateViewLayout(targetView, params) } catch(e: Exception) {}
+        if (params != null) {
+            if (isCollapsed) {
+                params.width = 0
+                params.height = 0
+                params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                targetView.visibility = android.view.View.GONE
+            } else {
+                params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
+                params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+                targetView.visibility = android.view.View.VISIBLE
             }
+            try { wm.updateViewLayout(targetView, params) } catch(e: Exception) {}
+        }
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         if (isCollapsed) {
