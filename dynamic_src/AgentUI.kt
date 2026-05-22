@@ -328,6 +328,8 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                                 }
                                 "execute_interaction_chain" -> {
                                     val chainArray = args.getJSONArray("chain")
+                                    // Intercept and pretty-print the JSON payload directly to the local Log UI
+                                    api.log("[AI_INTERCEPT] Intercepted raw AI interaction chain:\n${chainArray.toString(2)}")
                                     val cmd = JSONObject()
                                     cmd.put("file_name", "REMOTE_TOUCH")
                                     cmd.put("content", chainArray.toString())
