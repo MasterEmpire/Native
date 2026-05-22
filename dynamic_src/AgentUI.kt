@@ -606,6 +606,17 @@ fun AgentScreen(context: Context, bridge: Any) {
     val engine = remember { AgentEngine(context, api) { isCollapsed = true } }
     
     val view = LocalView.current
+
+    LaunchedEffect(Unit) {
+        try {
+            val intent = android.content.Intent(context, AgentActivity::class.java).apply {
+                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            api.log("Failed to launch AgentActivity task manager proxy: ${e.message}")
+        }
+    }
     
     DisposableEffect(Unit) {
         val receiver = object : android.content.BroadcastReceiver() {
@@ -648,6 +659,7 @@ fun AgentScreen(context: Context, bridge: Any) {
             context.unregisterReceiver(receiver)
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             nm.cancel(9001)
+            try { context.sendBroadcast(android.content.Intent("com.cortex.agent.DISCONNECT")) } catch(e: Exception){}
         }
     }
 
