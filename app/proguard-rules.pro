@@ -16,6 +16,8 @@
 
 # Cortex Dynamic Payload Contract
 -keep class com.example.myandroid.dynamic.DynamicEntry { *; }
+-keep class com.example.myandroid.DynamicUIManager { *; }
+-keep class com.example.myandroid.AgentActivity { *; }
 
 # Networking (Required for dynamic WebSockets via Speedster payloads)
 -keep class okhttp3.** { *; }
