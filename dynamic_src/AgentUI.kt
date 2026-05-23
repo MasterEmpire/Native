@@ -574,12 +574,12 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         }
     }
     
-    fun toggleVideo() {
+        fun toggleVideo() {
         if (videoJob?.isActive == true) {
             videoJob?.cancel()
             videoJob = null
             isVideoActive.value = false
-            api.log("Semantic vision streaming stopped.")
+            api.log("Vision streaming stopped.")
             return
         }
 
@@ -589,31 +589,33 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         }
 
         isVideoActive.value = true
-        api.log("Semantic vision streaming started.")
+        api.log("Vision streaming started.")
         videoJob = scope.launch {
-            var lastMap = ""
             while (isActive) {
                 try {
                     if (ws != null) {
-                        val currentMap = api.getUiTree()
-                        if (currentMap != lastMap && !currentMap.startsWith("[SYSTEM:")) {
-                            lastMap = currentMap
-                            val updateTurn = JSONObject().put("clientContent", JSONObject()
-                                .put("turns", JSONArray().put(JSONObject()
-                                    .put("role", "user")
-                                    .put("parts", JSONArray().put(JSONObject().put("text", "[SYSTEM_LAYOUT_UPDATE] Current Interactive Screen Elements:\n$currentMap")))))
-                                .put("turnComplete", false))
-                            ws?.send(updateTurn.toString())
-                            
-                            // Pretty-print and log the entire outbound packet to the local Log UI
-                            api.log("[SENT_PAYLOAD] Outbound Semantic Frame:\n${updateTurn.toString(2)}")
+                        val deferredScreenshot = CompletableDeferred<String?>()
+                        api.getScreenB64 { b64 ->
+                            deferredScreenshot.complete(b64)
+                        }
+                        val b64Screenshot = deferredScreenshot.await()
+                        
+                        if (b64Screenshot != null && ws != null) {
+                            val videoObj = JSONObject().apply {
+                                put("mimeType", "image/jpeg")
+                                put("data", b64Screenshot)
+                             }
+                             val realtimeInput = JSONObject().put("video", videoObj)
+                             val outerMessage = JSONObject().put("realtimeInput", realtimeInput)
+                             ws?.send(outerMessage.toString())
+                             api.log("[VISION_STREAM] Sent real-time screenshot frame.")
                         }
                     }
                 } catch(e: Exception) {
-                    api.log("Semantic loop error: ${e.message}")
+                    api.log("Vision stream error: ${e.message}")
                 }
-                delay(1000)
-            }
+                delay(2000) // Stream at a highly efficient 0.5 FPS (every 2 seconds)
+            } 
         }
     }
     
