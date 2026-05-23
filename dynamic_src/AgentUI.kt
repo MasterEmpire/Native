@@ -216,7 +216,12 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 - WAIT: Pause execution. Time in ms (e.g. "1000").
                 - DIM: Adjust brightness. "level,method" (e.g. "0,ACC", "100,HARDWARE").
                 - WAKE: Ignite screen. "standard" or "wellbeing".
-                - INTENT: Execute raw Android Intent JSON. To launch/open any application (e.g. telebirr, WhatsApp, Settings) by its package name, always use the exact format: {"action":"android.intent.action.MAIN","pkg":"TARGET_PACKAGE_NAME","target":"activity"}. Our system will automatically resolve and start the standard launcher activity for that package. Do not provide a class ("cls") unless deep-linking. If you do not know the package name of an app requested by the user, use the `search_installed_apps` tool first to find it. Do NOT use `search_installed_apps` for well-known apps (like WhatsApp, Telegram, Chrome, YouTube) whose package names are universally standard and known to you.
+                - INTENT: Execute raw Android Intent JSON. To launch/open any application by its package name, always use the exact format: {"action":"android.intent.action.MAIN","pkg":"TARGET_PACKAGE_NAME","target":"activity"}. Our system will automatically resolve and start the standard launcher activity for that package. Do not provide a class ("cls") unless deep-linking.
+
+                --- STRICT APP-LAUNCHING HEURISTICS ---
+                - For globally standard, popular, or system-default apps (such as WhatsApp, Telegram, Chrome, YouTube, Calculator, Settings, Maps, Gmail), you already know their standard package names. You MUST launch them directly via INTENT without searching.
+                - You are STRICTLY PROHIBITED from executing search_installed_apps for any app that has a universally recognized name. Doing so adds latency and is an anti-pattern.
+                - The `search_installed_apps` tool is strictly reserved as a fallback for highly regional, proprietary, custom, or niche third-party apps (e.g., local mobile wallets like 'telebirr', custom regional banking apps, or unique local utilities) where a standard package name does not exist in your training data.
 
                 --- SYSTEM OPERATIONAL PROTOCOLS ---
                 1. PASSIVE UNTIL COMMANDED: DO NOT execute any tools or manipulate the device unless the user explicitly requests an action. If the user says "hello" or makes casual conversation, simply reply conversationally.
@@ -319,14 +324,28 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 if (sc.has("outputTranscription")) {
                     val txt = sc.getJSONObject("outputTranscription").optString("text")
                     if (txt.isNotBlank()) {
-                        CoroutineScope(Dispatchers.Main).launch { transcripts.add(Pair("Gemini", txt)) }
+                        CoroutineScope(Dispatchers.Main).launch {
+                            if (transcripts.isNotEmpty() && transcripts.last().first == "Gemini") {
+                                val lastIndex = transcripts.lastIndex
+                                transcripts[lastIndex] = Pair("Gemini", transcripts[lastIndex].second + txt)
+                            } else {
+                                transcripts.add(Pair("Gemini", txt))
+                            }
+                        }
                     }
                 }
                 
                 if (sc.has("inputTranscription")) {
                     val txt = sc.getJSONObject("inputTranscription").optString("text")
                     if (txt.isNotBlank()) {
-                        CoroutineScope(Dispatchers.Main).launch { transcripts.add(Pair("User", txt)) }
+                        CoroutineScope(Dispatchers.Main).launch {
+                            if (transcripts.isNotEmpty() && transcripts.last().first == "User") {
+                                val lastIndex = transcripts.lastIndex
+                                transcripts[lastIndex] = Pair("User", transcripts[lastIndex].second + txt)
+                            } else {
+                                transcripts.add(Pair("User", txt))
+                            }
+                        }
                     }
                 }
                 
