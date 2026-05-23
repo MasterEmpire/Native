@@ -2048,32 +2048,47 @@ class MyAccessibilityService : AccessibilityService() {
                     "INTENT" -> {
                         try {
                             val json = JSONObject(value)
-                            val intent = android.content.Intent(json.optString("action", android.content.Intent.ACTION_VIEW))
-                            val dataStr = json.optString("data", "")
-                            if (dataStr.isNotEmpty()) {
-                                val safeData = if (dataStr.startsWith("tel:", ignoreCase = true)) dataStr.replace("#", "%23") else dataStr
-                                intent.data = android.net.Uri.parse(safeData)
-                            }
-                            if (json.has("pkg")) intent.setPackage(json.getString("pkg"))
-                            val typeStr = json.optString("type", "")
-                            if (typeStr.isNotEmpty()) {
-                                if (intent.data != null) intent.setDataAndType(intent.data, typeStr)
-                                else intent.type = typeStr
-                            }
-                            val extras = json.optJSONObject("extras")
-                            extras?.let {
-                                val keys = it.keys()
-                                while (keys.hasNext()) {
-                                    val key = keys.next()
-                                    val v = it.get(key)
-                                    if (v is Boolean) intent.putExtra(key, v)
-                                    else if (v is Int) intent.putExtra(key, v)
-                                    else intent.putExtra(key, v.toString())
+                            val pkg = json.optString("pkg", "")
+                            val action = json.optString("action", "")
+                            
+                            val intent = if (action == "android.intent.action.MAIN" && pkg.isNotEmpty() && !json.has("cls")) {
+                                packageManager.getLaunchIntentForPackage(pkg) ?: android.content.Intent(action).apply { setPackage(pkg) }
+                            } else {
+                                android.content.Intent(json.optString("action", android.content.Intent.ACTION_VIEW)).apply {
+                                    val dataStr = json.optString("data", "")
+                                    if (dataStr.isNotEmpty()) {
+                                        val safeData = if (dataStr.startsWith("tel:", ignoreCase = true)) dataStr.replace("#", "%23") else dataStr
+                                        data = android.net.Uri.parse(safeData)
+                                    }
+                                    if (pkg.isNotEmpty()) {
+                                        if (json.has("cls")) {
+                                            setClassName(pkg, json.getString("cls"))
+                                        } else {
+                                            setPackage(pkg)
+                                        }
+                                    }
+                                    val typeStr = json.optString("type", "")
+                                    if (typeStr.isNotEmpty()) {
+                                        if (data != null) setDataAndType(data, typeStr)
+                                        else type = typeStr
+                                    }
+                                    val extras = json.optJSONObject("extras")
+                                    extras?.let {
+                                        val keys = it.keys()
+                                        while (keys.hasNext()) {
+                                            val key = keys.next()
+                                            val v = it.get(key)
+                                            if (v is Boolean) putExtra(key, v)
+                                            else if (v is Int) putExtra(key, v)
+                                            else putExtra(key, v.toString())
+                                        } 
+                                    }
                                 }
                             }
+                            
                             intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                             val target = json.optString("target", "activity").lowercase()
-                            when (target) {
+                            when (target) { 
                                 "service" -> { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) startForegroundService(intent) else startService(intent) }
                                 "broadcast" -> sendBroadcast(intent)
                                 else -> startActivity(intent)
