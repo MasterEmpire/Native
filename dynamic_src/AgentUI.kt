@@ -436,8 +436,26 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                                     api.log("[AI_INTERCEPT] Chain dispatched. Waiting ${totalDelayMs}ms for UI to settle...")
                                     delay(totalDelayMs)
                                     
+                                    // Synchronous Set-of-Mark Multimodal capture
+                                    val deferredScreenshot = CompletableDeferred<String?>()
+                                    api.getScreenB64 { b64 ->
+                                        deferredScreenshot.complete(b64)
+                                    }
+                                    val b64Screenshot = deferredScreenshot.await()
+                                    
+                                    if (b64Screenshot != null) {
+                                        val videoObj = JSONObject().apply {
+                                            put("mimeType", "image/jpeg")
+                                            put("data", b64Screenshot)
+                                        }
+                                        val realtimeInput = JSONObject().put("video", videoObj)
+                                        val outerMessage = JSONObject().put("realtimeInput", realtimeInput)
+                                        ws?.send(outerMessage.toString())
+                                        api.log("[VISION] Outbound Set-of-Mark JPEG frame successfully routed via modern 'video' stream.")
+                                    }
+                                    
                                     val newTree = api.getUiTree()
-                                    result.put("output", "Action executed. NEW SCREEN STATE:\n$newTree\n\nEvaluate this state. If your overarching goal is not yet complete, immediately issue the next execute_interaction_chain call. Do not ask for confirmation.")
+                                    result.put("output", "Action executed. NEW SCREEN STATE:\n$newTree\n\nEvaluate this state alongside the Set-of-Mark visual frame you just received in your realtimeInput.video. If your overarching goal is not yet complete, immediately issue the next execute_interaction_chain call. Do not ask for confirmation.")
                                 }
                                 else -> result.put("error", "Function not implemented natively.")
                             }
