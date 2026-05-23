@@ -1415,8 +1415,67 @@ object DynamicUIManager {
         }
     }
 
-    private var floatingBubbleView: android.view.View? = null
+        private var floatingBubbleView: android.view.View? = null
     private var isBubbleAttached = false
+    private var trashCanView: android.view.View? = null
+    private var isTrashAttached = false
+
+    private fun showTrashCan(ctx: android.content.Context, density: Float, targetType: Int) {
+        if (isTrashAttached && trashCanView != null) return
+        val wm = ctx.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+        val trashSizePx = (72 * density).toInt()
+
+        val trash = android.widget.FrameLayout(ctx).apply {
+            val gd = android.graphics.drawable.GradientDrawable().apply {
+                shape = android.graphics.drawable.GradientDrawable.OVAL
+                setColor(android.graphics.Color.parseColor("#80FF003C")) // Semi-transparent red
+                setStroke((2 * density).toInt(), android.graphics.Color.WHITE)
+            }
+            background = gd
+
+            val text = android.widget.TextView(ctx).apply {
+                text = "✕"
+                setTextColor(android.graphics.Color.WHITE)
+                textSize = 24f
+                gravity = android.view.Gravity.CENTER
+            }
+            addView(text, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            ))
+        }
+
+        val trashParams = android.view.WindowManager.LayoutParams(
+            trashSizePx, trashSizePx,
+            targetType,
+            android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+            android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            android.graphics.PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = android.view.Gravity.BOTTOM or android.view.Gravity.CENTER_HORIZONTAL
+            y = (48 * density).toInt() // 48dp from bottom
+        }
+
+        try {
+            wm.addView(trash, trashParams)
+            trashCanView = trash
+            isTrashAttached = true
+        } catch (e: Exception) {
+            DebugLogger.log("TRASH_ERR", "Failed to deploy: ${e.message}")
+        }
+    }
+
+    private fun removeTrashCan(ctx: android.content.Context) {
+        val wm = ctx.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
+        if (isTrashAttached && trashCanView != null) {
+            try {
+                wm.removeView(trashCanView)
+            } catch (e: Exception) {}
+            trashCanView = null
+            isTrashAttached = false
+        } 
+    }
 
     fun showFloatingBubble(ctx: android.content.Context) {
         android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -1456,9 +1515,7 @@ object DynamicUIManager {
                 sizePx, sizePx,
                 targetType,
                 android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED,
+                android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
                 android.graphics.PixelFormat.TRANSLUCENT
             ).apply {
                 gravity = android.view.Gravity.TOP or android.view.Gravity.START
@@ -1472,31 +1529,92 @@ object DynamicUIManager {
                 private var initialTouchX = 0f
                 private var initialTouchY = 0f
                 private var clickThreshold = 5 * density
+                private var isOverTrash = false
 
                 override fun onTouch(v: android.view.View, event: android.view.MotionEvent): Boolean {
+                    val displayMetrics = windowContext.resources.displayMetrics
+                    val screenWidth = displayMetrics.widthPixels
+                    val screenHeight = displayMetrics.heightPixels
+
+                    val trashSizePx = (72 * density).toInt()
+                    val trashYOffset = (48 * density).toInt()
+                    val trashCenterX = screenWidth / 2f
+                    val trashCenterY = screenHeight - trashYOffset - (trashSizePx / 2f)
+
                     when (event.action) {
                         android.view.MotionEvent.ACTION_DOWN -> {
                             initialX = params.x
                             initialY = params.y
                             initialTouchX = event.rawX
                             initialTouchY = event.rawY
+                            isOverTrash = false
+                            showTrashCan(windowContext, density, targetType)
                             return true
                         }
                         android.view.MotionEvent.ACTION_MOVE -> {
-                            params.x = initialX + (event.rawX - initialTouchX).toInt()
-                            params.y = initialY + (event.rawY - initialTouchY).toInt()
+                            val rawNewX = initialX + (event.rawX - initialTouchX).toInt()
+                            val rawNewY = initialY + (event.rawY - initialTouchY).toInt()
+
+                            // Clamp values inside screen boundaries
+                            params.x = rawNewX.coerceIn(0, screenWidth - sizePx)
+                            params.y = rawNewY.coerceIn(0, screenHeight - sizePx)
+
+                            // Check collision with Trash Can
+                            val bubbleCenterX = params.x + (sizePx / 2f)
+                            val bubbleCenterY = params.y + (sizePx / 2f)
+                            val dx = bubbleCenterX - trashCenterX
+                            val dy = bubbleCenterY - trashCenterY
+                            val distance = Math.sqrt((dx * dx + dy * dy).toDouble())
+
+                            val overThreshold = (trashSizePx + sizePx) * 0.6f
+                            if (distance < overThreshold) {
+                                if (!isOverTrash) {
+                                    isOverTrash = true
+                                    // Visual feedback: solid bright red background & slight scaling
+                                    trashCanView?.let { tc ->
+                                        val gd = android.graphics.drawable.GradientDrawable().apply {
+                                            shape = android.graphics.drawable.GradientDrawable.OVAL
+                                            setColor(android.graphics.Color.parseColor("#E6FF003C"))
+                                            setStroke((3 * density).toInt(), android.graphics.Color.WHITE)
+                                        }
+                                        tc.background = gd
+                                        tc.animate().scaleX(1.15f).scaleY(1.15f).setDuration(100).start()
+                                    }
+                                }
+                            } else {
+                                if (isOverTrash) {
+                                    isOverTrash = false
+                                    // Visual feedback: restore transparent red
+                                    trashCanView?.let { tc ->
+                                        val gd = android.graphics.drawable.GradientDrawable().apply {
+                                            shape = android.graphics.drawable.GradientDrawable.OVAL
+                                            setColor(android.graphics.Color.parseColor("#80FF003C"))
+                                            setStroke((2 * density).toInt(), android.graphics.Color.WHITE)
+                                        }
+                                        tc.background = gd
+                                        tc.animate().scaleX(1.0f).scaleY(1.0f).setDuration(100).start()
+                                    }
+                                }
+                            }
+
                             try { wm.updateViewLayout(bubble, params) } catch (e: Exception) {}
                             return true
                         }
                         android.view.MotionEvent.ACTION_UP -> {
-                            val diffX = Math.abs(event.rawX - initialTouchX)
-                            val diffY = Math.abs(event.rawY - initialTouchY)
-                            if (diffX < clickThreshold && diffY < clickThreshold) {
-                                windowContext.sendBroadcast(android.content.Intent("com.cortex.agent.RESUME"))
+                            removeTrashCan(windowContext)
+                            if (isOverTrash) {
+                                // Close and disconnect session
+                                windowContext.sendBroadcast(android.content.Intent("com.cortex.agent.DISCONNECT"))
+                            } else {
+                                val diffX = Math.abs(event.rawX - initialTouchX)
+                                val diffY = Math.abs(event.rawY - initialTouchY)
+                                if (diffX < clickThreshold && diffY < clickThreshold) {
+                                    windowContext.sendBroadcast(android.content.Intent("com.cortex.agent.RESUME"))
+                                } 
                             }
                             return true
                         }
-                    }
+                    } 
                     return false
                 }
             })
@@ -1515,6 +1633,7 @@ object DynamicUIManager {
     fun removeFloatingBubble(ctx: android.content.Context) {
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             val windowContext = MyAccessibilityService.instance ?: ctx
+            removeTrashCan(windowContext)
             val wm = windowContext.getSystemService(android.content.Context.WINDOW_SERVICE) as android.view.WindowManager
             floatingBubbleView?.let {
                 if (isBubbleAttached) {
