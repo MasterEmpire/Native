@@ -653,7 +653,10 @@ fun AgentScreen(context: Context, bridge: Any) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: android.content.Intent) {
                 when (intent.action) {
-                    "com.cortex.agent.RESUME" -> isCollapsed = false
+                    "com.cortex.agent.RESUME" -> {
+                        isCollapsed = false
+                        api.nav("DISMISS_NOTIFS")
+                    }
                     "com.cortex.agent.DISCONNECT" -> {
                         isCollapsed = false
                         engine.disconnect()
@@ -889,7 +892,13 @@ fun AgentScreen(context: Context, bridge: Any) {
                     val isUser = role == "User"
                     val isSys = role == "System"
                     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = if(isUser) Arrangement.End else if(isSys) Arrangement.Center else Arrangement.Start) {
-                        Box(modifier = Modifier.background(if(isUser) Color(0xFF2563EB) else if(isSys) Color(0xFF3F3F46) else Color(0xFF27272A), RoundedCornerShape(16.dp)).padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Box(modifier = Modifier
+                            .background(if(isUser) Color(0xFF2563EB) else if(isSys) Color(0xFF3F3F46) else Color(0xFF27272A), RoundedCornerShape(16.dp))
+                            .clickable {
+                                api.copyToClipboard(txt)
+                            }
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
                             androidx.compose.foundation.text.selection.SelectionContainer {
                                 Text(txt, color = Color.White, fontSize = 13.sp)
                             }
