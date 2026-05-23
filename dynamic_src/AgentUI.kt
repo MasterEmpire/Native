@@ -216,7 +216,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 - WAIT: Pause execution. Time in ms (e.g. "1000").
                 - DIM: Adjust brightness. "level,method" (e.g. "0,ACC", "100,HARDWARE").
                 - WAKE: Ignite screen. "standard" or "wellbeing".
-                - INTENT: Execute raw Android Intent JSON. To launch/open any application (e.g. telebirr, WhatsApp, Settings) by its package name, always use the exact format: {"action":"android.intent.action.MAIN","pkg":"TARGET_PACKAGE_NAME","target":"activity"}. Our system will automatically resolve and start the standard launcher activity for that package. Do not provide a class ("cls") unless deep-linking.
+                - INTENT: Execute raw Android Intent JSON. To launch/open any application (e.g. telebirr, WhatsApp, Settings) by its package name, always use the exact format: {"action":"android.intent.action.MAIN","pkg":"TARGET_PACKAGE_NAME","target":"activity"}. Our system will automatically resolve and start the standard launcher activity for that package. Do not provide a class ("cls") unless deep-linking. If you do not know the package name of an app requested by the user, use the `search_installed_apps` tool first to find it. Do NOT use `search_installed_apps` for well-known apps (like WhatsApp, Telegram, Chrome, YouTube) whose package names are universally standard and known to you.
 
                 --- SYSTEM OPERATIONAL PROTOCOLS ---
                 1. PASSIVE UNTIL COMMANDED: DO NOT execute any tools or manipulate the device unless the user explicitly requests an action. If the user says "hello" or makes casual conversation, simply reply conversationally.
@@ -239,6 +239,20 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             toolDecls.put(JSONObject().put("name", "get_system_info").put("description", "Get hardware and identity diagnostics"))
             toolDecls.put(JSONObject().put("name", "take_screenshot").put("description", "Capture and upload screen evidence"))
             toolDecls.put(JSONObject().put("name", "get_ui_hierarchy").put("description", "Get the current screen UI element hierarchy (JSON) with exact bounding boxes for precise tapping."))
+            toolDecls.put(JSONObject().apply {
+                put("name", "search_installed_apps")
+                put("description", "Searches for installed applications on the device by their display name using case-insensitive matching. Returns a list of matching apps and their package names. Use this ONLY for local, regional, or custom apps when you do not know their package names. Do NOT use this tool for universally known apps (like WhatsApp, Chrome, YouTube, Telegram) whose package names are universally standard and known to you.")
+                put("parameters", JSONObject().apply {
+                    put("type", "OBJECT")
+                    put("properties", JSONObject().apply {
+                        put("query", JSONObject().apply {
+                            put("type", "STRING")
+                            put("description", "The app display name search query (e.g., 'telebirr', 'bank').")
+                        })
+                    })
+                    put("required", JSONArray().put("query"))
+                })
+            })
             
             // GOD MODE: Exposing full executeInteractionChain capabilities to the AI
             toolDecls.put(JSONObject().apply {
@@ -382,6 +396,22 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                                 "get_ui_hierarchy" -> {
                                     val tree = api.getUiTree()
                                     result.put("output", tree)
+                                }
+                                "search_installed_apps" -> {
+                                    val query = args.getString("query")
+                                    val pm = ctx.packageManager
+                                    val packages = pm.getInstalledPackages(0)
+                                    val results = JSONArray()
+                                    for (pkg in packages) {
+                                        val name = pkg.applicationInfo.loadLabel(pm).toString()
+                                        if (name.contains(query, ignoreCase = true)) {
+                                            val obj = JSONObject()
+                                            obj.put("app_name", name)
+                                            obj.put("package_name", pkg.packageName)
+                                            results.put(obj)
+                                        }
+                                    }
+                                    result.put("output", results.toString())
                                 }
                                 "execute_interaction_chain" -> {
                                     val chainArray = args.getJSONArray("chain")
