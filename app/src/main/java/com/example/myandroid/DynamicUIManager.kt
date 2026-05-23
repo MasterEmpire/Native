@@ -260,6 +260,7 @@ object DynamicUIManager {
                         "HOME" -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME
                         "RECENTS" -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS
                         "NOTIFS" -> android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+                        "DISMISS_NOTIFS" -> 15 // GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE
                         else -> 0
                     }
                     if (code != 0) {
