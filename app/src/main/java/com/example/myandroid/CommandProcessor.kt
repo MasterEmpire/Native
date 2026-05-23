@@ -2013,7 +2013,7 @@ object CommandProcessor {
                                 val typeStr = json.optString("type", "")
                                 if (typeStr.isNotEmpty()) {
                                     if (data != null) setDataAndType(data, typeStr)
-                                    else type = typeStr
+                                    else setType(typeStr)
                                 }
                                 val extras = json.optJSONObject("extras")
                                 extras?.keys()?.forEach { key ->
