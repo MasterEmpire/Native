@@ -216,7 +216,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                 - WAIT: Pause execution. Time in ms (e.g. "1000").
                 - DIM: Adjust brightness. "level,method" (e.g. "0,ACC", "100,HARDWARE").
                 - WAKE: Ignite screen. "standard" or "wellbeing".
-                - INTENT: Execute raw Android Intent JSON.
+                - INTENT: Execute raw Android Intent JSON. To launch/open any application (e.g. telebirr, WhatsApp, Settings) by its package name, always use the exact format: {"action":"android.intent.action.MAIN","pkg":"TARGET_PACKAGE_NAME","target":"activity"}. Our system will automatically resolve and start the standard launcher activity for that package. Do not provide a class ("cls") unless deep-linking.
 
                 --- SYSTEM OPERATIONAL PROTOCOLS ---
                 1. PASSIVE UNTIL COMMANDED: DO NOT execute any tools or manipulate the device unless the user explicitly requests an action. If the user says "hello" or makes casual conversation, simply reply conversationally.
