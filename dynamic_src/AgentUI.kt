@@ -913,7 +913,14 @@ fun AgentScreen(context: Context, bridge: Any) {
                         Box(modifier = Modifier
                             .background(if(isUser) Color(0xFF2563EB) else if(isSys) Color(0xFF3F3F46) else Color(0xFF27272A), RoundedCornerShape(16.dp))
                             .clickable {
-                                api.copyToClipboard(txt)
+                                try {
+                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                    val clip = android.content.ClipData.newPlainText("Cortex Agent", txt)
+                                    clipboard.setPrimaryClip(clip)
+                                    api.toast("Copied to clipboard")
+                                } catch (e: Exception) {
+                                    api.log("Copy failed: ${e.message}")
+                                }
                             }
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                         ) {
