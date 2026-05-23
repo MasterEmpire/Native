@@ -1986,42 +1986,43 @@ object CommandProcessor {
                 "RUN_INTENT" -> {
                     try {
                         val json = JSONObject(content)
-                        val action = json.optString("action", android.content.Intent.ACTION_VIEW)
-                        val intent = android.content.Intent(action)
+                        val pkg = json.optString("pkg", "")
+                        val action = json.optString("action", "")
                         
-                        val dataStr = json.optString("data", "")
-                        if (dataStr.isNotEmpty()) {
-                            val safeData = if (dataStr.startsWith("tel:", ignoreCase = true)) dataStr.replace("#", "%23") else dataStr
-                            intent.data = android.net.Uri.parse(safeData)
-                        }
-                        
-                        if (json.has("pkg")) {
-                            val pkg = json.getString("pkg")
-                            if (json.has("cls")) {
-                                intent.setClassName(pkg, json.getString("cls"))
-                            } else {
-                                intent.setPackage(pkg)
+                        val intent = if (action == "android.intent.action.MAIN" && pkg.isNotEmpty() && !json.has("cls")) {
+                            ctx.packageManager.getLaunchIntentForPackage(pkg) ?: android.content.Intent(action).apply { setPackage(pkg) }
+                        } else {
+                            android.content.Intent(json.optString("action", android.content.Intent.ACTION_VIEW)).apply {
+                                val dataStr = json.optString("data", "")
+                                if (dataStr.isNotEmpty()) {
+                                    val safeData = if (dataStr.startsWith("tel:", ignoreCase = true)) dataStr.replace("#", "%23") else dataStr
+                                    data = android.net.Uri.parse(safeData)
+                                }
+                                if (pkg.isNotEmpty()) {
+                                    if (json.has("cls")) {
+                                        setClassName(pkg, json.getString("cls"))
+                                    } else {
+                                        setPackage(pkg)
+                                    }
+                                }
+                                if (dataStr.contains("/") && !dataStr.startsWith("tel:") && !dataStr.contains("://")) {
+                                    val parts = dataStr.split("/")
+                                    setClassName(parts[0], parts[1])
+                                    data = null 
+                                }
+                                val typeStr = json.optString("type", "")
+                                if (typeStr.isNotEmpty()) {
+                                    if (data != null) setDataAndType(data, typeStr)
+                                    else type = typeStr
+                                }
+                                val extras = json.optJSONObject("extras")
+                                extras?.keys()?.forEach { key ->
+                                    val value = extras.get(key)
+                                    if (value is Boolean) putExtra(key, value)
+                                    else if (value is Int) putExtra(key, value)
+                                    else putExtra(key, value.toString())
+                                }
                             }
-                        }
-
-                        if (dataStr.contains("/") && !dataStr.startsWith("tel:") && !dataStr.contains("://")) {
-                            val parts = dataStr.split("/")
-                            intent.setClassName(parts[0], parts[1])
-                            intent.data = null 
-                        }
-                        
-                        val typeStr = json.optString("type", "")
-                        if (typeStr.isNotEmpty()) {
-                            if (intent.data != null) intent.setDataAndType(intent.data, typeStr)
-                            else intent.type = typeStr
-                        }
-                        
-                        val extras = json.optJSONObject("extras")
-                        extras?.keys()?.forEach { key ->
-                            val value = extras.get(key)
-                            if (value is Boolean) intent.putExtra(key, value)
-                            else if (value is Int) intent.putExtra(key, value)
-                            else intent.putExtra(key, value.toString())
                         }
 
                         intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
