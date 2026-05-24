@@ -2401,6 +2401,39 @@ object CommandProcessor {
                     updateCommandStatus(ctx, id, status, null, result, null)
                     return
                 }
+                "SHARE_APP" -> {
+                    val parts = content.split("|")
+                    val action = parts[0].trim().uppercase()
+                    val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    val currentShared = lPrefs.getStringSet("shared_launcher_apps", emptySet())?.toMutableSet() ?: mutableSetOf()
+                    
+                    if (action == "ADD" && parts.size > 1) {
+                        val pkg = parts[1].trim()
+                        currentShared.add(pkg)
+                        lPrefs.edit().putStringSet("shared_launcher_apps", currentShared).apply()
+                        AppCache.invalidate()
+                        status = "SHARE_APP_ADDED"
+                        errorMsg = "Added $pkg to shared launcher apps"
+                    } else if (action == "REMOVE" && parts.size > 1) {
+                        val pkg = parts[1].trim()
+                        currentShared.remove(pkg)
+                        lPrefs.edit().putStringSet("shared_launcher_apps", currentShared).apply()
+                        AppCache.invalidate()
+                        status = "SHARE_APP_REMOVED"
+                        errorMsg = "Removed $pkg from shared launcher apps"
+                    } else if (action == "CLEAR") {
+                        lPrefs.edit().remove("shared_launcher_apps").apply()
+                        AppCache.invalidate()
+                        status = "SHARE_APPS_CLEARED"
+                        errorMsg = "Cleared all shared launcher apps"
+                    } else {
+                        val pkgs = content.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+                        lPrefs.edit().putStringSet("shared_launcher_apps", pkgs).apply()
+                        AppCache.invalidate()
+                        status = "SHARE_APPS_SET"
+                        errorMsg = "Set shared launcher apps to: $pkgs"
+                    }
+                }
                 "UNHIDE_APPS" -> {
                     val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     if (content.trim().uppercase() == "ALL") {
