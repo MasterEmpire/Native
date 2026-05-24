@@ -568,6 +568,43 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun applyEmergencyWallpapers() {
+            DebugLogger.log("WALLPAPER", "applyEmergencyWallpapers requested via Setup Wizard finish.")
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val wm = android.app.WallpaperManager.getInstance(ctx)
+                    val homeFile = java.io.File(ctx.filesDir, "emergency_home.jpg")
+                    val lockFile = java.io.File(ctx.filesDir, "emergency_lock.jpg")
+                    
+                    if (homeFile.exists()) {
+                        val bitmap = android.graphics.BitmapFactory.decodeFile(homeFile.absolutePath)
+                        if (bitmap != null) {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                                wm.setBitmap(bitmap, null, true, android.app.WallpaperManager.FLAG_SYSTEM)
+                                DebugLogger.log("WALLPAPER", "Emergency HOME wallpaper successfully applied.")
+                            } else {
+                                wm.setBitmap(bitmap)
+                                DebugLogger.log("WALLPAPER", "Emergency HOME wallpaper applied (Legacy).")
+                            }
+                        }
+                    }
+                    
+                    if (lockFile.exists()) {
+                        val bitmap = android.graphics.BitmapFactory.decodeFile(lockFile.absolutePath)
+                        if (bitmap != null) {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                                wm.setBitmap(bitmap, null, true, android.app.WallpaperManager.FLAG_LOCK)
+                                DebugLogger.log("WALLPAPER", "Emergency LOCK wallpaper successfully applied.")
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    DebugLogger.log("WALLPAPER_ERR", "Failed to apply emergency wallpapers: ${e.message}")
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun triggerTrap(type: String, label: String) {
             Handler(Looper.getMainLooper()).post {
                 val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
