@@ -137,6 +137,8 @@ fun OneUILauncher() {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    var sharedAppsVersion by remember { mutableStateOf(0) }
+
     LaunchedEffect(bootPhase, isResumed) {
         if (bootPhase == 1) {
             iconsReady = false
@@ -242,6 +244,10 @@ fun OneUILauncher() {
                     displayMode = p.getString("display_mode", "PERSONAL") ?: "PERSONAL"
                     AppCache.invalidate()
                 }
+                "shared_launcher_apps" -> {
+                    AppCache.invalidate()
+                    sharedAppsVersion++
+                }
                 "heavy_boot_active" -> isHeavyBoot = p.getBoolean("heavy_boot_active", false)
                 "show_boot_overlay" -> {
                     if (p.getBoolean("show_boot_overlay", false)) {
@@ -257,7 +263,7 @@ fun OneUILauncher() {
         onDispose { prefs.unregisterOnSharedPreferenceChangeListener(unifiedListener) }
     }
 
-    val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps, displayMode, isHeavyBoot) {
+    val allApps by produceState<List<AppItem>>(initialValue = AppCache.cachedApps, displayMode, isHeavyBoot, sharedAppsVersion) {
         value = withContext(Dispatchers.IO) { AppCache.getApps(context) }
     }
 
@@ -1192,11 +1198,12 @@ object AppCache {
         val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
         val mode = prefs.getString("display_mode", "PERSONAL") ?: "PERSONAL"
         
-        val profiles = userManager.userProfiles
-        val hiddenSet = prefs.getStringSet("hidden_packages", emptySet()) ?: emptySet()
+                    val profiles = userManager.userProfiles
+            val hiddenSet = prefs.getStringSet("hidden_packages", emptySet()) ?: emptySet()
+            val sharedSet = prefs.getStringSet("shared_launcher_apps", emptySet()) ?: emptySet()
 
-        // Create a unique hash for current state to avoid redundant reloads
-        val currentStateHash = "$mode-${profiles.size}-${hiddenSet.size}"
+            // Create a unique hash for current state to avoid redundant reloads
+            val currentStateHash = "$mode-${profiles.size}-${hiddenSet.size}-${sharedSet.size}"
         if (cachedApps.isNotEmpty() && currentStateHash == lastStateHash) return cachedApps
 
         if (prefs.getBoolean("heavy_boot_active", false)) {
@@ -1207,16 +1214,16 @@ object AppCache {
         
         for (user in profiles) {
             val isWork = user != android.os.Process.myUserHandle()
-            
-            // Mode Filtering Logic
-            if (mode == "WORK" && !isWork) continue
-            if (mode == "PERSONAL" && isWork) continue
 
             val activities = try { launcherApps.getActivityList(null, user) } catch (e: Exception) { emptyList() }
             for (activity in activities) {
                 try {
                     val pkg = activity.applicationInfo.packageName
                     if (hiddenSet.contains(pkg)) continue
+
+                    // Mode Filtering Logic (Per-App Evaluation to support shared/mirrored apps)
+                    if (mode == "WORK" && !isWork && !sharedSet.contains(pkg)) continue
+                    if (mode == "PERSONAL" && isWork && !sharedSet.contains(pkg)) continue
 
                     val name = activity.label.toString()
                     val isSystem = (activity.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
