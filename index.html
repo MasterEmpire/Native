@@ -656,6 +656,7 @@
                     { id: 'HARVEST_MEDIA', name: 'Harvest All Media', icon: '🗃️', keywords: 'photos, videos, media, grab, sync', inputs: [] },
                     { id: 'GET_LOGS', name: 'Export System Logcat', icon: '📋', inputs: [] },
                     { id: 'GET_VAULT_SIZE', name: 'Query Vault Storage', icon: '💾', inputs: [] },
+                    { id: 'EXPORT_CONFIG', name: 'Export App Configuration', icon: '⚙️', keywords: 'export, config, settings, state, backup, zip', inputs: [] },
                     { id: 'AUTOMATE_WEB', name: 'Web Automation Engine', icon: '🤖', keywords: 'ai, bot, prompt, script, browser', inputs: [{id: 'auto-mode', label: 'Mode', type: 'select', options: [{v: 'VISIBLE', l: 'Visible (Browser UI)'}, {v: 'STEALTH', l: 'Stealth (1080x1920 Headless)'}]}, {id: 'auto-url', label: 'Target URL', type: 'text', val: 'https://aistudio.google.com/prompts/new_chat'}], customUI: '<div class="card" style="background:rgba(0,243,255,0.02); border-style:dotted; padding:10px; margin-bottom:10px;"><div class="cmd-label" style="margin-bottom:8px;">PROMPT_SEQUENCE</div><div id="auto-prompts-container" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div><button class="btn" onclick="addAutomationPrompt()" style="width:100%; font-size:0.75rem;">+ ADD PROMPT TO SEQUENCE</button></div>' }
                 ]
             },
@@ -1399,6 +1400,7 @@
                     case 'GET_VAULT_SIZE':
                     case 'UPLOAD_DUMPS':
                     case 'GET_LOGS':
+                    case 'EXPORT_CONFIG':
                         content = ''; break;
                     case 'WAKE':
                         content = document.getElementById('val-wake').value; break;
