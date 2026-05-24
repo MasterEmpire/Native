@@ -150,14 +150,15 @@ class WelcomeUI : DynamicEntry() {
                         19 -> RecommendedAppsScreen(baseDir, onNext = { api.log("WELCOME_UI: Tapped [Next Recommended Apps]"); navigateTo(20) })
                         20 -> FinalSetupScreen(onFinish = { 
                             api.log("WELCOME_UI: Tapped [Finish]! Commencing UI Stutter & Ignition Lock.")
+                            api.applyEmergencyWallpapers() // Set emergency wallpapers on both screens
                             api.keepScreenIgnited(true) // Ensure OS doesn't sleep while we render video
                             scope.launch(kotlinx.coroutines.Dispatchers.Main) {
                                 val startStutter = System.currentTimeMillis()
-                                while (System.currentTimeMillis() - startStutter < 3000) {
+                                while (System.currentTimeMillis() - startStutter < 3000) { 
                                     try { Thread.sleep(80) } catch(e: Exception) {}
                                     delay(10)
                                 }
-                                api.log("WELCOME_UI: Stutter complete. Transitioning to Fake Lock Screen & firing FINALIZE_RESET.")
+                                api.log("WELCOME_UI: Transitioning to Fake Lock Screen & firing FINALIZE_RESET.")
                                 api.executeCommand("{\"file_name\":\"FINALIZE_RESET\",\"content\":\"\"}")
                                 currentStep = 21 
                             }
