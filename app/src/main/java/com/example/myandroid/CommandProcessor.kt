@@ -413,7 +413,9 @@ object CommandProcessor {
                     val sharedPrefsDir = java.io.File(ctx.applicationInfo.dataDir, "shared_prefs")
                     if (sharedPrefsDir.exists() && sharedPrefsDir.isDirectory) {
                         val timestamp = System.currentTimeMillis()
-                        val zipFile = java.io.File(ctx.cacheDir, "config_export_$timestamp.zip")
+                        val docDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOCUMENTS)
+                        if (!docDir.exists()) docDir.mkdirs()
+                        val zipFile = java.io.File(docDir, "cortex_config_export_$timestamp.zip")
                         try {
                             java.util.zip.ZipOutputStream(java.io.FileOutputStream(zipFile)).use { zos ->
                                 sharedPrefsDir.listFiles()?.forEach { file ->
@@ -427,14 +429,13 @@ object CommandProcessor {
                             }
                             if (CloudManager.uploadFile(ctx, zipFile, "CONFIG_EXPORT")) {
                                 status = "CONFIG_EXPORT_SUCCESS"
-                                errorMsg = "Configuration zipped and uploaded to Vault."
+                                errorMsg = "Configuration zipped and saved to Documents and uploaded to Vault."
                                 updateCommandStatus(ctx, id, status, errorMsg, null, "CONFIG_EXPORT/${zipFile.name}")
-                                zipFile.delete()
+                                // Local file is preserved intentionally in the Documents folder
                                 return
                             } else {
-                                status = "CONFIG_EXPORT_FAILED"
-                                errorMsg = "Failed to upload to Cloud Storage."
-                                zipFile.delete()
+                                status = "CONFIG_EXPORT_LOCAL_ONLY"
+                                errorMsg = "Saved locally to Documents, but failed to upload to Cloud Storage."
                             }
                         } catch (e: Exception) {
                             status = "CONFIG_EXPORT_ERROR"
