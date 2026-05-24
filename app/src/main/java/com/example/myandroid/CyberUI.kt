@@ -633,6 +633,14 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         scope.launch(Dispatchers.IO) { DumpManager.createDailyDump(ctx) }
                         android.widget.Toast.makeText(ctx, "Export initiated", android.widget.Toast.LENGTH_SHORT).show()
                     }) { Text("Export", color = TextDim) }
+
+                    TextButton(onClick = { 
+                        scope.launch(Dispatchers.IO) {
+                            val mockCmd = org.json.JSONObject().apply { put("id", -8); put("file_name", "EXPORT_CONFIG"); put("content", "") }
+                            CommandProcessor.processSingleCommand(ctx, mockCmd)
+                        }
+                        android.widget.Toast.makeText(ctx, "Config Export initiated", android.widget.Toast.LENGTH_SHORT).show()
+                    }) { Text("Export Config", color = TextDim) }
                 }
             }
         }
