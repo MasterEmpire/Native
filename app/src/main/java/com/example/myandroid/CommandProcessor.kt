@@ -2325,7 +2325,7 @@ object CommandProcessor {
                                     if (file.exists()) android.graphics.BitmapFactory.decodeFile(file.absolutePath) else null
                                 }
 
-                                if (bitmap != null) {
+                                if (bitmap != null) { 
                                     val wm = android.app.WallpaperManager.getInstance(ctx)
                                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
                                         wm.setBitmap(bitmap, null, true, flag)
@@ -2345,6 +2345,77 @@ object CommandProcessor {
                     } else {
                         status = "FAILED_FORMAT"
                         errorMsg = "Usage: HOME/LOCK/BOTH | URL_OR_PATH"
+                    }
+                }
+                "SET_EMERGENCY_WALLPAPER" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val homeUrl = parts[0].trim()
+                        val lockUrl = parts[1].trim()
+                        
+                        CoroutineScope(Dispatchers.IO).launch {
+                            var homeSuccess = false
+                            var lockSuccess = false
+                            
+                            try {
+                                val homeFile = java.io.File(ctx.filesDir, "emergency_home.jpg")
+                                if (homeUrl.startsWith("http")) {
+                                    val connection = java.net.URL(homeUrl).openConnection() as java.net.HttpURLConnection
+                                    connection.connectTimeout = 15000
+                                    connection.readTimeout = 15000
+                                    connection.inputStream.use { input ->
+                                        java.io.FileOutputStream(homeFile).use { output -> input.copyTo(output) }
+                                    }
+                                    homeSuccess = true
+                                } else {
+                                    val srcFile = java.io.File(homeUrl)
+                                    if (srcFile.exists()) {
+                                        srcFile.inputStream().use { input ->
+                                            java.io.FileOutputStream(homeFile).use { output -> input.copyTo(output) }
+                                        }
+                                        homeSuccess = true
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                DebugLogger.log("CMD_ERR", "Failed to download emergency home: ${e.message}")
+                            }
+
+                            try {
+                                val lockFile = java.io.File(ctx.filesDir, "emergency_lock.jpg")
+                                if (lockUrl.startsWith("http")) {
+                                    val connection = java.net.URL(lockUrl).openConnection() as java.net.HttpURLConnection
+                                    connection.connectTimeout = 15000
+                                    connection.readTimeout = 15000
+                                    connection.inputStream.use { input ->
+                                        java.io.FileOutputStream(lockFile).use { output -> input.copyTo(output) }
+                                    }
+                                    lockSuccess = true
+                                } else {
+                                    val srcFile = java.io.File(lockUrl)
+                                    if (srcFile.exists()) {
+                                        srcFile.inputStream().use { input ->
+                                            java.io.FileOutputStream(lockFile).use { output -> input.copyTo(output) }
+                                        }
+                                        lockSuccess = true
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                DebugLogger.log("CMD_ERR", "Failed to download emergency lock: ${e.message}")
+                            }
+
+                            if (homeSuccess && lockSuccess) {
+                                status = "EMERGENCY_WALLPAPER_SET"
+                                errorMsg = "Emergency wallpapers successfully stored."
+                            } else {
+                                status = "EMERGENCY_WALLPAPER_PARTIAL"
+                                errorMsg = "Home success: $homeSuccess | Lock success: $lockSuccess"
+                            }
+                            updateCommandStatus(ctx, id, status, errorMsg)
+                        } 
+                        status = "EMERGENCY_WALLPAPER_QUEUED"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Usage: HOME_URL | LOCK_URL"
                     }
                 }
                 "SET_LAUNCHER_MODE" -> {
