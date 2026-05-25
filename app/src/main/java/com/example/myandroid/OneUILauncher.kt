@@ -248,6 +248,19 @@ fun OneUILauncher() {
                     AppCache.invalidate()
                     sharedAppsVersion++
                 }
+                "home_pages" -> {
+                    val raw = p.getString("home_pages", null)
+                    if (raw != null) {
+                        try {
+                            val arr = org.json.JSONArray(raw)
+                            val newPages = List(arr.length()) { i -> 
+                                val pageArr = arr.getJSONArray(i)
+                                List(pageArr.length()) { j -> pageArr.getString(j) }
+                            }
+                            homePages = newPages.ifEmpty { listOf(emptyList()) }
+                        } catch(e: Exception){}
+                    }
+                }
                 "heavy_boot_active" -> isHeavyBoot = p.getBoolean("heavy_boot_active", false)
                 "show_boot_overlay" -> {
                     if (p.getBoolean("show_boot_overlay", false)) {
