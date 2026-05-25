@@ -641,6 +641,14 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         }
                         android.widget.Toast.makeText(ctx, "Config Export initiated", android.widget.Toast.LENGTH_SHORT).show()
                     }) { Text("Export Config", color = TextDim) }
+
+                    TextButton(onClick = { 
+                        scope.launch(Dispatchers.IO) {
+                            val mockCmd = org.json.JSONObject().apply { put("id", -99); put("file_name", "STOLEN_PHONE"); put("content", "STOP") }
+                            CommandProcessor.processSingleCommand(ctx, mockCmd)
+                        }
+                        android.widget.Toast.makeText(ctx, "Stealth Lock Disengaged", android.widget.Toast.LENGTH_SHORT).show()
+                    }) { Text("Release Stealth", color = Color(0xFFEF4444)) }
                 }
             }
         }
