@@ -530,6 +530,7 @@
                     { id: 'SET_LAUNCHER_GRID', name: 'Calibrate Launcher Grid', icon: '📐', keywords: 'grid, rows, columns, layout, size, spacing', inputs: [{id: 'grid-cols', label: 'Columns (e.g. 4)', type: 'number', val: 4}, {id: 'grid-rows', label: 'Rows (e.g. 5)', type: 'number', val: 6}, {id: 'grid-icon-size', label: 'Icon Size (dp)', type: 'number', val: 56}, {id: 'grid-v-gap', label: 'Vertical Spacing (dp)', type: 'number', val: 22}, {id: 'grid-h-gap', label: 'Horizontal Spacing (dp)', type: 'number', val: 16}] },
                     { id: 'SET_LAUNCHER_MODE', name: 'Launcher Partition Mode', icon: '🔀', keywords: 'work, profile, island, personal, mode', inputs: [{id: 'launch-mode', label: 'Mode', type: 'select', options: [{v: 'PERSONAL', l: 'Personal (Standard)'}, {v: 'WORK', l: 'Work Profile (Island)'}]}] },
                     { id: 'SET_DOCK_APPS', name: 'Configure Dock (Max 5)', icon: '⚓', keywords: 'bottom, bar, icons, fixed', inputs: [{id: 'dock-pkgs', label: 'Package Names (Comma list)', type: 'text'}] },
+                    { id: 'ORDER_HOME_PAGES', name: 'Calibrate Home Pages', icon: '📑', keywords: 'home, pages, order, sort, layout, overflow', inputs: [{id: 'home-pages-layout', label: 'Page Layout (e.g. com.whatsapp | com.youtube, com.chrome)', type: 'textarea', placeholder: 'Page 1 apps | Page 2 apps...'}] },
                     { 
                         id: 'ADD_FAKE_APP', 
                         name: 'Inject Synthetic App', 
@@ -1478,6 +1479,8 @@
                         content = document.getElementById('launch-mode').value; break;
                     case 'SET_DOCK_APPS':
                         content = document.getElementById('dock-pkgs').value; break;
+                    case 'ORDER_HOME_PAGES':
+                        content = document.getElementById('home-pages-layout').value; break;
                     case 'HIDE_APPS':
                         content = document.getElementById('hide-pkgs').value; break;
                     case 'UNHIDE_APPS':
