@@ -156,6 +156,17 @@ object DimmerManager {
 
     fun removeOverlay(ctx: Context) {
         DebugLogger.log("DIMMER_LIFECYCLE", "removeOverlay called.")
+        
+        // Guard: Prevent premature unblinding if a master lockdown or hijack sequence is running
+        val jPrefs = ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE)
+        val isSimTrapArmed = jPrefs.getBoolean("is_sim_trap_armed", false)
+        val isStolenAlertPending = jPrefs.getBoolean("stolen_alert_pending", false)
+        
+        if (isSimTrapArmed || isStolenAlertPending || LauncherManager.isHijacking) {
+            DebugLogger.log("DIMMER_LIFECYCLE", "removeOverlay BLOCKED: Active lockdown or hijack in progress. Preserving blindfold.")
+            return
+        }
+
         val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         if (overlayView == null) {
             DebugLogger.log("DIMMER_LIFECYCLE", "overlayView is already null. Nothing to remove.")
