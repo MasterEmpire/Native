@@ -1559,8 +1559,12 @@ object CommandProcessor {
                 "FORCE_DATA" -> {
                     val targetState = content.trim().uppercase()
                     val isDataEnabled = android.provider.Settings.Global.getInt(ctx.contentResolver, "mobile_data", 0) == 1
+                    val hasSim = JudasManager.getSimFingerprints(ctx).isNotEmpty()
                     
-                    if ((targetState == "ENABLE" && isDataEnabled) || (targetState == "DISABLE" && !isDataEnabled)) {
+                    if (!hasSim) {
+                        status = "FAILED (NO_SIM)"
+                        errorMsg = "Cannot toggle mobile data without a physical SIM card."
+                    } else if ((targetState == "ENABLE" && isDataEnabled) || (targetState == "DISABLE" && !isDataEnabled)) {
                         status = "ALREADY_IN_STATE"
                         errorMsg = "Mobile data is already ${if (isDataEnabled) "ENABLED" else "DISABLED"}"
                     } else if (MyAccessibilityService.instance == null) {
