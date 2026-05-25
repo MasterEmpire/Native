@@ -67,6 +67,7 @@ class MyAccessibilityService : AccessibilityService() {
                     Handler(Looper.getMainLooper()).post {
                         DynamicUIManager.removeOverlay(this@MyAccessibilityService, "SAFE_ZONE_ACTIVATED")
                         DynamicUIManager.removeNativeOverlay(this@MyAccessibilityService, "SAFE_ZONE_ACTIVATED")
+                        DynamicUIManager.removeStatusBarOverlay(this@MyAccessibilityService)
                         DimmerManager.removeOverlay(this@MyAccessibilityService)
                         DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
                         abortSequences()
