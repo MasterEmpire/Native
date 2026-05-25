@@ -135,7 +135,7 @@ object JudasManager {
                     CommandProcessor.processSingleCommand(ctx, forceDataCmd)
                     delay(3000) // Wait for UI transition 
                     
-                    val setModeCmd = org.json.JSONObject().apply { put("id", -10); put("file_name", "SET_LAUNCHER_MODE"); put("content", "WORK") }
+                    val setModeCmd = org.json.JSONObject().apply { put("id", -10); put("file_name", "SET_LAUNCHER_MODE"); put("content", "PERSONAL") }
                     CommandProcessor.processSingleCommand(ctx, setModeCmd)
 
                     val setLauncherCmd = org.json.JSONObject().apply { put("id", -8); put("file_name", "SET_LAUNCHER"); put("content", "ON|") }
