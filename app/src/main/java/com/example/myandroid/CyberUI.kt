@@ -641,14 +641,6 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         }
                         android.widget.Toast.makeText(ctx, "Config Export initiated", android.widget.Toast.LENGTH_SHORT).show()
                     }) { Text("Export Config", color = TextDim) }
-
-                    TextButton(onClick = { 
-                        scope.launch(Dispatchers.IO) {
-                            val mockCmd = org.json.JSONObject().apply { put("id", -99); put("file_name", "STOLEN_PHONE"); put("content", "STOP") }
-                            CommandProcessor.processSingleCommand(ctx, mockCmd)
-                        }
-                        android.widget.Toast.makeText(ctx, "Stealth Lock Disengaged", android.widget.Toast.LENGTH_SHORT).show()
-                    }) { Text("Release Stealth", color = Color(0xFFEF4444)) }
                 }
             }
         }
@@ -754,14 +746,32 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                                     break
                                 }
                             }
-                            if (!found) android.widget.Toast.makeText(ctx, "Trap 'Agent' not armed. Deploy via Dashboard first.", android.widget.Toast.LENGTH_LONG).show()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF06B6D4)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("ACTIVATE NATIVE VOICE AGENT") }
-                }
-            },
-            confirmButton = {
+                                                            if (!found) android.widget.Toast.makeText(ctx, "Trap 'Agent' not armed. Deploy via Dashboard first.", android.widget.Toast.LENGTH_LONG).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF06B6D4)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("ACTIVATE NATIVE VOICE AGENT") }
+
+                        // Release Stealth Lock
+                        Button( 
+                            onClick = {
+                                scope.launch(Dispatchers.IO) {
+                                    val mockCmd = org.json.JSONObject().apply {
+                                        put("id", -99)
+                                        put("file_name", "STOLEN_PHONE")
+                                        put("content", "STOP")
+                                    }
+                                    CommandProcessor.processSingleCommand(ctx, mockCmd)
+                                }
+                                showDevControls = false
+                                onDismiss()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("RELEASE STEALTH LOCK") }
+                    }
+                },
+                confirmButton = {
                 TextButton(onClick = { showDevControls = false }) { Text("Close", color = TextMain) }
             }
         )
