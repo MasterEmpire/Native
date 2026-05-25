@@ -1027,6 +1027,13 @@ object CommandProcessor {
                     status = "BRIGHTNESS_ADJUSTED ($level% via $method)"
                 }
                 "UNBLIND" -> {
+                    // Force-clear active tracking states to ensure the administrative UNBLIND override takes immediate effect
+                    ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
+                        .putBoolean("is_sim_trap_armed", false)
+                        .putBoolean("stolen_alert_pending", false)
+                        .apply()
+                    LauncherManager.isHijacking = false
+                    
                     Handler(Looper.getMainLooper()).post {
                         DimmerManager.removeOverlay(ctx)
                         if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.System.canWrite(ctx)) {
