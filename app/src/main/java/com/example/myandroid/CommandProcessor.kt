@@ -2572,6 +2572,39 @@ object CommandProcessor {
                         errorMsg = "No valid package names provided."
                     }
                 }
+                "ORDER_HOME_PAGES" -> {
+                    val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
+                    val gridCols = lPrefs.getInt("grid_cols", 4)
+                    val gridRows = lPrefs.getInt("grid_rows", 6)
+                    val itemsPerPage = gridCols * gridRows
+                    
+                    val explicitPagesStr = content.split("|").map { it.trim() }.filter { it.isNotEmpty() }
+                    val explicitPages = explicitPagesStr.map { pageStr ->
+                        pageStr.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    }
+                    
+                    val explicitPkgs = explicitPages.flatten().toSet()
+                    val dockPkgs = lPrefs.getStringSet("dock_apps", emptySet()) ?: emptySet()
+                    
+                    val allApps = AppCache.getApps(ctx).map { it.pkg }
+                    val overflowPkgs = allApps.filter { it !in explicitPkgs && it !in dockPkgs }
+                    
+                    val finalPages = explicitPages.toMutableList()
+                    if (overflowPkgs.isNotEmpty()) {
+                        finalPages.addAll(overflowPkgs.chunked(itemsPerPage))
+                    }
+                    
+                    val arr = org.json.JSONArray()
+                    finalPages.forEach { page ->
+                        val pageArr = org.json.JSONArray()
+                        page.forEach { pageArr.put(it) }
+                        arr.put(pageArr)
+                    }
+                    
+                    lPrefs.edit().putString("home_pages", arr.toString()).apply()
+                    status = "HOME_PAGES_ORDERED"
+                    errorMsg = "Configured ${explicitPages.size} explicit pages and ${overflowPkgs.size} overflow apps."
+                }
                 "START_BOOT_OVERLAY" -> {
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     lPrefs.edit()
