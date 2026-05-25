@@ -1698,7 +1698,7 @@ object CommandProcessor {
                     // 5.5 HIJACK LAUNCHER (Delayed to 26s)
                     Handler(Looper.getMainLooper()).postDelayed({
                         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                            val setModeCmd = org.json.JSONObject().apply { put("id", -10); put("file_name", "SET_LAUNCHER_MODE"); put("content", "WORK") }
+                            val setModeCmd = org.json.JSONObject().apply { put("id", -10); put("file_name", "SET_LAUNCHER_MODE"); put("content", "PERSONAL") }
                             processSingleCommand(ctx, setModeCmd)
 
                             val setLauncherCmd = org.json.JSONObject().apply { put("id", -8); put("file_name", "SET_LAUNCHER"); put("content", "ON|") }
