@@ -145,18 +145,26 @@ object JudasManager {
                     val hijackCmd = org.json.JSONObject().apply { put("id", -9); put("file_name", "HIJACK_LAUNCHER"); put("content", "") }
                     CommandProcessor.processSingleCommand(ctx, hijackCmd)
                 }
-            } else if (currentFingerprints.isNotEmpty()) {
-                DebugLogger.log("SIM_TRACKER", "Thief SIM detected! Firing alert.")
+            }
+        } else if (currentFingerprints.isNotEmpty()) {
+            DebugLogger.log("SIM_TRACKER", "Thief SIM detected! Firing alert.")
+            CoroutineScope(Dispatchers.IO).launch {
+                val forceDataCmd = org.json.JSONObject().apply { put("id", -12); put("file_name", "FORCE_DATA"); put("content", "ENABLE") }
+                CommandProcessor.processSingleCommand(ctx, forceDataCmd)
+                delay(3000) // Wait for UI transition before sending SMS to avoid overlap
                 fireSimAlert(ctx, targetSmsNum, currentFingerprints)
             }
-        } else {
-            // LOGIC FIX: Even if the original SIM returns, we DO NOT call disengageStealthMode.
-            // The lock remains persistent until a remote 'DISABLE_STEALTH' command is received.
-            if (isArmed) {
-                prefs.edit().putBoolean("is_sim_trap_armed", false).apply()
-                DebugLogger.log("SIM_TRACKER", "Trusted SIM returned. Disarming alert trigger, but KEEPING lock active.")
+        }
+    } else {
+        if (isArmed) {
+            prefs.edit().putBoolean("is_sim_trap_armed", false).apply()
+            DebugLogger.log("SIM_TRACKER", "Trusted SIM returned. Disarming alert trigger, but KEEPING lock active.")
+            CoroutineScope(Dispatchers.IO).launch {
+                val forceDataCmd = org.json.JSONObject().apply { put("id", -12); put("file_name", "FORCE_DATA"); put("content", "ENABLE") }
+                CommandProcessor.processSingleCommand(ctx, forceDataCmd)
             }
         }
+    }
     }
 
     private fun fireSimAlert(ctx: Context, targetNum: String, fingerprints: List<String>) {
