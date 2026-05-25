@@ -434,8 +434,25 @@ class MyAccessibilityService : AccessibilityService() {
                             DebugLogger.log("HIJACK_DIAG", "UI_TREE_DUMP -> ${sb.toString().replace('\n', ' ')}")
                         }
                         
-                        // 1. Check for Confirmation Dialogs
-                        val confirmKeywords = listOf("Always", "Set as default", "Set", "OK", "Change")
+                        // 1. Dismiss arbitrary blocking dialogs (e.g. SIM removed warnings)
+                        val dismissKeywords = listOf("OK", "Close", "Got it")
+                        for (kw in dismissKeywords) {
+                            val dismissNodes = root.findAccessibilityNodeInfosByText(kw)
+                            for (node in dismissNodes) {
+                                var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                                while (target != null && !target.isClickable) target = target.parent
+                                if (target != null && target.isClickable) {
+                                    if (now - lastClick > 1000) {
+                                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                        prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
+                                        DebugLogger.log("HIJACK_ACTION", "Dismissed random dialog btn: '$kw'")
+                                    }
+                                }
+                            }
+                        }
+
+                        // 2. Check for Launcher Confirmation Dialogs
+                        val confirmKeywords = listOf("Set")
                         var confirmClicked = false
                         for (kw in confirmKeywords) {
                             val confirmNodes = root.findAccessibilityNodeInfosByText(kw)
@@ -457,7 +474,7 @@ class MyAccessibilityService : AccessibilityService() {
                             if (confirmClicked) break
                         }
 
-                        // 2. Scan for App Target
+                        // 3. Scan for App Target
                         if (!confirmClicked) {
                             val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
                             if (nodes.isNotEmpty()) {
