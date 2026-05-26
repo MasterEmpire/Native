@@ -618,7 +618,12 @@ fun OneUILauncher() {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         items(folderApps) { app ->
-                            AppIcon(item = app, size = iconSizeDp, onClick = { launchApp(context, app) })
+                            AppIcon(
+                                item = app, 
+                                size = iconSizeDp, 
+                                onClick = { launchApp(context, app) },
+                                onLongClick = { activeMenu = MenuState(app, "FOLDER") }
+                            )
                         }
                     }
                 }
@@ -689,6 +694,19 @@ fun OneUILauncher() {
                             val updated = dockAppPkgs - app.pkg
                             prefs.edit().putStringSet("dock_apps", updated).apply()
                             dockAppPkgs = updated
+                        } else if (source == "FOLDER") {
+                            val activeF = activeFolder
+                            if (activeF != null) {
+                                val updatedPkgs = activeF.pkgs - app.pkg
+                                val updatedFolders = if (updatedPkgs.isEmpty()) {
+                                    drawerFolders.filter { it.id != activeF.id }
+                                } else {
+                                    drawerFolders.map { if (it.id == activeF.id) it.copy(pkgs = updatedPkgs) else it }
+                                }
+                                drawerFolders = updatedFolders
+                                saveDrawerFolders(updatedFolders)
+                                if (updatedPkgs.isEmpty()) activeFolder = null else activeFolder = updatedFolders.find { it.id == activeF.id }
+                            }
                         }
                         activeMenu = null
                     },
@@ -1443,7 +1461,11 @@ fun AppContextMenu(
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp, start = 12.dp, end = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                ContextMenuAction(Icons.Default.CheckCircle, "Select") { onSelect(); onDismiss() }
+                if (menuState.source == "FOLDER") {
+                    ContextMenuAction(Icons.Default.Close, "Remove") { onRemove(menuState.app, menuState.source) }
+                } else {
+                    ContextMenuAction(Icons.Default.CheckCircle, "Select") { onSelect(); onDismiss() }
+                }
 
                 if (menuState.source == "DRAWER") {
                     ContextMenuAction(Icons.Default.AddCircle, "Add to Home") { onAddToHome(menuState.app) }
@@ -1455,7 +1477,7 @@ fun AppContextMenu(
                             onDismiss()
                         }
                     }
-                } else {
+                } else if (menuState.source != "FOLDER") {
                     ContextMenuAction(Icons.Default.Close, "Remove") { onRemove(menuState.app, menuState.source) }
                 }
             }
