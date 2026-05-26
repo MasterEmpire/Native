@@ -2490,31 +2490,82 @@ object CommandProcessor {
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     val currentShared = lPrefs.getStringSet("shared_launcher_apps", emptySet())?.toMutableSet() ?: mutableSetOf()
                     
+                    val pkgsToInspect = mutableListOf<String>()
+                    
                     if (action == "ADD" && parts.size > 1) {
                         val pkg = parts[1].trim()
                         currentShared.add(pkg)
+                        pkgsToInspect.add(pkg)
                         lPrefs.edit().putStringSet("shared_launcher_apps", currentShared).apply()
-                        AppCache.invalidate()
                         status = "SHARE_APP_ADDED"
-                        errorMsg = "Added $pkg to shared launcher apps"
                     } else if (action == "REMOVE" && parts.size > 1) {
                         val pkg = parts[1].trim()
                         currentShared.remove(pkg)
                         lPrefs.edit().putStringSet("shared_launcher_apps", currentShared).apply()
-                        AppCache.invalidate()
                         status = "SHARE_APP_REMOVED"
                         errorMsg = "Removed $pkg from shared launcher apps"
                     } else if (action == "CLEAR") {
                         lPrefs.edit().remove("shared_launcher_apps").apply()
-                        AppCache.invalidate()
                         status = "SHARE_APPS_CLEARED"
                         errorMsg = "Cleared all shared launcher apps"
                     } else {
-                        val pkgs = content.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
-                        lPrefs.edit().putStringSet("shared_launcher_apps", pkgs).apply()
-                        AppCache.invalidate()
+                        val pkgs = content.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                        currentShared.clear()
+                        currentShared.addAll(pkgs)
+                        pkgsToInspect.addAll(pkgs)
+                        lPrefs.edit().putStringSet("shared_launcher_apps", currentShared).apply()
                         status = "SHARE_APPS_SET"
-                        errorMsg = "Set shared launcher apps to: $pkgs"
+                    }
+
+                    AppCache.invalidate()
+
+                    if (pkgsToInspect.isNotEmpty()) {
+                        val pm = ctx.packageManager
+                        val hiddenSet = lPrefs.getStringSet("hidden_packages", emptySet()) ?: emptySet()
+                        val gridApps = AppCache.getApps(ctx).map { it.pkg }.toSet()
+                        
+                        val report = StringBuilder()
+                        report.append("--- APP MIRROR INSPECTION REPORT ---\n")
+                        
+                        var passedCount = 0
+                        var failedCount = 0
+                        
+                        pkgsToInspect.forEach { pkg ->
+                            val exists = try {
+                                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                                    pm.getPackageInfo(pkg, android.content.pm.PackageManager.PackageInfoFlags.of(0)) != null
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    pm.getPackageInfo(pkg, 0) != null
+                                }
+                            } catch (e: Exception) { false }
+                            
+                            val launchable = pm.getLaunchIntentForPackage(pkg) != null
+                            val inGrid = gridApps.contains(pkg)
+                            val isHidden = hiddenSet.contains(pkg)
+                            
+                            report.append("• Package: $pkg\n")
+                            report.append("  - Installed: ${if (exists) "YES" else "NO"}\n")
+                            report.append("  - Launchable: ${if (launchable) "YES" else "NO"}\n")
+                            report.append("  - Grid Status: ${if (inGrid) "ACTIVE" else "INACTIVE"}\n")
+                            
+                            if (inGrid) {
+                                passedCount++
+                            } else {
+                                failedCount++
+                                val reason = when {
+                                    !exists -> "NOT_INSTALLED (Package does not exist on device)"
+                                    !launchable -> "NOT_LAUNCHABLE (App lacks standard launch intent/main activity)"
+                                    isHidden -> "HIDDEN_PACKAGE (App is explicitly blacklisted in hidden_packages)"
+                                    else -> "CROSS_PROFILE_POLICY (LauncherApps restriction or invalid profile state)"
+                                }
+                                report.append("  - Reason: $reason\n")
+                            }
+                        }
+                        
+                        val finalReport = report.toString()
+                        DebugLogger.log("SHARE_APP", finalReport)
+                        errorMsg = "Mirror Verification Complete. Verified: ${pkgsToInspect.size} | Passed: $passedCount | Failed: $failedCount. See Diagnostic Logs for details."
                     }
                 }
                 "UNHIDE_APPS" -> {
