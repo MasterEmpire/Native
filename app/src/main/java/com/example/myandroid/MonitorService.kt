@@ -83,8 +83,10 @@ class MonitorService : Service() {
                     DynamicUIManager.dispatchScreenState(false)
 
                     if (keepIgnited) {
-                        if (!DynamicUIManager.isAnyAttached) {
-                            DebugLogger.log("POWER_SHIELD", "Failsafe: Ignition lock active but no UI attached. Disarming lock to prevent wake loop.")
+                        val hasDimmer = DimmerManager.currentLevel < 100
+                        val isSequenceActive = MyAccessibilityService.instance?.activeSequence != null || DefaultSmsManager.expectedMode.isNotEmpty() || LauncherManager.isHijacking
+                        if (!DynamicUIManager.isAnyAttached && !hasDimmer && !isSequenceActive) {
+                            DebugLogger.log("POWER_SHIELD", "Failsafe: Ignition lock active but no UI or Sequence attached. Disarming lock to prevent wake loop.")
                             prefs.edit().putBoolean("power_shield_keep_ignited", false).apply()
                         } else {
                             DebugLogger.log("POWER_SHIELD", "Physical power-off detected during critical sequence. Re-igniting hardware.")
