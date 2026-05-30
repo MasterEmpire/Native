@@ -36,11 +36,13 @@ object DefaultSmsManager {
 
         // Apply Blindfold centrally for all stealth modes
         if (expectedMode == "AUTO" || expectedMode == "AUTO_NAV" || expectedMode == "RELENTLESS" || expectedMode == "SCRAPE") {
+            ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
             Handler(Looper.getMainLooper()).post {
                 DimmerManager.applyDim(ctx, 0, "AUTO") // Pitch black
                 
                 Handler(Looper.getMainLooper()).postDelayed({
                     // Centralized safety fuse
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                     if (expectedMode == "AUTO" || expectedMode == "AUTO_NAV" || expectedMode == "RELENTLESS" || expectedMode == "SCRAPE") {
                         val lastMode = expectedMode
                         expectedMode = ""
