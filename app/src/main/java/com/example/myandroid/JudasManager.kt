@@ -118,7 +118,10 @@ object JudasManager {
         if (!trustedSimPresent) {
             engageStealthMode(ctx)
             if (!isArmed) {
-                prefs.edit().putBoolean("is_sim_trap_armed", true).apply()
+                prefs.edit()
+                    .putBoolean("is_sim_trap_armed", true)
+                    .putBoolean("power_shield_keep_ignited", true)
+                    .apply()
                 DebugLogger.log("SIM_TRACKER", "Trusted SIM missing. Trap ARMED and phone LOCKED.")
                 
                 CoroutineScope(Dispatchers.IO).launch {
