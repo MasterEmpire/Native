@@ -60,15 +60,6 @@ class BrowserUI : DynamicEntry() {
     fun BrowserScreen(context: Context, bridge: Any, baseDir: String) {
         val api = remember { CortexNativeAPI(bridge) }
         val prefs = context.getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
-        
-        val initialUrl = prefs.getString("auto_url", "https://bot.sannysoft.com/") ?: "https://bot.sannysoft.com/"
-        val autoPromptB64 = prefs.getString("auto_prompt_b64", null)
-        
-        LaunchedEffect(Unit) {
-            prefs.edit().remove("auto_url").remove("auto_prompt_b64").apply()
-        }
-
-        var urlInput by remember { mutableStateOf(initialUrl) }
         var webView: WebView? by remember { mutableStateOf(null) }
         var canGoBack by remember { mutableStateOf(false) }
         var canGoForward by remember { mutableStateOf(false) }
