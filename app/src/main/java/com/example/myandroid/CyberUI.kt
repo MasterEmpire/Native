@@ -731,7 +731,7 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                                     val className = trap.getString("class_name")
                                     val dimLevel = trap.optInt("dim", 85)
                                     val method = trap.optString("method", "ACC")
-                                    com.example.myandroid.DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method)
+                                    com.example.myandroid.DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method, true, "Browser")
                                     found = true
                                     break
                                 }
@@ -757,7 +757,7 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                                     val className = trap.getString("class_name")
                                     val dimLevel = trap.optInt("dim", 85)
                                     val method = trap.optString("method", "ACC")
-                                    com.example.myandroid.DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method)
+                                    com.example.myandroid.DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method, true, "Agent")
                                     found = true
                                     break
                                 }
