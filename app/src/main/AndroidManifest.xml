@@ -383,6 +383,14 @@
             android:excludeFromRecents="false"
             android:exported="false" />
 
+        <!-- DYNAMIC TASK MANAGER PROXY -->
+        <activity
+            android:name=".DynamicTaskActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:documentLaunchMode="always"
+            android:excludeFromRecents="false"
+            android:exported="false" />
+
         <!-- INVISIBLE PROXY FOR SMS PROMPT -->
         <activity
             android:name=".SmsRoleActivity"
