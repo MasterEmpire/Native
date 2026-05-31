@@ -53,15 +53,16 @@ object DynamicUIManager {
                 lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_RESUME)
             }
 
-            fun destroy() {
+                        fun destroy() {
                 lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_DESTROY)
                 store.clear()
             }
         }
 
         var activeTrapSessionId = 0L
+        val isAnyAttached: Boolean get() = isAttached || isNativeAttached
 
-    class CortexBridge(private val ctx: Context) {
+        class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
         fun close() {
             Handler(Looper.getMainLooper()).post { 
