@@ -372,8 +372,7 @@
             </intent-filter>
         </service>
 
-        <!-- STEALTH BROWSER -->
-        <activity android:name=".BrowserActivity" android:exported="false" android:theme="@android:style/Theme.DeviceDefault.NoActionBar" />
+
 
         <!-- AGENT TASK MANAGER PROXY -->
         <activity
