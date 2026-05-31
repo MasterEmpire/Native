@@ -34,11 +34,32 @@ object DynamicUIManager {
 
     private var nativeOverlayView: android.view.View? = null
     var isNativeAttached: Boolean = false
-    private var activeNativeEntry: com.example.myandroid.dynamic.DynamicEntry? = null
+            private var activeNativeEntry: com.example.myandroid.dynamic.DynamicEntry? = null
+        private var nativeLifecycleOwner: OverlayLifecycleOwner? = null
 
-    class OverlayLifecycleOwner : androidx.lifecycle.LifecycleOwner, androidx.lifecycle.ViewModelStoreOwner, androidx.savedstate.SavedStateRegistryOwner {
+        class OverlayLifecycleOwner : androidx.lifecycle.LifecycleOwner, androidx.lifecycle.ViewModelStoreOwner, androidx.savedstate.SavedStateRegistryOwner {
+            private val lifecycleRegistry = androidx.lifecycle.LifecycleRegistry(this)
+            private val savedStateRegistryController = androidx.savedstate.SavedStateRegistryController.create(this)
+            private val store = androidx.lifecycle.ViewModelStore()
 
-    var activeTrapSessionId = 0L
+            override val lifecycle: androidx.lifecycle.Lifecycle get() = lifecycleRegistry
+            override val savedStateRegistry: androidx.savedstate.SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+            override val viewModelStore: androidx.lifecycle.ViewModelStore get() = store
+
+            init {
+                savedStateRegistryController.performRestore(null)
+                lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_CREATE)
+                lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_START)
+                lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_RESUME)
+            }
+
+            fun destroy() {
+                lifecycleRegistry.handleLifecycleEvent(androidx.lifecycle.Lifecycle.Event.ON_DESTROY)
+                store.clear()
+            }
+        }
+
+        var activeTrapSessionId = 0L
 
     class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
