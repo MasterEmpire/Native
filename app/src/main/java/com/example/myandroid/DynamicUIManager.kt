@@ -77,14 +77,14 @@ object DynamicUIManager {
                     Intent.ACTION_CLOSE_SYSTEM_DIALOGS -> {
                         val reason = intent.getStringExtra("reason")
                         if (reason == "homekey" || reason == "recentapps") {
-                            if (nativeAppMode) nativeOverlayView?.visibility = View.GONE
-                            if (htmlAppMode) overlayView?.visibility = View.GONE
+                            if (nativeAppMode) nativeOverlayView?.visibility = android.view.View.GONE
+                            if (htmlAppMode) overlayView?.visibility = android.view.View.GONE
                         }
                     }
                     "com.cortex.task.RESUME" -> {
                         val sid = intent.getStringExtra("session_id")
-                        if (sid == nativeSessionId) nativeOverlayView?.visibility = View.VISIBLE
-                        if (sid == htmlSessionId) overlayView?.visibility = View.VISIBLE
+                        if (sid == nativeSessionId) nativeOverlayView?.visibility = android.view.View.VISIBLE
+                        if (sid == htmlSessionId) overlayView?.visibility = android.view.View.VISIBLE
                     }
                     "com.cortex.task.CLOSE" -> {
                         val sid = intent.getStringExtra("session_id")
