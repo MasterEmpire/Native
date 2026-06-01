@@ -3,27 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cortex UI - Shutdown Sequence</title>
+    <title>Cortex Precision Mapper v2.3</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Handlee&display=swap" rel="stylesheet">
     <style>
+        /* Cortex UI Precision Config */
         :root {
-            --icon-1-s: 54px; --icon-1-x: -1px; --icon-1-y: -44px;
-            --icon-2-s: 59px; --icon-2-x: -2px; --icon-2-y: -48px;
-            --icon-3-s: 61px; --icon-3-x: -2px; --icon-3-y: -54px;
+            --icon-1-s: 59.8px; --icon-1-x: 14.4px; --icon-1-y: -21.4px;
+            --icon-2-s: 81.8px; --icon-2-x: -14px; --icon-2-y: -20.8px;
+            --icon-3-s: 71px; --icon-3-x: 14.8px; --icon-3-y: -53.8px;
+            --icon-4-s: 76.4px; --icon-4-x: -15.2px; --icon-4-y: -52.2px;
             --side-key-v: 0;
-            --side-key-y: 95px;
-            --side-key-x: 1px;
-            --side-key-w: 170px;
-            --glass-blur: 0px;
+            --side-key-y: 110px;
+            --side-key-x: 0px;
+            --side-key-w: 200px;
+            --glass-blur: 25px;
             --glass-op: 0;
-            --nav-size: 28px;
+            --nav-size: 29.7px;
             --nav-spacing: 45px;
-
-            --text-white: #ffffff;
-            --pill-bg: rgba(255, 255, 255, 0.12);
-            --nav-bg: #000000;
         }
 
         * { 
@@ -34,9 +32,9 @@
 
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            background-color: transparent; color: var(--text-white);
+            background-color: transparent; color: #ffffff;
             font-family: "Segoe UI", "Roboto", sans-serif;
-            overflow: hidden;
+            font-weight: 300; overflow: hidden;
             transition: background-color 0.5s ease;
         }
 
@@ -61,11 +59,11 @@
 
         .icon-grid {
             display: grid; 
-            grid-template-columns: 160px; 
-            grid-template-rows: repeat(3, 130px);    
-            gap: 10px;
+            grid-template-columns: 160px 160px; 
+            grid-template-rows: 160px 160px;    
+            gap: 20px 20px;
             width: fit-content;
-            margin-bottom: 40px;
+            margin-bottom: 60px;
         }
 
         .icon-item { 
@@ -75,7 +73,7 @@
             align-items: center;
             transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 2;
-            pointer-events: none; /* Let taps pass through the container */
+            pointer-events: none; /* Let taps pass through the container to back handler */
         }
 
         .icon-grid.active-state .icon-item:not(.active) {
@@ -86,9 +84,11 @@
 
         .icon-item.active { z-index: 100; }
         
-        .icon-item.active:nth-child(1) { transform: translateY(140px) scale(1.4); }
-        .icon-item.active:nth-child(2) { transform: translateY(0px) scale(1.4); }
-        .icon-item.active:nth-child(3) { transform: translateY(-140px) scale(1.4); }
+        /* Mathematically computed offsets to center each active element in the 2x2 grid */
+        .icon-item.active:nth-child(1) { transform: translate(90px, 90px) scale(1.4); }
+        .icon-item.active:nth-child(2) { transform: translate(-90px, 90px) scale(1.4); }
+        .icon-item.active:nth-child(3) { transform: translate(90px, -90px) scale(1.4); }
+        .icon-item.active:nth-child(4) { transform: translate(-90px, -90px) scale(1.4); }
 
         .icon-item.active .icon-svg { transform: translate(0, 0) !important; }
 
@@ -97,24 +97,26 @@
             cursor: pointer;
             z-index: 2;
             transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.1s ease;
-            pointer-events: auto; /* Only capture taps on the actual icon */
+            pointer-events: auto; /* Taps are captured directly by the SVG */
         }
 
         #svg-1 { width: var(--icon-1-s); height: var(--icon-1-s); transform: translate(var(--icon-1-x), var(--icon-1-y)); }
         #svg-2 { width: var(--icon-2-s); height: var(--icon-2-s); transform: translate(var(--icon-2-x), var(--icon-2-y)); }
         #svg-3 { width: var(--icon-3-s); height: var(--icon-3-s); transform: translate(var(--icon-3-x), var(--icon-3-y)); }
+        #svg-4 { width: var(--icon-4-s); height: var(--icon-4-s); transform: translate(var(--icon-4-x), var(--icon-4-y)); }
 
         .side-key-btn {
             position: absolute; 
             bottom: var(--side-key-y); 
             left: calc(50% + var(--side-key-x)); 
             transform: translateX(-50%);
-            background: var(--pill-bg); 
+            background: rgba(255, 255, 255, 0.12); 
             width: var(--side-key-w);
             height: 44px;
             display: flex; align-items: center; justify-content: center;
             border-radius: 25px;
             font-size: 14.5px; border: 0.5px solid rgba(255,255,255,0.08);
+            cursor: pointer;
             opacity: var(--side-key-v);
             white-space: nowrap;
             pointer-events: none;
@@ -122,7 +124,7 @@
 
         .nav-bar {
             position: fixed; bottom: 0; width: 100%; height: 48px;
-            background: var(--nav-bg); display: flex;
+            background: #000000; display: flex;
             justify-content: space-between; align-items: center;
             padding: 0 var(--nav-spacing);
             z-index: 20;
@@ -146,7 +148,7 @@
 
         .instruction-text {
             position: absolute;
-            top: calc(50% + 45px); /* Significantly lifted to account for 1.4x scale */
+            top: calc(50% + 135px); /* Adjusted to sit elegantly below the scaled 2x2 grid */
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -187,6 +189,7 @@
             <div id="action-desc" class="action-desc"></div>
         </div>
         <div class="icon-grid" id="icon-grid">
+            <!-- Icon 1: Original Power Icon -->
             <div class="icon-item">
                 <svg id="svg-1" class="icon-svg" viewBox="0 0 1024 1024" onclick="handleAction('power', this.parentElement)">
                     <defs><clipPath id="sq"><path d="M 512,0 C 114,0 0,114 0,512 0,910 114,1024 512,1024 910,1024 1024,910 1024,512 1024,114 910,0 512,0 Z" /></clipPath></defs>
@@ -195,35 +198,93 @@
                 </svg>
             </div>
 
+            <!-- Icon 2: Refined Standby Timer Icon -->
             <div class="icon-item">
-                <svg id="svg-2" class="icon-svg" viewBox="0 0 1024 1024" onclick="handleAction('restart', this.parentElement)">
-                    <rect width="1024" height="1024" fill="#0BB062" clip-path="url(#sq)" />
-                    <g fill="none" stroke="white" stroke-width="72" stroke-linecap="butt" stroke-linejoin="round">
-                        <line x1="512" y1="240" x2="512" y2="440" stroke-linecap="square" />
-                        <path d="M 585,275 A 240,240 0 1 1 350,715" />
-                        <path d="M 440,275 A 240,240 0 0 0 375,315" /><path d="M 325,365 A 240,240 0 0 0 285,435" /><path d="M 270,495 A 240,240 0 0 0 272,565" />
-                        <path d="M 365,630 L 260,725 L 365,820" stroke-linecap="square" />
-                    </g>
-                    <polygon points="260,689 260,761 320,725" fill="white" />
+                <svg id="svg-2" class="icon-svg" viewBox="0 0 256 256" onclick="handleAction('restart', this.parentElement)">
+                    <!-- Green Circle Badge -->
+                    <circle cx="128" cy="128" r="101" fill="#11B751" />
+                    
+                    <!-- Center Power Line (Pill shape) -->
+                    <line x1="128" y1="72" x2="128" y2="124" 
+                          stroke="white" 
+                          stroke-width="11" 
+                          stroke-linecap="round" />
+                    
+                    <!-- Solid Right Arc -->
+                    <path d="M 151.7,77.3 A 56,56 0 0,1 110.8,181.2" 
+                          fill="none" 
+                          stroke="white" 
+                          stroke-width="11" 
+                          stroke-linecap="round" />
+                    
+                    <!-- Arrowhead (Positioned at 108°, rotated 198° along the tangent) -->
+                    <path d="M -2,-10 L 14,0 L -2,10 Z" 
+                          fill="white" 
+                          stroke="white" 
+                          stroke-width="2" 
+                          stroke-linejoin="round" 
+                          transform="translate(110.8, 181.2) rotate(198)" />
+                    
+                    <!-- Dashed Left Arc (4 perfectly spaced dashes starting safely at 135°) -->
+                    <path d="M 88.4,167.6 A 56,56 0 0,1 104.3,77.3" 
+                          fill="none" 
+                          stroke="white" 
+                          stroke-width="11" 
+                          stroke-linecap="round" 
+                          stroke-dasharray="5, 25" />
                 </svg>
             </div>
 
+            <!-- Icon 3: Refined Emergency SOS Icon -->
             <div class="icon-item">
-                <svg id="svg-3" class="icon-svg" viewBox="0 0 1024 1024" onclick="handleAction('emergency', this.parentElement)">
-                    <rect width="1024" height="1024" fill="#DE3526" clip-path="url(#sq)" />
-                    <path d="M 246,737 L 778,737 L 778,688 L 714,688 L 666,310 C 658,280 640,270 610,270 L 414,270 C 384,270 366,280 358,310 L 310,688 L 246,688 Z" fill="white" />
-                    <rect x="488" y="365" width="48" height="185" rx="4" fill="#DE3526" />
-                    <circle cx="512" cy="622" r="32" fill="#DE3526" />
+                <svg id="svg-3" class="icon-svg" viewBox="0 0 256 256" onclick="handleAction('emergency', this.parentElement)">
+                    <!-- Red Circle Badge -->
+                    <circle cx="128" cy="128" r="115" fill="#E61C24" />
+                    
+                    <!-- White Phone Handset (Rotated and centered) -->
+                    <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"
+                          fill="#FFFFFF"
+                          transform="translate(128, 130) rotate(5) scale(9.0) translate(-8, -8)" />
+                    
+                    <!-- SOS Text -->
+                    <text x="110" y="92" 
+                          fill="#FFFFFF" 
+                          font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" 
+                          font-size="36px" 
+                          font-weight="900" 
+                          letter-spacing="-1.5px">SOS</text>
+                </svg>
+            </div>
+
+            <!-- Icon 4: Refined Heart ECG Icon -->
+            <div class="icon-item">
+                <svg id="svg-4" class="icon-svg" viewBox="0 0 256 256" onclick="handleAction('medical', this.parentElement)">
+                    <!-- Red Circle Badge -->
+                    <circle cx="128" cy="128" r="101" fill="#E61C24" />
+                    
+                    <!-- White Heart Shape (Centered) -->
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                          fill="#FFFFFF"
+                          transform="translate(128, 128) scale(6.1) translate(-12, -12)" />
+                    
+                    <!-- Red ECG Pulse Line -->
+                    <path d="M 60,130 L 106,130 L 122,94 L 136,162 L 148,130 L 196,130"
+                          fill="none"
+                          stroke="#E61C24"
+                          stroke-width="11"
+                          stroke-linecap="round"
+                          stroke-linejoin="round" />
                 </svg>
             </div>
         </div>
-        <div class="side-key-btn">Side key settings</div>
+
+        <div class="side-key-btn" onclick="if(window.Cortex) Cortex.close()">Side key settings</div>
     </div>
 
     <div class="nav-bar">
         <svg class="nav-icon" style="cursor: pointer;" viewBox="0 0 24 24" onclick="handleNav('recent')"><path d="M7,6V18M12,6V18M17,6V18" /></svg>
         <svg class="nav-icon" style="cursor: pointer;" viewBox="0 0 24 24" onclick="handleNav('home')"><circle cx="12" cy="12" r="7.5" /></svg>
-        <svg class="nav-icon" style="cursor: pointer; stroke-width: 1.4px;" viewBox="0 0 24 24" onclick="handleNav('back')"><path d="M9 9 L6 12 L9 15" /><path d="M6 12 H14 C 18.5 12, 20 10.5, 20 7 V 4.5" /></svg>
+        <svg id="nav-back" class="nav-icon" style="cursor: pointer; stroke-width: 1.4px;" viewBox="0 0 24 24" onclick="handleNav('back')"><path d="M9 9 L6 12 L9 15" /><path d="M6 12 H14 C 18.5 12, 20 10.5, 20 7 V 4.5" /></svg>
     </div>
 
     <script>
@@ -269,7 +330,7 @@
                 }
 
                 if (grid.classList.contains('active-state')) {
-                    // If 1 button is focused, just go back to the 3-button list
+                    // If 1 button is focused, just go back to the 4-button list
                     resetUI();
                 } else {
                     // If in main screen, issue system back and close
@@ -360,7 +421,7 @@
                 grid.classList.add('active-state');
                 overlay.classList.add('active-state');
 
-                // Show instruction text
+                // Show instruction text based on selected action
                 if (type === 'power') {
                     label.innerText = 'Power off';
                     desc.innerText = 'Tap again to turn off your phone';
@@ -370,6 +431,9 @@
                 } else if (type === 'emergency') {
                     label.innerText = 'Emergency mode';
                     desc.innerText = 'Tap again to turn on Emergency mode';
+                } else if (type === 'medical') {
+                    label.innerText = 'Medical info';
+                    desc.innerText = 'Tap again to view medical info';
                 }
                 container.style.opacity = '1';
             }
@@ -407,7 +471,7 @@
                 setTimeout(() => { Cortex.close(); }, 100);
             } else if (type === 'back') {
                 if (grid.classList.contains('active-state')) {
-                    // If one button is focused, just go back to the 3-button list
+                    // If one button is focused, just go back to the 4-button list
                     resetUI();
                 } else {
                     // If in main grid, go system back and close
