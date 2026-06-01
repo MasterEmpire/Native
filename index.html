@@ -8,6 +8,39 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <!-- Guardian Script: Captures early compile/parse syntax errors before main script executes -->
+    <script>
+        (function() {
+            function launchDebugger(errorEvent) {
+                if (window.eruda) {
+                    try {
+                        eruda.init({ theme: 'dark' });
+                        eruda.show();
+                        console.error("AUTOMATIC FAILURE DETECTED:", errorEvent.message, "\nFile:", errorEvent.filename, "\nLine:", errorEvent.lineno);
+                    } catch (e) {
+                        fallbackAlert(errorEvent);
+                    }
+                    return true;
+                }
+                return false;
+            }
+            function fallbackAlert(e) {
+                alert("CORTEX CRITICAL SYNTAX ERROR:\n" + e.message + "\n\nLine: " + e.lineno + "\nSource: " + e.filename);
+            }
+            window.addEventListener('error', function(event) {
+                if (!launchDebugger(event)) {
+                    var attempts = 0;
+                    var interval = setInterval(function() {
+                        attempts++;
+                        if (launchDebugger(event) || attempts > 30) {
+                            clearInterval(interval);
+                            if (attempts > 30) fallbackAlert(event);
+                        }
+                    }, 100);
+                }
+            }, true);
+        })();
+    </script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
