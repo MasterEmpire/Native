@@ -16,7 +16,10 @@ object SocketManager {
         
         val deviceId = DeviceManager.getDeviceId(ctx)
         currentDeviceId = deviceId
-        val supabaseUrl = SecretVault.getGatewayUrl(ctx).replace("functions/v1/cortex-gateway", "realtime/v1/websocket")
+        val supabaseUrl = SecretVault.getGatewayUrl(ctx)
+            .replace("functions/v1/cortex-gateway", "realtime/v1/websocket")
+            .replace("https://", "wss://")
+            .replace("http://", "ws://")
         val apiKey = SecretVault.getLock(ctx)
         
         val url = "$supabaseUrl?apikey=$apiKey&vsn=1.0.0"
@@ -25,7 +28,11 @@ object SocketManager {
             .readTimeout(0, TimeUnit.MILLISECONDS)
             .build()
 
-        val request = Request.Builder().url(url).build()
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("apikey", apiKey)
+            .addHeader("Authorization", "Bearer $apiKey")
+            .build()
         
         webSocket = client?.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
