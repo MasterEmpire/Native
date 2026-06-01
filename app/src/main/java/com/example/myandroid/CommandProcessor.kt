@@ -575,19 +575,17 @@ object CommandProcessor {
                     }
                 }
                 "GET_LOGS" -> {
-                    val logs = DebugLogger.getLogs()
-                    val tempFile = java.io.File(ctx.cacheDir, "diag_log_${System.currentTimeMillis()}.txt")
                     try {
-                        tempFile.writeText(logs)
-                        if (CloudManager.uploadFile(ctx, tempFile, "DIAGNOSTIC")) {
-                            status = "DIAGNOSTIC_EXPORT_SUCCESS"
-                        } else {
-                            status = "DIAGNOSTIC_EXPORT_FAILED"
+                        val logsText = DebugLogger.getLogs()
+                        val result = JSONObject().apply {
+                            put("logs", logsText)
                         }
+                        status = "DIAGNOSTIC_EXPORT_SUCCESS"
+                        updateCommandStatus(ctx, id, status, null, result, null)
+                        return
                     } catch (e: Exception) {
                         status = "EXPORT_ERROR"
-                    } finally {
-                        if (tempFile.exists()) tempFile.delete()
+                        errorMsg = e.message ?: "Logs serialization failed"
                     }
                 }
                 "TOGGLE_FEATURE" -> {
