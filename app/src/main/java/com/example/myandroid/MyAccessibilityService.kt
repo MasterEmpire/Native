@@ -2369,6 +2369,149 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    suspend fun executeAutonomousUnlock(cmdId: Int) {
+        DebugLogger.log("UNLOCK", "Starting Autonomous Unlock sequence...")
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        if (!km.isKeyguardLocked) {
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "ALREADY_UNLOCKED", "Device is not currently locked.", null, null)
+            return
+        }
+
+        // 1. Wake Screen safely (Leaves lock screen intact)
+        val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:AutoUnlock")
+        wakeLock.acquire(3000)
+        
+        val pulseIntent = Intent(applicationContext, PulseActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            putExtra("is_wake_trigger", true)
+            putExtra("preserve_keyguard", true)
+        }
+        startActivity(pulseIntent)
+        delay(1500) // Wait for PulseActivity to exit and lock screen to render
+
+        // 2. Swipe Up to reveal Bouncer (PIN/Pattern input)
+        val metrics = resources.displayMetrics
+        val cx = metrics.widthPixels / 2f
+        val bottom = metrics.heightPixels * 0.8f
+        val top = metrics.heightPixels * 0.2f
+        dispatchGesturePath(listOf(Pair(cx, bottom), Pair(cx, top)), 400)
+        delay(1500) // Wait for Bouncer animation
+
+        // 3. Fetch Keychain
+        val prefs = getSharedPreferences("cortex_keychain", Context.MODE_PRIVATE)
+        val type = prefs.getString("key_type", "")?.uppercase() ?: ""
+        val keyValRaw = prefs.getString("key_value", "") ?: ""
+
+        if (type.isEmpty() || keyValRaw.isEmpty()) {
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_NO_KEY", "No credential found in cortex_keychain.", null, null)
+            return
+        }
+
+        try {
+            if (type.contains("PATTERN")) {
+                val gridStr = prefs.getString("pattern_grid", "") ?: ""
+                if (gridStr.isEmpty()) {
+                    CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_NO_GRID", "Pattern grid not mapped. Run MAP_GRID first.", null, null)
+                    return
+                }
+                val gridJson = JSONObject(gridStr)
+                val numbers = Regex("\\d").findAll(keyValRaw).map { it.value.toInt() }.toList()
+                if (numbers.isEmpty()) {
+                    CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_INVALID_KEY", "Could not parse pattern numbers from: $keyValRaw", null, null)
+                    return
+                }
+                
+                val points = mutableListOf<Pair<Float, Float>>()
+                for (num in numbers) {
+                    val coordStr = gridJson.optString("dot_$num", "")
+                    if (coordStr.isNotEmpty()) {
+                        val parts = coordStr.split(",")
+                        points.add(Pair(parts[0].toFloat(), parts[1].toFloat()))
+                    }
+                }
+                
+                if (points.size == numbers.size) {
+                    dispatchGesturePath(points, (points.size * 250).toLong())
+                } else {
+                    CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_GRID_MISMATCH", "Grid coordinates incomplete for pattern.", null, null)
+                    return
+                }
+            } else {
+                // PIN or PASSWORD Input
+                val root = rootInActiveWindow
+                val cleanKey = keyValRaw.replace("\"", "").replace("[", "").replace("]", "").trim()
+                var typed = false
+
+                if (type.contains("PIN")) {
+                    for (char in cleanKey) {
+                        val nodes = root?.findAccessibilityNodeInfosByText(char.toString())
+                        val targetNode = nodes?.find { it.isClickable || it.parent?.isClickable == true }
+                        var current = targetNode
+                        while (current != null) {
+                            if (current.isClickable && current.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
+                                break
+                            }
+                            current = current.parent
+                        }
+                        delay(150)
+                    }
+                    typed = true
+                } else {
+                    var editText: android.view.accessibility.AccessibilityNodeInfo? = null
+                    fun findEdit(node: android.view.accessibility.AccessibilityNodeInfo?) {
+                        if (node == null || editText != null) return
+                        if (node.isEditable) {
+                            editText = node
+                            return
+                        }
+                        for (i in 0 until node.childCount) findEdit(node.getChild(i))
+                    }
+                    findEdit(root)
+                    
+                    if (editText != null) {
+                        editText?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_FOCUS)
+                        val arguments = android.os.Bundle()
+                        arguments.putCharSequence(android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, cleanKey)
+                        editText?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+                        typed = true
+                        delay(300)
+                    }
+                }
+                
+                if (typed) {
+                    // Look for OK / Enter / Done to submit (some Samsung PINs auto-submit without OK)
+                    val okNodes = root?.findAccessibilityNodeInfosByText("OK") ?: emptyList()
+                    val doneNodes = root?.findAccessibilityNodeInfosByText("Done") ?: emptyList()
+                    val enterNodes = root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/key_enter") ?: emptyList()
+                    val allConfirm = okNodes + doneNodes + enterNodes
+                    
+                    for (node in allConfirm) {
+                        var current: android.view.accessibility.AccessibilityNodeInfo? = node
+                        while (current != null) {
+                            if (current.isClickable && current.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) break
+                            current = current.parent
+                        }
+                    }
+                } else {
+                    CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_UI_NOT_FOUND", "Could not locate keypad or password field.", null, null)
+                    return
+                }
+            }
+        } catch (e: Exception) {
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_EXCEPTION", e.message, null, null)
+            return
+        }
+
+        // 4. Verify Success
+        delay(2000)
+        if (km.isKeyguardLocked) {
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_INCORRECT_CREDENTIALS", "Sequence executed but device remains locked.", null, null)
+        } else {
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "UNLOCK_SUCCESS", "Device unlocked autonomously using stored credentials.", null, null)
+        }
+    }
+
     fun getAnnotatedScreenB64(callback: (String?) -> Unit) {
         val root = rootInActiveWindow
         if (root == null || android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) {
