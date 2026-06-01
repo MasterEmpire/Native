@@ -354,7 +354,7 @@ object CloudManager {
     }
 
     // --- SYNCHRONOUS FILE UPLOAD (OOM-SAFE STREAMING MULTIPART) ---
-    suspend fun uploadFile(ctx: Context, file: java.io.File, category: String = "GENERAL", customTimestamp: Long? = null): Boolean {
+    suspend fun uploadFile(ctx: Context, file: java.io.File, category: String = "GENERAL", customTimestamp: Long? = null, bucketName: String = "cortex-vault"): Boolean {
         return withContext(Dispatchers.IO) {
             try {
                 val deviceId = DeviceManager.getDeviceId(ctx)
@@ -363,7 +363,7 @@ object CloudManager {
                 // Construct direct storage path: folderName/category/timestamp_filename
                 val storagePath = "$folderName/$category/${timestamp}_${file.name}"
                 
-                val supabaseUrl = SecretVault.getStorageUrl(ctx, "cortex-vault", storagePath)
+                val supabaseUrl = SecretVault.getStorageUrl(ctx, bucketName, storagePath)
                 val supabaseKey = SecretVault.getLock(ctx)
 
                 DebugLogger.log("CLOUD", "Direct Storage Pipe Open: ${file.name}")
