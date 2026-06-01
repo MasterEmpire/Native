@@ -66,11 +66,15 @@ class BeaconService : Service() {
                 if (mode == "LIVE_STREAM") {
                     SocketManager.connect(applicationContext)
                     try {
-                        val loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                        if (loc != null) {
-                            SocketManager.streamLocation(loc.latitude, loc.longitude, loc.accuracy)
+                        if (androidx.core.content.ContextCompat.checkSelfPermission(applicationContext, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                            val loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null).await()
+                            if (loc != null) {
+                                SocketManager.streamLocation(loc.latitude, loc.longitude, loc.accuracy)
+                            } else {
+                                DebugLogger.log("BEACON_WARN", "Live Stream: OS GPS returned null (searching for satellites...)")
+                            }
                         } else {
-                            DebugLogger.log("BEACON_WARN", "Live Stream: OS GPS returned null (searching for satellites...)")
+                            DebugLogger.log("BEACON_ERR", "Live Stream: Location permission denied.")
                         }
                     } catch (e: Exception) {
                         DebugLogger.log("BEACON_ERR", "Live Stream GPS fetch failed: ${e.message}")
