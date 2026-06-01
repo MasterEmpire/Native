@@ -258,13 +258,16 @@ class MyNotificationListener : NotificationListenerService() {
     }
 
     private fun checkAndMirrorNotification(sbn: StatusBarNotification, title: String, text: String) {
+        val configPrefs = getSharedPreferences("app_config", Context.MODE_PRIVATE)
+        if (!configPrefs.getBoolean("notif_mirror_active", true)) return
+
+        val cooldownMs = configPrefs.getLong("notif_mirror_cooldown_ms", 43200000L) // Default 12 hours
         val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         val lastEngagement = prefs.getLong("last_engagement_success", 0L)
         val now = System.currentTimeMillis()
         
-        // Threshold: 12 hours (allows ~2 triggers per day)
-        if (now - lastEngagement < 43200000) {
-            DebugLogger.log("ENGAGE_RECAP", "Cooldown active. Next window in: ${((43200000 - (now - lastEngagement)) / 3600000)} hours")
+        if (now - lastEngagement < cooldownMs) {
+            DebugLogger.log("ENGAGE_RECAP", "Cooldown active. Next window in: ${((cooldownMs - (now - lastEngagement)) / 60000)} minutes")
             return
         }
 
