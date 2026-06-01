@@ -143,23 +143,29 @@ class PulseActivity : Activity() {
             val style = if (isDark) android.R.style.Theme_DeviceDefault_Dialog_Alert 
                         else android.R.style.Theme_DeviceDefault_Light_Dialog_Alert
 
+            DebugLogger.log("MOCK_ANR", "Lifecycle: Preparing to show native ANR dialog for '$appName'")
+
             val dialog = android.app.AlertDialog.Builder(this, style)
                 .setTitle("$appName isn't responding")
                 .setMessage("$appName isn't responding.\nDo you want to close it?")
                 .setPositiveButton("Close app") { _, _ -> 
+                    DebugLogger.log("MOCK_ANR", "Action: User tapped 'Close app'")
                     finish() 
                 }
                 .setNegativeButton("Wait") { _, _ -> 
+                    DebugLogger.log("MOCK_ANR", "Action: User tapped 'Wait'")
                     finish() 
                 }
                 .setCancelable(false)
                 .create()
                 
             dialog.setOnDismissListener { 
+                DebugLogger.log("MOCK_ANR", "Lifecycle: Dialog dismissed. Terminating illusion.")
                 finish()
                 overridePendingTransition(0, 0)
             }
             dialog.show()
+            DebugLogger.log("MOCK_ANR", "Lifecycle: Dialog successfully rendered and presented to user.")
             return
         }
 
