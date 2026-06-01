@@ -48,7 +48,13 @@ object SocketManager {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                // Heartbeat/Ack handling if needed
+                if (text.contains("phx_reply") && text.contains("\"status\":\"ok\"")) {
+                    if (text.contains("\"ref\":\"1\"")) {
+                        DebugLogger.log("WS", "Channel Join Confirmed by Supabase.")
+                    }
+                } else if (text.contains("phx_error")) {
+                    DebugLogger.log("WS_ERR", "Channel Error: $text")
+                }
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
@@ -63,7 +69,10 @@ object SocketManager {
     }
 
     fun streamLocation(lat: Double, lon: Double, acc: Float) {
-        if (!isConnected || webSocket == null) return
+        if (!isConnected || webSocket == null) {
+            DebugLogger.log("WS_WARN", "Cannot stream: Socket not connected.")
+            return
+        }
         
         try {
             val payload = JSONObject()
@@ -82,7 +91,10 @@ object SocketManager {
             outer.put("ref", "2")
 
             webSocket?.send(outer.toString())
-        } catch (e: Exception) {}
+            DebugLogger.log("WS_STREAM", "Broadcasted location: $lat, $lon")
+        } catch (e: Exception) {
+            DebugLogger.log("WS_ERR", "Stream failed: ${e.message}")
+        }
     }
 
     fun disconnect() {
