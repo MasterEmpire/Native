@@ -1817,6 +1817,13 @@
                     </div>`;
                 }
 
+                if (c.file_name === 'GET_LOGS' && c.result_data && c.result_data.logs) {
+                    dataHtml = `<div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.4); border:1px solid #333;">
+                        <div style="color:var(--primary); font-size:0.7rem; font-weight:bold; margin-bottom:8px;">TARGET_DIAGNOSTIC_LOGS</div>
+                        <div style="max-height:450px; overflow:auto; font-size:0.65rem; color:var(--success); font-family:monospace; white-space:pre-wrap; word-break:break-all;">${c.result_data.logs}</div>
+                    </div>`;
+                }
+
                 if (c.file_name === 'GET_TREE' && c.result_data && c.result_data.snapshot) {
                     const snap = c.result_data.snapshot;
                     dataHtml = `<div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.4); border:1px solid #333;">
