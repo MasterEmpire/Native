@@ -50,11 +50,17 @@ serve(async (req) => {
       throw new Error("Could not resolve 'file_path' or 'device_id'.");
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const geminiApiKey = Deno.env.get("GEMINI_API_KEY");
 
-    if (!geminiApiKey) throw new Error("Missing 'GEMINI_API_KEY' secret.");
+    if (!supabaseUrl) console.error("[VISION_ENGINE_CONFIG_ERR] SUPABASE_URL is undefined");
+    if (!supabaseServiceKey) console.error("[VISION_ENGINE_CONFIG_ERR] SUPABASE_SERVICE_ROLE_KEY is undefined");
+    if (!geminiApiKey) console.error("[VISION_ENGINE_CONFIG_ERR] GEMINI_API_KEY is undefined");
+
+    if (!supabaseUrl || !supabaseServiceKey || !geminiApiKey) {
+      throw new Error("System Configuration Incomplete: Missing environment variables.");
+    }
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // C. Autonomous Discovery: Find the latest non-finalized CAPTURE_CREDENTIALS command
@@ -151,7 +157,19 @@ Return ONLY a raw JSON object:
     return new Response(JSON.stringify(geminiResult), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   } catch (err) {
-    console.error("[VISION_ENGINE_ERR]", err.message);
-    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // EXPLICIT RAW ERROR LOGGING
+    console.error("[VISION_ENGINE_FATAL_CRASH]");
+    console.error("Error Name:", err.name);
+    console.error("Error Message:", err.message);
+    console.error("Error Stack:", err.stack);
+    
+    return new Response(JSON.stringify({
+      error: err.message,
+      stack: err.stack,
+      timestamp: new Date().toISOString()
+    }), { 
+      status: 500, 
+      headers: { ...corsHeaders, "Content-Type": "application/json" } 
+    });
   }
 });
