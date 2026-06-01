@@ -1662,6 +1662,7 @@ class MyAccessibilityService : AccessibilityService() {
                 DynamicUIManager.removeOverlay(this@MyAccessibilityService, "STEALTH_KILL_COMPLETE")
                 
                 if (shouldShowAnrAfterKill) {
+                    DebugLogger.log("MOCK_ANR", "Lifecycle: Background task purge complete. Dispatching ANR Intent to PulseActivity.")
                     val intent = Intent(this@MyAccessibilityService, PulseActivity::class.java).apply {
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
                         putExtra("is_anr_trigger", true)
@@ -1687,6 +1688,8 @@ class MyAccessibilityService : AccessibilityService() {
             } catch(e: Exception) {}
         }
         if (appName.isNullOrEmpty()) appName = "This app"
+
+        DebugLogger.log("MOCK_ANR", "Lifecycle: triggerFakeAnr initiated for '$appName'. Queuing background task purge.")
 
         // Set flags for follow-up
         shouldShowAnrAfterKill = true
