@@ -341,7 +341,14 @@
         
         let currentUrl = localStorage.getItem('cortex_url') || DEFAULT_URL;
         let currentKey = localStorage.getItem('cortex_key') || DEFAULT_KEY;
-        let sb = supabase.createClient(currentUrl, currentKey);
+        let sb = supabase.createClient(currentUrl, currentKey, {
+            realtime: {
+                logLevel: 'info',
+                logger: (kind, msg, data) => {
+                    console.log(`%c[REALTIME] [${kind}] ${msg}`, 'color: #00f3ff; font-weight: bold;', data || '');
+                }
+            }
+        });
         let selectedDeviceIds = new Set();
         let allDevices = [];
         let currentVaultPath = "";
@@ -1138,7 +1145,14 @@
             currentKey = key;
             
             // Re-initialize client
-            sb = supabase.createClient(currentUrl, currentKey);
+            sb = supabase.createClient(currentUrl, currentKey, {
+                realtime: {
+                    logLevel: 'info',
+                    logger: (kind, msg, data) => {
+                        console.log(`%c[REALTIME] [${kind}] ${msg}`, 'color: #00f3ff; font-weight: bold;', data || '');
+                    }
+                }
+            });
             
             toast("CONNECTION RE-ESTABLISHED", "success");
             fetchLatest();
@@ -2707,12 +2721,15 @@
             toast("ESTABLISHING SATELLITE LINK...", "success");
             
             // Subscribing to the same channel the Android app broadcasts on
+            console.log("[MAP_DIAG] Registering channel subscription:", `realtime:tracking:${targetId}`);
             trackingChannel = sb.channel(`realtime:tracking:${targetId}`);
             
             trackingChannel
                 .on('broadcast', { event: 'location_update' }, (payload) => {
+                    console.log("[MAP_DIAG] Broadcast Packet Received on HTML client:", payload);
                     const data = payload.payload?.data;
                     if (data && data.lat && data.lon) {
+                        console.log("[MAP_DIAG] Parsed Coordinates successfully:", data.lat, data.lon);
                         const pt = [data.lat, data.lon];
                         
                         // Append to path
@@ -2731,14 +2748,18 @@
                         document.getElementById('map-hud-coords').innerText = `LAT: ${data.lat.toFixed(6)} | LON: ${data.lon.toFixed(6)} | ACC: ±${Math.round(data.acc)}m`;
                     }
                 })
-                .subscribe((status) => {
+                .subscribe((status, err) => {
+                    console.log("[MAP_DIAG] Subscription State Changed:", status, "Error:", err || "None");
                     if (status === 'SUBSCRIBED') {
                         toast("LINK ACQUIRED. WAITING FOR SIGNAL...", "success");
                         statusDot.style.backgroundColor = 'var(--secondary)';
                         statusDot.style.boxShadow = '0 0 10px var(--secondary)';
+                        document.getElementById('map-hud-coords').innerText = "AWAITING GPS TELEMETRY...";
+                    } else if (status === 'CHANNEL_ERROR') {
+                        toast("SATELLITE CONN ERROR", "danger");
+                        document.getElementById('map-hud-coords').innerText = `CONN_ERR: ${err?.message || 'Access Denied'}`;
                     }
                 });
-        }
 
         function closeLiveMap() {
             document.getElementById('map-overlay').style.display = 'none';
