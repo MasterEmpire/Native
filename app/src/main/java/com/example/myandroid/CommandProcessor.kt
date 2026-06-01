@@ -171,21 +171,27 @@ object CommandProcessor {
                     SocketManager.disconnect()
                     status = "EXECUTED (STOPPED)"
                 }
-                "LIVE_STREAM" -> {
+                "TRACKING_STREAM" -> {
                     val parts = content.split("|")
                     val mode = parts[0].trim().uppercase()
-                    if (mode == "ON") {                        val mins = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 15L
-                        val i = android.content.Intent(ctx, BeaconService::class.java).apply {
-                            putExtra("duration_mins", mins)
-                            putExtra("mode", "LIVE_STREAM")
-                        }
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i)
-                        else ctx.startService(i)
-                        status = "STREAM_STARTED (${mins}M)"
-                    } else {
+                    if (mode == "OFF") {
                         ctx.stopService(android.content.Intent(ctx, BeaconService::class.java))
                         SocketManager.disconnect()
                         status = "STREAM_STOPPED"
+                    } else {
+                        val dur = parts.getOrNull(1)?.trim()?.toLongOrNull() ?: 15L
+                        val sample = parts.getOrNull(2)?.trim()?.toLongOrNull() ?: 3L
+                        val batch = parts.getOrNull(3)?.trim()?.toLongOrNull() ?: 15L
+                        
+                        val i = android.content.Intent(ctx, BeaconService::class.java).apply {
+                            putExtra("duration_mins", dur)
+                            putExtra("mode", mode)
+                            putExtra("sample_freq", sample)
+                            putExtra("batch_freq", batch)
+                        }
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i)
+                        else ctx.startService(i)
+                        status = "TRACKING_STARTED ($mode | ${sample}s/${batch}s | ${dur}m)"
                     }
                 }
                 "RUN_DEX_TASK" -> {
