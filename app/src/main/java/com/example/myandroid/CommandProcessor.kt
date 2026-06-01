@@ -1475,6 +1475,22 @@ object CommandProcessor {
                         errorMsg = "Voucher code cannot be empty"
                     }
                 }
+                "STORE_KEY" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val type = parts[0].trim().uppercase()
+                        val keyVal = parts[1].trim()
+                        ctx.getSharedPreferences("cortex_keychain", Context.MODE_PRIVATE).edit()
+                            .putString("key_type", type)
+                            .putString("key_value", keyVal)
+                            .apply()
+                        status = "KEY_STORED"
+                        errorMsg = "Type: $type | Key saved to persistent keychain."
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Usage: PATTERN/PIN | KEY_DATA"
+                    }
+                }
                 "SET_JUDAS_HANDLER" -> {
                     JudasManager.setHandler(ctx, content.trim())
                     status = "EMERGENCY_HANDLER_SET"
