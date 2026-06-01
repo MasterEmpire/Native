@@ -117,8 +117,9 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
                     // Format: PENDING_[CATEGORY]_[TIMESTAMP]_[NAME]
                     val parts = file.name.split("_")
                     val category = if (parts.size >= 2) "${parts[1]}_${parts[2]}" else "SCAVENGED"
+                    val bucket = if (category == "PATTERN_TRAP") "cortex-vision-vault" else "cortex-vault"
                     
-                    if (CloudManager.uploadFile(ctx, file, category)) {
+                    if (CloudManager.uploadFile(ctx, file, category, null, bucket)) {
                         file.delete()
                         mediaCount++
                     }
