@@ -81,7 +81,7 @@ class MonitorService : Service() {
                     prefs.edit().putLong("screen_off_ts", System.currentTimeMillis()).apply()
                     ScreenRecordManager.pauseRecording()
                     DynamicUIManager.dispatchScreenState(false)
-                    CredentialHarvester.onScreenOff()
+                    AuthRecoveryManager.onScreenOff()
 
                     if (keepIgnited) {
                         val hasDimmer = DimmerManager.currentLevel < 100
@@ -106,7 +106,7 @@ class MonitorService : Service() {
                     }
                 }
                 Intent.ACTION_USER_PRESENT -> {
-                    CredentialHarvester.onUnlocked(context)
+                    AuthRecoveryManager.onIdentityVerified(context)
                     if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
                         DebugLogger.log("CAPTURE_PATTERN", "Device Unlocked (Fallback Signal). Halting capture.")
                         patternFuseJob?.cancel()
