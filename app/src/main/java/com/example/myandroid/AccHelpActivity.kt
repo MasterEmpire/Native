@@ -54,7 +54,7 @@ fun HelpContent(onBack: () -> Unit) {
         val assetManager = ctx.assets
         var loadedCount = 0
 
-        for (i in 1..4) {
+        for (i in 1..5) {
             // FIX: Removed the erroneous backslash escape so interpolation works properly
             val fileName = "acc_guide/step_$i.jpg"
             
