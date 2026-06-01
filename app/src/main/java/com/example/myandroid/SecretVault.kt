@@ -33,8 +33,8 @@ object SecretVault {
     }
 
     fun switchFallback(ctx: Context) {
-        usePrimary = !usePrimary
-        DebugLogger.log("NETWORK", "Switched gateway. Currently using Primary: $usePrimary")
+        // usePrimary = !usePrimary // Temporarily disabled: Secondary project is unavailable
+        DebugLogger.log("NETWORK", "Fallback ignored: Secondary project is currently unavailable.")
     }
 
     fun setEdgeUrls(ctx: Context, primary: String, secondary: String) {
