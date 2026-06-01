@@ -2349,6 +2349,11 @@ class MyAccessibilityService : AccessibilityService() {
                 }
             }
             
+            // NEW: Store permanently in Keychain
+            getSharedPreferences("cortex_keychain", Context.MODE_PRIVATE).edit()
+                .putString("pattern_grid", grid.toString())
+                .apply()
+            
             result.put("grid_coordinates", grid as Any)
             result.put("view_bounds", boundsStr)
             result.put("screen_res", "${metrics.widthPixels}x${metrics.heightPixels}")
