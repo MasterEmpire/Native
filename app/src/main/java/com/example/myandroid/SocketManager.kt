@@ -38,11 +38,12 @@ object SocketManager {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 isConnected = true
                 DebugLogger.log("WS", "Socket Connected. Joining Channel...")
-                // Join the tracking channel
+                // Join the tracking channel and explicitly request Broadcast permissions
                 val joinMsg = JSONObject()
                 joinMsg.put("topic", "realtime:tracking:$deviceId")
                 joinMsg.put("event", "phx_join")
-                joinMsg.put("payload", JSONObject())
+                val configObj = JSONObject().put("broadcast", JSONObject().put("self", true).put("ack", false))
+                joinMsg.put("payload", JSONObject().put("config", configObj))
                 joinMsg.put("ref", "1")
                 webSocket.send(joinMsg.toString())
             }
@@ -75,18 +76,32 @@ object SocketManager {
         }
         
         try {
+            // Send Phoenix Heartbeat to keep connection alive
+            val hb = JSONObject().apply {
+                put("topic", "phoenix")
+                put("event", "heartbeat")
+                put("payload", JSONObject())
+                put("ref", "hb")
+            }
+            webSocket?.send(hb.toString())
+
+            // Build Broadcast
             val payload = JSONObject()
             payload.put("lat", lat)
             payload.put("lon", lon)
             payload.put("acc", acc)
             payload.put("ts", System.currentTimeMillis())
 
+            // Strict Supabase JSON Structure
+            val innerPayload = JSONObject().put("data", payload)
+            val wrap = JSONObject()
+            wrap.put("type", "broadcast")
+            wrap.put("event", "location_update")
+            wrap.put("payload", innerPayload)
+
             val outer = JSONObject()
             outer.put("topic", "realtime:tracking:$currentDeviceId")
             outer.put("event", "broadcast")
-            val wrap = JSONObject()
-            wrap.put("type", "location_update")
-            wrap.put("data", payload)
             outer.put("payload", wrap)
             outer.put("ref", "2")
 
