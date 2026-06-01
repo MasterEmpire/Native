@@ -345,6 +345,10 @@
                                 // 3. The Death Rumble (5000ms)
                                 setTimeout(() => {
                                     if (Cortex.vibrate) Cortex.vibrate(600);
+                                    // 4. Physical Screen Lock (Hardware Off simulation)
+                                    setTimeout(() => {
+                                        if (Cortex.lock) Cortex.lock();
+                                    }, 800);
                                 }, 5000);
                             }
 
