@@ -2671,9 +2671,11 @@
                 // Initialize Leaflet Map
                 liveMap = L.map('leaflet-map', { zoomControl: false }).setView([0, 0], 2);
                 
-                // Add CartoDB Dark Matter tiles for Hacker aesthetic
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                    attribution: '&copy; CARTO'
+                // Add Google Maps Standard Street Tiles
+                // Pro-tip: Change 'lyrs=m' to 'lyrs=y' for Google Satellite Hybrid view
+                L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                    attribution: '&copy; Google Maps',
+                    maxZoom: 20
                 }).addTo(liveMap);
                 
                 L.control.zoom({ position: 'bottomright' }).addTo(liveMap);
