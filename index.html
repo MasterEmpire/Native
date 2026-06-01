@@ -322,6 +322,14 @@
         </div>
 
         <div id="view-cmd" class="section">
+            <!-- Consolidated Search Results Panel -->
+            <div id="search-results-wrapper" style="display:none; margin-bottom: 25px; border: 1px solid var(--primary); background: rgba(0, 243, 255, 0.02); padding: 15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid var(--primary); padding-bottom:10px;">
+                    <h2 id="search-results-title" style="margin:0; font-size:0.9rem; background:var(--primary); color:#000; padding:5px 10px; text-transform:uppercase; clip-path:polygon(0 0, 100% 0, 90% 100%, 0% 100%);">SEARCH RESULTS</h2>
+                    <button class="btn danger" onclick="clearActiveSearch()" style="padding:4px 8px; font-size:0.65rem;">CLEAR VIEW</button>
+                </div>
+                <div id="search-results-tiles" style="display:flex; flex-direction:column; gap:5px;"></div>
+            </div>
             <!-- Grouped Dashboard will be dynamically rendered here -->
             <div id="cmd-dashboard-container"></div>
         </div>
@@ -2293,80 +2301,73 @@
             });
         }
 
+                function clearActiveSearch() {
+            COMMAND_GROUPS.forEach(group => {
+                const groupContent = document.getElementById('content-' + group.id);
+                if (groupContent) {
+                    group.commands.forEach(cmd => {
+                        const tile = document.getElementById('tile-' + cmd.id);
+                        if (tile) {
+                            groupContent.appendChild(tile);
+                        }
+                    });
+                }
+            });
+            document.getElementById('search-results-wrapper').style.display = 'none';
+            document.getElementById('cmd-dashboard-container').style.display = 'block';
+            document.getElementById('search-input').value = '';
+            document.querySelectorAll('.cmd-drawer').forEach(d => d.classList.remove('open'));
+        }
+
         function executeSearch() {
             const term = document.getElementById('search-input').value.toLowerCase().trim();
             if (!term) return;
-            
+
             const tags = JSON.parse(localStorage.getItem('cortex_cmd_tags') || '{}');
-            let foundElement = null;
+            const matchedCmds = [];
 
-            // 1. Check Dynamic User Tags
-            for (const [cmdKey, keywords] of Object.entries(tags)) {
-                if (keywords.split(',').some(k => k.trim().includes(term))) {
-                    foundElement = document.getElementById('tile-' + cmdKey);
-                    if (foundElement) break;
-                }
-            }
-
-            // 1.5 Check Baked-in Keywords
-            if (!foundElement) {
-                const tiles = document.querySelectorAll('.cmd-tile[data-keywords]');
-                for (const tile of tiles) {
-                    if (tile.getAttribute('data-keywords').includes(term)) {
-                        foundElement = tile; break;
+            COMMAND_GROUPS.forEach(group => {
+                const groupMatches = group.label.toLowerCase().includes(term) ||
+                                     (group.search && group.search.toLowerCase().includes(term));
+                                     
+                group.commands.forEach(cmd => {
+                    const cmdTags = tags[cmd.id] || '';
+                    const cmdKeywords = cmd.keywords || '';
+                    const cmdName = cmd.name || '';
+                    
+                    const matches = groupMatches ||
+                                    cmd.id.toLowerCase().includes(term) ||
+                                    cmdName.toLowerCase().includes(term) ||
+                                    cmdKeywords.toLowerCase().includes(term) ||
+                                    cmdTags.includes(term);
+                    
+                    if (matches) {
+                        matchedCmds.push(cmd);
                     }
-                }
-            }
+                });
+            });
 
-            // 2. Check Static Headers & Dashboard Categories
-            if (!foundElement) {
-                const headers = document.querySelectorAll('h2[data-search], .cat-header[data-search]');
-                for (const h of headers) {
-                    const keywords = h.getAttribute('data-search').split(',').map(k => k.trim());
-                    if (keywords.some(k => k.includes(term)) || h.innerText.toLowerCase().includes(term)) {
-                        foundElement = h; break;
+            if (matchedCmds.length > 0) {
+                // Return tiles to original places first to ensure cleanly updated state
+                clearActiveSearch();
+
+                const resultsTilesContainer = document.getElementById('search-results-tiles');
+                matchedCmds.forEach(cmd => {
+                    const tile = document.getElementById('tile-' + cmd.id);
+                    if (tile) {
+                        resultsTilesContainer.appendChild(tile);
                     }
-                }
-            }
+                });
 
-            // 3. Check Labels
-            if (!foundElement) {
-                const labels = document.querySelectorAll('.cmd-label, label');
-                for (const l of labels) {
-                    if (l.innerText.toLowerCase().includes(term)) {
-                        foundElement = l.closest('.cmd-row') || l; break;
-                    }
-                }
-            }
+                document.getElementById('search-results-title').innerText = `SEARCH RESULTS: "${term.toUpperCase()}" (${matchedCmds.length} FOUND)`;
+                document.getElementById('search-results-wrapper').style.display = 'block';
+                document.getElementById('cmd-dashboard-container').style.display = 'none';
 
-            if (foundElement) {
-                const section = foundElement.closest('.section');
-                const tabId = section.id.replace('view-', '');
-                switchTab(tabId);
-
-                // If it's a dashboard item, ensure it's expanded
-                if (foundElement.classList.contains('cat-header')) {
-                    const catId = foundElement.parentElement.id.replace('cat-', '');
-                    const content = document.getElementById('content-' + catId);
-                    if (!content.classList.contains('open')) toggleDashboardCat(catId);
-                }
-                
-                const tile = foundElement.closest('.cmd-tile');
-                if (tile) {
-                    const cat = tile.closest('.cat-group');
-                    const catId = cat.id.replace('cat-', '');
-                    const content = document.getElementById('content-' + catId);
-                    if (!content.classList.contains('open')) toggleDashboardCat(catId);
-                }
-
-                setTimeout(() => {
-                    foundElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    foundElement.classList.add('search-highlight');
-                    setTimeout(() => foundElement.classList.remove('search-highlight'), 2000);
-                }, 150);
+                switchTab('cmd');
                 toggleSearch();
+                toast(`${matchedCmds.length} RELATED COMMANDS ISOLATED`, "success");
             } else {
-                toast("NO MATCHING SECTOR FOUND", "danger");
+                toast("NO MATCHING COMMANDS FOUND", "danger");
             }
         }
 
