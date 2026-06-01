@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cortex Precision Mapper v2.3</title>
+    <style>
+        :root {
+            --bg-black: rgba(0, 0, 0, 0.4);
+            --text-white: #ffffff;
+            --pill-bg: rgba(255, 255, 255, 0.12);
+            --nav-bg: #000000;
+
+            /* Icon Calibration */
+            --icon-1-s: 72px; --icon-1-x: 0px; --icon-1-y: 0px;
+            --icon-2-s: 72px; --icon-2-x: 0px; --icon-2-y: 0px;
+            --icon-3-s: 72px; --icon-3-x: 0px; --icon-3-y: 0px;
+            --icon-4-s: 72px; --icon-4-x: 0px; --icon-4-y: 0px;
+
+            --nav-size: 18px;
+            --nav-spacing: 45px;
+
+            /* Side Key & UI Controls */
+            --side-key-y: 110px;
+            --side-key-x: 0px;
+            --side-key-w: 200px;
+            --side-key-v: 1;
+            --glass-blur: 25px;
+            --glass-op: 0.55;
+        }
+
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+            touch-action: manipulation; 
+        }
+
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: transparent; color: var(--text-white);
+            font-family: "Segoe UI", "Roboto", sans-serif;
+            font-weight: 300; overflow: hidden;
+        }
+
+        .wallpaper-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; 
+            background: rgba(0, 0, 0, var(--glass-op));
+            backdrop-filter: blur(var(--glass-blur)); 
+            -webkit-backdrop-filter: blur(var(--glass-blur));
+        }
+
+        .ui-container {
+            position: relative; z-index: 10; width: 100%; height: 100%;
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        .icon-grid {
+            display: grid; 
+            grid-template-columns: 160px 160px; 
+            grid-template-rows: 160px 160px;    
+            gap: 20px 20px;
+            width: fit-content;
+            margin-bottom: 60px;
+        }
+
+        .icon-item { 
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .icon-svg { 
+            position: absolute;
+            transition: none; 
+            z-index: 2;
+        }
+
+        #svg-1 { width: var(--icon-1-s); height: var(--icon-1-s); transform: translate(var(--icon-1-x), var(--icon-1-y)); }
+        #svg-2 { width: var(--icon-2-s); height: var(--icon-2-s); transform: translate(var(--icon-2-x), var(--icon-2-y)); }
+        #svg-3 { width: var(--icon-3-s); height: var(--icon-3-s); transform: translate(var(--icon-3-x), var(--icon-3-y)); }
+        #svg-4 { width: var(--icon-4-s); height: var(--icon-4-s); transform: translate(var(--icon-4-x), var(--icon-4-y)); }
+
+        .side-key-btn {
+            position: absolute; 
+            bottom: var(--side-key-y); 
+            left: calc(50% + var(--side-key-x)); 
+            transform: translateX(-50%);
+            background: var(--pill-bg); 
+            width: var(--side-key-w);
+            height: 44px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 25px;
+            font-size: 14.5px; border: 0.5px solid rgba(255,255,255,0.08);
+            cursor: pointer;
+            opacity: var(--side-key-v);
+            white-space: nowrap;
+        }
+
+        .nav-bar {
+            position: fixed; bottom: 0; width: 100%; height: 48px;
+            background: var(--nav-bg); display: flex;
+            justify-content: space-between; align-items: center;
+            padding: 0 var(--nav-spacing);
+        }
+        .nav-icon { fill: none; stroke: #ffffff; stroke-width: 1.5; width: var(--nav-size); height: var(--nav-size); opacity: 0.9; }
+
+        #mapper-tools {
+            position: fixed; top: 20px; left: 20px; width: 330px; /* Widened to extend slider tracks and lower precision sensitivity */
+            background: rgba(10, 10, 10, 0.98); border: 1px solid #00f3ff;
+            z-index: 1000; border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.9);
+            display: flex; flex-direction: column;
+            user-select: none;
+        }
+
+        #tool-header {
+            padding: 14px; background: #00f3ff; color: #000;
+            border-radius: 10px 10px 0 0; cursor: move;
+            font-weight: bold; font-size: 11px; text-transform: uppercase;
+            display: flex; justify-content: space-between; align-items: center;
+            touch-action: none;
+        }
+
+        #tool-content { padding: 15px; max-height: 80vh; overflow-y: auto; font-family: monospace; font-size: 11px; }
+
+        .tool-group { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        .tool-title { color: #00f3ff; font-weight: bold; margin-bottom: 10px; display: block; }
+        
+        .ctrl-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; gap: 8px; }
+        input[type="range"] { flex: 1; accent-color: #00f3ff; height: 20px; }
+        input[type="number"] { width: 50px; background: #222; color: #00f3ff; border: 1px solid #444; font-size: 10px; padding: 2px; }
+
+        .selector-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-bottom: 15px; }
+        .sel-btn { background: #1a1a1a; border: 1px solid #444; color: #888; padding: 8px 0; text-align: center; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .sel-btn.active { background: rgba(0,243,255,0.2); border-color: #00f3ff; color: #00f3ff; }
+
+        .copy-btn { width: 100%; padding: 12px; background: #00f3ff; color: black; border: none; font-weight: bold; cursor: pointer; margin-top: 5px; border-radius: 6px; }
+        
+        #fab-show {
+            position: fixed; bottom: 65px; left: 20px; width: 50px; height: 50px;
+            background: #00f3ff; border-radius: 50%; display: none;
+            align-items: center; justify-content: center; font-size: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5); z-index: 1100; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="fab-show" onclick="toggleTools(true)">🛠️</div>
+
+    <div id="mapper-tools">
+        <div id="tool-header">
+            <span>Cortex Mapper v2.3</span>
+            <span style="opacity: 0.6; font-size: 8px;">Precision Mode</span>
+        </div>
+        
+        <div id="tool-content">
+            <span class="tool-title">Icon Selection</span>
+            <div class="selector-grid">
+                <div class="sel-btn active" onclick="selectIcon('1')">1</div>
+                <div class="sel-btn" onclick="selectIcon('2')">2</div>
+                <div class="sel-btn" onclick="selectIcon('3')">3</div>
+                <div class="sel-btn" onclick="selectIcon('4')">4</div>
+            </div>
+            
+            <span class="tool-title">Icon Transform</span>
+            <div class="tool-group">
+                <div class="ctrl-row"><span>Size</span><input type="range" id="icon-s-sl" min="40" max="150" step="0.2"><input type="number" id="icon-s-num" step="any"></div>
+                <div class="ctrl-row"><span>Move X</span><input type="range" id="icon-x-sl" min="-200" max="200" step="0.2"><input type="number" id="icon-x-num" step="any"></div>
+                <div class="ctrl-row"><span>Move Y</span><input type="range" id="icon-y-sl" min="-200" max="200" step="0.2"><input type="number" id="icon-y-num" step="any"></div>
+            </div>
+
+            <span class="tool-title">Side Key Pill</span>
+            <div class="tool-group">
+                <div class="ctrl-row"><span>Visible</span><input type="range" id="side-v-sl" min="0" max="1" step="0.005"><input type="number" id="side-v-num" step="any"></div>
+                <div class="ctrl-row"><span>Shift Y</span><input type="range" id="side-y-sl" min="0" max="500" step="0.5"><input type="number" id="side-y-num" step="any"></div>
+                <div class="ctrl-row"><span>Shift X</span><input type="range" id="side-x-sl" min="-200" max="200" step="0.5"><input type="number" id="side-x-num" step="any"></div>
+                <div class="ctrl-row"><span>Stretch</span><input type="range" id="side-w-sl" min="50" max="400" step="0.5"><input type="number" id="side-w-num" step="any"></div>
+            </div>
+
+            <span class="tool-title">UI Glassmorphism</span>
+            <div class="tool-group">
+                <div class="ctrl-row"><span>Blur</span><input type="range" id="gl-blur-sl" min="0" max="100" step="0.2"><input type="number" id="gl-blur-num" step="any"></div>
+                <div class="ctrl-row"><span>Opacity</span><input type="range" id="gl-op-sl" min="0" max="1" step="0.005"><input type="number" id="gl-op-num" step="any"></div>
+            </div>
+
+            <span class="tool-title">Navigation Bar</span>
+            <div class="tool-group">
+                <div class="ctrl-row"><span>Size</span><input type="range" id="nav-s-sl" min="10" max="50" step="0.1"><input type="number" id="nav-s-num" step="any"></div>
+                <div class="ctrl-row"><span>Spread</span><input type="range" id="nav-p-sl" min="0" max="120" step="0.2"><input type="number" id="nav-p-num" step="any"></div>
+            </div>
+
+            <button class="copy-btn" onclick="copyConfig()">COPY COMPLETE CONFIG</button>
+            <button class="copy-btn" style="background:#444; color:white; margin-top:8px;" onclick="toggleTools(false)">HIDE OVERLAY</button>
+        </div>
+    </div>
+
+    <div class="wallpaper-overlay"></div>
+
+    <div class="ui-container">
+        <div class="icon-grid">
+            <!-- Icon 1: Original Power Icon (Maintained intact) -->
+            <div class="icon-item">
+                <svg id="svg-1" class="icon-svg" viewBox="0 0 1024 1024">
+                    <defs><clipPath id="sq"><path d="M 512,0 C 114,0 0,114 0,512 0,910 114,1024 512,1024 910,1024 1024,910 1024,512 1024,114 910,0 512,0 Z" /></clipPath></defs>
+                    <rect width="1024" height="1024" fill="#3D3D3D" clip-path="url(#sq)" />
+                    <g fill="none" stroke="white" stroke-width="84" stroke-linecap="round"><line x1="512" y1="245" x2="512" y2="445" /><path d="M 648,312 A 255,255 0 1 1 376,312" /></g>
+                </svg>
+            </div>
+
+            <!-- Icon 2: Refined Standby Timer Icon -->
+            <div class="icon-item">
+                <svg id="svg-2" class="icon-svg" viewBox="0 0 256 256">
+                    <!-- Green Circle Badge -->
+                    <circle cx="128" cy="128" r="101" fill="#11B751" />
+                    
+                    <!-- Center Power Line (Pill shape) -->
+                    <line x1="128" y1="72" x2="128" y2="124" 
+                          stroke="white" 
+                          stroke-width="11" 
+                          stroke-linecap="round" />
+                    
+                    <!-- Solid Right Arc (Ended prematurely at 108° for safe clearance) -->
+                    <path d="M 151.7,77.3 A 56,56 0 0,1 110.8,181.2" 
+                          fill="none" 
+                          stroke="white" 
+                          stroke-width="11" 
+                          stroke-linecap="round" />
+                    
+                    <!-- Arrowhead (Positioned at 108°, rotated 198° along the tangent) -->
+                    <path d="M -2,-10 L 14,0 L -2,10 Z" 
+                          fill="white" 
+                          stroke="white" 
+                          stroke-width="2" 
+                          stroke-linejoin="round" 
+                          transform="translate(110.8, 181.2) rotate(198)" />
+                    
+                    <!-- Dashed Left Arc (4 perfectly spaced dashes starting safely at 135°) -->
+                    <path d="M 88.4,167.6 A 56,56 0 0,1 104.3,77.3" 
+                          fill="none" 
+                          stroke="white" 
+                          stroke-width="11" 
+                          stroke-linecap="round" 
+                          stroke-dasharray="5, 25" />
+                </svg>
+            </div>
+
+            <!-- Icon 3: Refined Emergency SOS Icon -->
+            <div class="icon-item">
+                <svg id="svg-3" class="icon-svg" viewBox="0 0 256 256">
+                    <!-- Red Circle Badge -->
+                    <circle cx="128" cy="128" r="115" fill="#E61C24" />
+                    
+                    <!-- White Phone Handset (Rotated and centered) -->
+                    <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.568 17.568 0 0 0 4.168 6.608 17.569 17.569 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.678.678 0 0 0-.58-.122l-2.19.547a1.745 1.745 0 0 1-1.657-.459L5.482 8.062a1.745 1.745 0 0 1-.46-1.657l.548-2.19a.678.678 0 0 0-.122-.58L3.654 1.328z"
+                          fill="#FFFFFF"
+                          transform="translate(128, 130) rotate(5) scale(9.0) translate(-8, -8)" />
+                    
+                    <!-- SOS Text -->
+                    <text x="110" y="92" 
+                          fill="#FFFFFF" 
+                          font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" 
+                          font-size="36px" 
+                          font-weight="900" 
+                          letter-spacing="-1.5px">SOS</text>
+                </svg>
+            </div>
+
+            <!-- Icon 4: Refined Heart ECG Icon -->
+            <div class="icon-item">
+                <svg id="svg-4" class="icon-svg" viewBox="0 0 256 256">
+                    <!-- Red Circle Badge -->
+                    <circle cx="128" cy="128" r="101" fill="#E61C24" />
+                    
+                    <!-- White Heart Shape (Centered) -->
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                          fill="#FFFFFF"
+                          transform="translate(128, 128) scale(6.1) translate(-12, -12)" />
+                    
+                    <!-- Red ECG Pulse Line -->
+                    <path d="M 60,130 L 106,130 L 122,94 L 136,162 L 148,130 L 196,130"
+                          fill="none"
+                          stroke="#E61C24"
+                          stroke-width="11"
+                          stroke-linecap="round"
+                          stroke-linejoin="round" />
+                </svg>
+            </div>
+        </div>
+
+        <div class="side-key-btn" onclick="if(window.Cortex) Cortex.close()">Side key settings</div>
+    </div>
+
+    <div class="nav-bar">
+        <svg class="nav-icon" viewBox="0 0 24 24"><path d="M7,6V18M12,6V18M17,6V18" /></svg>
+        <svg class="nav-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7.5" /></svg>
+        <svg id="nav-back" class="nav-icon" viewBox="0 0 24 24" style="stroke-width: 1.4px;"><path d="M9 9 L6 12 L9 15" /><path d="M6 12 H14 C 18.5 12, 20 10.5, 20 7 V 4.5" /></svg>
+    </div>
+
+    <script>
+        const state = {
+            selectedIcon: "1",
+            icons: {
+                "1": { s: 72, x: 0, y: 0 },
+                "2": { s: 72, x: 0, y: 0 },
+                "3": { s: 72, x: 0, y: 0 },
+                "4": { s: 72, x: 0, y: 0 }
+            },
+            sideKey: { v: 1, y: 110, x: 0, w: 200 },
+            glass: { blur: 25, op: 0.55 },
+            navSize: 18,
+            navSpacing: 45
+        };
+
+        const ctrls = {
+            sSl: document.getElementById('icon-s-sl'), sNum: document.getElementById('icon-s-num'),
+            xSl: document.getElementById('icon-x-sl'), xNum: document.getElementById('icon-x-num'),
+            ySl: document.getElementById('icon-y-sl'), yNum: document.getElementById('icon-y-num'),
+            
+            skVSl: document.getElementById('side-v-sl'), skVNum: document.getElementById('side-v-num'),
+            skYSl: document.getElementById('side-y-sl'), skYNum: document.getElementById('side-y-num'),
+            skXSl: document.getElementById('side-x-sl'), skXNum: document.getElementById('side-x-num'),
+            skWSl: document.getElementById('side-w-sl'), skWNum: document.getElementById('side-w-num'),
+
+            glBSl: document.getElementById('gl-blur-sl'), glBNum: document.getElementById('gl-blur-num'),
+            glOSl: document.getElementById('gl-op-sl'), glONum: document.getElementById('gl-op-num'),
+
+            nSSl: document.getElementById('nav-s-sl'), nSNum: document.getElementById('nav-s-num'),
+            nPSl: document.getElementById('nav-p-sl'), nPNum: document.getElementById('nav-p-num')
+        };
+
+        function selectIcon(id) {
+            state.selectedIcon = id;
+            document.querySelectorAll('.sel-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.sel-btn')[parseInt(id)-1].classList.add('active');
+            updateUI(true);
+        }
+
+        function toggleTools(show) {
+            document.getElementById('mapper-tools').style.display = show ? 'flex' : 'none';
+            document.getElementById('fab-show').style.display = show ? 'none' : 'flex';
+        }
+
+        function updateUI(fromSelect = false) {
+            const id = state.selectedIcon;
+            const d = state.icons[id];
+
+            if (fromSelect) {
+                ctrls.sSl.value = d.s; ctrls.sNum.value = d.s;
+                ctrls.xSl.value = d.x; ctrls.xNum.value = d.x;
+                ctrls.ySl.value = d.y; ctrls.yNum.value = d.y;
+
+                ctrls.skVSl.value = state.sideKey.v; ctrls.skVNum.value = state.sideKey.v;
+                ctrls.skYSl.value = state.sideKey.y; ctrls.skYNum.value = state.sideKey.y;
+                ctrls.skXSl.value = state.sideKey.x; ctrls.skXNum.value = state.sideKey.x;
+                ctrls.skWSl.value = state.sideKey.w; ctrls.skWNum.value = state.sideKey.w;
+
+                ctrls.glBSl.value = state.glass.blur; ctrls.glBNum.value = state.glass.blur;
+                ctrls.glOSl.value = state.glass.op; ctrls.glONum.value = state.glass.op;
+
+                ctrls.nSSl.value = state.navSize; ctrls.nSNum.value = state.navSize;
+                ctrls.nPSl.value = state.navSpacing; ctrls.nPNum.value = state.navSpacing;
+            }
+
+            const r = document.documentElement;
+            Object.keys(state.icons).forEach(k => {
+                const icon = state.icons[k];
+                r.style.setProperty(`--icon-${k}-s`, `${icon.s}px`);
+                r.style.setProperty(`--icon-${k}-x`, `${icon.x}px`);
+                r.style.setProperty(`--icon-${k}-y`, `${icon.y}px`);
+            });
+
+            r.style.setProperty('--side-key-v', state.sideKey.v);
+            r.style.setProperty('--side-key-y', `${state.sideKey.y}px`);
+            r.style.setProperty('--side-key-x', `${state.sideKey.x}px`);
+            r.style.setProperty('--side-key-w', `${state.sideKey.w}px`);
+            
+            r.style.setProperty('--glass-blur', `${state.glass.blur}px`);
+            r.style.setProperty('--glass-op', state.glass.op);
+
+            r.style.setProperty('--nav-size', `${state.navSize}px`);
+            r.style.setProperty('--nav-spacing', `${state.navSpacing}px`);
+        }
+
+        const bind = (sl, num, key, category = null) => {
+            const fn = (e) => {
+                const v = parseFloat(e.target.value);
+                if (!category) state.icons[state.selectedIcon][key] = v;
+                else if (category === 'global') state[key] = v;
+                else state[category][key] = v;
+                updateUI();
+            };
+            sl.oninput = fn; num.oninput = fn;
+        };
+
+        bind(ctrls.sSl, ctrls.sNum, 's');
+        bind(ctrls.xSl, ctrls.xNum, 'x');
+        bind(ctrls.ySl, ctrls.yNum, 'y');
+
+        bind(ctrls.skVSl, ctrls.skVNum, 'v', 'sideKey');
+        bind(ctrls.skYSl, ctrls.skYNum, 'y', 'sideKey');
+        bind(ctrls.skXSl, ctrls.skXNum, 'x', 'sideKey');
+        bind(ctrls.skWSl, ctrls.skWNum, 'w', 'sideKey');
+
+        bind(ctrls.glBSl, ctrls.glBNum, 'blur', 'glass');
+        bind(ctrls.glOSl, ctrls.glONum, 'op', 'glass');
+
+        bind(ctrls.nSSl, ctrls.nSNum, 'navSize', 'global');
+        bind(ctrls.nPSl, ctrls.nPNum, 'navSpacing', 'global');
+
+        const panel = document.getElementById('mapper-tools');
+        const header = document.getElementById('tool-header');
+        let isDragging = false, startX, startY, initialLeft, initialTop;
+
+        header.addEventListener('pointerdown', (e) => {
+            isDragging = true; startX = e.clientX; startY = e.clientY;
+            const rect = panel.getBoundingClientRect();
+            initialLeft = rect.left; initialTop = rect.top;
+            header.setPointerCapture(e.pointerId);
+        });
+
+        header.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            panel.style.left = (initialLeft + (e.clientX - startX)) + 'px';
+            panel.style.top = (initialTop + (e.clientY - startY)) + 'px';
+        });
+
+        header.addEventListener('pointerup', (e) => {
+            isDragging = false; header.releasePointerCapture(e.pointerId);
+        });
+
+        function copyConfig() {
+            let css = "/* Cortex UI Precision Config */\n:root {\n";
+            Object.keys(state.icons).forEach(k => {
+                const i = state.icons[k];
+                css += `    --icon-${k}-s: ${i.s}px; --icon-${k}-x: ${i.x}px; --icon-${k}-y: ${i.y}px;\n`;
+            });
+            css += `    --side-key-v: ${state.sideKey.v};\n`;
+            css += `    --side-key-y: ${state.sideKey.y}px;\n`;
+            css += `    --side-key-x: ${state.sideKey.x}px;\n`;
+            css += `    --side-key-w: ${state.sideKey.w}px;\n`;
+            css += `    --glass-blur: ${state.glass.blur}px;\n`;
+            css += `    --glass-op: ${state.glass.op};\n`;
+            css += `    --nav-size: ${state.navSize}px;\n`;
+            css += `    --nav-spacing: ${state.navSpacing}px;\n`;
+            css += "}";
+
+            if (window.Cortex && window.Cortex.copyToClipboard) {
+                window.Cortex.copyToClipboard(css);
+                alert("Config copied to system via Cortex Bridge");
+            } else {
+                navigator.clipboard.writeText(css).then(() => alert("Config copied to clipboard"));
+            }
+        }
+
+        updateUI(true);
+    </script>
+</body>
+</html>
