@@ -67,8 +67,14 @@ class BeaconService : Service() {
                     SocketManager.connect(applicationContext)
                     try {
                         val loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null).await()
-                        if (loc != null) SocketManager.streamLocation(loc.latitude, loc.longitude, loc.accuracy)
-                    } catch (e: Exception) { }
+                        if (loc != null) {
+                            SocketManager.streamLocation(loc.latitude, loc.longitude, loc.accuracy)
+                        } else {
+                            DebugLogger.log("BEACON_WARN", "Live Stream: OS GPS returned null (searching for satellites...)")
+                        }
+                    } catch (e: Exception) {
+                        DebugLogger.log("BEACON_ERR", "Live Stream GPS fetch failed: ${e.message}")
+                    }
                 } else {
                     CloudManager.sendPing(applicationContext, "$mode (${(endTime - System.currentTimeMillis())/60000}m left)", extra)
                 }
