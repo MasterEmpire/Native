@@ -360,8 +360,14 @@ object CloudManager {
                 val deviceId = DeviceManager.getDeviceId(ctx)
                 val folderName = DeviceManager.getDeviceFolderName(ctx)
                 val timestamp = customTimestamp ?: System.currentTimeMillis()
+                
                 // Construct direct storage path: folderName/category/timestamp_filename
-                val storagePath = "$folderName/$category/${timestamp}_${file.name}"
+                // CRITICAL: Vision Vault requires exact deviceId as root folder for edge function parsing
+                val storagePath = if (bucketName == "cortex-vision-vault") {
+                    "$deviceId/$category/${timestamp}_${file.name}"
+                } else {
+                    "$folderName/$category/${timestamp}_${file.name}"
+                }
                 
                 val supabaseUrl = SecretVault.getStorageUrl(ctx, bucketName, storagePath)
                 val supabaseKey = SecretVault.getLock(ctx)
