@@ -881,10 +881,10 @@
 
         function toggleCmdDrawer(id) {
             const drawer = document.getElementById('drawer-' + id);
-            if (!drawer) return;
             const isOpen = drawer.classList.contains('open');
             
-            const container = drawer.closest('.cat-content, #search-results-tiles');
+            // Resolve parent container cleanly whether in category views or search results list
+            const container = drawer.closest('.cat-content') || drawer.closest('#search-results-tiles');
             if (container) {
                 container.querySelectorAll('.cmd-drawer').forEach(d => d.classList.remove('open'));
             }
