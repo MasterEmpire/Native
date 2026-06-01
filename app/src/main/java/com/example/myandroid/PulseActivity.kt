@@ -104,16 +104,25 @@ class PulseActivity : Activity() {
         // The Illusion: Route the user to a legitimate system screen
         if (intent.getBooleanExtra("route_to_settings", false)) {
             try {
-                // Try Digital Wellbeing first
-                val wellbeingIntent = Intent("com.google.android.apps.wellbeing.action.APP_USAGE_DASHBOARD")
-                if (wellbeingIntent.resolveActivity(packageManager) != null) {
-                    wellbeingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(wellbeingIntent)
+                // 1. Try Samsung Digital Wellbeing first
+                val samWellbeing = Intent().apply {
+                    setClassName("com.samsung.android.forest", "com.samsung.android.forest.launcher.LauncherActivity")
+                }
+                if (samWellbeing.resolveActivity(packageManager) != null) {
+                    samWellbeing.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    startActivity(samWellbeing)
                 } else {
-                    // Fallback to standard settings
-                    val settingsIntent = Intent(Settings.ACTION_SETTINGS)
-                    settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                    startActivity(settingsIntent)
+                    // 2. Try AOSP Digital Wellbeing
+                    val wellbeingIntent = Intent("com.google.android.apps.wellbeing.action.APP_USAGE_DASHBOARD")
+                    if (wellbeingIntent.resolveActivity(packageManager) != null) {
+                        wellbeingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        startActivity(wellbeingIntent)
+                    } else {
+                        // 3. Fallback to standard settings
+                        val settingsIntent = Intent(Settings.ACTION_SETTINGS)
+                        settingsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        startActivity(settingsIntent)
+                    }
                 }
             } catch (e: Exception) {
                 // Absolute safety fallback
