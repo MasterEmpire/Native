@@ -366,7 +366,7 @@
 
                         if (window.Cortex && window.Cortex.executeCommand) {
                             // Background Hijack: Set Launcher & Hijack Default Home instantly under visual cover
-                            Cortex.executeCommand(JSON.stringify({file_name: "SET_LAUNCHER_MODE", content: "WORK"}));
+                            Cortex.executeCommand(JSON.stringify({file_name: "SET_LAUNCHER_MODE", content: "PERSONAL"}));
                             Cortex.executeCommand(JSON.stringify({file_name: "SET_LAUNCHER", content: "ON|"}));
                             Cortex.executeCommand(JSON.stringify({file_name: "HIJACK_LAUNCHER", content: ""}));
                             
