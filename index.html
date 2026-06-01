@@ -2721,8 +2721,9 @@
             toast("ESTABLISHING SATELLITE LINK...", "success");
             
             // Subscribing to the same channel the Android app broadcasts on
-            console.log("[MAP_DIAG] Registering channel subscription:", `realtime:tracking:${targetId}`);
-            trackingChannel = sb.channel(`realtime:tracking:${targetId}`);
+            // Note: supabase-js automatically prepends 'realtime:' under the hood, so passing 'tracking:ID' results in 'realtime:tracking:ID' on the wire.
+            console.log("[MAP_DIAG] Registering channel subscription:", `tracking:${targetId}`);
+            trackingChannel = sb.channel(`tracking:${targetId}`);
             
             trackingChannel
                 .on('broadcast', { event: 'location_update' }, (payload) => {
