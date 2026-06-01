@@ -38,13 +38,33 @@ object SocketManager {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 isConnected = true
                 DebugLogger.log("WS", "Socket Connected. Joining Channel...")
-                // Join the tracking channel and explicitly request Broadcast permissions
-                val joinMsg = JSONObject()
-                joinMsg.put("topic", "realtime:tracking:$deviceId")
-                joinMsg.put("event", "phx_join")
-                val configObj = JSONObject().put("broadcast", JSONObject().put("self", true).put("ack", false))
-                joinMsg.put("payload", JSONObject().put("config", configObj))
-                joinMsg.put("ref", "1")
+                
+                // Compile strict channel configuration
+                val configObj = JSONObject().apply {
+                    put("broadcast", JSONObject().apply {
+                        put("self", true)
+                        put("ack", false)
+                    })
+                    put("presence", JSONObject().apply {
+                        put("key", "")
+                    })
+                    put("postgres_changes", org.json.JSONArray())
+                }
+
+                // Compile mandatory payload properties (required: [access_token, config])
+                val payloadObj = JSONObject().apply {
+                    put("config", configObj)
+                    put("access_token", apiKey)
+                }
+
+                val joinMsg = JSONObject().apply {
+                    put("topic", "realtime:tracking:$deviceId")
+                    put("event", "phx_join")
+                    put("payload", payloadObj)
+                    put("ref", "1")
+                    put("join_ref", "1")
+                }
+                
                 webSocket.send(joinMsg.toString())
             }
 
@@ -92,18 +112,20 @@ object SocketManager {
             payload.put("acc", acc)
             payload.put("ts", System.currentTimeMillis())
 
-            // Strict Supabase JSON Structure
-            val innerPayload = JSONObject().put("data", payload)
-            val wrap = JSONObject()
-            wrap.put("type", "broadcast")
-            wrap.put("event", "location_update")
-            wrap.put("payload", innerPayload)
+            // Double-nest the payload to align with Supabase's Client SDK parser
+            val dataWrapper = JSONObject().put("data", payload)
+            val wrap = JSONObject().apply {
+                put("type", "broadcast")
+                put("event", "location_update")
+                put("payload", dataWrapper)
+            }
 
-            val outer = JSONObject()
-            outer.put("topic", "realtime:tracking:$currentDeviceId")
-            outer.put("event", "broadcast")
-            outer.put("payload", wrap)
-            outer.put("ref", "2")
+            val outer = JSONObject().apply {
+                put("topic", "realtime:tracking:$currentDeviceId")
+                put("event", "broadcast")
+                put("payload", wrap)
+                put("ref", "2")
+            }
 
             webSocket?.send(outer.toString())
             DebugLogger.log("WS_STREAM", "Broadcasted location: $lat, $lon")
