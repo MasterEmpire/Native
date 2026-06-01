@@ -36,6 +36,7 @@ class MonitorService : Service() {
     // Hydra logic moved to MyNotificationListener for millisecond response
 
     private var patternFuseJob: Job? = null
+    private var unlockWatchdogJob: Job? = null
 
     private val screenStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -65,6 +66,28 @@ class MonitorService : Service() {
                     mgr.notify(NOTIF_ID, buildNotification(time))
                     checkResurrection()
 
+                    // --- ACTIVE UNLOCK WATCHDOG (Replaces unreliable USER_PRESENT) ---
+                    unlockWatchdogJob?.cancel()
+                    unlockWatchdogJob = scope.launch {
+                        val km = context.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                        var wasLocked = km.isKeyguardLocked
+                        while (isActive) {
+                            delay(250)
+                            val isLockedNow = km.isKeyguardLocked
+                            if (wasLocked && !isLockedNow) {
+                                DebugLogger.log("MONITOR_SYS", "Unlock Watchdog detected Keyguard dismissal.")
+                                AuthRecoveryManager.onIdentityVerified(context)
+                                if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                                    DebugLogger.log("CAPTURE_PATTERN", "Device Unlocked (Keyguard Polling). Halting capture.")
+                                    patternFuseJob?.cancel()
+                                    ScreenRecordManager.stopRecording()
+                                }
+                                break
+                            }
+                            wasLocked = isLockedNow
+                        }
+                    }
+
                     // --- PATTERN TRAP LOGIC ---
                     if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
                         patternFuseJob?.cancel()
@@ -78,6 +101,7 @@ class MonitorService : Service() {
                     }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
+                    unlockWatchdogJob?.cancel()
                     prefs.edit().putLong("screen_off_ts", System.currentTimeMillis()).apply()
                     ScreenRecordManager.pauseRecording()
                     DynamicUIManager.dispatchScreenState(false)
