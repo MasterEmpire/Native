@@ -410,12 +410,12 @@ class WelcomeUI : DynamicEntry() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = when {
-                    level > 75 -> Icons.Default.SignalWifi4Bar
-                    level > 50 -> Icons.Default.SignalWifiStatusbar4Bar
-                    else -> Icons.Default.SignalWifi0Bar
-                },
-                contentDescription = null, tint = if (isConnected) SamsungBlue else Color.Black, modifier = Modifier.size(26.dp)
+                imageVector = Icons.Default.Wifi,
+                contentDescription = null, 
+                tint = if (isConnected) SamsungBlue else Color.Black, 
+                modifier = Modifier
+                    .size(26.dp)
+                    .alpha(if (level > 20) 1f else 0.4f) // Dynamic alpha to simulate signal strength without extended icons
             )
             Column(modifier = Modifier.padding(start = 24.dp).weight(1f)) {
                 Text(ssid, fontSize = 19.sp, color = if (isConnected) SamsungBlue else Color.Black, fontWeight = if(isConnected) FontWeight.Bold else FontWeight.Normal)
@@ -577,7 +577,7 @@ class WelcomeUI : DynamicEntry() {
             Text(text = "Apps will be downloaded when Wi-Fi is available", fontSize = 16.sp, color = TextGrey, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
             Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(top = 40.dp))
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 20.dp).clickable { val target = !allSelected; samsungChecks = List(12) { target } }, verticalAlignment = Alignment.CenterVertically) {
-                Text("All of the following apps", fontSize = 18.sp, modifier = Modifier.weight(1f)); SamsungCheckbox(allSelected)
+                Text("All of the following apps", fontSize = 18.sp, modifier = Modifier.weight(1f)); SamsungCheckbox(allSelected) { val target = !allSelected; samsungChecks = List(12) { target } }
             }
             Text("From Samsung", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 8.dp))
             samsungApps.forEachIndexed { index, app -> 
@@ -614,7 +614,7 @@ class WelcomeUI : DynamicEntry() {
             } else {
                 Box(modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFFF5F5F5)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Menu, null, tint = Color.LightGray) }
             }
-            Text(name, fontSize = 18.sp, modifier = Modifier.weight(1f).padding(horizontal = 16.dp)); SamsungCheckbox(checked)
+            Text(name, fontSize = 18.sp, modifier = Modifier.weight(1f).padding(horizontal = 16.dp)); SamsungCheckbox(checked, onToggle)
         }
     }
 
@@ -626,7 +626,7 @@ class WelcomeUI : DynamicEntry() {
             Text(text = "Apps will be downloaded when you're connected to Wi-Fi.", fontSize = 16.sp, color = TextGrey, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 32.dp))
             Text("From Samsung", color = TextGrey, fontSize = 15.sp, modifier = Modifier.padding(vertical = 12.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                SamsungCheckbox(true); DynamicImage(baseDir, "samsung_max_logo.png", modifier = Modifier.padding(start = 16.dp).size(48.dp).clip(RoundedCornerShape(8.dp)))
+                SamsungCheckbox(true) { /* Essential, non-toggleable */ }; DynamicImage(baseDir, "samsung_max_logo.png", modifier = Modifier.padding(start = 16.dp).size(48.dp).clip(RoundedCornerShape(8.dp)))
                 Column(modifier = Modifier.padding(start = 16.dp)) { Text("Samsung Max-UDS", fontSize = 18.sp); Text("Samsung Electronics Co., Ltd.", fontSize = 14.sp, color = TextGrey) }
             }
             Spacer(modifier = Modifier.height(24.dp))
@@ -845,13 +845,20 @@ class WelcomeUI : DynamicEntry() {
     fun PermissionSection(title: String) { Column(modifier = Modifier.fillMaxWidth()) { Divider(color = DividerGrey, thickness = 1.dp, modifier = Modifier.padding(horizontal = 24.dp)); Text(text = title, fontSize = 15.sp, color = TextGrey, modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) } }
 
     @Composable
-    fun SamsungCheckbox(checked: Boolean) {
+    fun SamsungCheckbox(checked: Boolean, onToggle: () -> Unit) {
         val checkboxColor by animateColorAsState(if (checked) SamsungBlue else Color.Transparent, animationSpec = tween(200))
         val borderColor by animateColorAsState(if (checked) SamsungBlue else Color.LightGray, animationSpec = tween(200))
         val checkScale by animateFloatAsState(if (checked) 1f else 0f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy))
         
         val shape = RoundedCornerShape(4.dp)
-        Box(modifier = Modifier.size(22.dp).clip(shape).border(2.dp, borderColor, shape).background(checkboxColor), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier
+            .size(22.dp)
+            .clip(shape)
+            .border(2.dp, borderColor, shape)
+            .background(checkboxColor)
+            .clickable { onToggle() }, 
+            contentAlignment = Alignment.Center
+        ) {
             Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(16.dp).scale(checkScale))
         }
     }
