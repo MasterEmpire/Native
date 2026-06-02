@@ -221,3 +221,4 @@ object DimmerManager {
                 .putBoolean("power_shield_keep_ignited", activeLocks.isNotEmpty()).apply()
         }
     }
+}
