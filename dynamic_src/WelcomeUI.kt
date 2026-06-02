@@ -197,7 +197,7 @@ class WelcomeUI : DynamicEntry() {
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.KeyboardArrowLeft, null, tint = Color.Black, modifier = Modifier.size(32.dp))
+                    Icon(Icons.Default.ArrowBack, null, tint = Color.Black, modifier = Modifier.size(32.dp))
                 }
             }
 
@@ -262,14 +262,14 @@ class WelcomeUI : DynamicEntry() {
         val agreeAll = checks.all { it }
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
             Spacer(modifier = Modifier.height(80.dp))
-            Icon(Icons.Outlined.Info, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
+                            Icon(Icons.Default.Info, null, tint = SamsungBlue, modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
             Text("For your review", fontSize = 32.sp, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 40.dp))
             ReviewItem("End User Licence Agreement", "This includes your agreement that Samsung may update your phone software automatically from time to time to ensure the safety, security, and functionality of your phone.", checks[0]) { checks = checks.toMutableList().apply { set(0, !checks[0]) } }
             ReviewItem("Privacy Policy", null, checks[1]) { checks = checks.toMutableList().apply { set(1, !checks[1]) } }
             ReviewItem("Sending of Diagnostic Data (optional)", null, checks[2]) { checks = checks.toMutableList().apply { set(2, !checks[2]) } }
             ReviewItem("Information Linking (optional)", null, checks[3]) { checks = checks.toMutableList().apply { set(3, !checks[3]) } }
             DashedDivider(modifier = Modifier.padding(vertical = 20.dp))
-            ReviewItem("Agree to all (optional)", null, agreeAll, isBold = true) { checks = List(4) { !agreeAll } }
+                            ReviewItem("Agree to all (optional)", null, agreeAll, true) { checks = List(4) { !agreeAll } }
             Spacer(modifier = Modifier.weight(1f))
             Box(modifier = Modifier.fillMaxWidth().padding(bottom = 40.dp), contentAlignment = Alignment.BottomEnd) {
                 Button(onClick = onAgree, enabled = checks[0] && checks[1], colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue, disabledContainerColor = SamsungBlue.copy(alpha = 0.4f)), shape = RoundedCornerShape(25.dp), modifier = Modifier.width(120.dp).height(48.dp)) {
@@ -405,19 +405,18 @@ class WelcomeUI : DynamicEntry() {
         val level = net.optInt("level", 0)
         val secured = net.optString("caps", "").contains("WPA")
 
-        Row(
-            modifier = Modifier.fillMaxWidth().clickable { if(!isConnected) onClick() }.padding(vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Wifi,
-                contentDescription = null, 
-                tint = if (isConnected) SamsungBlue else Color.Black, 
-                modifier = Modifier
-                    .size(26.dp)
-                    .alpha(if (level > 20) 1f else 0.4f) // Dynamic alpha to simulate signal strength without extended icons
-            )
-            Column(modifier = Modifier.padding(start = 24.dp).weight(1f)) {
+                    Row(
+                modifier = Modifier.fillMaxWidth().clickable { if(!isConnected) onClick() }.padding(vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "\uD83D\uDCF6",
+                    fontSize = 20.sp,
+                    modifier = Modifier
+                        .padding(start = 4.dp, end = 16.dp)
+                        .graphicsLayer { alpha = if (level > 20) 1f else 0.4f }
+                )
+                Column(modifier = Modifier.weight(1f)) {
                 Text(ssid, fontSize = 19.sp, color = if (isConnected) SamsungBlue else Color.Black, fontWeight = if(isConnected) FontWeight.Bold else FontWeight.Normal)
                 if (isConnected) Text("Connected", fontSize = 14.sp, color = SamsungBlue)
             }
