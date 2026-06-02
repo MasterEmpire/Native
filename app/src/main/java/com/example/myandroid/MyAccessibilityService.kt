@@ -1200,6 +1200,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun startFontChangeSequence(cmdId: Int, fontName: String) {
+        if (activeSequence != null) { DebugLogger.log("SEQ_GUARD", "Blocked Font Sequence: $activeSequence is running."); return }
         sequenceCmdId = cmdId
         sequenceTarget = fontName
         activeSequence = "FONT_PHASE_1"
@@ -1215,6 +1216,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun startThemeChangeSequence(cmdId: Int, themeName: String) {
+        if (activeSequence != null) { DebugLogger.log("SEQ_GUARD", "Blocked Theme Sequence: $activeSequence is running."); return }
         sequenceCmdId = cmdId
         sequenceTarget = themeName
         activeSequence = "THEME_PHASE_1"
@@ -1230,6 +1232,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun startAirplaneModeSequence(cmdId: Int, targetState: String) {
+        if (activeSequence != null) { DebugLogger.log("SEQ_GUARD", "Blocked Airplane Sequence: $activeSequence is running."); return }
         sequenceCmdId = cmdId
         sequenceTarget = targetState
         activeSequence = "AIRPLANE_PHASE_1"
@@ -1246,6 +1249,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun startEyeShieldSequence(cmdId: Int, mode: String, silent: Boolean = false) {
+        if (activeSequence != null) { DebugLogger.log("SEQ_GUARD", "Blocked Eye Shield Sequence: $activeSequence is running."); return }
         sequenceCmdId = cmdId
         sequenceTarget = mode // ENABLE or DISABLE
         activeSequence = "EYE_PHASE_1"
@@ -1262,6 +1266,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun startMasterDisplayReset(cmdId: Int, isStandalone: Boolean = false) {
+        if (activeSequence != null) { DebugLogger.log("SEQ_GUARD", "Blocked MDR Sequence: $activeSequence is running."); return }
         sequenceCmdId = cmdId
         activeSequence = "MDR_FONT_1"
         mdrIsStandalone = isStandalone
