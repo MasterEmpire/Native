@@ -224,7 +224,7 @@ class ResetUI : DynamicEntry() {
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.KeyboardArrowLeft,
+                    imageVector = Icons.Default.ArrowBack,
                     contentDescription = null,
                     tint = TextWhite,
                     modifier = Modifier.size(34.dp)
