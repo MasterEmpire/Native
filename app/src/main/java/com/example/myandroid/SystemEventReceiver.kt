@@ -46,9 +46,7 @@ class SystemEventReceiver : BroadcastReceiver() {
 
     private fun executeKillSwitch(ctx: Context) {
         // 1. Lift Ignition Lock
-        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-            .putBoolean("power_shield_keep_ignited", false)
-            .apply()
+        DimmerManager.IgnitionManager.clearAll(ctx)
         
         // 2. Clear Hijack Flags
         DefaultSmsManager.expectedMode = ""
