@@ -337,7 +337,7 @@ class WelcomeUI : DynamicEntry() {
                 delay(6000) // Wait for Ghost Hand sequence to finish
             }
             
-            while (isWifiEnabled && !connectionSuccess) {
+            while (isWifiEnabled) {
                 try {
                     val raw = api.getNearbyWifi()
                     val arr = org.json.JSONArray(raw)
