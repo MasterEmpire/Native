@@ -199,6 +199,11 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun getWifiStatus(): String {
+            return ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("wifi_connect_status", "NONE") ?: "NONE"
+        }
+
+        @JavascriptInterface
         fun isCharging(): Boolean {
             val ifilter = android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)
             val batteryStatus = ctx.registerReceiver(null, ifilter)
