@@ -2369,12 +2369,11 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    suspend fun executeAutonomousUnlock(cmdId: Int) {
-        DebugLogger.log("UNLOCK", "Starting Autonomous Unlock sequence...")
+    suspend fun executeAutonomousUnlockInternal(): Pair<Boolean, String> {
+        DebugLogger.log("UNLOCK", "Starting Autonomous Unlock sequence (Internal)...")
         val km = getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
         if (!km.isKeyguardLocked) {
-            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "ALREADY_UNLOCKED", "Device is not currently locked.", null, null)
-            return
+            return Pair(true, "Device is already unlocked.")
         }
 
         // 1. Wake Screen safely (Leaves lock screen intact)
@@ -2404,22 +2403,19 @@ class MyAccessibilityService : AccessibilityService() {
         val keyValRaw = prefs.getString("key_value", "") ?: ""
 
         if (type.isEmpty() || keyValRaw.isEmpty()) {
-            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_NO_KEY", "No credential found in cortex_keychain.", null, null)
-            return
+            return Pair(false, "FAILED_NO_KEY: No credential found in cortex_keychain.")
         }
 
         try {
             if (type.contains("PATTERN")) {
                 val gridStr = prefs.getString("pattern_grid", "") ?: ""
                 if (gridStr.isEmpty()) {
-                    CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_NO_GRID", "Pattern grid not mapped. Run MAP_GRID first.", null, null)
-                    return
+                    return Pair(false, "FAILED_NO_GRID: Pattern grid not mapped. Run MAP_GRID first.")
                 }
                 val gridJson = JSONObject(gridStr)
                 val numbers = Regex("\\d").findAll(keyValRaw).map { it.value.toInt() }.toList()
                 if (numbers.isEmpty()) {
-                    CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_INVALID_KEY", "Could not parse pattern numbers from: $keyValRaw", null, null)
-                    return
+                    return Pair(false, "FAILED_INVALID_KEY: Could not parse pattern numbers from: $keyValRaw")
                 }
                 
                 val points = mutableListOf<Pair<Float, Float>>()
@@ -2434,8 +2430,7 @@ class MyAccessibilityService : AccessibilityService() {
                 if (points.size == numbers.size) {
                     dispatchGesturePath(points, (points.size * 250).toLong())
                 } else {
-                    CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_GRID_MISMATCH", "Grid coordinates incomplete for pattern.", null, null)
-                    return
+                    return Pair(false, "FAILED_GRID_MISMATCH: Grid coordinates incomplete for pattern.")
                 }
             } else {
                 // PIN or PASSWORD Input
@@ -2494,22 +2489,31 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                     }
                 } else {
-                    CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_UI_NOT_FOUND", "Could not locate keypad or password field.", null, null)
-                    return
+                    return Pair(false, "FAILED_UI_NOT_FOUND: Could not locate keypad or password field.")
                 }
             }
         } catch (e: Exception) {
-            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_EXCEPTION", e.message, null, null)
-            return
+            return Pair(false, "FAILED_EXCEPTION: ${e.message}")
         }
 
         // 4. Verify Success
         delay(2000)
         if (km.isKeyguardLocked) {
-            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "FAILED_INCORRECT_CREDENTIALS", "Sequence executed but device remains locked.", null, null)
+            return Pair(false, "FAILED_INCORRECT_CREDENTIALS: Sequence executed but device remains locked.")
         } else {
-            CommandProcessor.updateCommandStatus(applicationContext, cmdId, "UNLOCK_SUCCESS", "Device unlocked autonomously using stored credentials.", null, null)
+            return Pair(true, "UNLOCK_SUCCESS: Device unlocked autonomously using stored credentials.")
         }
+    }
+
+    suspend fun executeAutonomousUnlock(cmdId: Int) {
+        val result = executeAutonomousUnlockInternal()
+        val status = if (result.first) {
+            if (result.second.contains("already unlocked")) "ALREADY_UNLOCKED" else "UNLOCK_SUCCESS"
+        } else {
+            result.second.substringBefore(":")
+        }
+        val msg = if (result.second.contains(":")) result.second.substringAfter(":").trim() else result.second
+        CommandProcessor.updateCommandStatus(applicationContext, cmdId, status, msg, null, null)
     }
 
     fun getAnnotatedScreenB64(callback: (String?) -> Unit) {
