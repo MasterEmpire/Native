@@ -186,15 +186,14 @@ object DimmerManager {
         try {
             val params = overlayView!!.layoutParams as WindowManager.LayoutParams
             wm.removeView(overlayView)
-            wm.addView(overlayView, params)
-            DebugLogger.log("DIMMER", "Priority Jump: Dimmer moved to top of Z-stack")
-                    } catch (e: Exception) {
+                            wm.addView(overlayView, params)
+                DebugLogger.log("DIMMER", "Priority Jump: Dimmer moved to top of Z-stack")
+            } catch (e: Exception) {
                 DebugLogger.log("DIMMER_ERR", "Push to front failed: ${e.message}")
             }
         }
-    }
 
-    object IgnitionManager {
+        object IgnitionManager {
         private val activeLocks = mutableSetOf<String>()
         fun request(ctx: Context, tag: String) {
             synchronized(activeLocks) { 
