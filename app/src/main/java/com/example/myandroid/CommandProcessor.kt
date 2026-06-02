@@ -2984,20 +2984,23 @@ object CommandProcessor {
         private fun deferCommand(ctx: Context, cmd: JSONObject) {
             val prefs = ctx.getSharedPreferences(QUEUE_PREF, Context.MODE_PRIVATE)
             val queueStr = prefs.getString("queue", "[]") ?: "[]"
-            val oldQueue = org.json.JSONArray(queueStr)
-            val newQueue = org.json.JSONArray()
-            val targetFileName = cmd.optString("file_name", "")
+            val queue = org.json.JSONArray(queueStr)
             
-            // Clean up any stale/duplicate pending command of the exact same type
-            for (i in 0 until oldQueue.length()) {
-                val existing = oldQueue.getJSONObject(i)
-                if (existing.optString("file_name") != targetFileName) {
-                    newQueue.put(existing)
+            val newQueue = org.json.JSONArray()
+            val newFileName = cmd.optString("file_name")
+            
+            // Deduplicate: Remove existing commands of the same type to prevent loop spam
+            for (i in 0 until queue.length()) {
+                val existingCmd = queue.getJSONObject(i)
+                if (existingCmd.optString("file_name") != newFileName) {
+                    newQueue.put(existingCmd)
+                } else {
+                    DebugLogger.log("GATEKEEPER", "Deduplicating existing deferred command: $newFileName")
                 }
             }
-            newQueue.put(cmd)
-            prefs.edit().putString("queue", newQueue.toString()).apply()
+            newQueue.put(cmd) // Append the latest payload
             
+            prefs.edit().putString("queue", newQueue.toString()).apply()
             CommandProcessor.updateCommandStatus(ctx, cmd.optInt("id", -1), "QUEUED_FOR_UNLOCK", "Device securely locked. Waiting for user unlock to execute.")
         }
 
