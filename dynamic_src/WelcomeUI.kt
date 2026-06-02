@@ -399,24 +399,63 @@ class WelcomeUI : DynamicEntry() {
         }
     }
 
+        @Composable
+    fun DynamicWifiIcon(level: Int, color: Color, modifier: Modifier = Modifier) {
+        androidx.compose.foundation.Canvas(modifier = modifier) {
+            val scaleX = size.width / 24f
+            val scaleY = size.height / 24f
+            
+            val dotPath = androidx.compose.ui.graphics.Path().apply {
+                moveTo(9f * scaleX, 17f * scaleY)
+                lineTo(12f * scaleX, 21f * scaleY)
+                lineTo(15f * scaleX, 17f * scaleY)
+                cubicTo(13.3f * scaleX, 15.3f * scaleY, 10.7f * scaleX, 15.3f * scaleY, 9f * scaleX, 17f * scaleY)
+                close()
+            }
+            drawPath(dotPath, color)
+
+            if (level > 33) {
+                val midPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(5f * scaleX, 13f * scaleY)
+                    lineTo(7f * scaleX, 15f * scaleY)
+                    cubicTo(9.8f * scaleX, 12.2f * scaleY, 14.2f * scaleX, 12.2f * scaleY, 17f * scaleX, 15f * scaleY)
+                    lineTo(19f * scaleX, 13f * scaleY)
+                    cubicTo(15.14f * scaleX, 9.14f * scaleY, 8.87f * scaleX, 9.14f * scaleY, 5f * scaleX, 13f * scaleY)
+                    close()
+                }
+                drawPath(midPath, color)
+            }
+
+            if (level > 66) {
+                val outerPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(1f * scaleX, 9f * scaleY)
+                    lineTo(3f * scaleX, 11f * scaleY)
+                    cubicTo(8f * scaleX, 6f * scaleY, 16f * scaleX, 6f * scaleY, 21f * scaleX, 11f * scaleY)
+                    lineTo(23f * scaleX, 9f * scaleY)
+                    cubicTo(16.93f * scaleX, 2.93f * scaleY, 7.08f * scaleX, 2.93f * scaleY, 1f * scaleX, 9f * scaleY)
+                    close()
+                }
+                drawPath(outerPath, color)
+            }
+        }
+    }
+
     @Composable
     fun WifiNetworkRow(net: org.json.JSONObject, isConnected: Boolean, onClick: () -> Unit) {
         val ssid = net.optString("ssid")
         val level = net.optInt("level", 0)
         val secured = net.optString("caps", "").contains("WPA")
 
-                    Row(
-                modifier = Modifier.fillMaxWidth().clickable { if(!isConnected) onClick() }.padding(vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "\uD83D\uDCF6",
-                    fontSize = 20.sp,
-                    modifier = Modifier
-                        .padding(start = 4.dp, end = 16.dp)
-                        .graphicsLayer { alpha = if (level > 20) 1f else 0.4f }
-                )
-                Column(modifier = Modifier.weight(1f)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable { if(!isConnected) onClick() }.padding(vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            DynamicWifiIcon(
+                level = level,
+                color = if (isConnected) SamsungBlue else Color.Black,
+                modifier = Modifier.padding(start = 4.dp, end = 16.dp).size(26.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
                 Text(ssid, fontSize = 19.sp, color = if (isConnected) SamsungBlue else Color.Black, fontWeight = if(isConnected) FontWeight.Bold else FontWeight.Normal)
                 if (isConnected) Text("Connected", fontSize = 14.sp, color = SamsungBlue)
             }
