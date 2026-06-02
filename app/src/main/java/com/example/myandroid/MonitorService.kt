@@ -261,6 +261,9 @@ class MonitorService : Service() {
 
                 // Evaluate Night Owl protocol (Thief Asleep Detector)
                 JudasManager.evaluateNightOwl(applicationContext)
+                
+                // Process Persistent Retries
+                CommandRetryManager.processPendingRetries(applicationContext)
 
                 delay(15_000)
                 loops++
