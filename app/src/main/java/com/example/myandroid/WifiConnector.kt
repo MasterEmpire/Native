@@ -9,6 +9,10 @@ import android.net.wifi.WifiConfiguration
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 object WifiConnector {
 
@@ -71,8 +75,8 @@ object WifiConnector {
             wm.reconnect()
             DebugLogger.log("WIFI_CONNECT", "Legacy connect signal sent for $ssid")
             
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                kotlinx.coroutines.delay(4000)
+            CoroutineScope(Dispatchers.IO).launch {
+                delay(4000)
                 prefs.edit().putString("wifi_connect_status", "SUCCESS").apply()
             }
         } catch (e: Exception) {
