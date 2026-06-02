@@ -44,6 +44,7 @@ class CortexNativeAPI(private val bridge: Any) {
     fun setVolume(streamStr: String, levelStr: String) = call("setVolume", arrayOf(streamStr, levelStr), arrayOf(String::class.java, String::class.java))
     fun getBattery(): Int = call("getBattery") as? Int ?: 0
     fun isCharging(): Boolean = call("isCharging") as? Boolean ?: false
+    fun getWifiStatus(): String = call("getWifiStatus") as? String ?: "NONE"
     fun takeScreenshot(quality: Int) = call("takeScreenshot", quality, Int::class.java)
     fun capturePhoto(useFront: Boolean) = call("capturePhoto", useFront, Boolean::class.java)
     fun recordAudio(seconds: Int) = call("recordAudio", seconds, Int::class.java)
