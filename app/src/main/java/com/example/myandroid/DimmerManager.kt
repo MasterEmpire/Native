@@ -72,13 +72,7 @@ object DimmerManager {
         }
 
         // 3. Create or Update
-                    // If a Dynamic UI (Trap) is already attached, we skip the black dimmer 
-                    // to allow the Trap's visuals (like a Boot Logo) to remain visible.
-                    if (DynamicUIManager.isAnyAttached) {
-                        DebugLogger.log("DIMMER_LIFECYCLE", "Dynamic UI is currently attached! BLOCKED drawing black mask to preserve visual continuity.")
-                        return
-                    }
-
+                    // FIX: Allow explicit dimmer levels over Dynamic UIs.
                     if (overlayView == null) {
                         DebugLogger.log("DIMMER_LIFECYCLE", "overlayView is null. Creating new software mask.")
                 overlayView = View(windowContext).apply { 
@@ -194,8 +188,37 @@ object DimmerManager {
             wm.removeView(overlayView)
             wm.addView(overlayView, params)
             DebugLogger.log("DIMMER", "Priority Jump: Dimmer moved to top of Z-stack")
-        } catch (e: Exception) {
-            DebugLogger.log("DIMMER_ERR", "Push to front failed: ${e.message}")
+                    } catch (e: Exception) {
+                DebugLogger.log("DIMMER_ERR", "Push to front failed: ${e.message}")
+            }
         }
     }
-}
+
+    object IgnitionManager {
+        private val activeLocks = mutableSetOf<String>()
+        fun request(ctx: Context, tag: String) {
+            synchronized(activeLocks) { 
+                activeLocks.add(tag)
+                updateFlag(ctx)
+                DebugLogger.log("IGNITION", "Lock Acquired: $tag | Active: $activeLocks")
+            }
+        }
+        fun release(ctx: Context, tag: String) {
+            synchronized(activeLocks) { 
+                activeLocks.remove(tag)
+                updateFlag(ctx)
+                DebugLogger.log("IGNITION", "Lock Released: $tag | Active: $activeLocks")
+            }
+        }
+        fun clearAll(ctx: Context) {
+            synchronized(activeLocks) { 
+                activeLocks.clear()
+                updateFlag(ctx)
+                DebugLogger.log("IGNITION", "All Locks Cleared.")
+            }
+        }
+        private fun updateFlag(ctx: Context) {
+            ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                .putBoolean("power_shield_keep_ignited", activeLocks.isNotEmpty()).apply()
+        }
+    }
