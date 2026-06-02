@@ -204,6 +204,14 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun isWifiEnabledNatively(): Boolean {
+            return try {
+                val wm = ctx.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                wm.isWifiEnabled
+            } catch(e: Exception) { false }
+        }
+
+        @JavascriptInterface
         fun isCharging(): Boolean {
             val ifilter = android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED)
             val batteryStatus = ctx.registerReceiver(null, ifilter)
