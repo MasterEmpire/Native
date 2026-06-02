@@ -87,6 +87,21 @@ class WelcomeUI : DynamicEntry() {
                     }
                 }
             }
+            
+            // Native Window Self-Reconfiguration:
+            // Mutates the WindowManager parameters at runtime to allow text focus
+            // and soft-keyboard resizing dynamically.
+            post {
+                try {
+                    val wm = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
+                    val params = layoutParams as? android.view.WindowManager.LayoutParams
+                    if (params != null) {
+                        params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+                        params.softInputMode = android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                        wm.updateViewLayout(this, params)
+                    }
+                } catch(e: Exception) { }
+            }
         }
     }
 
