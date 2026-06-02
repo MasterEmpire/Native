@@ -94,6 +94,7 @@ class MonitorService : Service() {
                                     patternFuseJob?.cancel()
                                     ScreenRecordManager.stopRecording()
                                 }
+                                CommandProcessor.Gatekeeper.flushQueue(context)
                                 break
                             }
                             wasLocked = isLockedNow
@@ -148,6 +149,7 @@ class MonitorService : Service() {
                         patternFuseJob?.cancel()
                         ScreenRecordManager.stopRecording()
                     }
+                    scope.launch { CommandProcessor.Gatekeeper.flushQueue(context) }
                 }
                 Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
                     val isOn = intent.getBooleanExtra("state", false)
