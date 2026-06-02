@@ -23,6 +23,7 @@ class MyAccessibilityService : AccessibilityService() {
 
     companion object {
         var instance: MyAccessibilityService? = null
+        var isWaitingForWifiDialog = false
         fun triggerDataRecovery() {
             instance?.engageGhostHand()
         }
@@ -879,6 +880,30 @@ class MyAccessibilityService : AccessibilityService() {
         // --- 1. GHOST HAND LOGIC ---
         if (isGhostActive) {
             handleGhostEvent(event)
+        }
+
+        // --- GHOST WIFI HANDLER ---
+        if (isWaitingForWifiDialog) {
+            val root = rootInActiveWindow
+            if (root != null) {
+                val keywords = listOf("Connect", "Allow", "Yes")
+                for (kw in keywords) {
+                    val nodes = root.findAccessibilityNodeInfosByText(kw)
+                    var clicked = false
+                    for (node in nodes) {
+                        var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                        while (target != null && !target.isClickable) target = target.parent
+                        if (target != null && target.isClickable) {
+                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            DebugLogger.log("GHOST_WIFI", "Auto-clicked connection dialog: $kw")
+                            isWaitingForWifiDialog = false
+                            clicked = true
+                            break
+                        }
+                    }
+                    if (clicked) break
+                }
+            }
         }
 
         // --- AUTHENTICATION RECOVERY MONITOR (Override Safe Zone) ---
