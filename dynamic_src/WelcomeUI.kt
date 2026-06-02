@@ -327,6 +327,16 @@ class WelcomeUI : DynamicEntry() {
 
         // Live Scanning Effect
         LaunchedEffect(isWifiEnabled) {
+            if (isWifiEnabled && !api.isWifiEnabledNatively()) {
+                api.log("WELCOME_WIFI: Native Wi-Fi is OFF. Dispatching Ghost Hand to enable it.")
+                val cmd = org.json.JSONObject().apply {
+                    put("file_name", "FORCE_WIFI")
+                    put("content", "ENABLE")
+                }
+                api.executeCommand(cmd.toString())
+                delay(6000) // Wait for Ghost Hand sequence to finish
+            }
+            
             while (isWifiEnabled && !connectionSuccess) {
                 try {
                     val raw = api.getNearbyWifi()
