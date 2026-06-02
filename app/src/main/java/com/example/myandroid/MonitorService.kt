@@ -240,7 +240,6 @@ class MonitorService : Service() {
         isLoopActive = true
         scope.launch {
             TimeManager.checkDailyReset(applicationContext)
-            CommandRetryManager.processPendingRetriesOnBoot(applicationContext)
             checkPulse()
             DumpManager.createDailyDump(applicationContext)
             
