@@ -862,15 +862,17 @@ object DynamicUIManager {
         }
     }
 
-    fun removeOverlay(ctx: Context, reason: String = "UNKNOWN") {
+    fun removeOverlay(ctx: Context, reason: String = "UNKNOWN", clearDimmer: Boolean = false) {
         Handler(Looper.getMainLooper()).post {
-            DebugLogger.log("SDUI_CLOSE", "Overlay removal triggered. Reason: $reason")
+            DebugLogger.log("SDUI_CLOSE", "Overlay removal triggered. Reason: $reason | clearDimmer: $clearDimmer")
             val serviceInstance = MyAccessibilityService.instance
             val windowContext = if (serviceInstance != null) serviceInstance else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             
-            DebugLogger.log("SDUI_CLOSE", "Calling DimmerManager.removeOverlay from DynamicUIManager...")
-            DimmerManager.removeOverlay(ctx)
+            if (clearDimmer) {
+                DebugLogger.log("SDUI_CLOSE", "Calling DimmerManager.removeOverlay from DynamicUIManager...")
+                DimmerManager.removeOverlay(ctx)
+            }
             
             overlayView?.let {
                 if (isAttached) {
