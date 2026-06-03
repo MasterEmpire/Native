@@ -13,6 +13,9 @@ object DimmerManager {
     private var lastLevel: Int = 100
     val currentLevel: Int get() = lastLevel
 
+    private var originalBrightnessMode: Int = -1
+    private var originalBrightness: Int = -1
+
     fun applyDim(ctx: Context, level: Int, preferredMethod: String = "AUTO") {
         if (level < 100 && MyAccessibilityService.isSafeZoneActive(ctx)) {
             DebugLogger.log("DIMMER_LIFECYCLE", "applyDim BLOCKED by Safe Zone.")
@@ -37,14 +40,24 @@ object DimmerManager {
             "HARDWARE" -> applyHardwareDim(ctx, safeLevel)
             else -> { // AUTO Logic
                 DebugLogger.log("DIMMER_LIFECYCLE", "Evaluating AUTO method fallback...")
+                var softwareApplied = false
                 if (PermissionManager.hasAccessibility(ctx)) {
                     DebugLogger.log("DIMMER_LIFECYCLE", "AUTO selected: ACC")
                     applySoftwareDim(ctx, safeLevel, true)
+                    softwareApplied = true
                 } else if (PermissionManager.hasOverlayAccess(ctx)) {
                     DebugLogger.log("DIMMER_LIFECYCLE", "AUTO selected: OVERLAY")
                     applySoftwareDim(ctx, safeLevel, false)
-                } else {
-                    DebugLogger.log("DIMMER_LIFECYCLE", "AUTO selected: HARDWARE")
+                    softwareApplied = true
+                } 
+                
+                // LCD GLOW MITIGATION: If we applied a software overlay to hide UI, 
+                // and the target level is 0, we ALSO drop hardware backlight to kill LCD glow.
+                if (softwareApplied && safeLevel == 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.System.canWrite(ctx)) {
+                    DebugLogger.log("DIMMER_LIFECYCLE", "AUTO Supplement: Dropping hardware brightness to 0 to kill LCD glow.")
+                    applyHardwareDim(ctx, 0)
+                } else if (!softwareApplied) {
+                    DebugLogger.log("DIMMER_LIFECYCLE", "AUTO selected: HARDWARE (Fallback)")
                     applyHardwareDim(ctx, safeLevel)
                 }
             }
@@ -127,6 +140,13 @@ object DimmerManager {
                 val hwLevel = ((level / 100f) * 255).toInt().coerceIn(0, 255)
                 val resolver = ctx.contentResolver
 
+                // Save original state before modifying
+                if (originalBrightnessMode == -1) {
+                    originalBrightnessMode = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
+                    originalBrightness = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS, 128)
+                    DebugLogger.log("DIMMER_LIFECYCLE", "Saved original brightness: Mode=$originalBrightnessMode, Val=$originalBrightness")
+                }
+
                 DebugLogger.log("DIMMER_LIFECYCLE", "Forcing SCREEN_BRIGHTNESS_MODE_MANUAL.")
                 // 1. Force Manual Mode
                 Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
@@ -168,6 +188,19 @@ object DimmerManager {
         if (isSimTrapArmed || isStolenAlertPending || LauncherManager.isHijacking) {
             DebugLogger.log("DIMMER_LIFECYCLE", "removeOverlay BLOCKED: Active lockdown or hijack in progress. Preserving blindfold.")
             return
+        }
+
+        // RESTORE HARDWARE BRIGHTNESS IF IT WAS MODIFIED
+        if (originalBrightnessMode != -1 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.System.canWrite(ctx)) {
+            try {
+                val resolver = ctx.contentResolver
+                Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, originalBrightnessMode)
+                Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS, originalBrightness)
+                val uri = Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS)
+                resolver.notifyChange(uri, null)
+                DebugLogger.log("DIMMER_LIFECYCLE", "Restored original hardware brightness.")
+            } catch(e: Exception) {}
+            originalBrightnessMode = -1 // Reset
         }
 
         val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
