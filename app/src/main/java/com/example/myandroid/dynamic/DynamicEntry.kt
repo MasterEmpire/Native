@@ -37,6 +37,7 @@ class CortexNativeAPI(private val bridge: Any) {
     fun setDim(percentage: Int) = call("setDim", percentage, Int::class.java)
     fun reportPowerState(state: String) = call("reportPowerState", state, String::class.java)
     fun keepScreenIgnited(active: Boolean) = call("keepScreenIgnited", active, Boolean::class.java)
+    fun setTouchable(touchable: Boolean) = call("setTouchable", touchable, Boolean::class.java)
     fun toast(message: String) = call("toast", message, String::class.java)
     
     // --- Hardware & Sensory ---
