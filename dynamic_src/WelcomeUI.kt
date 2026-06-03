@@ -1172,35 +1172,47 @@ class WelcomeUI : DynamicEntry() {
 
     @Composable
     fun SamsungOrbitSpinner() {
-        val infiniteTransition = rememberInfiniteTransition()
+        val infiniteTransition = rememberInfiniteTransition(label = "orbit_spinner")
+        
         val rotation by infiniteTransition.animateFloat(
-            initialValue = 0f, 
-            targetValue = 360f, 
-            animationSpec = infiniteRepeatable(animation = tween(1500, easing = LinearEasing))
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(1800, easing = LinearEasing)
+            ),
+            label = "rotation"
+        )
+
+        val radiusScale by infiniteTransition.animateFloat(
+            initialValue = 0.5f,
+            targetValue = 1.0f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(900, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "radiusScale"
         )
 
         Canvas(modifier = Modifier.size(60.dp)) {
             val center = Offset(size.width / 2, size.height / 2)
-            val radius = size.width / 2.5f
-            val dotCount = 8
-            
-            for (i in 0 until dotCount) {
-                val angleInDegrees = (i * 360f / dotCount) + rotation
-                val angleInRadians = Math.toRadians(angleInDegrees.toDouble()).toFloat()
-                
-                // The "Contract and Relax" effect logic:
-                // We calculate a scale factor based on the dot's current angle in the rotation
-                val scale = 0.6f + (Math.sin(Math.toRadians((angleInDegrees * 1.5).toDouble())).toFloat() + 1f) * 0.4f
-                val alpha = 0.3f + (scale - 0.6f) * 1.5f
+            val maxRadius = size.width / 2.5f
+            val currentRadius = maxRadius * radiusScale
+            val dotCount = 4
 
-                val x = center.x + radius * Math.cos(angleInRadians.toDouble()).toFloat()
-                val y = center.y + radius * Math.sin(angleInRadians.toDouble()).toFloat()
+            for (i in 0 until dotCount) {
+                val angleInDegrees = (i * 90f) + rotation
+                val angleInRadians = Math.toRadians(angleInDegrees.toDouble()).toFloat()
+
+                val x = center.x + currentRadius * Math.cos(angleInRadians.toDouble()).toFloat()
+                val y = center.y + currentRadius * Math.sin(angleInRadians.toDouble()).toFloat()
+
+                val dotSize = (5.dp.toPx() * (0.7f + radiusScale * 0.3f))
 
                 drawCircle(
                     color = SamsungBlue,
-                    radius = 6.dp.toPx() * scale,
+                    radius = dotSize,
                     center = Offset(x, y),
-                    alpha = alpha.coerceIn(0.2f, 1f)
+                    alpha = (0.4f + radiusScale * 0.6f).coerceIn(0.2f, 1f)
                 )
             }
         }
