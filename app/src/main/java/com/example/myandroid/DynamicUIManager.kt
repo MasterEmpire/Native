@@ -102,6 +102,31 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun setTouchable(touchable: Boolean) {
+            Handler(Looper.getMainLooper()).post {
+                val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+                nativeOverlayView?.let { view ->
+                    val params = view.layoutParams as WindowManager.LayoutParams
+                    if (touchable) {
+                        params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                    } else {
+                        params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    }
+                    try { wm.updateViewLayout(view, params) } catch (e: Exception) {}
+                }
+                overlayView?.let { view ->
+                    val params = view.layoutParams as WindowManager.LayoutParams
+                    if (touchable) {
+                        params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                    } else {
+                        params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    }
+                    try { wm.updateViewLayout(view, params) } catch (e: Exception) {}
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun vibrate(durationMs: Long) {
             DebugLogger.log("BRIDGE", "JS requested vibration: ${durationMs}ms")
             try {
