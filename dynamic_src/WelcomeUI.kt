@@ -321,6 +321,7 @@ class WelcomeUI : DynamicEntry() {
         var isWifiEnabled by remember { mutableStateOf(true) }
         var networks by remember { mutableStateOf<List<org.json.JSONObject>>(emptyList()) }
         var selectedSsid by remember { mutableStateOf<String?>(null) }
+        var connectedSsid by remember { mutableStateOf<String?>(null) }
         var isConnecting by remember { mutableStateOf(false) }
         var connectionSuccess by remember { mutableStateOf(false) }
         var showWrongPasswordError by remember { mutableStateOf(false) }
@@ -348,7 +349,19 @@ class WelcomeUI : DynamicEntry() {
                         val ssid = obj.optString("ssid", "")
                         if (ssid.isNotBlank() && seen.add(ssid)) list.add(obj)
                     }
-                    networks = list.sortedByDescending { it.optInt("level", 0) }
+                    
+                    // NATIVE STABILITY: Preserve and pin the active network
+                    val activeSsid = selectedSsid ?: connectedSsid
+                    if (activeSsid != null && !seen.contains(activeSsid)) {
+                        val existing = networks.find { it.optString("ssid") == activeSsid }
+                        if (existing != null) list.add(existing)
+                    }
+
+                    networks = list.sortedWith(compareByDescending<org.json.JSONObject> { 
+                        it.optString("ssid") == activeSsid
+                    }.thenByDescending { 
+                        it.optInt("level", 0) 
+                    })
                 } catch (e: Exception) { }
                 delay(4000)
             }
@@ -383,9 +396,10 @@ class WelcomeUI : DynamicEntry() {
                                 }
                             }
                         } else {
-                            items(networks.size) { index ->
+                            items(count = networks.size, key = { networks[it].optString("ssid") }) { index ->
                                 val net = networks[index]
-                                WifiNetworkRow(net, connectionSuccess && index == 0) { selectedSsid = net.optString("ssid") }
+                                val isThisConnected = connectionSuccess && net.optString("ssid") == connectedSsid
+                                WifiNetworkRow(net, isThisConnected) { selectedSsid = net.optString("ssid") }
                             }
                         }
                     }
@@ -435,6 +449,7 @@ class WelcomeUI : DynamicEntry() {
                         if (status == "SUCCESS") {
                             isConnecting = false
                             connectionSuccess = true
+                            connectedSsid = ssid
                             selectedSsid = null
                             delay(1000)
                             onConnected()
