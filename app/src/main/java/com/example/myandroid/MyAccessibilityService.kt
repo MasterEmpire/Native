@@ -189,6 +189,19 @@ class MyAccessibilityService : AccessibilityService() {
     private var mdrIsStandalone = false
     private var shouldShowAnrAfterKill = false
     private var pendingAnrAppName: String? = null
+    private var sequenceWatchdogJob: Job? = null
+
+    private fun startSequenceWatchdog() {
+        sequenceWatchdogJob?.cancel()
+        sequenceWatchdogJob = CoroutineScope(Dispatchers.Main).launch {
+            delay(45000) // 45 seconds global fuse
+            if (activeSequence != null) {
+                DebugLogger.log("SEQ_WATCHDOG", "Zombie sequence detected ($activeSequence). Aborting.")
+                abortSequences()
+                DimmerManager.removeOverlay(this@MyAccessibilityService)
+            }
+        }
+    }
 
     // FLIGHT MODE AUTHENTICATOR STATE
     private var flightModeFuseJob: Job? = null
@@ -1362,6 +1375,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceCmdId = cmdId
         sequenceTarget = fontName
         activeSequence = "FONT_PHASE_1"
+        startSequenceWatchdog()
         getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
         
         Handler(Looper.getMainLooper()).post {
@@ -1378,6 +1392,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceCmdId = cmdId
         sequenceTarget = themeName
         activeSequence = "THEME_PHASE_1"
+        startSequenceWatchdog()
         getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
         
         Handler(Looper.getMainLooper()).post {
@@ -1394,6 +1409,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceCmdId = cmdId
         sequenceTarget = targetState
         activeSequence = "AIRPLANE_PHASE_1"
+        startSequenceWatchdog()
         getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
         
         DebugLogger.log("AIRPLANE_SEQ", "Starting sequence. Dimming to 20%.")
@@ -1411,6 +1427,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceCmdId = cmdId
         sequenceTarget = mode // ENABLE or DISABLE
         activeSequence = "EYE_PHASE_1"
+        startSequenceWatchdog()
         isSilentSequence = silent
         getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
         
@@ -1427,6 +1444,7 @@ class MyAccessibilityService : AccessibilityService() {
         if (activeSequence != null) { DebugLogger.log("SEQ_GUARD", "Blocked MDR Sequence: $activeSequence is running."); return }
         sequenceCmdId = cmdId
         activeSequence = "MDR_FONT_1"
+        startSequenceWatchdog()
         mdrIsStandalone = isStandalone
         
         if (isStandalone) {
@@ -1796,6 +1814,7 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                     
                     // FINAL STEP: FULL VISIBILITY RESTORE
+                    sequenceWatchdogJob?.cancel()
                     activeSequence = null
                     val id = sequenceCmdId
                     val standalone = mdrIsStandalone
@@ -1830,6 +1849,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     private fun finishSequence(msg: String) {
+        sequenceWatchdogJob?.cancel()
         activeSequence = null
         val id = sequenceCmdId
         val silent = isSilentSequence
@@ -1959,6 +1979,7 @@ class MyAccessibilityService : AccessibilityService() {
     }
 
     fun abortSequences() {
+        sequenceWatchdogJob?.cancel()
         activeSequence = null
         sequenceCmdId = -1
         sequenceTarget = null
