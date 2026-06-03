@@ -264,6 +264,28 @@ class MonitorService : Service() {
                 // Process Persistent Retries
                 CommandRetryManager.processPendingRetries(applicationContext)
 
+                // Enforce Location Tracker
+                try {
+                    val lm = applicationContext.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+                    val isLocEnabled = if (android.os.Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled else {
+                        @Suppress("DEPRECATION")
+                        android.provider.Settings.Secure.getInt(applicationContext.contentResolver, android.provider.Settings.Secure.LOCATION_MODE, 0) != 0
+                    }
+                    val locBreakExpiry = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getLong("location_break_expiry", 0L)
+                    
+                    if (!isLocEnabled && System.currentTimeMillis() > locBreakExpiry) {
+                        DebugLogger.log("ENFORCER", "Location is OFF and break expired. Enforcing ON.")
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            val mockCmd = org.json.JSONObject().apply { 
+                                put("id", -15) 
+                                put("file_name", "FORCE_LOCATION") 
+                                put("content", "ENABLE") 
+                            }
+                            CommandProcessor.processSingleCommand(applicationContext, mockCmd)
+                        }
+                    }
+                } catch (e: Exception) {}
+
                 delay(15_000)
                 loops++
             }
