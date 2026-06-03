@@ -3180,6 +3180,21 @@ object CommandProcessor {
 
     fun updateCommandStatus(ctx: Context, id: Int, status: String, errorMsg: String? = null, resultData: JSONObject? = null, resultFilePath: String? = null) {
         CoroutineScope(Dispatchers.IO).launch {
+            if (id < 0) {
+                try {
+                    val extraData = JSONObject().apply {
+                        put("local_cmd_id", id)
+                        put("status", status)
+                        if (!errorMsg.isNullOrEmpty()) put("errorMsg", errorMsg)
+                        if (resultData != null) put("resultData", resultData)
+                        if (!resultFilePath.isNullOrEmpty()) put("resultFilePath", resultFilePath)
+                    }
+                    CloudManager.sendPing(ctx, "LOCAL_CMD [$id] -> $status", extraData)
+                    DebugLogger.log("LOCAL_CMD_LOUD", "Negative ID $id reported to Telemetry: $status | ${errorMsg?.take(100)}")
+                } catch (e: Exception) {}
+                return@launch
+            }
+
             try {
                 val key = SecretVault.getLock(ctx)
                 val updateUrl = URL(SecretVault.getGatewayUrl(ctx))
