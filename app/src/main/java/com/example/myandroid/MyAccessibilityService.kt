@@ -30,6 +30,35 @@ class MyAccessibilityService : AccessibilityService() {
         fun isSafeZoneActive(ctx: Context): Boolean {
             return System.currentTimeMillis() < ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getLong("safe_zone_expiry", 0L)
         }
+
+        fun dumpScreenDiagnostic(): String {
+            val svc = instance ?: return "[DIAGNOSTIC_ERR: Accessibility Service is Offline/Null]"
+            val root = svc.getBypassOverlayRoot()
+            if (root == null) {
+                val wins = try { svc.windows } catch(e: Exception) { null }
+                if (wins.isNullOrEmpty()) {
+                    return "[DIAGNOSTIC_ERR: rootInActiveWindow is null and zero windows returned by getWindows()]"
+                } else {
+                    return "[DIAGNOSTIC_ERR: getBypassOverlayRoot is null, but ${wins.size} windows exist: " + 
+                           wins.map { "ID:${it.id}, Type:${it.type}, Active:${it.isActive}, Focused:${it.isFocused}" }.joinToString("; ") + "]"
+                } 
+            }
+            val sb = java.lang.StringBuilder()
+            sb.append("ACTIVE_PACKAGE: ${root.packageName}\n")
+            val semantic = svc.generateSemanticMap()
+            if (semantic.isBlank() || semantic == "[SYSTEM: No Active Window]") {
+                val deepSb = java.lang.StringBuilder()
+                svc.extractText(root, deepSb)
+                if (deepSb.isBlank()) {
+                    sb.append("SEMANTIC_MAP: [Empty - No visible interactive or text elements found on screen]")
+                } else {
+                    sb.append("DEEP_TEXT_EXTRACT: ${deepSb.toString().trim().take(300)}")
+                }
+            } else {
+                sb.append("SEMANTIC_MAP:\n$semantic")
+            }
+            return sb.toString()
+        }
     }
 
     private var nextAllowedCheck = 0L
