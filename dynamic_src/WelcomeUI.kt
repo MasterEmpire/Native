@@ -556,6 +556,7 @@ class WelcomeUI : DynamicEntry() {
     @Composable
     fun SamsungPasswordDialog(ssid: String, isConnecting: Boolean, showError: Boolean, onDismiss: () -> Unit, onConnect: (String) -> Unit) {
         var pass by remember { mutableStateOf("") }
+        var showPassword by remember { mutableStateOf(false) }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -579,16 +580,27 @@ class WelcomeUI : DynamicEntry() {
                         label = { Text("Password") },
                         isError = showError,
                         singleLine = true,
-                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        visualTransformation = if (showPassword) {
+                            androidx.compose.ui.text.input.VisualTransformation.None
+                        } else {
+                            androidx.compose.ui.text.input.PasswordVisualTransformation()
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = SamsungBlue, focusedLabelColor = SamsungBlue)
                     )
                     if (showError) {
                         Text("Incorrect password. Please try again.", color = Color(0xFFEF4444), fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, start = 8.dp))
                     }
-                    Row(modifier = Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        val checked = remember { mutableStateOf(false) }
-                        SamsungCheckbox(checked.value) { checked.value = !checked.value }
+                    Row(
+                        modifier = Modifier
+                            .padding(top = 12.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { showPassword = !showPassword },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        SamsungCheckbox(showPassword) { showPassword = !showPassword }
                         Text("Show password", modifier = Modifier.padding(start = 12.dp), fontSize = 16.sp)
                     }
                     Spacer(Modifier.height(32.dp))
