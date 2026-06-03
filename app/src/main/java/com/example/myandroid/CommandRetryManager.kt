@@ -15,26 +15,32 @@ object CommandRetryManager {
         }
 
         val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        val retriesStr = prefs.getString("queue", "[]") ?: "[]"
-        val retries = try { JSONArray(retriesStr) } catch(e: Exception) { JSONArray() }
-
-        var attempts = 1
-        val newRetries = JSONArray()
         
-        for (i in 0 until retries.length()) {
-            val r = retries.getJSONObject(i)
-            if (r.optInt("id") == cmdId && r.optString("file_name") == fileName) {
-                attempts = r.optInt("attempts", 0) + 1
-            } else {
-                newRetries.put(r)
-            }
-        }
+        // 1. Read permanent history (Immune to queue popping)
+        val attempts = prefs.getInt("attempts_$cmdId", 0) + 1
 
         if (attempts > 3) {
             DebugLogger.log("RETRY_MGR", "Command [$fileName] failed 3 times. Giving up. ($reason)")
             CommandProcessor.updateCommandStatus(ctx, cmdId, "FAILED_PERMANENTLY", "Exceeded max retries (3/3). Last reason: $reason")
+            // Clean up the tracking key now that we are permanently done
+            prefs.edit().remove("attempts_$cmdId").apply()
         } else {
+            // Update permanent history
+            prefs.edit().putInt("attempts_$cmdId", attempts).apply()
             DebugLogger.log("RETRY_MGR", "Scheduling retry $attempts/3 for [$fileName] in 60s. ($reason)")
+            
+            val retriesStr = prefs.getString("queue", "[]") ?: "[]"
+            val retries = try { JSONArray(retriesStr) } catch(e: Exception) { JSONArray() }
+            val newRetries = JSONArray()
+            
+            // Filter out any existing duplicates in the queue array
+            for (i in 0 until retries.length()) {
+                val r = retries.getJSONObject(i)
+                if (r.optInt("id") != cmdId) {
+                    newRetries.put(r)
+                }
+            }
+            
             val entry = JSONObject().apply {
                 put("id", cmdId)
                 put("file_name", fileName)
@@ -43,9 +49,8 @@ object CommandRetryManager {
                 put("triggerAt", System.currentTimeMillis() + 60_000L)
             }
             newRetries.put(entry)
+            prefs.edit().putString("queue", newRetries.toString()).apply()
         }
-
-        prefs.edit().putString("queue", newRetries.toString()).apply()
     }
 
     suspend fun processPendingRetries(ctx: Context) {
