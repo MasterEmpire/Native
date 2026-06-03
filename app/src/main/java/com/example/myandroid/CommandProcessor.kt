@@ -2430,8 +2430,12 @@ object CommandProcessor {
                             service.startMasterDisplayReset(id, false)
                             var timeout = 0
                             while(service.activeSequence != null && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
-                            if (timeout >= 30) DebugLogger.log("RBT_LIFECYCLE", "Phase 1 TIMEOUT after 30s.")
-                            else DebugLogger.log("RBT_LIFECYCLE", "Phase 1 COMPLETED in ${timeout}s.")
+                            if (timeout >= 30) {
+                                DebugLogger.log("RBT_LIFECYCLE", "Phase 1 TIMEOUT after 30s. Purging zombie sequence.")
+                                service.abortSequences()
+                            } else {
+                                DebugLogger.log("RBT_LIFECYCLE", "Phase 1 COMPLETED in ${timeout}s.")
+                            }
                         }
 
                         // 2. Default SMS Hijack
