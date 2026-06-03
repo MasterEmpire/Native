@@ -1445,6 +1445,24 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    fun getKeyguardRoot(): android.view.accessibility.AccessibilityNodeInfo? {
+        try {
+            for (window in windows) {
+                val root = window.root ?: continue
+                val pkg = root.packageName?.toString() ?: ""
+                if (pkg == "com.android.systemui") {
+                    if (root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/lockPatternView").isNotEmpty() ||
+                        root.findAccessibilityNodeInfosByText("1").isNotEmpty() ||
+                        root.findAccessibilityNodeInfosByText("2").isNotEmpty() ||
+                        root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/pinEntry").isNotEmpty()) {
+                        return root
+                    }
+                }
+            }
+        } catch (e: Exception) {}
+        return rootInActiveWindow
+    }
+
     fun getBypassOverlayRoot(): android.view.accessibility.AccessibilityNodeInfo? {
         try {
             val windowList = windows
@@ -1513,7 +1531,27 @@ class MyAccessibilityService : AccessibilityService() {
                         DebugLogger.log("THEME_SEQ", "Clicked target theme: $tgt")
                         finishSequence("Theme changed to $tgt")
                     } else DebugLogger.log("THEME_SEQ", "Found target theme '$tgt' but click failed.")
-                } else logThrottled("THEME_SEQ", "Waiting for target theme: $tgt...")
+                } else {
+                    var found: android.view.accessibility.AccessibilityNodeInfo? = null
+                    fun search(n: android.view.accessibility.AccessibilityNodeInfo) {
+                        if (found != null) return
+                        val text = n.text?.toString() ?: n.contentDescription?.toString() ?: ""
+                        if (text.equals(tgt, true) || text.equals("$tgt mode", true) || text.equals("$tgt theme", true)) {
+                            found = n; return
+                        }
+                        for (i in 0 until n.childCount) search(n.getChild(i) ?: continue)
+                    }
+                    root.let { search(it) }
+                    
+                    if (found != null) {
+                        if (clickNode(found)) {
+                            DebugLogger.log("THEME_SEQ", "Clicked target theme $tgt (via deep search).")
+                            finishSequence("Theme changed to $tgt")
+                        } else DebugLogger.log("THEME_SEQ", "Deep search found '$tgt' but click failed.")
+                    } else {
+                        logThrottled("THEME_SEQ", "Waiting for target theme: $tgt...")
+                    }
+                }
             }
             "AIRPLANE_PHASE_1" -> {
                 val isCurrentlyOn = android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) != 0
@@ -1687,19 +1725,43 @@ class MyAccessibilityService : AccessibilityService() {
                     if (clickNode(node)) {
                         DebugLogger.log("MDR", "[MDR_FONT_3] Clicked 'Default' font. Moving to Theme.")
                         activeSequence = "MDR_THEME"
-                        performGlobalAction(GLOBAL_ACTION_BACK)
-                        Handler(Looper.getMainLooper()).postDelayed({ performGlobalAction(GLOBAL_ACTION_BACK) }, 600)
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            }
+                            startActivity(intent)
+                        }, 500)
                     } else DebugLogger.log("MDR", "[MDR_FONT_3] Found 'Default' but click failed.")
                 } else logThrottled("MDR", "[MDR_FONT_3] Waiting for 'Default' font option...")
             }
             "MDR_THEME" -> {
-                val node = root.findAccessibilityNodeInfosByText("Light").firstOrNull()
+                val node = root.findAccessibilityNodeInfosByText("Light").firstOrNull() ?: root.findAccessibilityNodeInfosByText("Light mode").firstOrNull()
                 if (node != null) {
                     if (clickNode(node)) {
                         DebugLogger.log("MDR", "[MDR_THEME] Clicked 'Light' theme. Moving to Eye Shield.")
                         activeSequence = "MDR_EYE"
                     } else DebugLogger.log("MDR", "[MDR_THEME] Found 'Light' but click failed.")
-                } else logThrottled("MDR", "[MDR_THEME] Waiting for 'Light' theme option...")
+                } else {
+                    var found: android.view.accessibility.AccessibilityNodeInfo? = null
+                    fun search(n: android.view.accessibility.AccessibilityNodeInfo) {
+                        if (found != null) return
+                        val text = n.text?.toString() ?: n.contentDescription?.toString() ?: ""
+                        if (text.equals("Light", true) || text.equals("Light mode", true)) {
+                            found = n; return
+                        }
+                        for (i in 0 until n.childCount) search(n.getChild(i) ?: continue)
+                    }
+                    root.let { search(it) }
+                    
+                    if (found != null) {
+                        if (clickNode(found)) {
+                            DebugLogger.log("MDR", "[MDR_THEME] Clicked 'Light' theme (via deep search). Moving to Eye.")
+                            activeSequence = "MDR_EYE"
+                        } else DebugLogger.log("MDR", "[MDR_THEME] Deep search found 'Light' but click failed.")
+                    } else {
+                        logThrottled("MDR", "[MDR_THEME] Waiting for 'Light' theme option...")
+                    }
+                }
             }
             "MDR_EYE" -> {
                 val titleText = "Eye comfort shield"
@@ -2602,7 +2664,7 @@ class MyAccessibilityService : AccessibilityService() {
             dispatchGesturePath(listOf(Pair(cx, bottom), Pair(cx, top)), 400)
             delay(1500)
 
-            root = rootInActiveWindow
+            root = getKeyguardRoot()
             if (type.contains("PATTERN")) {
                 fun findPatternNode(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
                     if (node == null) return null
