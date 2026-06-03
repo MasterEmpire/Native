@@ -143,7 +143,8 @@ class WelcomeUI : DynamicEntry() {
                     when (targetStep) {
                         0 -> WelcomeScreen(
                             onStart = { api.log("WELCOME_UI: Tapped [Start]"); navigateTo(1) },
-                            onEmergency = { api.log("WELCOME_UI: Tapped [Emergency] -> DEV TELEPORT to 20"); navigateTo(20) }
+                            onEmergency = { api.log("WELCOME_UI: Tapped [Emergency] -> DEV TELEPORT to 20"); navigateTo(20) },
+                            onDevExit = { api.log("WELCOME_UI: Dev Exit triggered. Tearing down overlay."); api.close() }
                         )
                         1 -> ReviewScreen { api.log("WELCOME_UI: Tapped [Agree Review]"); navigateTo(2) }
                         2 -> PermissionsScreen(baseDir) { api.log("WELCOME_UI: Tapped [Agree Permissions]"); navigateTo(3) }
@@ -253,8 +254,11 @@ class WelcomeUI : DynamicEntry() {
         }
     }
 
-    @Composable
-    fun WelcomeScreen(onStart: () -> Unit, onEmergency: () -> Unit) {
+        @Composable
+    fun WelcomeScreen(onStart: () -> Unit, onEmergency: () -> Unit, onDevExit: () -> Unit) {
+        var devTapCount by remember { mutableStateOf(0) }
+        var lastTapTime by remember { mutableStateOf(0L) }
+
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
             Spacer(modifier = Modifier.weight(1.2f))
             Text("Welcome!", fontSize = 44.sp, color = TextBlack)
@@ -268,8 +272,26 @@ class WelcomeUI : DynamicEntry() {
             }
             Spacer(modifier = Modifier.weight(1f))
             Text("Emergency call", fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline, modifier = Modifier.padding(12.dp).clickable { onEmergency() })
-            Text("Accessibility", fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline, modifier = Modifier.padding(bottom = 60.dp))
-        }
+            Text(
+                text = "Accessibility", 
+                fontWeight = FontWeight.Bold, 
+                textDecoration = TextDecoration.Underline, 
+                modifier = Modifier
+                    .padding(bottom = 60.dp)
+                    .clickable {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTapTime < 500) {
+                            devTapCount++
+                        } else {
+                            devTapCount = 1
+                        }
+                        lastTapTime = now
+                        if (devTapCount >= 5) {
+                            onDevExit()
+                        }
+                    }
+            )
+        } 
     }
 
     @Composable
