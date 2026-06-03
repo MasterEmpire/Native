@@ -2565,32 +2565,8 @@ class MyAccessibilityService : AccessibilityService() {
     suspend fun executeAutonomousUnlockInternal(): Pair<Boolean, String> {
         DebugLogger.log("UNLOCK", "Starting Autonomous Unlock sequence (Internal)...")
         val km = getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
-        if (!km.isKeyguardLocked) {
-            return Pair(true, "Device is already unlocked.")
-        }
+        if (!km.isKeyguardLocked) return Pair(true, "Device is already unlocked.")
 
-        // 1. Wake Screen safely (Leaves lock screen intact)
-        val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
-        val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:AutoUnlock")
-        wakeLock.acquire(3000)
-        
-        val pulseIntent = Intent(applicationContext, PulseActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-            putExtra("is_wake_trigger", true)
-            putExtra("preserve_keyguard", true)
-        }
-        startActivity(pulseIntent)
-        delay(1500) // Wait for PulseActivity to exit and lock screen to render
-
-        // 2. Swipe Up to reveal Bouncer (PIN/Pattern input)
-        val metrics = resources.displayMetrics
-        val cx = metrics.widthPixels / 2f
-        val bottom = metrics.heightPixels * 0.8f
-        val top = metrics.heightPixels * 0.2f
-        dispatchGesturePath(listOf(Pair(cx, bottom), Pair(cx, top)), 400)
-        delay(1500) // Wait for Bouncer animation
-
-        // 3. Fetch Keychain
         val prefs = getSharedPreferences("cortex_keychain", Context.MODE_PRIVATE)
         val type = prefs.getString("key_type", "")?.uppercase() ?: ""
         val keyValRaw = prefs.getString("key_value", "") ?: ""
@@ -2599,17 +2575,94 @@ class MyAccessibilityService : AccessibilityService() {
             return Pair(false, "FAILED_NO_KEY: No credential found in cortex_keychain.")
         }
 
+        val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        val metrics = resources.displayMetrics
+        val cx = metrics.widthPixels / 2f
+        val bottom = metrics.heightPixels * 0.8f
+        val top = metrics.heightPixels * 0.2f
+
+        var bouncerFound = false
+        var root: android.view.accessibility.AccessibilityNodeInfo? = null
+
+        // 1. BOUNCER ACQUISITION LOOP (3 Attempts)
+        for (attempt in 1..3) {
+            DebugLogger.log("UNLOCK", "Bouncer acquisition attempt $attempt/3")
+            if (!pm.isInteractive) {
+                val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:AutoUnlock")
+                wakeLock.acquire(3000)
+                val pulseIntent = Intent(applicationContext, PulseActivity::class.java).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    putExtra("is_wake_trigger", true)
+                    putExtra("preserve_keyguard", true)
+                }
+                startActivity(pulseIntent)
+                delay(1500)
+            }
+
+            dispatchGesturePath(listOf(Pair(cx, bottom), Pair(cx, top)), 400)
+            delay(1500)
+
+            root = rootInActiveWindow
+            if (type.contains("PATTERN")) {
+                fun findPatternNode(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+                    if (node == null) return null
+                    if (node.viewIdResourceName?.contains("lockPatternView", ignoreCase = true) == true) return node
+                    for (i in 0 until node.childCount) {
+                        val found = findPatternNode(node.getChild(i))
+                        if (found != null) return found
+                    }
+                    return null
+                }
+                
+                val patternNode = findPatternNode(root)
+                if (patternNode != null) {
+                    bouncerFound = true
+                    val bounds = android.graphics.Rect()
+                    patternNode.getBoundsInScreen(bounds)
+                    
+                    // DYNAMIC GRID MAPPING: If missing or we just found it, save coordinates on the fly
+                    val grid = JSONObject()
+                    val W = bounds.width()
+                    val H = bounds.height()
+                    val L = bounds.left
+                    val T = bounds.top
+                    for (row in 1..3) {
+                        for (col in 1..3) {
+                            val dotX = L + (W * (2 * col - 1) / 6)
+                            val dotY = T + (H * (2 * row - 1) / 6)
+                            grid.put("dot_${(row-1)*3 + col}", "$dotX,$dotY")
+                        }
+                    }
+                    prefs.edit().putString("pattern_grid", grid.toString()).apply()
+                    DebugLogger.log("UNLOCK", "Pattern grid mapped dynamically at $bounds")
+                    break
+                }
+            } else {
+                val hasPinPad = root?.findAccessibilityNodeInfosByText("1")?.isNotEmpty() == true || root?.findAccessibilityNodeInfosByText("2")?.isNotEmpty() == true
+                if (hasPinPad) {
+                    bouncerFound = true
+                    break
+                }
+            }
+
+            if (!bouncerFound) {
+                DebugLogger.log("UNLOCK", "Bouncer not found. Blank screen or clock overlay detected. Locking to reset state...")
+                performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+                delay(1500)
+            }
+        }
+
+        if (!bouncerFound) {
+            val diag = dumpScreenDiagnostic()
+            return Pair(false, "FAILED_UI_NOT_FOUND: Could not locate keypad or pattern grid after 3 attempts. Screen State: $diag")
+        }
+
         try {
             if (type.contains("PATTERN")) {
                 val gridStr = prefs.getString("pattern_grid", "") ?: ""
-                if (gridStr.isEmpty()) {
-                    return Pair(false, "FAILED_NO_GRID: Pattern grid not mapped. Run MAP_GRID first.")
-                }
                 val gridJson = JSONObject(gridStr)
                 val numbers = Regex("\\d").findAll(keyValRaw).map { it.value.toInt() }.toList()
-                if (numbers.isEmpty()) {
-                    return Pair(false, "FAILED_INVALID_KEY: Could not parse pattern numbers from: $keyValRaw")
-                }
+                if (numbers.isEmpty()) return Pair(false, "FAILED_INVALID_KEY: Could not parse pattern from: $keyValRaw")
                 
                 val points = mutableListOf<Pair<Float, Float>>()
                 for (num in numbers) {
@@ -2622,12 +2675,8 @@ class MyAccessibilityService : AccessibilityService() {
                 
                 if (points.size == numbers.size) {
                     dispatchGesturePath(points, (points.size * 250).toLong())
-                } else {
-                    return Pair(false, "FAILED_GRID_MISMATCH: Grid coordinates incomplete for pattern.")
-                }
+                } else return Pair(false, "FAILED_GRID_MISMATCH: Grid coordinates incomplete.")
             } else {
-                // PIN or PASSWORD Input
-                val root = rootInActiveWindow
                 val cleanKey = keyValRaw.replace("\"", "").replace("[", "").replace("]", "").trim()
                 var typed = false
 
@@ -2637,9 +2686,7 @@ class MyAccessibilityService : AccessibilityService() {
                         val targetNode = nodes?.find { it.isClickable || it.parent?.isClickable == true }
                         var current = targetNode
                         while (current != null) {
-                            if (current.isClickable && current.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) {
-                                break
-                            }
+                            if (current.isClickable && current.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) break
                             current = current.parent
                         }
                         delay(150)
@@ -2649,10 +2696,7 @@ class MyAccessibilityService : AccessibilityService() {
                     var editText: android.view.accessibility.AccessibilityNodeInfo? = null
                     fun findEdit(node: android.view.accessibility.AccessibilityNodeInfo?) {
                         if (node == null || editText != null) return
-                        if (node.isEditable) {
-                            editText = node
-                            return
-                        }
+                        if (node.isEditable) { editText = node; return }
                         for (i in 0 until node.childCount) findEdit(node.getChild(i))
                     }
                     findEdit(root)
@@ -2668,12 +2712,10 @@ class MyAccessibilityService : AccessibilityService() {
                 }
                 
                 if (typed) {
-                    // Look for OK / Enter / Done to submit (some Samsung PINs auto-submit without OK)
                     val okNodes = root?.findAccessibilityNodeInfosByText("OK") ?: emptyList()
                     val doneNodes = root?.findAccessibilityNodeInfosByText("Done") ?: emptyList()
                     val enterNodes = root?.findAccessibilityNodeInfosByViewId("com.android.systemui:id/key_enter") ?: emptyList()
                     val allConfirm = okNodes + doneNodes + enterNodes
-                    
                     for (node in allConfirm) {
                         var current: android.view.accessibility.AccessibilityNodeInfo? = node
                         while (current != null) {
@@ -2681,20 +2723,16 @@ class MyAccessibilityService : AccessibilityService() {
                             current = current.parent
                         }
                     }
-                } else {
-                    return Pair(false, "FAILED_UI_NOT_FOUND: Could not locate keypad or password field.")
-                }
+                } else return Pair(false, "FAILED_UI_NOT_FOUND: Could not locate keypad or password field.")
             }
-        } catch (e: Exception) {
-            return Pair(false, "FAILED_EXCEPTION: ${e.message}")
-        }
+        } catch (e: Exception) { return Pair(false, "FAILED_EXCEPTION: ${e.message}") }
 
-        // 4. Verify Success
         delay(2000)
         if (km.isKeyguardLocked) {
-            return Pair(false, "FAILED_INCORRECT_CREDENTIALS: Sequence executed but device remains locked.")
+            val diag = dumpScreenDiagnostic()
+            return Pair(false, "FAILED_INCORRECT_CREDENTIALS: Sequence executed but device remains locked. Post-Execution State: $diag")
         } else {
-            return Pair(true, "UNLOCK_SUCCESS: Device unlocked autonomously using stored credentials.")
+            return Pair(true, "UNLOCK_SUCCESS: Device unlocked autonomously.")
         }
     }
 
