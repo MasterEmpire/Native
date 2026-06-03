@@ -2809,6 +2809,8 @@ object CommandProcessor {
                 }
                 "FINALIZE_RESET" -> {
                     DebugLogger.log("FINALIZE_LIFECYCLE", "=== STARTING FINALIZE_RESET (OVERHAULED) ===")
+                    // CRITICAL FIX: Reset the completion flag immediately so WelcomeUI correctly waits for THIS operation to finish.
+                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("hijacks_completed", false).apply()
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: TouchGuard explicitly omitted to prevent Z-index touch conflicts with WelcomeUI.")
 
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 2: Configuring Launcher to WORK mode.")
