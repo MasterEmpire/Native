@@ -1824,7 +1824,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         // Start the kill sequence which will launch the UI on completion
         android.os.Handler(android.os.Looper.getMainLooper()).post {
-            DimmerManager.applyDim(this, 0, "ACC")
+            DimmerManager.applyDim(this, 0, "AUTO")
             startStealthKillSequence()
         }
     }
