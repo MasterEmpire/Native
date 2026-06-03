@@ -247,6 +247,9 @@ object JudasManager {
     }
 
     fun evaluateNightOwl(ctx: Context) {
+        // STRICT GATE: Only execute Night Owl if the device is actively locked down / stolen
+        if (!isStealthModeActive(ctx)) return
+
         val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         val targetSmsNum = prefs.getString("stolen_target_num", "") ?: ""
         if (targetSmsNum.isEmpty()) return
