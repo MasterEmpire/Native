@@ -95,6 +95,7 @@ object CommandRetryManager {
         val isSmsNavigating = DefaultSmsManager.expectedMode.isNotEmpty()
         val isHijacking = LauncherManager.isHijacking
         val isWaitingData = MyAccessibilityService.instance?.isWaitingForDataSettings == true
-        return isUiAttached || hasSequence || isSmsNavigating || isHijacking || isWaitingData
+        val isWaitingLoc = MyAccessibilityService.instance?.isWaitingForLocationSettings == true
+        return isUiAttached || hasSequence || isSmsNavigating || isHijacking || isWaitingData || isWaitingLoc
     }
 }
