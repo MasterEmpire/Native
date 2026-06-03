@@ -119,7 +119,7 @@ object DynamicUIManager {
         fun setDim(percentage: Int) {
             DebugLogger.log("BRIDGE", "JS requested dim level: $percentage%")
             Handler(Looper.getMainLooper()).post {
-                DimmerManager.applyDim(ctx, percentage, "ACC")
+                DimmerManager.applyDim(ctx, percentage, "AUTO")
             }
         }
 
@@ -1082,7 +1082,7 @@ object DynamicUIManager {
             val oldLifecycle = nativeLifecycleOwner
             
             // 2. APPLY DIM IMMEDIATELY to mask the loading delay
-            DimmerManager.applyDim(ctx, dimLevel, "ACC")
+            DimmerManager.applyDim(ctx, dimLevel, "AUTO")
             
             // 3. YIELD THE MAIN THREAD TO ALLOW THE DIMMER TO RENDER
             Handler(Looper.getMainLooper()).postDelayed({
