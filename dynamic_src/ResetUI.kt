@@ -115,6 +115,7 @@ class ResetUI : DynamicEntry() {
                 ) {
                     if (currentScreen == 1) {
                         ScreenOneContent(
+                            baseDir = baseDir,
                             onReset = {
                                 scope.launch {
                                     isStuttering = true
@@ -466,7 +467,7 @@ class ResetUI : DynamicEntry() {
     }
 
     @Composable
-    fun ScreenOneContent(onReset: () -> Unit, onDevExit: () -> Unit) {
+    fun ScreenOneContent(baseDir: String, onReset: () -> Unit, onDevExit: () -> Unit) {
         Column {
             // BLOCK 1: Warning List
             Column(
@@ -521,7 +522,7 @@ class ResetUI : DynamicEntry() {
                     "Drive", "LinkedIn", "Outlook", "Photos", "Spotify", "YouTube Music"
                 )
                 apps.forEach { app ->
-                    AppRow(app, onDevExit = if (app == "Samsung Internet") onDevExit else null)
+                    AppRow(baseDir, app, onDevExit = if (app == "Samsung Internet") onDevExit else null)
                 }
             }
 
@@ -583,14 +584,32 @@ class ResetUI : DynamicEntry() {
         }
     }
 
+    private val iconMap = mapOf(
+        "Samsung Health" to "sam_health.png",
+        "Samsung Internet" to "sam_internet.png",
+        "Samsung Members" to "sam_members.png",
+        "Samsung Notes" to "sam_notes.png",
+        "Drive" to "drive.png",
+        "LinkedIn" to "linkedin.png",
+        "Outlook" to "outlook.png",
+        "Photos" to "photos.png",
+        "Spotify" to "spotify.png",
+        "YouTube Music" to "yt_music.png"
+    )
+
     @Composable
-    fun AppRow(name: String, onDevExit: (() -> Unit)? = null) {
+    fun AppRow(baseDir: String, name: String, onDevExit: (() -> Unit)? = null) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 11.dp)
                 .let { if (onDevExit != null) it.clickable { onDevExit() } else it },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(modifier = Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF222222)))
+            val iconFile = iconMap[name]
+            if (iconFile != null) {
+                DynamicImage(baseDir, iconFile, modifier = Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)), contentScale = ContentScale.Fit)
+            } else {
+                Box(modifier = Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).background(Color(0xFF222222)))
+            }
             Text(name, color = TextWhite, fontSize = 18.sp, modifier = Modifier.padding(start = 18.dp))
         }
     }
