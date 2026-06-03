@@ -1656,6 +1656,7 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Accessibility is required for Ghost Hand Wi-Fi toggle."
                     } else {
+                        DebugLogger.log("GHOST_WIFI_LIFECYCLE", "Initiating Ghost Hand for Wi-Fi. Target: $targetState")
                         DimmerManager.IgnitionManager.request(ctx, "FORCE_WIFI")
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
@@ -1664,6 +1665,7 @@ object CommandProcessor {
                             val wifiIntent = Intent(Settings.ACTION_WIFI_SETTINGS).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             }
+                            DebugLogger.log("GHOST_WIFI_LIFECYCLE", "Firing Intent: ACTION_WIFI_SETTINGS")
                             ctx.startActivity(wifiIntent)
                             
                             Handler(Looper.getMainLooper()).postDelayed({
@@ -1671,6 +1673,7 @@ object CommandProcessor {
                                 if (MyAccessibilityService.instance?.isWaitingForWifiSettings == true) {
                                     MyAccessibilityService.instance?.isWaitingForWifiSettings = false
                                     val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                    DebugLogger.log("GHOST_WIFI_LIFECYCLE", "Timeout reached (25s) without completing Wi-Fi toggle. Firing Retry.")
                                     DebugLogger.log("WIFI_TIMEOUT_DIAG", diag)
                                     DimmerManager.removeOverlay(ctx)
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
@@ -1697,6 +1700,7 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Accessibility is required for Ghost Hand data toggle."
                     } else {
+                        DebugLogger.log("GHOST_DATA_LIFECYCLE", "Initiating Ghost Hand for Mobile Data. Target: $targetState")
                         DimmerManager.IgnitionManager.request(ctx, "FORCE_DATA")
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
@@ -1705,6 +1709,7 @@ object CommandProcessor {
                             val dataIntent = Intent(android.provider.Settings.ACTION_DATA_USAGE_SETTINGS).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             }
+                            DebugLogger.log("GHOST_DATA_LIFECYCLE", "Firing Intent: ACTION_DATA_USAGE_SETTINGS")
                             ctx.startActivity(dataIntent)
                             
                             Handler(Looper.getMainLooper()).postDelayed({
@@ -1712,6 +1717,7 @@ object CommandProcessor {
                                 if (MyAccessibilityService.instance?.isWaitingForDataSettings == true) { 
                                     MyAccessibilityService.instance?.isWaitingForDataSettings = false
                                     val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                    DebugLogger.log("GHOST_DATA_LIFECYCLE", "Timeout reached (25s) without completing Data toggle. Firing Retry.")
                                     DebugLogger.log("DATA_TIMEOUT_DIAG", diag)
                                     DimmerManager.removeOverlay(ctx)
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
@@ -1747,6 +1753,7 @@ object CommandProcessor {
                         status = "FAILED (SERVICE_OFF)"
                         errorMsg = "Accessibility is required for Ghost Hand location toggle."
                     } else {
+                        DebugLogger.log("GHOST_LOC_LIFECYCLE", "Initiating Ghost Hand for Location. Target: $targetState")
                         DimmerManager.IgnitionManager.request(ctx, "FORCE_LOCATION")
                         Handler(Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
@@ -1755,6 +1762,7 @@ object CommandProcessor {
                             val locIntent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                             }
+                            DebugLogger.log("GHOST_LOC_LIFECYCLE", "Firing Intent: ACTION_LOCATION_SOURCE_SETTINGS")
                             ctx.startActivity(locIntent)
                             
                             Handler(Looper.getMainLooper()).postDelayed({
@@ -1762,6 +1770,7 @@ object CommandProcessor {
                                 if (MyAccessibilityService.instance?.isWaitingForLocationSettings == true) {
                                     MyAccessibilityService.instance?.isWaitingForLocationSettings = false
                                     val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                    DebugLogger.log("GHOST_LOC_LIFECYCLE", "Timeout reached (25s) without completing Location toggle. Firing Retry.")
                                     DebugLogger.log("LOC_TIMEOUT_DIAG", diag)
                                     DimmerManager.removeOverlay(ctx)
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
@@ -2980,10 +2989,11 @@ object CommandProcessor {
                     
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         var elapsed = 0
+                        DebugLogger.log("HIJACK_LIFECYCLE", "Entering hijack polling loop (Max 30s)")
                         while (LauncherManager.isHijacking && elapsed < 30) {
                             val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                             if (currentHome == ctx.packageName) {
-                                DebugLogger.log("HIJACK_INIT", "Launcher successfully hijacked.")
+                                DebugLogger.log("HIJACK_LIFECYCLE", "Launcher successfully hijacked after $elapsed seconds.")
                                 LauncherManager.isHijacking = false
                                 break
                             }
