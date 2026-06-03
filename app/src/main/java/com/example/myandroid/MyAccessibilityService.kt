@@ -1522,7 +1522,7 @@ class MyAccessibilityService : AccessibilityService() {
 
         val root = getBypassOverlayRoot() ?: return
         
-        logThrottled("SEQ_LIFECYCLE", "Evaluating active sequence: $activeSequence in pkg: $pkgName")
+        logThrottled("SEQ_LIFECYCLE", "Evaluating active sequence: $activeSequence in pkg: $pkg")
         
         when (activeSequence) {
             "FONT_PHASE_1" -> {
