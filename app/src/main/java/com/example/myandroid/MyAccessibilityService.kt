@@ -45,7 +45,7 @@ class MyAccessibilityService : AccessibilityService() {
             }
             val sb = java.lang.StringBuilder()
             sb.append("ACTIVE_PACKAGE: ${root.packageName}\n")
-            val semantic = svc.generateSemanticMap()
+            val semantic = svc.generateSemanticMap(root)
             if (semantic.isBlank() || semantic == "[SYSTEM: No Active Window]") {
                 val deepSb = java.lang.StringBuilder()
                 svc.extractText(root, deepSb)
@@ -1393,20 +1393,30 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun getBypassOverlayRoot(): android.view.accessibility.AccessibilityNodeInfo? {
-        val root = rootInActiveWindow
-        // If the focused window is our own overlay, bypass it and grab the underlying system window
-        if (root?.packageName?.toString() == packageName) {
-            try {
-                for (window in windows) {
+    fun getBypassOverlayRoot(): android.view.accessibility.AccessibilityNodeInfo? {
+        try {
+            val windowList = windows
+            // 1. Look for the top-most application window that isn't our overlay
+            for (window in windowList) {
+                if (window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION) {
                     val winRoot = window.root
                     if (winRoot != null && winRoot.packageName?.toString() != packageName) {
                         return winRoot
                     }
                 }
-            } catch (e: Exception) {}
-        }
-        return root
+            }
+            // 2. Fallback: Any non-Cortex, non-SystemUI window
+            for (window in windowList) {
+                val winRoot = window.root
+                val pkg = winRoot?.packageName?.toString() ?: ""
+                if (winRoot != null && pkg != packageName && pkg != "com.android.systemui") {
+                    return winRoot
+                }
+            }
+        } catch (e: Exception) {}
+        
+        // 3. Absolute fallback
+        return rootInActiveWindow
     }
 
     private fun handleSequenceEvent(pkg: String) {
@@ -1972,8 +1982,8 @@ class MyAccessibilityService : AccessibilityService() {
         return result
     }
 
-    fun generateSemanticMap(): String {
-        val root = rootInActiveWindow ?: return "[SYSTEM: No Active Window]"
+    fun generateSemanticMap(customRoot: android.view.accessibility.AccessibilityNodeInfo? = null): String {
+        val root = customRoot ?: rootInActiveWindow ?: return "[SYSTEM: No Active Window]"
         val sb = java.lang.StringBuilder()
         somMap.clear()
         var idCounter = 1
@@ -2032,7 +2042,9 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
         traverse(root)
-        root.recycle() // Release the active window root node safely
+        if (customRoot == null) {
+            root.recycle() // Release the active window root node safely
+        }
         return sb.toString().trim()
     }
 
