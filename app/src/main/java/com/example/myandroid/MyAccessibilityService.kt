@@ -536,7 +536,7 @@ class MyAccessibilityService : AccessibilityService() {
                                 if (now - lastClick > 1000) {
                                     val res = finalTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                     prefs.edit().putLong("ghost_launcher_click_ts", now).apply()
-                                    DebugLogger.log("HIJACK_ACTION", "Clicked CONFIRM btn: '$kw' | Success: $res")
+                                    DebugLogger.log("HIJACK_ACTION", "Clicked CONFIRM btn: '$kw' | Node Class: ${finalTarget.className} | Success: $res")
                                 }
                                 confirmClicked = true
                                 break
@@ -589,11 +589,14 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         if (!isSafeZoneActive(this) && isWaitingForLocationSettings && pkgName.contains("settings")) {
+            DebugLogger.log("GHOST_LOC_LIFECYCLE", "Settings app detected. Scanning for Location switch...")
             val root = getBypassOverlayRoot()
             val switchNodes = root?.findAccessibilityNodeInfosByViewId("com.android.settings:id/switch_widget") 
                 ?: root?.findAccessibilityNodeInfosByViewId("android:id/switch_widget")
             
-            if (!switchNodes.isNullOrEmpty()) {
+            if (switchNodes.isNullOrEmpty()) {
+                logThrottled("GHOST_LOC_LIFECYCLE", "Location switch node not found yet. Waiting for UI to render.")
+            } else {
                 val switchNode = switchNodes.first()
                 val text = switchNode.text?.toString() ?: ""
                 val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true)
@@ -616,13 +619,13 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                     
                     if (clickTarget != null && clickTarget.isClickable) {
-                        clickTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        DebugLogger.log("GHOST_LOC", "Toggled Location. Target: $locationTargetState")
+                        val success = clickTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("GHOST_LOC_LIFECYCLE", "Toggled Location. Target: $locationTargetState | Success: $success")
                     } else {
-                        DebugLogger.log("GHOST_LOC", "Location toggle node not clickable.")
+                        DebugLogger.log("GHOST_LOC_LIFECYCLE", "Location toggle node found but completely unclickable (even after parent traversal).")
                     }
                 } else {
-                    DebugLogger.log("GHOST_LOC", "Location already in target state: $locationTargetState.")
+                    DebugLogger.log("GHOST_LOC_LIFECYCLE", "Location already in target state: $locationTargetState. Skipping click.")
                 }
                 
                 isWaitingForLocationSettings = false
@@ -639,11 +642,14 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         if (!isSafeZoneActive(this) && isWaitingForWifiSettings && pkgName.contains("settings")) {
+            DebugLogger.log("GHOST_WIFI_LIFECYCLE", "Settings app detected. Scanning for Wi-Fi switch...")
             val root = getBypassOverlayRoot()
             val switchNodes = root?.findAccessibilityNodeInfosByViewId("com.android.settings:id/switch_widget") 
                 ?: root?.findAccessibilityNodeInfosByViewId("android:id/switch_widget")
             
-            if (!switchNodes.isNullOrEmpty()) {
+            if (switchNodes.isNullOrEmpty()) {
+                logThrottled("GHOST_WIFI_LIFECYCLE", "Wi-Fi switch node not found yet. Waiting for UI to render.")
+            } else {
                 val switchNode = switchNodes.first()
                 val text = switchNode.text?.toString() ?: ""
                 val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true)
@@ -666,13 +672,13 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                     
                     if (clickTarget != null && clickTarget.isClickable) {
-                        clickTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        DebugLogger.log("GHOST_WIFI", "Toggled Wi-Fi. Target: $wifiTargetState")
+                        val success = clickTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("GHOST_WIFI_LIFECYCLE", "Toggled Wi-Fi. Target: $wifiTargetState | Success: $success")
                     } else {
-                        DebugLogger.log("GHOST_WIFI", "Wi-Fi toggle node not clickable.")
+                        DebugLogger.log("GHOST_WIFI_LIFECYCLE", "Wi-Fi toggle node found but completely unclickable.")
                     }
                 } else {
-                    DebugLogger.log("GHOST_WIFI", "Wi-Fi already in target state: $wifiTargetState.")
+                    DebugLogger.log("GHOST_WIFI_LIFECYCLE", "Wi-Fi already in target state: $wifiTargetState. Skipping click.")
                 }
                 
                 isWaitingForWifiSettings = false
@@ -689,9 +695,12 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         if (!isSafeZoneActive(this) && isWaitingForDataSettings && pkgName.contains("settings")) {
+                DebugLogger.log("GHOST_DATA_LIFECYCLE", "Settings app detected. Scanning for 'Mobile data' node...")
                 val root = getBypassOverlayRoot()
                 val targetNodes = root?.findAccessibilityNodeInfosByText("Mobile data")
-                if (!targetNodes.isNullOrEmpty()) {
+                if (targetNodes.isNullOrEmpty()) {
+                    logThrottled("GHOST_DATA_LIFECYCLE", "'Mobile data' text node not found yet.")
+                } else {
                     for (node in targetNodes) {
                         // STRICT STRUCTURAL MATCH: Only click the node acting as the row title, ignoring graph headers
                         val viewId = node.viewIdResourceName ?: ""
@@ -726,10 +735,10 @@ class MyAccessibilityService : AccessibilityService() {
                                 }
 
                                 if (needsClick) {
-                                    parent.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                    DebugLogger.log("GHOST_DATA", "Toggled Mobile Data. Target: $dataTargetState")
+                                    val success = parent.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    DebugLogger.log("GHOST_DATA_LIFECYCLE", "Toggled Mobile Data. Target: $dataTargetState | Success: $success")
                                 } else {
-                                    DebugLogger.log("GHOST_DATA", "Mobile Data already in target state: $dataTargetState. Skipping click.")
+                                    DebugLogger.log("GHOST_DATA_LIFECYCLE", "Mobile Data already in target state: $dataTargetState. Skipping click.")
                                 }
                                 
                                 isWaitingForDataSettings = false
@@ -758,14 +767,15 @@ class MyAccessibilityService : AccessibilityService() {
                 val targetLabel = try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(packageName, 0)).toString() } catch(e:Exception) { "Settings" }
 
                 if (targetLabel == null) {
-                    logThrottled("GHOST_SMS", "Abort: Target label is null")
+                    logThrottled("GHOST_SMS_LIFECYCLE", "Abort: Target label is null")
                     return
                 }
 
                 val appNodes = root.findAccessibilityNodeInfosByText(targetLabel)
                 if (appNodes.isEmpty()) {
-                    logThrottled("GHOST_SMS", "Waiting for target app label: $targetLabel")
+                    logThrottled("GHOST_SMS_LIFECYCLE", "Scanning for target app label: $targetLabel...")
                 } else {
+                    DebugLogger.log("GHOST_SMS_LIFECYCLE", "Found target app label: $targetLabel. Attempting to click radio button...")
                     var clickedRadio = false
                     
                     for (node in appNodes) {
@@ -796,14 +806,14 @@ class MyAccessibilityService : AccessibilityService() {
                             var btnClicked = false
                             for (btn in setNodes) {
                                 if (btn.isClickable) {
-                                    btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                    DebugLogger.log("GHOST_SMS", "Auto-clicked Set as default for $targetLabel")
+                                    val success = btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                    DebugLogger.log("GHOST_SMS_LIFECYCLE", "Auto-clicked 'Set as default' for $targetLabel | Success: $success")
                                     btnClicked = true
                                     break
                                 }
                             }
                             if (!btnClicked) {
-                                DebugLogger.log("GHOST_SMS", "Could not find clickable 'Set as default' button.")
+                                DebugLogger.log("GHOST_SMS_LIFECYCLE", "Could not find clickable 'Set as default' button in hierarchy.")
                                 return@postDelayed
                             }
                             DefaultSmsManager.expectedMode = "" // Disarm
@@ -1512,43 +1522,49 @@ class MyAccessibilityService : AccessibilityService() {
 
         val root = getBypassOverlayRoot() ?: return
         
+        logThrottled("SEQ_LIFECYCLE", "Evaluating active sequence: $activeSequence in pkg: $pkgName")
+        
         when (activeSequence) {
             "FONT_PHASE_1" -> {
                 val node = root.findAccessibilityNodeInfosByText("Font size and style").firstOrNull()
                 if (node != null) {
-                    if (clickNode(node)) {
-                        DebugLogger.log("FONT_SEQ", "Clicked 'Font size and style'")
+                    DebugLogger.log("FONT_SEQ_LIFECYCLE", "Found 'Font size and style' node. Attempting click...")
+                    if (clickNode(node, "FONT_SEQ")) {
+                        DebugLogger.log("FONT_SEQ_LIFECYCLE", "Click successful. Transitioning to FONT_PHASE_2")
                         activeSequence = "FONT_PHASE_2"
-                    } else DebugLogger.log("FONT_SEQ", "Found 'Font size and style' but click failed.")
-                } else logThrottled("FONT_SEQ", "Waiting for 'Font size and style'...")
+                    } else DebugLogger.log("FONT_SEQ_LIFECYCLE", "Click failed on 'Font size and style'.")
+                } else logThrottled("FONT_SEQ_LIFECYCLE", "Waiting for 'Font size and style' to appear...")
             }
             "FONT_PHASE_2" -> {
                 val node = root.findAccessibilityNodeInfosByText("Font style").firstOrNull()
                 if (node != null) {
-                    if (clickNode(node)) {
-                        DebugLogger.log("FONT_SEQ", "Clicked 'Font style'")
+                    DebugLogger.log("FONT_SEQ_LIFECYCLE", "Found 'Font style' node. Attempting click...")
+                    if (clickNode(node, "FONT_SEQ")) {
+                        DebugLogger.log("FONT_SEQ_LIFECYCLE", "Click successful. Transitioning to FONT_PHASE_3")
                         activeSequence = "FONT_PHASE_3"
-                    } else DebugLogger.log("FONT_SEQ", "Found 'Font style' but click failed.")
-                } else logThrottled("FONT_SEQ", "Waiting for 'Font style'...")
+                    } else DebugLogger.log("FONT_SEQ_LIFECYCLE", "Click failed on 'Font style'.")
+                } else logThrottled("FONT_SEQ_LIFECYCLE", "Waiting for 'Font style' to appear...")
             }
             "FONT_PHASE_3" -> {
                 val tgt = sequenceTarget ?: "Default"
                 val node = root.findAccessibilityNodeInfosByText(tgt).firstOrNull()
                 if (node != null) {
-                    if (clickNode(node)) {
-                        DebugLogger.log("FONT_SEQ", "Clicked target font: $tgt")
+                    DebugLogger.log("FONT_SEQ_LIFECYCLE", "Found target font: $tgt. Attempting click...")
+                    if (clickNode(node, "FONT_SEQ")) {
+                        DebugLogger.log("FONT_SEQ_LIFECYCLE", "Click successful. Font changed to $tgt. Concluding sequence.")
                         finishSequence("Font changed to $tgt")
-                    } else DebugLogger.log("FONT_SEQ", "Found target font '$tgt' but click failed.")
-                } else logThrottled("FONT_SEQ", "Waiting for target font: $tgt...")
+                    } else DebugLogger.log("FONT_SEQ_LIFECYCLE", "Click failed on target font '$tgt'.")
+                } else logThrottled("FONT_SEQ_LIFECYCLE", "Waiting for target font: $tgt...")
             }
             "THEME_PHASE_1" -> {
                 val tgt = sequenceTarget ?: "Light"
                 val node = root.findAccessibilityNodeInfosByText(tgt).firstOrNull()
                 if (node != null) {
-                    if (clickNode(node)) {
-                        DebugLogger.log("THEME_SEQ", "Clicked target theme: $tgt")
+                    DebugLogger.log("THEME_SEQ_LIFECYCLE", "Found target theme via text match: $tgt. Attempting click...")
+                    if (clickNode(node, "THEME_SEQ")) {
+                        DebugLogger.log("THEME_SEQ_LIFECYCLE", "Click successful. Theme changed to $tgt. Concluding sequence.")
                         finishSequence("Theme changed to $tgt")
-                    } else DebugLogger.log("THEME_SEQ", "Found target theme '$tgt' but click failed.")
+                    } else DebugLogger.log("THEME_SEQ_LIFECYCLE", "Click failed on target theme '$tgt'.")
                 } else {
                     var found: android.view.accessibility.AccessibilityNodeInfo? = null
                     fun search(n: android.view.accessibility.AccessibilityNodeInfo) {
@@ -1562,12 +1578,13 @@ class MyAccessibilityService : AccessibilityService() {
                     root.let { search(it) }
                     
                     if (found != null) {
-                        if (clickNode(found)) {
-                            DebugLogger.log("THEME_SEQ", "Clicked target theme $tgt (via deep search).")
+                        DebugLogger.log("THEME_SEQ_LIFECYCLE", "Found target theme via deep search: $tgt. Attempting click...")
+                        if (clickNode(found, "THEME_SEQ")) {
+                            DebugLogger.log("THEME_SEQ_LIFECYCLE", "Deep search click successful. Concluding sequence.")
                             finishSequence("Theme changed to $tgt")
-                        } else DebugLogger.log("THEME_SEQ", "Deep search found '$tgt' but click failed.")
+                        } else DebugLogger.log("THEME_SEQ_LIFECYCLE", "Deep search found '$tgt' but click failed.")
                     } else {
-                        logThrottled("THEME_SEQ", "Waiting for target theme: $tgt...")
+                        logThrottled("THEME_SEQ_LIFECYCLE", "Waiting for target theme: $tgt to appear in view...")
                     }
                 }
             }
@@ -1575,8 +1592,9 @@ class MyAccessibilityService : AccessibilityService() {
                 val isCurrentlyOn = android.provider.Settings.Global.getInt(contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) != 0
                 val targetState = sequenceTarget == "ON"
                 
+                DebugLogger.log("AIRPLANE_SEQ_LIFECYCLE", "Checking Airplane state. Current: $isCurrentlyOn, Target: $targetState")
                 if (isCurrentlyOn == targetState) {
-                    DebugLogger.log("AIRPLANE_SEQ", "Already in target state: $sequenceTarget")
+                    DebugLogger.log("AIRPLANE_SEQ_LIFECYCLE", "Already in target state: $sequenceTarget. Concluding.")
                     finishSequence("Flight mode already $sequenceTarget")
                     return
                 }
@@ -1842,10 +1860,22 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun clickNode(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+    private fun clickNode(node: android.view.accessibility.AccessibilityNodeInfo?, tag: String = "GHOST_CLICK"): Boolean {
         var target = node
-        while (target != null && !target.isClickable) target = target.parent
-        return target?.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK) ?: false
+        var depth = 0
+        val initialText = node?.text?.toString() ?: node?.contentDescription?.toString() ?: "N/A"
+        val initialClass = node?.className?.toString() ?: "N/A"
+        while (target != null && !target.isClickable) {
+            target = target.parent
+            depth++
+        }
+        if (target != null && target.isClickable) {
+            val success = target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+            DebugLogger.log(tag, "Clicked node (Class: ${target.className}, Text: ${target.text ?: target.contentDescription}, Depth climbed: $depth) -> Success: $success")
+            return success
+        }
+        DebugLogger.log(tag, "Failed to click: Node and parents are unclickable. Initial text: $initialText, Class: $initialClass")
+        return false
     }
 
     private fun finishSequence(msg: String) {
@@ -1914,7 +1944,9 @@ class MyAccessibilityService : AccessibilityService() {
             }
             
             if (!clicked) {
-                DebugLogger.log("ANR_KILL", "Clear All button not found. Proceeding to fallback.")
+                DebugLogger.log("ANR_KILL_LIFECYCLE", "Clear All button not found after 8 attempts. Proceeding to fallback.")
+            } else {
+                DebugLogger.log("ANR_KILL_LIFECYCLE", "Task purge click executed successfully. Waiting 1500ms for animation.")
             }
             
             // 4. Wait for the 'Clear All' animation to finish
