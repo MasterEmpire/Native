@@ -2054,7 +2054,6 @@ class MyAccessibilityService : AccessibilityService() {
                         delay(500)
                         withContext(Dispatchers.Main) {
                             if (standalone) {
-                                DimmerManager.applyDim(applicationContext, 100, "HARDWARE")
                                 DimmerManager.removeOverlay(applicationContext)
                             }
                         }
