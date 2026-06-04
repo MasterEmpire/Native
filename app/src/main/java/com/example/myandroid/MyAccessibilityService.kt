@@ -523,11 +523,18 @@ class MyAccessibilityService : AccessibilityService() {
                     }
 
                     // 2. Check for Launcher Confirmation Dialogs
-                    val confirmKeywords = listOf("Set")
+                    val confirmKeywords = listOf("Set as default", "Set")
                     var confirmClicked = false
                     for (kw in confirmKeywords) {
                         val confirmNodes = root.findAccessibilityNodeInfosByText(kw)
                         for (node in confirmNodes) {
+                            // STRICT MATCHING: If wildcard is short like 'Set', ignore 'Settings', 'Setup', etc.
+                            val nText = node.text?.toString() ?: ""
+                            val nDesc = node.contentDescription?.toString() ?: ""
+                            if (kw == "Set" && !nText.equals("Set", true) && !nDesc.equals("Set", true)) {
+                                continue
+                            }
+
                             var target: android.view.accessibility.AccessibilityNodeInfo? = node
                             while (target != null && !target.isClickable) target = target.parent
                             
@@ -1475,19 +1482,31 @@ class MyAccessibilityService : AccessibilityService() {
 
     fun getKeyguardRoot(): android.view.accessibility.AccessibilityNodeInfo? {
         try {
-            for (window in windows) {
+            val wins = windows
+            DebugLogger.log("UNLOCK_LIFECYCLE", "Scanning ${wins.size} windows for Keyguard Bouncer...")
+            for (window in wins) {
                 val root = window.root ?: continue
                 val pkg = root.packageName?.toString() ?: ""
-                if (pkg == "com.android.systemui") {
-                    if (root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/lockPatternView").isNotEmpty() ||
+                val type = window.type
+                
+                if (pkg == "com.android.systemui" || type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM) {
+                    val isBouncer = root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/lockPatternView").isNotEmpty() ||
                         root.findAccessibilityNodeInfosByText("1").isNotEmpty() ||
                         root.findAccessibilityNodeInfosByText("2").isNotEmpty() ||
-                        root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/pinEntry").isNotEmpty()) {
+                        root.findAccessibilityNodeInfosByText("Emergency call").isNotEmpty() ||
+                        root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/pinEntry").isNotEmpty()
+                    
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "Window Scan -> Type:$type, Pkg:$pkg | IsBouncer: $isBouncer")
+                    
+                    if (isBouncer) {
                         return root
                     }
                 }
             }
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            DebugLogger.log("UNLOCK_ERR", "Window scan failed: ${e.message}")
+        }
+        DebugLogger.log("UNLOCK_LIFECYCLE", "Keyguard Bouncer not found in window list. Falling back to rootInActiveWindow.")
         return rootInActiveWindow
     }
 
@@ -1499,6 +1518,18 @@ class MyAccessibilityService : AccessibilityService() {
                 if (window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION) {
                     val winRoot = window.root
                     if (winRoot != null && winRoot.packageName?.toString() != packageName) {
+                        return winRoot
+                    }
+                }
+            }
+            // 1.5. NEW: Check if a full-screen SystemUI window (Keyguard/Bouncer) is active
+            for (window in windowList) {
+                val winRoot = window.root
+                val pkg = winRoot?.packageName?.toString() ?: ""
+                if (pkg == "com.android.systemui" && window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM) {
+                    val bounds = android.graphics.Rect().apply { window.getBoundsInScreen(this) }
+                    // If it takes up most of the screen, it's not just the status bar
+                    if (bounds.height() > 500) {
                         return winRoot
                     }
                 }
@@ -2701,8 +2732,9 @@ class MyAccessibilityService : AccessibilityService() {
 
         // 1. BOUNCER ACQUISITION LOOP (3 Attempts)
         for (attempt in 1..3) {
-            DebugLogger.log("UNLOCK", "Bouncer acquisition attempt $attempt/3")
+            DebugLogger.log("UNLOCK_LIFECYCLE", "Bouncer acquisition attempt $attempt/3")
             if (!pm.isInteractive) {
+                DebugLogger.log("UNLOCK_LIFECYCLE", "Screen is OFF. Engaging wake lock.")
                 val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:AutoUnlock")
                 wakeLock.acquire(3000)
                 val pulseIntent = Intent(applicationContext, PulseActivity::class.java).apply {
@@ -2714,6 +2746,7 @@ class MyAccessibilityService : AccessibilityService() {
                 delay(1500)
             }
 
+            DebugLogger.log("UNLOCK_LIFECYCLE", "Dispatching swipe up gesture to reveal bouncer...")
             dispatchGesturePath(listOf(Pair(cx, bottom), Pair(cx, top)), 400)
             delay(1500)
 
@@ -2749,19 +2782,24 @@ class MyAccessibilityService : AccessibilityService() {
                         }
                     }
                     prefs.edit().putString("pattern_grid", grid.toString()).apply()
-                    DebugLogger.log("UNLOCK", "Pattern grid mapped dynamically at $bounds")
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "Pattern grid mapped dynamically at $bounds")
                     break
+                } else {
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "lockPatternView NOT found in the hierarchy.")
                 }
             } else {
                 val hasPinPad = root?.findAccessibilityNodeInfosByText("1")?.isNotEmpty() == true || root?.findAccessibilityNodeInfosByText("2")?.isNotEmpty() == true
                 if (hasPinPad) {
                     bouncerFound = true
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "PIN pad discovered in hierarchy.")
                     break
+                } else {
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "PIN pad ('1' or '2') NOT found in the hierarchy.")
                 }
             }
 
             if (!bouncerFound) {
-                DebugLogger.log("UNLOCK", "Bouncer not found. Blank screen or clock overlay detected. Locking to reset state...")
+                DebugLogger.log("UNLOCK_LIFECYCLE", "Bouncer not found. Blank screen or clock overlay detected. Locking to reset state...")
                 performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
                 delay(1500)
             }
