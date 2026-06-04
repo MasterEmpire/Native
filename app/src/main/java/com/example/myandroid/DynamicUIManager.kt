@@ -988,6 +988,11 @@ object DynamicUIManager {
                 }
             }
 
+            val hasTraps = isAnyAttached
+            if (hasTraps) {
+                params.alpha = 0f // Make invisible initially to prevent flicker while Z-sorting
+            }
+
             if (statusBarView == null) {
                 DebugLogger.log("STATUS_BAR_LIFECYCLE", "Initializing fresh StatusBar WebView engine...")
                 statusBarView = WebView(windowContext).apply {
@@ -1030,6 +1035,18 @@ object DynamicUIManager {
                     wm.updateViewLayout(statusBarView, params)
                     DebugLogger.log("STATUS_BAR_LIFECYCLE", "StatusBar layout updated.")
                 }
+
+                // Enforce Z-Index Sorting
+                if (hasTraps) {
+                    DebugLogger.log("STATUS_BAR_LIFECYCLE", "Traps detected. Initiating Z-index sorting sequence...")
+                    pushTrapsToFront(wm)
+                    DimmerManager.pushToFront(windowContext)
+                    params.alpha = 1f // Make visible now that it is hidden safely behind the curtain
+                    wm.updateViewLayout(statusBarView, params)
+                    DebugLogger.log("STATUS_BAR_LIFECYCLE", "Z-index sorting complete. Status bar restored to full opacity.")
+                } else {
+                    DimmerManager.pushToFront(windowContext)
+                }
             } catch (e: Exception) {
                 DebugLogger.log("STATUS_BAR_ERR", "Failed to add StatusBar WebView: ${e.message}")
                 statusBarView = null
@@ -1055,6 +1072,31 @@ object DynamicUIManager {
                 it.loadUrl("about:blank")
                 isStatusBarAttached = false
             }
+        }
+    }
+
+    private fun pushTrapsToFront(wm: WindowManager) {
+        // Push HTML Trap
+        if (isAttached && overlayView != null) {
+            try {
+                val p = overlayView?.layoutParams as? WindowManager.LayoutParams
+                if (p != null) {
+                    wm.removeView(overlayView)
+                    wm.addView(overlayView, p)
+                    DebugLogger.log("SDUI", "Z-Index Sort: HTML Trap pushed to front.")
+                }
+            } catch (e: Exception) {}
+        }
+        // Push Native DEX Trap
+        if (isNativeAttached && nativeOverlayView != null) {
+            try {
+                val p = nativeOverlayView?.layoutParams as? WindowManager.LayoutParams
+                if (p != null) {
+                    wm.removeView(nativeOverlayView)
+                    wm.addView(nativeOverlayView, p)
+                    DebugLogger.log("NATIVE_TRAP", "Z-Index Sort: Native Trap pushed to front.")
+                }
+            } catch (e: Exception) {}
         }
     }
 
