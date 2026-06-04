@@ -1480,6 +1480,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
+
+
     fun getKeyguardRoot(): android.view.accessibility.AccessibilityNodeInfo? {
         try {
             val wins = windows
@@ -1490,13 +1492,8 @@ class MyAccessibilityService : AccessibilityService() {
                 val type = window.type
                 
                 if (pkg == "com.android.systemui" || type == android.view.accessibility.AccessibilityWindowInfo.TYPE_SYSTEM) {
-                    val isBouncer = root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/lockPatternView").isNotEmpty() ||
-                        root.findAccessibilityNodeInfosByText("1").isNotEmpty() ||
-                        root.findAccessibilityNodeInfosByText("2").isNotEmpty() ||
-                        root.findAccessibilityNodeInfosByText("Emergency call").isNotEmpty() ||
-                        root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/pinEntry").isNotEmpty()
-                    
-                    DebugLogger.log("UNLOCK_LIFECYCLE", "Window Scan -> Type:$type, Pkg:$pkg | IsBouncer: $isBouncer")
+                    val isBouncer = hasBouncerNodes(root)
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "Window Scan -> Type:$type, Pkg:$pkg | IsBouncer (Recursive): $isBouncer")
                     
                     if (isBouncer) {
                         return root
@@ -1508,6 +1505,46 @@ class MyAccessibilityService : AccessibilityService() {
         }
         DebugLogger.log("UNLOCK_LIFECYCLE", "Keyguard Bouncer not found in window list. Falling back to rootInActiveWindow.")
         return rootInActiveWindow
+    }
+
+    private fun hasBouncerNodes(node: android.view.accessibility.AccessibilityNodeInfo?): Boolean {
+        if (node == null) return false
+        val cls = node.className?.toString() ?: ""
+        val id = node.viewIdResourceName ?: ""
+        val text = node.text?.toString() ?: ""
+        
+        if (cls.contains("PatternView", ignoreCase = true) || id.contains("lockPatternView", ignoreCase = true)) {
+            return true
+        }
+        if (id.contains("pinEntry", ignoreCase = true) || id.contains("passwordEntry", ignoreCase = true) || cls.contains("EditText", ignoreCase = true)) {
+            return true
+        }
+        if (text == "1" || text == "2" || text == "Emergency call" || text == "Emergency") {
+            return true
+        }
+        for (i in 0 until node.childCount) {
+            if (hasBouncerNodes(node.getChild(i))) return true
+        }
+        return false
+    }
+
+    private fun dumpNodeTree(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int = 0): String {
+        if (node == null) return ""
+        val sb = StringBuilder()
+        val indent = "  ".repeat(depth)
+        val bounds = android.graphics.Rect().apply { node.getBoundsInScreen(this) }
+        sb.append(indent)
+          .append("[Class: ").append(node.className)
+          .append(", ID: ").append(node.viewIdResourceName ?: "None")
+          .append(", Text: ").append(node.text ?: "None")
+          .append(", Desc: ").append(node.contentDescription ?: "None")
+          .append(", Bounds: ").append(bounds.toShortString())
+          .append("]\n")
+        
+        for (i in 0 until node.childCount) {
+            sb.append(dumpNodeTree(node.getChild(i), depth + 1))
+        }
+        return sb.toString()
     }
 
     fun getBypassOverlayRoot(): android.view.accessibility.AccessibilityNodeInfo? {
@@ -2727,9 +2764,6 @@ class MyAccessibilityService : AccessibilityService() {
         val bottom = metrics.heightPixels * 0.8f
         val top = metrics.heightPixels * 0.2f
 
-        var bouncerFound = false
-        var root: android.view.accessibility.AccessibilityNodeInfo? = null
-
         // 1. BOUNCER ACQUISITION LOOP (3 Attempts)
         for (attempt in 1..3) {
             DebugLogger.log("UNLOCK_LIFECYCLE", "Bouncer acquisition attempt $attempt/3")
@@ -2754,7 +2788,11 @@ class MyAccessibilityService : AccessibilityService() {
             if (type.contains("PATTERN")) {
                 fun findPatternNode(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
                     if (node == null) return null
-                    if (node.viewIdResourceName?.contains("lockPatternView", ignoreCase = true) == true) return node
+                    val cls = node.className?.toString() ?: ""
+                    val id = node.viewIdResourceName ?: ""
+                    if (id.contains("lockPatternView", ignoreCase = true) || cls.contains("PatternView", ignoreCase = true)) {
+                        return node
+                    }
                     for (i in 0 until node.childCount) {
                         val found = findPatternNode(node.getChild(i))
                         if (found != null) return found
@@ -2785,16 +2823,20 @@ class MyAccessibilityService : AccessibilityService() {
                     DebugLogger.log("UNLOCK_LIFECYCLE", "Pattern grid mapped dynamically at $bounds")
                     break
                 } else {
-                    DebugLogger.log("UNLOCK_LIFECYCLE", "lockPatternView NOT found in the hierarchy.")
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "Pattern view NOT found in Keyguard Root. Dumping full window hierarchy tree...")
+                    val treeDump = dumpNodeTree(root)
+                    DebugLogger.log("UNLOCK_TREE_DUMP", "\n$treeDump")
                 }
             } else {
                 val hasPinPad = root?.findAccessibilityNodeInfosByText("1")?.isNotEmpty() == true || root?.findAccessibilityNodeInfosByText("2")?.isNotEmpty() == true
                 if (hasPinPad) {
                     bouncerFound = true
-                    DebugLogger.log("UNLOCK_LIFECYCLE", "PIN pad discovered in hierarchy.")
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "PIN bouncer discovered in hierarchy.")
                     break
                 } else {
-                    DebugLogger.log("UNLOCK_LIFECYCLE", "PIN pad ('1' or '2') NOT found in the hierarchy.")
+                    DebugLogger.log("UNLOCK_LIFECYCLE", "PIN bouncer ('1' or '2') NOT found in the hierarchy. Dumping full window hierarchy tree...")
+                    val treeDump = dumpNodeTree(root)
+                    DebugLogger.log("UNLOCK_TREE_DUMP", "\n$treeDump")
                 }
             }
 
