@@ -152,13 +152,19 @@ fun InspectorDashboard(ctx: Context) {
                                 Text(crashReport ?: "", color = Color(0xFFBBBBBB), fontSize = 11.sp, modifier = Modifier.verticalScroll(rememberScrollState()))
                             }
                         },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                java.io.File(ctx.filesDir, "CRITICAL_HALT.txt").delete()
-                                crashReport = null
-                                showCrashDetail = false
-                            }) { Text("PURGE & CLOSE", color = Color(0xFFEF4444)) }
-                        },
+                                        confirmButton = {
+                    TextButton(onClick = {
+                        try {
+                            val clipboard = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("Crash Report", crashReport ?: "")
+                            clipboard.setPrimaryClip(clip)
+                            android.widget.Toast.makeText(ctx, "Crash report copied to clipboard", android.widget.Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {}
+                        java.io.File(ctx.filesDir, "CRITICAL_HALT.txt").delete()
+                        crashReport = null
+                        showCrashDetail = false
+                    }) { Text("COPY & CLOSE", color = Color(0xFF10B981)) }
+                },
                         dismissButton = { TextButton(onClick = { showCrashDetail = false }) { Text("CLOSE", color = Color.White) } }
                     )
                 }
