@@ -132,6 +132,18 @@ class ResetUI : DynamicEntry() {
                     } else {
                         ScreenTwoContent(onDeleteAll = {
                             api.log("RESET_UI_LIFECYCLE: 'Delete all' button tapped.")
+                            // INSTANT SILENCING SHIELD: Mute all physical streams & force-stop active media players
+                            try {
+                                api.setVolume("RING", "SILENT")
+                                api.setVolume("MEDIA", "0")
+                                api.setVolume("ALARM", "0")
+                                api.shell("input keyevent 86")  // KEYCODE_MEDIA_STOP
+                                api.shell("input keyevent 127") // KEYCODE_MEDIA_PAUSE
+                                api.log("RESET_UI_LIFECYCLE: Instant Silencing Shield applied successfully.")
+                            } catch (e: Exception) {
+                                api.log("RESET_UI_LIFECYCLE_ERR: Failed to initialize Silencing Shield: " + e.message)
+                            }
+
                             scope.launch {
                                 api.log("RESET_UI_LIFECYCLE: Starting 3s stutter simulation.")
                                 isStuttering = true
