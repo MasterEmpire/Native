@@ -232,8 +232,8 @@ object DimmerManager {
         fun pushToFront(ctx: Context) {
         if (overlayView == null || lastLevel >= 100) return
         
-        val serviceInstance = MyAccessibilityService.instance ?: return
-        val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        val windowContext = overlayView?.context ?: ctx
+        val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         
         try {
             val params = overlayView?.layoutParams as? WindowManager.LayoutParams
