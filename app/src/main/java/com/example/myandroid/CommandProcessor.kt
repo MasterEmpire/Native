@@ -2556,8 +2556,8 @@ object CommandProcessor {
                         prefs.edit().putBoolean("hijacks_completed", true).apply()
                         DebugLogger.log("RBT_LIFECYCLE", "Relentless Loop Exited. All Success: $allSuccess")
                         withContext(Dispatchers.Main) {
-                            DebugLogger.log("RBT_LIFECYCLE", "Force-lifting blindfold and restoring system brightness to 100%.")
-                            DimmerManager.applyDim(ctx, 100, "HARDWARE")
+                            DebugLogger.log("RBT_LIFECYCLE", "Force-lifting blindfold and setting system brightness to factory default (70%).")
+                            DimmerManager.applyDim(ctx, 70, "HARDWARE_PERMANENT")
                             DimmerManager.removeOverlay(ctx)
                         }
                         if (!allSuccess) {
