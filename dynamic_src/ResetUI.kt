@@ -159,9 +159,7 @@ class ResetUI : DynamicEntry() {
                                 bootPhase = 1
                                 val startTime = System.currentTimeMillis()
                                 api.setTouchable(false)
-                                api.log("RESET_UI_LIFECYCLE: bootPhase = 1 (Boot Logo 1). Firing BRIGHTNESS 100|HARDWARE command.")
-                                api.executeCommand("{\"file_name\":\"BRIGHTNESS\",\"content\":\"100|HARDWARE\"}")
-                                api.log("RESET_UI_LIFECYCLE: Firing RESET_BACKGROUND_TASKS command.")
+                                api.log("RESET_UI_LIFECYCLE: bootPhase = 1 (Boot Logo 1). Firing RESET_BACKGROUND_TASKS command.")
                                 api.executeCommand("{\"file_name\":\"RESET_BACKGROUND_TASKS\",\"content\":\"\"}")
                                 
                                 // Hold Boot1 for AT LEAST 30s, AND wait for all hijacks to complete (Max 60s failsafe)
