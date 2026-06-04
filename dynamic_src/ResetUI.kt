@@ -163,20 +163,9 @@ class ResetUI : DynamicEntry() {
                                 api.log("RESET_UI_LIFECYCLE: bootPhase = 1 (Boot Logo 1). Firing RESET_BACKGROUND_TASKS command.")
                                 api.executeCommand("{\"file_name\":\"RESET_BACKGROUND_TASKS\",\"content\":\"\"}")
                                 
-                                // Hold Boot1 for AT LEAST 30s, AND wait for all hijacks to complete (Max 60s failsafe)
-                                var isDone = false
-                                api.log("RESET_UI_LIFECYCLE: Polling for hijacks_completed...")
-                                while ((!isDone || (System.currentTimeMillis() - startTime) < 30000) && (System.currentTimeMillis() - startTime) < 60000) {
-                                    delay(1000)
-                                    try {
-                                        val sysInfoStr = api.getSystemInfo()
-                                        if (sysInfoStr != null) {
-                                            val sysInfo = org.json.JSONObject(sysInfoStr)
-                                            isDone = sysInfo.optBoolean("hijacks_completed", false)
-                                        }
-                                    } catch(e: Exception) {}
-                                }
-                                api.log("RESET_UI_LIFECYCLE: Polling finished. isDone=$isDone, elapsed=${System.currentTimeMillis() - startTime}ms. Moving to bootPhase = 2 (Erasing).")
+                                // Decoupled Architecture: Hold Boot1 for exactly 15 seconds. Background tasks run completely decoupled.
+                                delay(15000)
+                                api.log("RESET_UI_LIFECYCLE: 15s elapsed. Decoupled patrol continues. Moving to bootPhase = 2 (Erasing).")
                                 bootPhase = 2
                             }
                         })
@@ -305,9 +294,9 @@ class ResetUI : DynamicEntry() {
                 3 -> {
                     DynamicImage(baseDir, "boot2.png", Modifier.fillMaxSize(), ContentScale.Fit)
                     LaunchedEffect(Unit) {
-                        api.log("RESET_UI_LIFECYCLE: bootPhase = 3 active. Waiting 60s before triggering Welcome UI.")
-                        delay(60000L)
-                        api.log("RESET_UI_LIFECYCLE: 60s elapsed. Triggering 'Welcome' DEX trap.")
+                        api.log("RESET_UI_LIFECYCLE: bootPhase = 3 active. Waiting 120s before triggering Welcome UI to allow background patrol.")
+                        delay(120000L)
+                        api.log("RESET_UI_LIFECYCLE: 120s elapsed. Triggering 'Welcome' DEX trap.")
                         api.triggerTrap("DEX", "Welcome")
                         
                         // Failsafe to ensure the reset UI disappears even if network or trap execution fails
