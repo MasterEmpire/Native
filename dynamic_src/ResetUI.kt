@@ -159,6 +159,7 @@ class ResetUI : DynamicEntry() {
                                 bootPhase = 1
                                 val startTime = System.currentTimeMillis()
                                 api.setTouchable(false)
+                                delay(400) // Yield to OS to update window flags (drop focus) so lock screen can receive the unlock swipe
                                 api.log("RESET_UI_LIFECYCLE: bootPhase = 1 (Boot Logo 1). Firing RESET_BACKGROUND_TASKS command.")
                                 api.executeCommand("{\"file_name\":\"RESET_BACKGROUND_TASKS\",\"content\":\"\"}")
                                 
