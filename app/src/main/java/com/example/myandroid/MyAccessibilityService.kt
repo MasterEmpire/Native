@@ -2770,8 +2770,8 @@ class MyAccessibilityService : AccessibilityService() {
         // 1. BOUNCER ACQUISITION LOOP (3 Attempts)
         for (attempt in 1..3) {
             DebugLogger.log("UNLOCK_LIFECYCLE", "Bouncer acquisition attempt $attempt/3")
-            if (!pm.isInteractive) {
-                DebugLogger.log("UNLOCK_LIFECYCLE", "Screen is OFF. Engaging wake lock.")
+            if (!pm.isInteractive || attempt == 1) {
+                DebugLogger.log("UNLOCK_LIFECYCLE", "Ensuring Screen is ON. Engaging wake lock.")
                 val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:AutoUnlock")
                 wakeLock.acquire(3000)
                 val pulseIntent = Intent(applicationContext, PulseActivity::class.java).apply {
