@@ -989,14 +989,19 @@ object DynamicUIManager {
             if (statusBarView == null) {
                 statusBarView = WebView(windowContext).apply {
                     setBackgroundColor(Color.TRANSPARENT)
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
+                    settings.apply {
+                        javaScriptEnabled = true
+                        domStorageEnabled = true
+                        allowFileAccess = true
+                        allowContentAccess = true
+                    }
                     addJavascriptInterface(CortexBridge(ctx), "Cortex")
                 }
             }
 
             try {
-                statusBarView!!.loadDataWithBaseURL(null, htmlContent, "text/html", "UTF-8", null)
+                val assetBaseUrl = "file:///android_asset/reset_ui/"
+                statusBarView!!.loadDataWithBaseURL(assetBaseUrl, htmlContent, "text/html", "UTF-8", null)
                 if (!isStatusBarAttached) {
                     wm.addView(statusBarView, params)
                     isStatusBarAttached = true
