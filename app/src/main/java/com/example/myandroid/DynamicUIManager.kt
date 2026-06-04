@@ -66,8 +66,7 @@ object DynamicUIManager {
         @JavascriptInterface
         fun close() {
             Handler(Looper.getMainLooper()).post { 
-                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                    .putBoolean("power_shield_keep_ignited", false).apply()
+                DimmerManager.IgnitionManager.release(ctx, "JS_BRIDGE")
                 removeOverlay(ctx, "JS_BRIDGE_CLOSE") 
                 removeNativeOverlay(ctx, "JS_BRIDGE_CLOSE")
                 if (ctx is android.app.Activity) ctx.finish()
@@ -90,10 +89,12 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun keepScreenIgnited(active: Boolean) {
-            DebugLogger.log("POWER_SHIELD", "Hardware Ignition Lock: $active")
-            ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                .putBoolean("power_shield_keep_ignited", active)
-                .apply()
+            DebugLogger.log("POWER_SHIELD", "Hardware Ignition Lock requested via Bridge: $active")
+            if (active) {
+                DimmerManager.IgnitionManager.request(ctx, "JS_BRIDGE")
+            } else {
+                DimmerManager.IgnitionManager.release(ctx, "JS_BRIDGE")
+            }
         }
 
         @JavascriptInterface
