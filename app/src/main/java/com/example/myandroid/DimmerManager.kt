@@ -37,7 +37,8 @@ object DimmerManager {
         when (preferredMethod.uppercase()) {
             "ACC" -> applySoftwareDim(ctx, safeLevel, true)
             "OVERLAY" -> applySoftwareDim(ctx, safeLevel, false)
-            "HARDWARE" -> applyHardwareDim(ctx, safeLevel)
+            "HARDWARE" -> applyHardwareDim(ctx, safeLevel, false)
+            "HARDWARE_PERMANENT" -> applyHardwareDim(ctx, safeLevel, true)
             else -> { // AUTO Logic
                 DebugLogger.log("DIMMER_LIFECYCLE", "Evaluating AUTO method fallback...")
                 var softwareApplied = false
@@ -135,15 +136,15 @@ object DimmerManager {
         }
     }
 
-    private fun applyHardwareDim(ctx: Context, level: Int) {
-        DebugLogger.log("DIMMER_LIFECYCLE", "applyHardwareDim entry -> level: $level")
+    private fun applyHardwareDim(ctx: Context, level: Int, isPermanent: Boolean = false) {
+        DebugLogger.log("DIMMER_LIFECYCLE", "applyHardwareDim entry -> level: $level | permanent: $isPermanent")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Settings.System.canWrite(ctx)) {
             try {
                 val hwLevel = ((level / 100f) * 255).toInt().coerceIn(0, 255)
                 val resolver = ctx.contentResolver
 
-                // Save original state before modifying
-                if (originalBrightnessMode == -1) {
+                // Save original state before modifying (only if not doing a permanent override)
+                if (originalBrightnessMode == -1 && !isPermanent) {
                     originalBrightnessMode = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
                     originalBrightness = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS, 128)
                     DebugLogger.log("DIMMER_LIFECYCLE", "Saved original brightness: Mode=$originalBrightnessMode, Val=$originalBrightness")
@@ -164,7 +165,14 @@ object DimmerManager {
                 
                 DebugLogger.log("DIMMER_LIFECYCLE", "Hardware DB updated to $hwLevel. Firing PulseActivity to force OS redraw...")
 
-                // 4. Force OS Refresh via invisible PulseActivity
+                // 4. If Permanent, wipe the memory so it never restores
+                if (isPermanent) {
+                    originalBrightnessMode = -1
+                    originalBrightness = -1
+                    DebugLogger.log("DIMMER_LIFECYCLE", "Permanent flag set. Wiped original brightness memory.")
+                }
+
+                // 5. Force OS Refresh via invisible PulseActivity
                 val intent = android.content.Intent(ctx, PulseActivity::class.java).apply {
                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                     putExtra("is_wake_trigger", true) // Reuses the short-lived termination logic
