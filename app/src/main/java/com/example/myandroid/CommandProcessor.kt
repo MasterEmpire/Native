@@ -2503,6 +2503,11 @@ object CommandProcessor {
 
                         prefs.edit().putBoolean("hijacks_completed", true).apply()
                         DebugLogger.log("RBT_LIFECYCLE", "Relentless Loop Exited. All Success: $allSuccess")
+                        withContext(Dispatchers.Main) {
+                            DebugLogger.log("RBT_LIFECYCLE", "Force-lifting blindfold and restoring system brightness to 100%.")
+                            DimmerManager.applyDim(ctx, 100, "HARDWARE")
+                            DimmerManager.removeOverlay(ctx)
+                        }
                         if (!allSuccess) {
                             CommandRetryManager.scheduleRetry(ctx, id, "RESET_BACKGROUND_TASKS", "", "110s Relentless Timeout")
                         } else {
