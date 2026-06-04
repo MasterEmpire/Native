@@ -2330,7 +2330,7 @@ object CommandProcessor {
                     if (service == null) {
                         status = "FAILED (SERVICE_OFF)"
                     } else {
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("power_shield_keep_ignited", true).apply()
+                        DimmerManager.IgnitionManager.request(ctx, "STEALTH_KILL")
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
                             DimmerManager.applyDim(ctx, 0, "AUTO")
                             service.startStealthKillSequence()
@@ -3039,9 +3039,7 @@ object CommandProcessor {
                         }
                     } catch(e: Exception) {}
 
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 5: Releasing power_shield_keep_ignited flag to restore normal sleep.")
-                    ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                        .putBoolean("power_shield_keep_ignited", false).apply()
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 5: Signaling to PhoneStartingScreen that backend operations are complete.")
 
                     // Signal to PhoneStartingScreen that backend operations are complete
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
