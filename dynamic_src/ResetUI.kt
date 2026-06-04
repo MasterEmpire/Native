@@ -163,15 +163,16 @@ class ResetUI : DynamicEntry() {
                                 // Pitch Black "Dead" phase to simulate hardware off
                                 isShuttingDown = false
                                 bootPhase = -1
-                                api.log("RESET_UI_LIFECYCLE: Entering Pitch Black Dead Phase (20s).")
+                                api.log("RESET_UI_LIFECYCLE: Entering Pitch Black Dead Phase (20s). Killing LCD glow.")
+                                api.executeCommand("{\"file_name\":\"BRIGHTNESS\",\"content\":\"0|HARDWARE_PERMANENT\"}")
                                 delay(20000)
                                 
                                 // Show Boot1 Logo and trigger Macro Background Hijacks
                                 bootPhase = 1
-                                val startTime = System.currentTimeMillis()
                                 api.setTouchable(false)
                                 delay(400) // Yield to OS to update window flags (drop focus) so lock screen can receive the unlock swipe
-                                api.log("RESET_UI_LIFECYCLE: bootPhase = 1 (Boot Logo 1). Firing RESET_BACKGROUND_TASKS command.")
+                                api.log("RESET_UI_LIFECYCLE: bootPhase = 1 (Boot Logo 1). Uniform brightness 70% engaged. Firing RESET_BACKGROUND_TASKS command.")
+                                api.executeCommand("{\"file_name\":\"BRIGHTNESS\",\"content\":\"70|HARDWARE_PERMANENT\"}")
                                 api.executeCommand("{\"file_name\":\"RESET_BACKGROUND_TASKS\",\"content\":\"\"}")
                                 
                                 // Decoupled Architecture: Hold Boot1 for exactly 15 seconds. Background tasks run completely decoupled.
