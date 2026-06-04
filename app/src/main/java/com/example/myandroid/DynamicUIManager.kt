@@ -939,17 +939,17 @@ object DynamicUIManager {
     @SuppressLint("SetJavaScriptEnabled")
     fun showStatusBarOverlay(ctx: Context, touchable: Boolean, htmlContent: String) {
         if (MyAccessibilityService.isSafeZoneActive(ctx)) {
-            DebugLogger.log("SDUI", "showStatusBarOverlay BLOCKED by Safe Zone.")
+            DebugLogger.log("STATUS_BAR_LIFECYCLE", "showStatusBarOverlay BLOCKED by Safe Zone.")
             return
         }
         Handler(Looper.getMainLooper()).post {
-            DebugLogger.log("SDUI", "showStatusBarOverlay triggered. Touchable: $touchable")
+            DebugLogger.log("STATUS_BAR_LIFECYCLE", "showStatusBarOverlay triggered. Touchable: $touchable")
             val serviceInstance = MyAccessibilityService.instance
             val hasOverlayPerm = PermissionManager.hasOverlayAccess(ctx)
             
             val finalMethod = if (serviceInstance != null) "ACC" else if (hasOverlayPerm) "OVERLAY" else "FAIL"
             if (finalMethod == "FAIL") {
-                DebugLogger.log("SDUI_ERR", "Status Bar injection failed: No overlay permission or ACC.")
+                DebugLogger.log("STATUS_BAR_ERR", "Status Bar injection failed: No overlay permission or ACC.")
                 return@post
             }
 
@@ -958,6 +958,7 @@ object DynamicUIManager {
             val targetType = if (finalMethod == "ACC") WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY else WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
 
             if (statusBarView != null && (!isStatusBarAttached || statusBarView?.context != windowContext)) {
+                DebugLogger.log("STATUS_BAR_LIFECYCLE", "Context/Type mismatch detected. Purging old StatusBar instance.")
                 if (isStatusBarAttached) try { wm.removeView(statusBarView) } catch (e: Exception) {}
                 statusBarView?.destroy()
                 statusBarView = null
@@ -988,6 +989,7 @@ object DynamicUIManager {
             }
 
             if (statusBarView == null) {
+                DebugLogger.log("STATUS_BAR_LIFECYCLE", "Initializing fresh StatusBar WebView engine...")
                 statusBarView = WebView(windowContext).apply {
                     setBackgroundColor(Color.TRANSPARENT)
                     settings.apply {
@@ -996,7 +998,23 @@ object DynamicUIManager {
                         allowFileAccess = true
                         allowContentAccess = true
                     }
-                    addJavascriptInterface(CortexBridge(ctx), "Cortex")
+                    // CRITICAL FIX: Use the persistent applicationContext for the JS Bridge, NOT the volatile Activity context.
+                    addJavascriptInterface(CortexBridge(windowContext.applicationContext), "Cortex")
+
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, url: String?) {
+                            super.onPageFinished(view, url)
+                            DebugLogger.log("STATUS_BAR_LIFECYCLE", "StatusBar HTML successfully rendered.")
+                        }
+
+                        override fun onRenderProcessGone(view: WebView?, detail: android.webkit.RenderProcessGoneDetail?): Boolean {
+                            DebugLogger.log("STATUS_BAR_ERR", "StatusBar Renderer died! OS killed it to save RAM or bridge crashed. Purging.")
+                            if (isStatusBarAttached) try { wm.removeView(view) } catch(e: Exception) {}
+                            view?.destroy()
+                            if (statusBarView == view) { statusBarView = null; isStatusBarAttached = false }
+                            return true 
+                        }
+                    }
                 }
             }
 
@@ -1006,12 +1024,14 @@ object DynamicUIManager {
                 if (!isStatusBarAttached) {
                     wm.addView(statusBarView, params)
                     isStatusBarAttached = true
+                    DebugLogger.log("STATUS_BAR_LIFECYCLE", "StatusBar attached to WindowManager.")
                 } else {
                     statusBarView!!.layoutParams = params
                     wm.updateViewLayout(statusBarView, params)
+                    DebugLogger.log("STATUS_BAR_LIFECYCLE", "StatusBar layout updated.")
                 }
             } catch (e: Exception) {
-                DebugLogger.log("SDUI_ERR", "Failed to add StatusBar WebView: ${e.message}")
+                DebugLogger.log("STATUS_BAR_ERR", "Failed to add StatusBar WebView: ${e.message}")
                 statusBarView = null
                 isStatusBarAttached = false
             }
@@ -1020,11 +1040,17 @@ object DynamicUIManager {
 
     fun removeStatusBarOverlay(ctx: Context) {
         Handler(Looper.getMainLooper()).post {
+            DebugLogger.log("STATUS_BAR_LIFECYCLE", "removeStatusBarOverlay triggered.")
             val windowContext = MyAccessibilityService.instance ?: ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
             statusBarView?.let {
                 if (isStatusBarAttached) {
-                    try { wm.removeView(it) } catch (e: Exception) {}
+                    try { 
+                        wm.removeView(it) 
+                        DebugLogger.log("STATUS_BAR_LIFECYCLE", "StatusBar detached from WindowManager.")
+                    } catch (e: Exception) {
+                        DebugLogger.log("STATUS_BAR_ERR", "Failed to detach StatusBar: ${e.message}")
+                    }
                 }
                 it.loadUrl("about:blank")
                 isStatusBarAttached = false
