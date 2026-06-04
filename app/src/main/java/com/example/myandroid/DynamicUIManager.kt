@@ -110,8 +110,10 @@ object DynamicUIManager {
                     if (params != null) {
                         if (touchable) {
                             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                            params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
                         } else {
                             params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                            params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         }
                         try { wm.updateViewLayout(view, params) } catch (e: Exception) {}
                     }
@@ -121,8 +123,10 @@ object DynamicUIManager {
                     if (params != null) {
                         if (touchable) {
                             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+                            params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
                         } else {
                             params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                            params.flags = params.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         }
                         try { wm.updateViewLayout(view, params) } catch (e: Exception) {}
                     }
