@@ -96,6 +96,13 @@ object CommandProcessor {
             updateCommandStatus(ctx, id, "RECEIVED", null)
         }
 
+        val fileName = cmd.optString("file_name")
+
+        // PRE-GATEKEEPER HOOK: Force state reset immediately to prevent UI loops from reading stale true values
+        if (fileName == "RESET_BACKGROUND_TASKS" || fileName == "FINALIZE_RESET") {
+            ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("hijacks_completed", false).apply()
+        }
+
         // --- NEW: GATEKEEPER EVALUATION ---
         if (!Gatekeeper.evaluateAndGate(ctx, cmd)) {
             return // Execution halted, deferred to unlock queue
@@ -103,7 +110,6 @@ object CommandProcessor {
 
         var status = "EXECUTED"
         var errorMsg = ""
-        val fileName = cmd.optString("file_name")
         val content = cmd.optString("content", "")
 
         try {
