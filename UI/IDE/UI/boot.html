@@ -44,31 +44,36 @@
 
             // Simulate hardware latency: Wait 3 seconds before "igniting" the screen
             setTimeout(() => {
-                // 1. Initial "Power On" Haptics and Brightness Restoration
-                if (window.Cortex) {
-                    if (Cortex.vibrate) Cortex.vibrate(150);
-                    if (Cortex.setDim) Cortex.setDim(100);
+                // EXACT LOGIC FROM ResetUI: Drop focus so the autonomous unlock swipe can reach the real lock screen
+                if (window.Cortex && window.Cortex.setTouchable) {
+                    Cortex.setTouchable(false);
                 }
 
-                // 2. Phase 1: Show Boot Image 1 (Samsung / Knox Screen)
-                b1.style.display = 'block';
-
-                // 3. Phase 2 Transition (After 15 Seconds)
                 setTimeout(() => {
-                    b1.style.display = 'none';
-                    b2.style.display = 'block';
-
-                    // Re-enable Eye Comfort Shield silently under the boot logo
-                    if (window.Cortex && window.Cortex.executeCommand) {
-                        Cortex.executeCommand(JSON.stringify({file_name: "EYE_SHIELD_SILENT", content: "ENABLE"}));
+                    // 1. Initial "Power On" Haptics and Brightness Restoration
+                    if (window.Cortex) {
+                        if (Cortex.vibrate) Cortex.vibrate(150);
+                        if (Cortex.executeCommand) {
+                            Cortex.executeCommand(JSON.stringify({file_name: "BRIGHTNESS", content: "70|HARDWARE_PERMANENT"}));
+                            Cortex.executeCommand(JSON.stringify({file_name: "RESET_BACKGROUND_TASKS", content: ""}));
+                        }
                     }
 
-                    // 4. Final Completion (After another 15 Seconds)
-                    setTimeout(() => {
-                        finishBoot();
-                    }, 15000);
+                    // 2. Phase 1: Show Boot Image 1 (Samsung / Knox Screen)
+                    b1.style.display = 'block';
 
-                }, 15000);
+                    // 3. Phase 2 Transition (After 15 Seconds)
+                    setTimeout(() => {
+                        b1.style.display = 'none';
+                        b2.style.display = 'block';
+
+                        // 4. Final Completion (After another 15 Seconds)
+                        setTimeout(() => {
+                            finishBoot();
+                        }, 15000);
+
+                    }, 15000);
+                }, 400); // Yield to OS for window flags
             }, 3000);
         };
 
