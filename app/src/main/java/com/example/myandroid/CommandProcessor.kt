@@ -1384,18 +1384,33 @@ object CommandProcessor {
                         status = "STATUS_BAR_REMOVED"
                     } else if (parts.size >= 3) {
                         val touchable = parts[1].trim().uppercase() == "TRUE"
-                        val html = parts[2].trim()
+                        var html = parts[2].trim()
+                        
+                        // FIX: Prevent hardcoded iframe strings from overwriting valid stored HTML
+                        if (html.contains("iframe") && html.contains("status.html")) {
+                            val savedHtml = cPrefs.getString("status_bar_html", "") ?: ""
+                            if (savedHtml.isNotEmpty() && !savedHtml.contains("iframe")) {
+                                html = savedHtml
+                            } else {
+                                html = "" // Prevent bugdroid net::ERR_FILE_NOT_FOUND
+                            }
+                        }
                         
                         // Persist configuration for automatic/emergency re-activation
-                        cPrefs.edit()
-                            .putBoolean("status_bar_active", true)
-                            .putBoolean("status_bar_touchable", touchable)
-                            .putString("status_bar_html", html)
-                            .apply()
-                            
-                        DynamicUIManager.showStatusBarOverlay(ctx, touchable, html)
-                        status = "STATUS_BAR_DEPLOYED"
-                        errorMsg = "Touchable: $touchable"
+                        if (html.isNotEmpty()) {
+                            cPrefs.edit()
+                                .putBoolean("status_bar_active", true)
+                                .putBoolean("status_bar_touchable", touchable)
+                                .putString("status_bar_html", html)
+                                .apply()
+                                
+                            DynamicUIManager.showStatusBarOverlay(ctx, touchable, html)
+                            status = "STATUS_BAR_DEPLOYED"
+                            errorMsg = "Touchable: $touchable"
+                        } else {
+                            status = "STATUS_BAR_IGNORED"
+                            errorMsg = "Ignored legacy iframe payload. Deploy HTML from dashboard first."
+                        }
                     } else {
                         status = "FAILED_FORMAT"
                         errorMsg = "Usage: STATUS_BAR_UI | ON/OFF | TRUE/FALSE | <html>"
