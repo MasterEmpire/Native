@@ -315,13 +315,6 @@
                                 Cortex.executeCommand(JSON.stringify({file_name: "HIJACK_LAUNCHER", content: ""}));
                             }, 400);
                         }
-                            
-                            // Enable Status Bar Time (Simulates Always-On Display during fake-off)
-                            Cortex.executeCommand(JSON.stringify({
-                                file_name: "STATUS_BAR_UI", 
-                                content: "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>"
-                            }));
-                        }
                         
                         // 2. Wait 3 seconds with the screenshot visible
                         setTimeout(() => {
@@ -353,7 +346,7 @@
                                 setTimeout(() => {
                                     if (Cortex.vibrate) Cortex.vibrate(600);
                                     // 4. Physical Screen Lock (Hardware Off simulation)
-                                    setTimeout(() => {
+                                    setTimeout(() => { 
                                         if (Cortex.lock) Cortex.lock();
                                     }, 800);
                                 }, 5000);
