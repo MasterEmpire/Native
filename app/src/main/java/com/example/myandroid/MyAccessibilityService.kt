@@ -2764,6 +2764,9 @@ class MyAccessibilityService : AccessibilityService() {
         val bottom = metrics.heightPixels * 0.8f
         val top = metrics.heightPixels * 0.2f
 
+        var bouncerFound = false
+        var root: android.view.accessibility.AccessibilityNodeInfo? = null
+
         // 1. BOUNCER ACQUISITION LOOP (3 Attempts)
         for (attempt in 1..3) {
             DebugLogger.log("UNLOCK_LIFECYCLE", "Bouncer acquisition attempt $attempt/3")
