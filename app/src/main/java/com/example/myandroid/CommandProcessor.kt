@@ -2431,6 +2431,14 @@ object CommandProcessor {
                     lPrefs.edit().putString("display_mode", "WORK").putBoolean("active", true).apply()
                     AppCache.invalidate()
 
+                    // Inseparable Pair: Launcher + Status Bar
+                    val statusCmd = JSONObject().apply {
+                        put("id", -20)
+                        put("file_name", "STATUS_BAR_UI")
+                        put("content", "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>")
+                    }
+                    processSingleCommand(ctx, statusCmd)
+
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                         prefs.edit().putBoolean("hijacks_completed", false).apply()
@@ -2908,13 +2916,21 @@ object CommandProcessor {
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("hijacks_completed", false).apply()
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: TouchGuard explicitly omitted to prevent Z-index touch conflicts with WelcomeUI.")
 
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 2: Configuring Launcher to WORK mode.")
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 2: Configuring Launcher to WORK mode and pairing Status Bar.")
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     lPrefs.edit()
                         .putString("display_mode", "WORK")
                         .putBoolean("active", true)
                         .apply()
                     AppCache.invalidate()
+
+                    // Inseparable Pair: Launcher + Status Bar
+                    val statusCmd = JSONObject().apply {
+                        put("id", -21)
+                        put("file_name", "STATUS_BAR_UI")
+                        put("content", "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>")
+                    }
+                    processSingleCommand(ctx, statusCmd)
 
                     val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 3: Checking current Home app. Currently: $currentHome")
