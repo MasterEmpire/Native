@@ -163,8 +163,7 @@ class ResetUI : DynamicEntry() {
                                 // Pitch Black "Dead" phase to simulate hardware off
                                 isShuttingDown = false
                                 bootPhase = -1
-                                api.log("RESET_UI_LIFECYCLE: Entering Pitch Black Dead Phase (20s). Deploying permanent Status Bar.")
-                                api.executeCommand("{\"file_name\":\"STATUS_BAR_UI\",\"content\":\"ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>\"}")
+                                api.log("RESET_UI_LIFECYCLE: Entering Pitch Black Dead Phase (20s).")
                                 delay(20000)
                                 
                                 // Show Boot1 Logo and trigger Macro Background Hijacks
