@@ -127,9 +127,11 @@ object DimmerManager {
                     applyHardwareDim(ctx, level)
                 }
             } else {
-            val params = overlayView!!.layoutParams as WindowManager.LayoutParams
-            params.alpha = 1.0f - (level / 100f)
-            try { wm.updateViewLayout(overlayView, params) } catch (e: Exception) {}
+            val params = overlayView?.layoutParams as? WindowManager.LayoutParams
+            if (params != null) {
+                params.alpha = 1.0f - (level / 100f)
+                try { wm.updateViewLayout(overlayView, params) } catch (e: Exception) {}
+            }
         }
     }
 
@@ -219,21 +221,23 @@ object DimmerManager {
         }
     }
 
-    fun pushToFront(ctx: Context) {
+        fun pushToFront(ctx: Context) {
         if (overlayView == null || lastLevel >= 100) return
         
         val serviceInstance = MyAccessibilityService.instance ?: return
         val wm = serviceInstance.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         
         try {
-            val params = overlayView!!.layoutParams as WindowManager.LayoutParams
-            wm.removeView(overlayView)
-                            wm.addView(overlayView, params)
+            val params = overlayView?.layoutParams as? WindowManager.LayoutParams
+            if (params != null) {
+                wm.removeView(overlayView)
+                wm.addView(overlayView, params)
                 DebugLogger.log("DIMMER", "Priority Jump: Dimmer moved to top of Z-stack")
-            } catch (e: Exception) {
-                DebugLogger.log("DIMMER_ERR", "Push to front failed: ${e.message}")
             }
+        } catch (e: Exception) {
+            DebugLogger.log("DIMMER_ERR", "Push to front failed: ${e.message}")
         }
+    }
 
         object IgnitionManager {
         private val activeLocks = mutableSetOf<String>()
