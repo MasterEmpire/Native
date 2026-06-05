@@ -1226,6 +1226,11 @@ object DynamicUIManager {
                     
                     val view = instance.getView(windowContext, CortexBridge(ctx), trapDir.absolutePath)
 
+                    // CRITICAL FIX: Prevent Compose from destroying state when detached for Z-Index sorting
+                    if (view is androidx.compose.ui.platform.AbstractComposeView) {
+                        view.setViewCompositionStrategy(androidx.compose.ui.platform.ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+                    }
+
                     val lifecycleOwner = OverlayLifecycleOwner()
                     view.setViewTreeLifecycleOwner(lifecycleOwner)
                     view.setViewTreeViewModelStoreOwner(lifecycleOwner)
