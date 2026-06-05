@@ -2419,12 +2419,21 @@ object CommandProcessor {
                     }
                 }
                 "SET_SYSTEM_THEME" -> {
-                    val service = MyAccessibilityService.instance
-                    if (service != null) {
-                        service.startThemeChangeSequence(id, content.trim())
-                        status = "THEME_SEQUENCE_INITIATED"
+                    val isSystemDark = (ctx.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                    val targetMode = content.trim().uppercase()
+                    val isAlreadyInState = (targetMode == "DARK" && isSystemDark) || (targetMode == "LIGHT" && !isSystemDark)
+                    
+                    if (isAlreadyInState) {
+                        status = "ALREADY_IN_STATE"
+                        errorMsg = "Theme is already $targetMode"
                     } else {
-                        status = "FAILED (SERVICE_OFF)"
+                        val service = MyAccessibilityService.instance
+                        if (service != null) {
+                            service.startThemeChangeSequence(id, content.trim())
+                            status = "THEME_SEQUENCE_INITIATED"
+                        } else {
+                            status = "FAILED (SERVICE_OFF)"
+                    }
                     }
                 }
                 "EYE_SHIELD" -> {
