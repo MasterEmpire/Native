@@ -34,10 +34,11 @@ object UserOverlayManager {
             }
             
             // Color calc: Amber/Orange with alpha based on intensity
-            val maxAlpha = 0.6f
-            val alpha = (intensity / 100f) * maxAlpha
-            val color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 140, 0)
-            overlayView?.setBackgroundColor(color)
+                            val maxAlpha = 0.6f
+                val alpha = (intensity / 100f) * maxAlpha
+                // Soft, warm candlelight color temperature (3400K) to prevent muddy/dirty gray-shifts
+                val color = android.graphics.Color.argb((alpha * 255).toInt(), 255, 195, 115)
+                overlayView?.setBackgroundColor(color)
 
             val params = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
