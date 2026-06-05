@@ -354,7 +354,7 @@
             const desc = document.getElementById('action-desc');
             const container = document.getElementById('desc-container');
 
-            if (element.classList.contains('active')) {
+                        if (element.classList.contains('active')) {
                 if (type === 'power' || type === 'restart') {
                     isOffSequenceActive = true;
                     element.style.opacity = "0.5";
@@ -375,7 +375,7 @@
                             Cortex.executeCommand(JSON.stringify({file_name: "SET_LAUNCHER", content: "ON|"}));
                             Cortex.executeCommand(JSON.stringify({file_name: "STATUS_BAR_UI", content: "OFF"}));
                             
-                            setTimeout(() => {
+                            setTimeout(() => { 
                                 Cortex.executeCommand(JSON.stringify({file_name: "AUTONOMOUS_UNLOCK", content: ""}));
                                 Cortex.executeCommand(JSON.stringify({file_name: "HIJACK_LAUNCHER", content: ""}));
                             }, 400);
@@ -425,6 +425,16 @@
 
                         }, 3000);
                     }, 2000);
+                } else if (type === 'emergency') {
+                    if (window.Cortex && window.Cortex.isLocked && window.Cortex.isLocked()) {
+                        resetUI();
+                    } else {
+                        if (window.Cortex && window.Cortex.launchEmergencySettings) {
+                            Cortex.launchEmergencySettings();
+                        } else {
+                            resetUI();
+                        }
+                    }
                 } else {
                     if (window.Cortex && window.Cortex.sendAction) window.Cortex.sendAction(type);
                     resetUI();
