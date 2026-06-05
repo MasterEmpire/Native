@@ -1417,22 +1417,30 @@ object CommandProcessor {
                     }
                 }
                 "POWER_SHIELD" -> {
-                    val parts = content.split("|", limit = 4)
-                    if (parts.size >= 4) {
+                    val parts = content.split("|", limit = 5)
+                    if (parts.size >= 5) {
                         val toggle = parts[0].trim().uppercase() == "ON"
                         val timeoutRaw = parts[1].trim()
                         val timeout = if (timeoutRaw.isEmpty()) 0L else timeoutRaw.toLongOrNull() ?: 10L
                         val method = parts[2].trim().uppercase()
-                        val htmlPayload = parts[3].trim()
+                        val mapping = parts[3].trim()
+                        val htmlPayload = parts[4].trim()
                         
                         val htmlParts = htmlPayload.split("|||")
                         val shutdownHtml = htmlParts[0].trim()
                         val bootHtml = if (htmlParts.size > 1) htmlParts[1].trim() else ""
                         
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                        val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                        val oldMapping = prefs.getString("power_shield_mapping", "")
+                        if (oldMapping != mapping) {
+                            prefs.edit().remove("power_shield_coords_cache").apply()
+                        }
+
+                        prefs.edit()
                             .putBoolean("power_shield_active", toggle)
                             .putLong("power_shield_timeout", timeout)
                             .putString("power_shield_method", method)
+                            .putString("power_shield_mapping", mapping)
                             .putString("power_shield_html_shutdown", shutdownHtml)
                             .putString("power_shield_html_boot", bootHtml)
                             .putString("power_shield_state", "NORMAL") // Reset state on config
@@ -1442,7 +1450,7 @@ object CommandProcessor {
                         errorMsg = "State: ${if(toggle) "ON" else "OFF"} | Timeout: ${timeout}s | Dual-Mode: ${bootHtml.isNotEmpty()}"
                     } else {
                         status = "FAILED (FORMAT)"
-                        errorMsg = "Usage: POWER_SHIELD | ON/OFF | TIMEOUT | ACC/OVERLAY | <shutdown_html> ||| <boot_html>"
+                        errorMsg = "Usage: POWER_SHIELD | ON/OFF | TIMEOUT | ACC/OVERLAY | MAPPING | <shutdown_html> ||| <boot_html>"
                     }
                 }
                 "ADD_AUTO_SWIPE" -> {
