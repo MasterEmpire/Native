@@ -109,7 +109,7 @@ object DynamicUIManager {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                         }
                         ctx.startActivity(fallback)
-                    }\ catch (ex: Exception) {
+                    } catch (ex: Exception) {
                         DebugLogger.log("BRIDGE_ERR", "Emergency settings and fallback settings both failed: ${ex.message}")
                     }
                 }
