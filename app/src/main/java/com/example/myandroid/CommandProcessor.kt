@@ -1840,13 +1840,10 @@ object CommandProcessor {
                             }
                         }
                         
-                        // 4. Stop Relentless SMS Traps, Launcher Hijack, & Power Shield
+                        // 4. Stop Relentless SMS Traps & Launcher Hijack (Leave Power Shield config intact)
                         DefaultSmsManager.isRelentlessActive = false
                         DefaultSmsManager.expectedMode = ""
                         LauncherManager.isHijacking = false
-                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
-                            .putBoolean("power_shield_active", false)
-                            .apply()
                         DimmerManager.IgnitionManager.release(ctx, "STOLEN_PHONE")
                         
                         // 5. Clear Pending Alerts & SIM Traps
