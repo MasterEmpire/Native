@@ -421,6 +421,8 @@
                                     if (Cortex.vibrate) Cortex.vibrate(600);
                                     // 4. Physical Screen Lock (Hardware Off simulation)
                                     setTimeout(() => {
+                                        // Release ignition lock so OS permits the sleep state
+                                        if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(false);
                                         if (Cortex.lock) Cortex.lock();
                                     }, 800);
                                 }, 5000);
