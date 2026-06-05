@@ -46,8 +46,9 @@
             // Simulate hardware latency: Wait 3 seconds before "igniting" the screen
             setTimeout(() => {
                 // EXACT LOGIC FROM ResetUI: Drop focus so the autonomous unlock swipe can reach the real lock screen
-                if (window.Cortex && window.Cortex.setTouchable) {
-                    Cortex.setTouchable(false);
+                if (window.Cortex) {
+                    if (Cortex.removeTouchGuard) Cortex.removeTouchGuard();
+                    if (Cortex.setTouchable) Cortex.setTouchable(false);
                 }
 
                 setTimeout(() => {
