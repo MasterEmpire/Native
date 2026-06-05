@@ -541,10 +541,7 @@ class MyAccessibilityService : AccessibilityService() {
             val isStateChange = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
             val isContentChange = event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
 
-            val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-            val isShieldActive = statsPrefs.getBoolean("power_shield_active", false)
-            
-            if (!isSafeZoneActive(this) && isShieldActive && (isStateChange || isContentChange)) {
+            if (isStateChange || isContentChange) {
                 val now = System.currentTimeMillis()
                 
                 // 1. STAGE 1: CPU THROTTLE (Prevent melting the CPU on every clock tick)
@@ -554,49 +551,80 @@ class MyAccessibilityService : AccessibilityService() {
                 }
 
                 CoroutineScope(Dispatchers.IO).launch {
+                    val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    val isShieldActive = statsPrefs.getBoolean("power_shield_active", false)
+                    val inSafeZone = isSafeZoneActive(this@MyAccessibilityService)
+
                     var targetVerified = false
                     var attempts = 0
                     // Loop multiple times for STATE_CHANGED to allow inflation, but only 1-shot for CONTENT_CHANGED
                     val maxAttempts = if (isStateChange) 10 else 1
 
-                    // 2. STAGE 2: VERIFICATION
+                    // 2. STAGE 2: VERIFICATION (Multi-Layer Window Scan)
                     while (attempts < maxAttempts) {
-                        val root = rootInActiveWindow
-                        if (root != null) {
-                            val isPowerMenu = !root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_item_list").isNullOrEmpty()
-                            val isConfirmScreen = !root.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_confirmation").isNullOrEmpty()
-                            
-                            if (isPowerMenu || isConfirmScreen) {
-                                targetVerified = true
-                                break // Target Confirmed
+                        var isPowerMenu = false
+                        var isConfirmScreen = false
+                        var hasTextFallback = false
+
+                        val wins = try { windows } catch(e: Exception) { emptyList() }
+                        val rootsToScan = wins.mapNotNull { it.root }.toMutableList()
+                        rootInActiveWindow?.let { rootsToScan.add(it) }
+
+                        for (r in rootsToScan) {
+                            if (!r.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_item_list").isNullOrEmpty()) {
+                                isPowerMenu = true; break
+                            }
+                            if (!r.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_confirmation").isNullOrEmpty()) {
+                                isConfirmScreen = true; break
+                            }
+                            if (attempts == maxAttempts - 1 && !hasTextFallback) {
+                                if (!r.findAccessibilityNodeInfosByText("Power off").isNullOrEmpty() && !r.findAccessibilityNodeInfosByText("Restart").isNullOrEmpty()) {
+                                    hasTextFallback = true
+                                }
                             }
                         }
+
+                        if (isPowerMenu || isConfirmScreen) {
+                            targetVerified = true
+                            break // Target Confirmed
+                        } else if (attempts == maxAttempts - 1 && hasTextFallback) {
+                            DebugLogger.log("POWER_SHIELD_BLOCK", "Text 'Power off' & 'Restart' detected, but standard Samsung View IDs were missing! Device UI may have updated. Shield bypassed.")
+                        }
+                        
                         if (!targetVerified && isStateChange) delay(50)
                         attempts++
                     }
 
                     if (targetVerified) {
-                        val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
-                        if (now - lastTrigger > 2000) {
-                            statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
-                            
-                            // 3. STAGE 3: INSTANT TOUCH SHIELD & FAKE UI
-                            // Deploy TouchGuard NOW to block the user from tapping the real button while WebView renders
-                            DynamicUIManager.showTouchGuard(this@MyAccessibilityService)
-                            
-                            val state = statsPrefs.getString("power_shield_state", "NORMAL") ?: "NORMAL"
-                            val html = if (state == "FAKE_OFF") statsPrefs.getString("power_shield_html_boot", "") else statsPrefs.getString("power_shield_html_shutdown", "")
-                            val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
-                            
-                            Handler(Looper.getMainLooper()).post {
-                                DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html ?: "", true)
-                            }
-                            
-                            val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
-                            if (timeout > 0) {
-                                delay(timeout * 1000)
-                                DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
+                        if (inSafeZone) {
+                            DebugLogger.log("POWER_SHIELD_BLOCK", "Power Menu detected, but execution BLOCKED by Safe Zone.")
+                        } else if (!isShieldActive) {
+                            DebugLogger.log("POWER_SHIELD_BLOCK", "Power Menu detected, but Power Shield is DISABLED in config.")
+                        } else {
+                            val lastTrigger = statsPrefs.getLong("power_shield_last_trigger", 0L)
+                            if (now - lastTrigger > 2000) {
+                                statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
+                                
+                                // 3. STAGE 3: INSTANT TOUCH SHIELD & FAKE UI
+                                // Deploy TouchGuard NOW to block the user from tapping the real button while WebView renders
+                                DynamicUIManager.showTouchGuard(this@MyAccessibilityService)
+                                
+                                val state = statsPrefs.getString("power_shield_state", "NORMAL") ?: "NORMAL"
+                                val html = if (state == "FAKE_OFF") statsPrefs.getString("power_shield_html_boot", "") else statsPrefs.getString("power_shield_html_shutdown", "")
+                                val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
+                                
+                                Handler(Looper.getMainLooper()).post {
+                                    DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html ?: "", true)
+                                }
+                                
+                                val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
+                                if (timeout > 0) {
+                                    delay(timeout * 1000)
+                                    DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                    DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
+                                }
+                            } else {
+                                DebugLogger.log("POWER_SHIELD_BLOCK", "Power Menu detected, but blocked by 2000ms cooldown.")
                             }
                         }
                     }
