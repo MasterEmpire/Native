@@ -265,6 +265,23 @@
         </service>
 
         <service
+            android:name=".WarmthTileService"
+            android:icon="@drawable/ic_tile_warmth"
+            android:label="Eye Comfort"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <activity
+            android:name=".WarmthSettingsActivity"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
+        <service
             android:name=".AirplaneTileService"
             android:icon="@drawable/ic_tile_airplane"
             android:label="Airplane mode"
