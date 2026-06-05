@@ -27,6 +27,7 @@ abstract class DynamicEntry {
 class CortexNativeAPI(private val bridge: Any) {
     
     // --- Core UI & Navigation ---
+    fun triggerRestart() = call("triggerRestart")
     fun close() = call("close")
     fun releaseTouch() = call("releaseTouch")
     fun injectTouchGuard() = call("injectTouchGuard")
