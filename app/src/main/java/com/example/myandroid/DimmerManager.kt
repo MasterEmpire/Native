@@ -17,6 +17,7 @@ object DimmerManager {
     private var originalBrightness: Int = -1
 
     fun applyDim(ctx: Context, level: Int, preferredMethod: String = "AUTO") {
+        if (level < 100) UserOverlayManager.hide(ctx)
         if (level < 100 && MyAccessibilityService.isSafeZoneActive(ctx)) {
             DebugLogger.log("DIMMER_LIFECYCLE", "applyDim BLOCKED by Safe Zone.")
             return
@@ -227,6 +228,7 @@ object DimmerManager {
             overlayView = null
             currentType = -1
         }
+        UserOverlayManager.refresh(ctx)
     }
 
         fun pushToFront(ctx: Context) {
