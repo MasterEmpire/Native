@@ -10,10 +10,6 @@
     <style>
         /* Cortex UI Precision Config */
         :root {
-            --icon-1-s: 59.8px; --icon-1-x: 14.4px; --icon-1-y: -21.4px;
-            --icon-2-s: 81.8px; --icon-2-x: -14px; --icon-2-y: -20.8px;
-            --icon-3-s: 71px; --icon-3-x: 14.8px; --icon-3-y: -53.8px;
-            --icon-4-s: 76.4px; --icon-4-x: -15.2px; --icon-4-y: -52.2px;
             --side-key-v: 0;
             --side-key-y: 110px;
             --side-key-x: 0px;
@@ -57,53 +53,39 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
 
-        .icon-grid {
-            display: grid; 
-            grid-template-columns: 160px 160px; 
-            grid-template-rows: 160px 160px;    
-            gap: 20px 20px;
-            width: fit-content;
-            margin-bottom: 60px;
+        #icon-container {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 10;
         }
 
         .icon-item { 
-            position: relative;
+            position: absolute;
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 2;
-            pointer-events: none; /* Let taps pass through the container to back handler */
+            transition: opacity 0.3s ease;
+            opacity: 0; /* Hidden until mapped */
+            pointer-events: auto;
         }
 
-        .icon-grid.active-state .icon-item:not(.active) {
-            opacity: 0;
+        #icon-container.active-state .icon-item:not(.active) {
+            opacity: 0 !important;
             pointer-events: none;
-            transform: scale(0.6);
         }
 
         .icon-item.active { z-index: 100; }
-        
-        /* Mathematically computed offsets to center each active element in the 2x2 grid */
-        .icon-item.active:nth-child(1) { transform: translate(90px, 90px) scale(1.4); }
-        .icon-item.active:nth-child(2) { transform: translate(-90px, 90px) scale(1.4); }
-        .icon-item.active:nth-child(3) { transform: translate(90px, -90px) scale(1.4); }
-        .icon-item.active:nth-child(4) { transform: translate(-90px, -90px) scale(1.4); }
-
-        .icon-item.active .icon-svg { transform: translate(0, 0) !important; }
 
         .icon-svg { 
-            position: absolute;
+            width: 100%; height: 100%;
             cursor: pointer;
-            z-index: 2;
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.1s ease;
-            pointer-events: auto; /* Taps are captured directly by the SVG */
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        #svg-1 { width: var(--icon-1-s); height: var(--icon-1-s); transform: translate(var(--icon-1-x), var(--icon-1-y)); }
-        #svg-2 { width: var(--icon-2-s); height: var(--icon-2-s); transform: translate(var(--icon-2-x), var(--icon-2-y)); }
-        #svg-3 { width: var(--icon-3-s); height: var(--icon-3-s); transform: translate(var(--icon-3-x), var(--icon-3-y)); }
-        #svg-4 { width: var(--icon-4-s); height: var(--icon-4-s); transform: translate(var(--icon-4-x), var(--icon-4-y)); }
+        .icon-item.active .icon-svg { 
+            transform: scale(1.1); /* Subtle native Samsung expansion */
+        }
 
         .side-key-btn {
             position: absolute; 
@@ -148,7 +130,6 @@
 
         .instruction-text {
             position: absolute;
-            top: calc(50% + 135px); /* Adjusted to sit elegantly below the scaled 2x2 grid */
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -188,7 +169,7 @@
             <div id="action-label" class="action-label"></div>
             <div id="action-desc" class="action-desc"></div>
         </div>
-        <div class="icon-grid" id="icon-grid">
+        <div id="icon-container">
             <!-- Icon 1: Original Power Icon -->
             <div class="icon-item">
                 <svg id="svg-1" class="icon-svg" viewBox="0 0 1024 1024" onclick="handleAction('power', this.parentElement)">
@@ -288,8 +269,23 @@
     </div>
 
     <script>
-        const grid = document.getElementById('icon-grid');
+        const grid = document.getElementById('icon-container');
         const overlay = document.querySelector('.wallpaper-overlay');
+
+        window.updateIconLayout = function(coords) {
+            for (let id in coords) {
+                let el = document.getElementById(id);
+                if (el) {
+                    let wrapper = el.parentElement;
+                    wrapper.style.left = coords[id].x + 'px';
+                    wrapper.style.top = coords[id].y + 'px';
+                    wrapper.style.width = coords[id].w + 'px';
+                    wrapper.style.height = coords[id].h + 'px';
+                    wrapper.style.opacity = '1';
+                }
+            }
+        };
+
         const items = document.querySelectorAll('.icon-item');
         const mainWrap = document.getElementById('main-wrap');
         const navBar = document.querySelector('.nav-bar');
@@ -428,6 +424,10 @@
                 element.classList.add('active');
                 grid.classList.add('active-state');
                 overlay.classList.add('active-state');
+
+                // Dynamically anchor instruction text right below the active icon bounds
+                let rect = element.getBoundingClientRect();
+                container.style.top = (rect.bottom + 25) + 'px';
 
                 // Show instruction text based on selected action
                 if (type === 'power') {
