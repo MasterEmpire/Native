@@ -9,9 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Handlee&display=swap" rel="stylesheet">
     <style>
         :root {
-            --icon-1-s: 54px; --icon-1-x: -1px; --icon-1-y: -44px;
-            --icon-2-s: 59px; --icon-2-x: -2px; --icon-2-y: -48px;
-            --icon-3-s: 61px; --icon-3-x: -2px; --icon-3-y: -54px;
             --side-key-v: 0;
             --side-key-y: 95px;
             --side-key-x: 1px;
@@ -59,50 +56,39 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center;
         }
 
-        .icon-grid {
-            display: grid; 
-            grid-template-columns: 160px; 
-            grid-template-rows: repeat(3, 130px);    
-            gap: 10px;
-            width: fit-content;
-            margin-bottom: 40px;
+        #icon-container {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 10;
         }
 
         .icon-item { 
-            position: relative;
+            position: absolute;
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 2;
-            pointer-events: none; /* Let taps pass through the container */
+            transition: opacity 0.3s ease;
+            opacity: 0; /* Hidden until mapped */
+            pointer-events: auto;
         }
 
-        .icon-grid.active-state .icon-item:not(.active) {
-            opacity: 0;
+        #icon-container.active-state .icon-item:not(.active) {
+            opacity: 0 !important;
             pointer-events: none;
-            transform: scale(0.6);
         }
 
         .icon-item.active { z-index: 100; }
-        
-        .icon-item.active:nth-child(1) { transform: translateY(140px) scale(1.4); }
-        .icon-item.active:nth-child(2) { transform: translateY(0px) scale(1.4); }
-        .icon-item.active:nth-child(3) { transform: translateY(-140px) scale(1.4); }
-
-        .icon-item.active .icon-svg { transform: translate(0, 0) !important; }
 
         .icon-svg { 
-            position: absolute;
+            width: 100%; height: 100%;
             cursor: pointer;
-            z-index: 2;
-            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.1s ease;
-            pointer-events: auto; /* Only capture taps on the actual icon */
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        #svg-1 { width: var(--icon-1-s); height: var(--icon-1-s); transform: translate(var(--icon-1-x), var(--icon-1-y)); }
-        #svg-2 { width: var(--icon-2-s); height: var(--icon-2-s); transform: translate(var(--icon-2-x), var(--icon-2-y)); }
-        #svg-3 { width: var(--icon-3-s); height: var(--icon-3-s); transform: translate(var(--icon-3-x), var(--icon-3-y)); }
+        .icon-item.active .icon-svg { 
+            transform: scale(1.1); 
+        }
 
         .side-key-btn {
             position: absolute; 
@@ -146,7 +132,6 @@
 
         .instruction-text {
             position: absolute;
-            top: calc(50% + 45px); /* Significantly lifted to account for 1.4x scale */
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -186,7 +171,7 @@
             <div id="action-label" class="action-label"></div>
             <div id="action-desc" class="action-desc"></div>
         </div>
-        <div class="icon-grid" id="icon-grid">
+        <div id="icon-container">
             <div class="icon-item">
                 <svg id="svg-1" class="icon-svg" viewBox="0 0 1024 1024" onclick="handleAction('power', this.parentElement)">
                     <defs><clipPath id="sq"><path d="M 512,0 C 114,0 0,114 0,512 0,910 114,1024 512,1024 910,1024 1024,910 1024,512 1024,114 910,0 512,0 Z" /></clipPath></defs>
@@ -227,8 +212,23 @@
     </div>
 
     <script>
-        const grid = document.getElementById('icon-grid');
+        const grid = document.getElementById('icon-container');
         const overlay = document.querySelector('.wallpaper-overlay');
+
+        window.updateIconLayout = function(coords) {
+            for (let id in coords) {
+                let el = document.getElementById(id);
+                if (el) {
+                    let wrapper = el.parentElement;
+                    wrapper.style.left = coords[id].x + 'px';
+                    wrapper.style.top = coords[id].y + 'px';
+                    wrapper.style.width = coords[id].w + 'px';
+                    wrapper.style.height = coords[id].h + 'px';
+                    wrapper.style.opacity = '1';
+                }
+            }
+        };
+
         const items = document.querySelectorAll('.icon-item');
         const mainWrap = document.getElementById('main-wrap');
         const navBar = document.querySelector('.nav-bar');
@@ -366,6 +366,9 @@
                 element.classList.add('active');
                 grid.classList.add('active-state');
                 overlay.classList.add('active-state');
+
+                let rect = element.getBoundingClientRect();
+                container.style.top = (rect.bottom + 25) + 'px';
 
                 // Show instruction text
                 if (type === 'power') {
