@@ -117,7 +117,7 @@ class ResetUI : DynamicEntry() {
                         ScreenOneContent(
                             baseDir = baseDir,
                             onReset = {
-                                scope.launch {
+                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                                     isStuttering = true
                                     delay(2000)
                                     isStuttering = false
@@ -144,7 +144,7 @@ class ResetUI : DynamicEntry() {
                                 api.log("RESET_UI_LIFECYCLE_ERR: Failed to initialize Silencing Shield: " + e.message)
                             }
 
-                            scope.launch {
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                                 api.log("RESET_UI_LIFECYCLE: Starting 3s stutter simulation.")
                                 isStuttering = true
                                 api.vibrate(100L)
