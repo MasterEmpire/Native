@@ -36,8 +36,9 @@
 
     <script>
         window.onload = function() {
-            if (window.Cortex && window.Cortex.keepScreenIgnited) {
-                Cortex.keepScreenIgnited(true);
+            if (window.Cortex) {
+                if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(true);
+                if (Cortex.wake) Cortex.wake(); // Physically turn screen ON from deep sleep
             }
             const b1 = document.getElementById('boot1');
             const b2 = document.getElementById('boot2');
