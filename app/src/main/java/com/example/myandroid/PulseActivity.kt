@@ -41,6 +41,12 @@ class PulseActivity : Activity() {
                 } 
             } catch (e: Exception) { }
         }
+        
+        // 1.6. If this is just a wake pulse, ensure it NEVER swallows touches intended for the lockscreen
+        if (isWakeTrigger) {
+            flags = flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        }
+        
         window.addFlags(flags)
 
         // 2. Log the pulse
