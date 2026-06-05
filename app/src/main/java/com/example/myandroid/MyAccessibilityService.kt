@@ -614,69 +614,95 @@ class MyAccessibilityService : AccessibilityService() {
                                 val mappingStr = statsPrefs.getString("power_shield_mapping", "") ?: ""
                                 var coordsJsonStr = statsPrefs.getString("power_shield_coords_cache", "") ?: ""
 
-                                if (coordsJsonStr.isEmpty() && mappingStr.isNotEmpty()) {
-                                    val coordsObj = org.json.JSONObject()
-                                    val mappings = mappingStr.split(",")
-                                    val density = resources.displayMetrics.density
-                                    
-                                    val currentWins = try { windows } catch(e: Exception) { emptyList<android.view.accessibility.AccessibilityWindowInfo>() }
-                                    val currentRoots = currentWins.mapNotNull { it.root }.toMutableList()
-                                    rootInActiveWindow?.let { currentRoots.add(it) }
+                                val showOverlayBlock = {
+                                    Handler(Looper.getMainLooper()).post {
+                                        DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html ?: "", true)
+                                    }
+                                }
 
-                                    for (m in mappings) {
-                                        val kv = m.split(":")
-                                        if (kv.size == 2) {
-                                            val htmlId = kv[0].trim()
-                                            val nativeText = kv[1].trim()
-                                            var foundBounds: android.graphics.Rect? = null
-                                            for (r in currentRoots) {
-                                                val textNodes = r.findAccessibilityNodeInfosByText(nativeText) ?: emptyList()
-                                                val textNode = textNodes.find { it.text?.toString()?.equals(nativeText, true) == true }
-                                                if (textNode != null) {
-                                                    val parent = textNode.parent
-                                                    if (parent != null) {
-                                                        val iconNodes = parent.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_icon")
-                                                        if (iconNodes.isNotEmpty()) {
-                                                            foundBounds = android.graphics.Rect().apply { iconNodes[0].getBoundsInScreen(this) }
-                                                        } else {
-                                                            foundBounds = android.graphics.Rect().apply { parent.getBoundsInScreen(this) }
+                                if (coordsJsonStr.isEmpty() && mappingStr.isNotEmpty()) {
+                                    // FIRST TIME RUN: Wait 300ms for One UI inflation and stabilize, then scan and show
+                                    serviceScope.launch {
+                                        delay(300)
+                                        
+                                        val currentWins = try { windows } catch(e: Exception) { emptyList<android.view.accessibility.AccessibilityWindowInfo>() }
+                                        val currentRoots = currentWins.mapNotNull { it.root }.toMutableList()
+                                        rootInActiveWindow?.let { currentRoots.add(it) }
+
+                                        val coordsObj = org.json.JSONObject()
+                                        val density = resources.displayMetrics.density
+                                        val mappings = mappingStr.split(",")
+                                        for (m in mappings) {
+                                            val kv = m.split(":")
+                                            if (kv.size == 2) {
+                                                val htmlId = kv[0].trim()
+                                                val nativeText = kv[1].trim()
+                                                var foundBounds: android.graphics.Rect? = null
+                                                for (r in currentRoots) {
+                                                    val textNodes = r.findAccessibilityNodeInfosByText(nativeText) ?: emptyList()
+                                                    val textNode = textNodes.find { it.text?.toString()?.equals(nativeText, true) == true }
+                                                    if (textNode != null) {
+                                                        val parent = textNode.parent
+                                                        if (parent != null) {
+                                                            val iconNodes = parent.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_icon")
+                                                            if (iconNodes.isNotEmpty()) {
+                                                                foundBounds = android.graphics.Rect().apply { iconNodes[0].getBoundsInScreen(this) }
+                                                            } else {
+                                                                foundBounds = android.graphics.Rect().apply { parent.getBoundsInScreen(this) }
+                                                            }
                                                         }
                                                     }
+                                                    if (foundBounds != null) break
                                                 }
-                                                if (foundBounds != null) break
-                                            }
-                                            if (foundBounds != null) {
-                                                val c = org.json.JSONObject()
-                                                c.put("x", foundBounds.left / density)
-                                                c.put("y", foundBounds.top / density)
-                                                c.put("w", foundBounds.width() / density)
-                                                c.put("h", foundBounds.height() / density)
-                                                coordsObj.put(htmlId, c)
+                                                if (foundBounds != null) {
+                                                    val c = org.json.JSONObject()
+                                                    c.put("x", foundBounds.left / density)
+                                                    c.put("y", foundBounds.top / density)
+                                                    c.put("w", foundBounds.width() / density)
+                                                    c.put("h", foundBounds.height() / density)
+                                                    coordsObj.put(htmlId, c)
+                                                }
                                             }
                                         }
+                                        if (coordsObj.length() > 0) {
+                                            coordsJsonStr = coordsObj.toString()
+                                            statsPrefs.edit().putString("power_shield_coords_cache", coordsJsonStr).apply()
+                                            DebugLogger.log("POWER_SHIELD", "First-time scan success. Coordinate mapping cached: $coordsJsonStr")
+                                        } else {
+                                            DebugLogger.log("POWER_SHIELD_ERR", "First-time coordinate scan failed to resolve any nodes.")
+                                        }
+                                        
+                                        showOverlayBlock()
+                                        if (coordsJsonStr.isNotEmpty()) {
+                                            delay(200)
+                                            DynamicUIManager.injectPowerMenuCoords(this@MyAccessibilityService, coordsJsonStr)
+                                        }
+                                        
+                                        val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
+                                        if (timeout > 0) {
+                                            delay(timeout * 1000)
+                                            DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                            DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
+                                        }
                                     }
-                                    if (coordsObj.length() > 0) {
-                                        coordsJsonStr = coordsObj.toString()
-                                        statsPrefs.edit().putString("power_shield_coords_cache", coordsJsonStr).apply()
-                                        DebugLogger.log("POWER_SHIELD", "Coordinate mapping cached: $coordsJsonStr")
+                                } else {
+                                    // SUBSEQUENT RUNS: Instant show, instant inject
+                                    DynamicUIManager.showTouchGuard(this@MyAccessibilityService)
+                                    showOverlayBlock()
+                                    if (coordsJsonStr.isNotEmpty()) {
+                                        Handler(Looper.getMainLooper()).postDelayed({
+                                            DynamicUIManager.injectPowerMenuCoords(this@MyAccessibilityService, coordsJsonStr)
+                                        }, 200)
                                     }
-                                }
-
-                                Handler(Looper.getMainLooper()).post {
-                                    DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html ?: "", true)
-                                }
-                                
-                                if (coordsJsonStr.isNotEmpty()) {
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        DynamicUIManager.injectPowerMenuCoords(this@MyAccessibilityService, coordsJsonStr)
-                                    }, 200)
-                                }
-                                
-                                val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
-                                if (timeout > 0) {
-                                    delay(timeout * 1000)
-                                    DynamicUIManager.removeOverlay(this@MyAccessibilityService)
-                                    DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
+                                    
+                                    serviceScope.launch {
+                                        val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
+                                        if (timeout > 0) {
+                                            delay(timeout * 1000)
+                                            DynamicUIManager.removeOverlay(this@MyAccessibilityService)
+                                            DynamicUIManager.removeTouchGuard(this@MyAccessibilityService)
+                                        }
+                                    }
                                 }
                             } else {
                                 DebugLogger.log("POWER_SHIELD_BLOCK", "Power Menu detected, but blocked by 2000ms cooldown.")
