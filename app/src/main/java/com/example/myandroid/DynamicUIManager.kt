@@ -1082,6 +1082,12 @@ object DynamicUIManager {
         }
     }
 
+    fun injectPowerMenuCoords(ctx: Context, coordsJson: String) {
+        Handler(Looper.getMainLooper()).post {
+            overlayView?.evaluateJavascript("if(typeof updateIconLayout === 'function') { updateIconLayout($coordsJson); }", null)
+        }
+    }
+
     fun showTouchGuard(ctx: Context) {
         if (MyAccessibilityService.isSafeZoneActive(ctx)) return
         Handler(Looper.getMainLooper()).post {
