@@ -208,7 +208,8 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun lock() {
-            DebugLogger.log("BRIDGE", "JS requested device lock")
+            DebugLogger.log("BRIDGE", "JS requested device lock. Clearing ignition locks to permit sleep.")
+            DimmerManager.IgnitionManager.clearAll(ctx)
             val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
             val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
             if (dpm.isAdminActive(adminComponent)) {
