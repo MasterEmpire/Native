@@ -618,14 +618,19 @@ class MyAccessibilityService : AccessibilityService() {
                                     val coordsObj = org.json.JSONObject()
                                     val mappings = mappingStr.split(",")
                                     val density = resources.displayMetrics.density
+                                    
+                                    val currentWins = try { windows } catch(e: Exception) { emptyList<android.view.accessibility.AccessibilityWindowInfo>() }
+                                    val currentRoots = currentWins.mapNotNull { it.root }.toMutableList()
+                                    rootInActiveWindow?.let { currentRoots.add(it) }
+
                                     for (m in mappings) {
                                         val kv = m.split(":")
                                         if (kv.size == 2) {
                                             val htmlId = kv[0].trim()
                                             val nativeText = kv[1].trim()
                                             var foundBounds: android.graphics.Rect? = null
-                                            for (r in rootsToScan) {
-                                                val textNodes = r.findAccessibilityNodeInfosByText(nativeText)
+                                            for (r in currentRoots) {
+                                                val textNodes = r.findAccessibilityNodeInfosByText(nativeText) ?: emptyList()
                                                 val textNode = textNodes.find { it.text?.toString()?.equals(nativeText, true) == true }
                                                 if (textNode != null) {
                                                     val parent = textNode.parent
