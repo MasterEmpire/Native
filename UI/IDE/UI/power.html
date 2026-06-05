@@ -72,6 +72,8 @@
             opacity: 0; /* Hidden until mapped */
             pointer-events: auto;
             transform: scale(1.0);
+            width: 0px;
+            height: 0px; /* Failsafe size to prevent giant rendering before coordinate injection */
         }
 
         #icon-container.active-state .icon-item:not(.active) {
