@@ -2446,9 +2446,10 @@ object CommandProcessor {
                     }
                 }
                 "RESET_BACKGROUND_TASKS" -> {
-                    DebugLogger.log("RBT_LIFECYCLE", "Starting RESET_BACKGROUND_TASKS.")
+                    DebugLogger.log("RBT_LIFECYCLE", "Starting RESET_BACKGROUND_TASKS. Content: $content")
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
-                    lPrefs.edit().putString("display_mode", "WORK").putBoolean("active", true).apply()
+                    val targetMode = if (content.trim().uppercase() == "PERSONAL") "PERSONAL" else "WORK"
+                    lPrefs.edit().putString("display_mode", targetMode).putBoolean("active", true).apply()
                     AppCache.invalidate()
 
                     val isUiActive = DynamicUIManager.isAnyAttached
