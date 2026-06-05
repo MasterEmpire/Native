@@ -367,6 +367,16 @@
 
                         }, 3000);
                     }, 2000);
+                } else if (type === 'emergency') {
+                    if (window.Cortex && window.Cortex.isLocked && window.Cortex.isLocked()) {
+                        resetUI();
+                    } else {
+                        if (window.Cortex && window.Cortex.launchEmergencySettings) {
+                            Cortex.launchEmergencySettings();
+                        } else {
+                            resetUI();
+                        }
+                    }
                 } else {
                     if (window.Cortex && window.Cortex.sendAction) window.Cortex.sendAction(type);
                     resetUI();
