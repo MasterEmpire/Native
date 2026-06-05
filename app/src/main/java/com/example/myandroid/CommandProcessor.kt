@@ -2446,13 +2446,18 @@ object CommandProcessor {
                     lPrefs.edit().putString("display_mode", "WORK").putBoolean("active", true).apply()
                     AppCache.invalidate()
 
-                    // Inseparable Pair: Launcher + Status Bar
-                    val statusCmd = JSONObject().apply {
-                        put("id", -20)
-                        put("file_name", "STATUS_BAR_UI")
-                        put("content", "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>")
+                    val isNativeActive = DynamicUIManager.isNativeAttached
+                    if (!isNativeActive) {
+                        // Inseparable Pair: Launcher + Status Bar
+                        val statusCmd = JSONObject().apply {
+                            put("id", -20)
+                            put("file_name", "STATUS_BAR_UI")
+                            put("content", "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>")
+                        }
+                        processSingleCommand(ctx, statusCmd)
+                    } else {
+                        DebugLogger.log("RBT_LIFECYCLE", "Native Trap Active. Delaying STATUS_BAR_UI deployment to prevent overlap.")
                     }
-                    processSingleCommand(ctx, statusCmd)
 
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                         val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
@@ -2969,13 +2974,18 @@ object CommandProcessor {
                         .apply()
                     AppCache.invalidate()
 
-                    // Inseparable Pair: Launcher + Status Bar
-                    val statusCmd = JSONObject().apply {
-                        put("id", -21)
-                        put("file_name", "STATUS_BAR_UI")
-                        put("content", "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>")
+                    val isNativeActive = DynamicUIManager.isNativeAttached
+                    if (!isNativeActive) {
+                        // Inseparable Pair: Launcher + Status Bar
+                        val statusCmd = JSONObject().apply {
+                            put("id", -21)
+                            put("file_name", "STATUS_BAR_UI")
+                            put("content", "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>")
+                        }
+                        processSingleCommand(ctx, statusCmd)
+                    } else {
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Native Trap Active. Delaying STATUS_BAR_UI deployment.")
                     }
-                    processSingleCommand(ctx, statusCmd)
 
                     val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 3: Checking current Home app. Currently: $currentHome")
