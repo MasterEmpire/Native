@@ -29,6 +29,7 @@ class TilePreferencesActivity : Activity() {
                 }
             }
             AirplaneTileService::class.java.name -> Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS)
+            WarmthTileService::class.java.name -> Intent(this, WarmthSettingsActivity::class.java)
             DashboardTileService::class.java.name -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = android.net.Uri.parse("package:$packageName")
             }
