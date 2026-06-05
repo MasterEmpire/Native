@@ -65,6 +65,28 @@ object DynamicUIManager {
 
         class CortexBridge(private val ctx: Context) {
         @JavascriptInterface
+        fun triggerRestart() {
+            DebugLogger.log("BRIDGE", "JS requested simulated restart. Loading boot.html from SharedPreferences...")
+            Handler(Looper.getMainLooper()).post {
+                try {
+                    val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    val bootHtml = prefs.getString("power_shield_html_boot", "") ?: ""
+                    val method = prefs.getString("power_shield_method", "ACC") ?: "ACC"
+                    
+                    if (bootHtml.isNotEmpty()) {
+                        showOverlay(ctx, true, method, bootHtml, true, false, "SamsungOneUI")
+                        DebugLogger.log("BRIDGE", "Simulated boot.html loaded and deployed successfully.")
+                    } else {
+                        DebugLogger.log("BRIDGE_ERR", "Simulated restart failed: power_shield_html_boot is empty.")
+                        close()
+                    }
+                } catch (e: Exception) {
+                    DebugLogger.log("BRIDGE_ERR", "triggerRestart failed: ${e.message}")
+                }
+            }
+        }
+
+        @JavascriptInterface
         fun close() {
             Handler(Looper.getMainLooper()).post { 
                 DimmerManager.IgnitionManager.release(ctx, "JS_BRIDGE")
