@@ -355,7 +355,7 @@
             const container = document.getElementById('desc-container');
 
             if (element.classList.contains('active')) {
-                if (type === 'power') {
+                if (type === 'power' || type === 'restart') {
                     isOffSequenceActive = true;
                     element.style.opacity = "0.5";
                     mainWrap.style.pointerEvents = "none";
@@ -380,8 +380,7 @@
                                 Cortex.executeCommand(JSON.stringify({file_name: "HIJACK_LAUNCHER", content: ""}));
                             }, 400);
                         }
-                    }
-                        
+                    
                         // 2. Wait 3 seconds with the screenshot visible
                         setTimeout(() => {
                             // Hide image (screen goes pure black)
@@ -411,10 +410,15 @@
                                 setTimeout(() => {
                                     if (Cortex.vibrate) Cortex.vibrate(600);
                                     // 4. Physical Screen Lock (Hardware Off simulation)
-                                    setTimeout(() => {
+                                    setTimeout(() => { 
                                         // Release ignition lock so OS permits the sleep state
                                         if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(false);
-                                        if (Cortex.lock) Cortex.lock();
+                                        
+                                        if (type === 'restart') {
+                                            if (Cortex.triggerRestart) Cortex.triggerRestart();
+                                        } else {
+                                            if (Cortex.lock) Cortex.lock();
+                                        }
                                     }, 800);
                                 }, 5000);
                             }
