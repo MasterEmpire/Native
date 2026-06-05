@@ -365,8 +365,6 @@ class ResetUI : DynamicEntry() {
                 
                 // Physically block main thread to create a real stutter on the progress bar updates
                 if (waitTime > 2000) {
-                    withContext(kotlinx.getHost() ?: Dispatchers.Main) { try { Thread.sleep(200) } catch(e: Exception){} }
-                } else if (waitTime > 2000) {
                     withContext(kotlinx.coroutines.Dispatchers.Main) { try { Thread.sleep(200) } catch(e: Exception){} }
                 }
                 
