@@ -34,11 +34,6 @@ class WarmthSettingsActivity : ComponentActivity() {
 fun WarmthSettingsScreen(ctx: Context, onDismiss: () -> Unit) {
     val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
     var intensity by remember { mutableStateOf(prefs.getInt("warmth_intensity", 50).toFloat()) }
-    
-    var sysBrightness by remember { 
-        val b = try { Settings.System.getInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS) } catch(e: Exception) { 128 }
-        mutableStateOf((b / 255f) * 100f) 
-    }
 
     Box(
         modifier = Modifier
@@ -67,28 +62,6 @@ fun WarmthSettingsScreen(ctx: Context, onDismiss: () -> Unit) {
                 },
                 valueRange = 0f..100f,
                 colors = SliderDefaults.colors(thumbColor = Color(0xFFFF9900), activeTrackColor = Color(0xFFFF9900), inactiveTrackColor = Color.DarkGray)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("Display Brightness", color = Color.LightGray, fontSize = 14.sp)
-            Slider(
-                value = sysBrightness,
-                onValueChange = { newValue ->
-                    sysBrightness = newValue
-                    if (Settings.System.canWrite(ctx)) {
-                        val hwLevel = ((newValue / 100f) * 255).toInt().coerceIn(1, 255)
-                        Settings.System.putInt(ctx.contentResolver, Settings.System.SCREEN_BRIGHTNESS, hwLevel)
-                    } else {
-                        val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
-                            data = android.net.Uri.parse("package:${ctx.packageName}")
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        }
-                        ctx.startActivity(intent)
-                    }
-                },
-                valueRange = 0f..100f,
-                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White, inactiveTrackColor = Color.DarkGray)
             )
         }
     }
