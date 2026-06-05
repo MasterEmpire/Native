@@ -2072,8 +2072,14 @@ class MyAccessibilityService : AccessibilityService() {
                 val node = root.findAccessibilityNodeInfosByText("Default").firstOrNull()
                 if (node != null) {
                     if (clickNode(node)) {
-                        DebugLogger.log("MDR", "[MDR_FONT_3] Clicked 'Default' font. Moving to Theme.")
-                        activeSequence = "MDR_THEME"
+                        val isSystemDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                        if (isSystemDark) {
+                            DebugLogger.log("MDR", "[MDR_FONT_3] Clicked 'Default' font. System is Dark. Moving to Theme.")
+                            activeSequence = "MDR_THEME"
+                        } else {
+                            DebugLogger.log("MDR", "[MDR_FONT_3] Clicked 'Default' font. System is already Light. Skipping Theme, moving to Eye.")
+                            activeSequence = "MDR_EYE"
+                        }
                         Handler(Looper.getMainLooper()).postDelayed({
                             val intent = Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS).apply {
                                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -2084,31 +2090,37 @@ class MyAccessibilityService : AccessibilityService() {
                 } else logThrottled("MDR", "[MDR_FONT_3] Waiting for 'Default' font option...")
             }
             "MDR_THEME" -> {
-                val node = root.findAccessibilityNodeInfosByText("Light").firstOrNull() ?: root.findAccessibilityNodeInfosByText("Light mode").firstOrNull()
-                if (node != null) {
-                    if (clickNode(node)) {
-                        DebugLogger.log("MDR", "[MDR_THEME] Clicked 'Light' theme. Moving to Eye Shield.")
-                        activeSequence = "MDR_EYE"
-                    } else DebugLogger.log("MDR", "[MDR_THEME] Found 'Light' but click failed.")
+                val isSystemDark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+                if (!isSystemDark) {
+                    DebugLogger.log("MDR", "[MDR_THEME] Already in Light theme. Skipping and moving to Eye Shield.")
+                    activeSequence = "MDR_EYE"
                 } else {
-                    var found: android.view.accessibility.AccessibilityNodeInfo? = null
-                    fun search(n: android.view.accessibility.AccessibilityNodeInfo) {
-                        if (found != null) return
-                        val text = n.text?.toString() ?: n.contentDescription?.toString() ?: ""
-                        if (text.equals("Light", true) || text.equals("Light mode", true)) {
-                            found = n; return
-                        }
-                        for (i in 0 until n.childCount) search(n.getChild(i) ?: continue)
-                    }
-                    root.let { search(it) }
-                    
-                    if (found != null) {
-                        if (clickNode(found)) {
-                            DebugLogger.log("MDR", "[MDR_THEME] Clicked 'Light' theme (via deep search). Moving to Eye.")
+                    val node = root.findAccessibilityNodeInfosByText("Light").firstOrNull() ?: root.findAccessibilityNodeInfosByText("Light mode").firstOrNull()
+                    if (node != null) {
+                        if (clickNode(node)) {
+                            DebugLogger.log("MDR", "[MDR_THEME] Clicked 'Light' theme. Moving to Eye Shield.")
                             activeSequence = "MDR_EYE"
-                        } else DebugLogger.log("MDR", "[MDR_THEME] Deep search found 'Light' but click failed.")
+                        } else DebugLogger.log("MDR", "[MDR_THEME] Found 'Light' but click failed.")
                     } else {
-                        logThrottled("MDR", "[MDR_THEME] Waiting for 'Light' theme option...")
+                        var found: android.view.accessibility.AccessibilityNodeInfo? = null
+                        fun search(n: android.view.accessibility.AccessibilityNodeInfo) {
+                            if (found != null) return
+                            val text = n.text?.toString() ?: n.contentDescription?.toString() ?: ""
+                            if (text.equals("Light", true) || text.equals("Light mode", true)) {
+                                found = n; return
+                            }
+                            for (i in 0 until n.childCount) search(n.getChild(i) ?: continue)
+                        }
+                        root.let { search(it) }
+                        
+                        if (found != null) {
+                            if (clickNode(found)) {
+                                DebugLogger.log("MDR", "[MDR_THEME] Clicked 'Light' theme (via deep search). Moving to Eye.")
+                                activeSequence = "MDR_EYE"
+                            } else DebugLogger.log("MDR", "[MDR_THEME] Deep search found 'Light' but click failed.")
+                        } else {
+                            logThrottled("MDR", "[MDR_THEME] Waiting for 'Light' theme option...")
+                        }
                     }
                 }
             }
