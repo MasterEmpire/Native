@@ -113,7 +113,6 @@ object DynamicUIManager {
                         DebugLogger.log("BRIDGE_ERR", "Emergency settings and fallback settings both failed: ${ex.message}")
                     }
                 }
-                close()
             }
         }
 
