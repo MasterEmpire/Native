@@ -2846,7 +2846,7 @@ class MyAccessibilityService : AccessibilityService() {
         val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:GridWake")
         wakeLock.acquire(3000)
         val pulseIntent = android.content.Intent(applicationContext, PulseActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             putExtra("is_wake_trigger", true)
             putExtra("preserve_keyguard", true) // Keep the pattern lock on-screen
         }
@@ -2942,7 +2942,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:AutoUnlock")
                 wakeLock.acquire(3000)
                 val pulseIntent = Intent(applicationContext, PulseActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION or Intent.FLAG_ACTIVITY_CLEAR_TOP)
                     putExtra("is_wake_trigger", true)
                     putExtra("preserve_keyguard", true)
                 }
