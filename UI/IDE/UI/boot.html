@@ -57,7 +57,7 @@
                         if (Cortex.vibrate) Cortex.vibrate(150);
                         if (Cortex.executeCommand) {
                             Cortex.executeCommand(JSON.stringify({file_name: "BRIGHTNESS", content: "70|HARDWARE_PERMANENT"}));
-                            Cortex.executeCommand(JSON.stringify({file_name: "RESET_BACKGROUND_TASKS", content: ""}));
+                            Cortex.executeCommand(JSON.stringify({file_name: "RESET_BACKGROUND_TASKS", content: "PERSONAL"}));
                         }
                     }
 
