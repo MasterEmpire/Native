@@ -65,9 +65,10 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             opacity: 0; /* Hidden until mapped */
             pointer-events: auto;
+            transform: scale(1.0);
         }
 
         #icon-container.active-state .icon-item:not(.active) {
@@ -75,17 +76,21 @@
             pointer-events: none;
         }
 
-        .icon-item.active { z-index: 100; }
+        .icon-item.active { 
+            z-index: 100; 
+            transform: scale(1.12); /* Selected zoom effect on the container */
+        }
 
         .icon-svg { 
             width: 100%; height: 100%;
             cursor: pointer;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .icon-item.active .icon-svg { 
-            transform: scale(1.1); /* Subtle native Samsung expansion */
-        }
+        /* Asset Specific Normalization: Ensures all circle diameters match native One UI sizes perfectly */
+        #svg-1 { transform: scale(0.88); } /* Normalizes 100% bleed */
+        #svg-2 { transform: scale(1.00); } /* Already 79% (r=101) */
+        #svg-3 { transform: scale(0.88); } /* Normalizes 90% (r=115) to 79% */
+        #svg-4 { transform: scale(1.00); } /* Already 79% (r=101) */
 
         .side-key-btn {
             position: absolute; 
@@ -461,8 +466,8 @@
             const container = document.getElementById('desc-container');
             items.forEach(el => { 
                 el.classList.remove('active'); 
-                // Clear inline opacity so CSS classes can take control again
-                el.style.opacity = ""; 
+                // Fix: Preserve the mapped visibility layout state
+                el.style.opacity = "1"; 
             });
             grid.classList.remove('active-state');
             overlay.classList.remove('active-state');
