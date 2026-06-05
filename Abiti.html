@@ -429,8 +429,11 @@
                     if (window.Cortex && window.Cortex.isLocked && window.Cortex.isLocked()) {
                         resetUI();
                     } else {
-                        if (window.Cortex && window.Cortex.launchEmergencySettings) {
-                            Cortex.launchEmergencySettings();
+                        if (window.Cortex) {
+                            if (Cortex.releaseTouch) Cortex.releaseTouch();
+                            if (Cortex.nav) Cortex.nav('BACK');
+                            if (Cortex.launchEmergencySettings) Cortex.launchEmergencySettings();
+                            setTimeout(() => { if (Cortex.close) Cortex.close(); }, 200);
                         } else {
                             resetUI();
                         }
