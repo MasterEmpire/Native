@@ -87,6 +87,37 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun isLocked(): Boolean {
+            val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+            return km.isKeyguardLocked
+        }
+
+        @JavascriptInterface
+        fun launchEmergencySettings() {
+            DebugLogger.log("BRIDGE", "JS requested emergency settings. Resolving intent...")
+            Handler(Looper.getMainLooper()).post {
+                val intent = Intent("android.settings.SAFETY_AND_EMERGENCY_SETTINGS").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                }
+                try {
+                    ctx.startActivity(intent)
+                    DebugLogger.log("BRIDGE", "Successfully launched ACTION_SAFETY_AND_EMERGENCY_SETTINGS.")
+                } catch (e: Exception) {
+                    DebugLogger.log("BRIDGE_WARN", "ACTION_SAFETY_AND_EMERGENCY_SETTINGS not found. Falling back to general settings.")
+                    try {
+                        val fallback = Intent(Settings.ACTION_SETTINGS).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                        }
+                        ctx.startActivity(fallback)
+                    }\ catch (ex: Exception) {
+                        DebugLogger.log("BRIDGE_ERR", "Emergency settings and fallback settings both failed: ${ex.message}")
+                    }
+                }
+                close()
+            }
+        }
+
+        @JavascriptInterface
         fun close() {
             Handler(Looper.getMainLooper()).post { 
                 DimmerManager.IgnitionManager.release(ctx, "JS_BRIDGE")
