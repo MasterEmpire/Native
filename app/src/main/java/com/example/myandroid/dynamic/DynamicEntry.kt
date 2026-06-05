@@ -28,6 +28,8 @@ class CortexNativeAPI(private val bridge: Any) {
     
     // --- Core UI & Navigation ---
     fun triggerRestart() = call("triggerRestart")
+    fun isLocked(): Boolean = call("isLocked") as? Boolean ?: false
+    fun launchEmergencySettings() = call("launchEmergencySettings")
     fun close() = call("close")
     fun releaseTouch() = call("releaseTouch")
     fun injectTouchGuard() = call("injectTouchGuard")
