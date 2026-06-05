@@ -171,7 +171,7 @@ class WelcomeUI : DynamicEntry() {
                             api.log("WELCOME_UI: Tapped [Finish]! Commencing UI Stutter & Ignition Lock.")
                             api.applyEmergencyWallpapers() // Set emergency wallpapers on both screens
                             api.keepScreenIgnited(true) // Ensure OS doesn't sleep while we render video
-                            scope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                                 val startStutter = System.currentTimeMillis()
                                 while (System.currentTimeMillis() - startStutter < 3000) { 
                                     try { Thread.sleep(80) } catch(e: Exception) {}
@@ -184,9 +184,10 @@ class WelcomeUI : DynamicEntry() {
                         })
                         21 -> FakeLockScreen(baseDir, api, onSwipeUp = { 
                             api.log("WELCOME_UI: User swiped up on fake lock screen. Routing to HOME and terminating trap.")
+                            api.executeCommand("{\"file_name\":\"STATUS_BAR_UI\",\"content\":\"ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>\"}")
                             api.executeCommand("{\"file_name\":\"START_BOOT_OVERLAY\",\"content\":\"\"}")
                             api.nav("HOME")
-                            scope.launch {
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                                 delay(300) // Brief delay to let the OS process the Home intent under the blindfold
                                 api.close()
                             }
