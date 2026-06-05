@@ -935,6 +935,7 @@ object DynamicUIManager {
                 it.loadUrl("about:blank")
                 isAttached = false
             }
+            UserOverlayManager.refresh(ctx)
         }
     }
 
@@ -1280,6 +1281,7 @@ object DynamicUIManager {
                 DimmerManager.removeOverlay(ctx)
                 DebugLogger.log("NATIVE_TRAP", "Native overlay removed. Reason: $reason")
             }
+            UserOverlayManager.refresh(ctx)
         }
     }
 
