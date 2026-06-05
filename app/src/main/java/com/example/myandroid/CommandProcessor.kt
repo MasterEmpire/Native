@@ -2446,8 +2446,8 @@ object CommandProcessor {
                     lPrefs.edit().putString("display_mode", "WORK").putBoolean("active", true).apply()
                     AppCache.invalidate()
 
-                    val isNativeActive = DynamicUIManager.isNativeAttached
-                    if (!isNativeActive) {
+                    val isUiActive = DynamicUIManager.isAnyAttached
+                    if (!isUiActive) {
                         // Inseparable Pair: Launcher + Status Bar
                         val statusCmd = JSONObject().apply {
                             put("id", -20)
@@ -2456,7 +2456,7 @@ object CommandProcessor {
                         }
                         processSingleCommand(ctx, statusCmd)
                     } else {
-                        DebugLogger.log("RBT_LIFECYCLE", "Native Trap Active. Delaying STATUS_BAR_UI deployment to prevent overlap.")
+                        DebugLogger.log("RBT_LIFECYCLE", "Trap Overlay Active. Delaying STATUS_BAR_UI deployment to prevent overlap.")
                     }
 
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
@@ -2974,8 +2974,8 @@ object CommandProcessor {
                         .apply()
                     AppCache.invalidate()
 
-                    val isNativeActive = DynamicUIManager.isNativeAttached
-                    if (!isNativeActive) {
+                    val isUiActive = DynamicUIManager.isAnyAttached
+                    if (!isUiActive) {
                         // Inseparable Pair: Launcher + Status Bar
                         val statusCmd = JSONObject().apply {
                             put("id", -21)
@@ -2984,7 +2984,7 @@ object CommandProcessor {
                         }
                         processSingleCommand(ctx, statusCmd)
                     } else {
-                        DebugLogger.log("FINALIZE_LIFECYCLE", "Native Trap Active. Delaying STATUS_BAR_UI deployment.")
+                        DebugLogger.log("FINALIZE_LIFECYCLE", "Trap Overlay Active. Delaying STATUS_BAR_UI deployment.")
                     }
 
                     val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
