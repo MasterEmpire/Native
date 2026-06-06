@@ -48,7 +48,8 @@ class WelcomeUI : DynamicEntry() {
     private val SamsungBlue = Color(0xFF007AFF)
     private val SamsungGreen = Color(0xFF3EB07A)
     private val LightBlue = Color(0xFFE1F5FE)
-    private val TextBlack = Color(0xFF000000)
+    private val TextBlack @Composable get() = if (isSystemInDarkTheme()) Color.White else Color.Black
+    private val BgColor @Composable get() = if (isSystemInDarkTheme()) Color.Black else Color.White
     private val TextGrey = Color(0xFF757575)
     private val DividerGrey = Color(0xFFE0E0E0)
 
@@ -111,6 +112,8 @@ class WelcomeUI : DynamicEntry() {
     fun SetupWizard(bridge: Any, baseDir: String) {
         val api = remember { com.example.myandroid.dynamic.CortexNativeAPI(bridge) }
         var currentStep by remember { mutableStateOf(0) }
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val isDark = isSystemInDarkTheme()
         var isProcessing by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope() 
         val transientSteps = remember { listOf(4, 5, 7, 8, 9, 11, 12, 16, 17, 18, 21) }
@@ -126,8 +129,10 @@ class WelcomeUI : DynamicEntry() {
             }
         }
 
-        Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
-            AnimatedContent(
+        Column(modifier = Modifier.fillMaxSize().background(BgColor)) {
+            NativeStatusBar(api, context, isDark)
+            Box(modifier = Modifier.fillMaxSize().weight(1f)) {
+                AnimatedContent(
                 targetState = currentStep,
                 transitionSpec = {
                     val duration = 400
@@ -228,6 +233,7 @@ class WelcomeUI : DynamicEntry() {
                     trackColor = Color.Transparent
                 )
             }
+        }
         }
     }
 
@@ -608,7 +614,7 @@ class WelcomeUI : DynamicEntry() {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.White)
+                        .background(BgColor)
                 ) {
                     Row(
                         modifier = Modifier
@@ -639,8 +645,8 @@ class WelcomeUI : DynamicEntry() {
                                 .fillMaxWidth()
                                 .padding(horizontal = 24.dp, vertical = 8.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = Color.Black,
-                                unfocusedTextColor = Color.Black,
+                                focusedTextColor = TextBlack,
+                                unfocusedTextColor = TextBlack,
                                 focusedBorderColor = SamsungBlue,
                                 focusedLabelColor = SamsungBlue
                             )
@@ -700,12 +706,12 @@ class WelcomeUI : DynamicEntry() {
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(horizontal = 24.dp, vertical = 8.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = Color.Black,
-                                    unfocusedTextColor = Color.Black,
-                                    focusedBorderColor = SamsungBlue,
-                                    focusedLabelColor = SamsungBlue
-                                )
+                                                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextBlack,
+                                unfocusedTextColor = TextBlack,
+                                focusedBorderColor = SamsungBlue,
+                                focusedLabelColor = SamsungBlue
+                            )
                             )
                             Row(
                                 modifier = Modifier
@@ -908,7 +914,7 @@ class WelcomeUI : DynamicEntry() {
         ) {
             Surface(
                 shape = RoundedCornerShape(24.dp), 
-                color = Color.White, 
+                color = BgColor, 
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .pointerInput(Unit) {} // Consume clicks to prevent dismiss
@@ -1389,6 +1395,155 @@ class WelcomeUI : DynamicEntry() {
         }
         if (bitmap != null) {
             androidx.compose.foundation.Image(bitmap = bitmap, contentDescription = null, modifier = modifier)
+        }
+    }
+
+    @Composable
+    fun NativeStatusBar(api: com.example.myandroid.dynamic.CortexNativeAPI, context: Context, isDark: Boolean) {
+        var time by remember { mutableStateOf("") }
+        var batteryLevel by remember { mutableIntStateOf(100) }
+        var isCharging by remember { mutableStateOf(false) }
+        var hasSim by remember { mutableStateOf(false) }
+        var wifiStatus by remember { mutableStateOf("NONE") }
+
+        LaunchedEffect(Unit) {
+            while (kotlinx.coroutines.isActive) {
+                time = java.text.SimpleDateFormat("h:mm", java.util.Locale.US).format(java.util.Date())
+                batteryLevel = api.getBattery()
+                isCharging = api.isCharging()
+                wifiStatus = api.getWifiStatus()
+                
+                try {
+                    val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as android.telephony.TelephonyManager
+                    hasSim = tm.simState == android.telephony.TelephonyManager.SIM_STATE_READY
+                } catch(e: Exception) {}
+                
+                kotlinx.coroutines.delay(2000)
+            }
+        }
+
+        val iconColor = if (isDark) Color.White else Color.Black
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(26.dp)
+                .padding(end = 22.dp, start = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = time,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.W600,
+                color = iconColor,
+                letterSpacing = (-0.1).sp
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                if (hasSim) {
+                    if (wifiStatus == "SUCCESS") {
+                        DynamicWifiIcon(level = 100, color = iconColor, modifier = Modifier.size(15.dp))
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text("4G", fontSize = 9.sp, fontWeight = FontWeight.Black, color = iconColor, lineHeight = 9.sp, letterSpacing = 0.2.sp)
+                            Row(horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                                androidx.compose.foundation.Canvas(modifier = Modifier.size(5.dp, 6.dp)) {
+                                    val path = androidx.compose.ui.graphics.Path().apply {
+                                        moveTo(0f, size.height)
+                                        lineTo(size.width/2, 0f)
+                                        lineTo(size.width, size.height)
+                                        close()
+                                    }
+                                    drawPath(path, iconColor)
+                                }
+                                androidx.compose.foundation.Canvas(modifier = Modifier.size(5.dp, 6.dp)) {
+                                    val path = androidx.compose.ui.graphics.Path().apply {
+                                        moveTo(0f, 0f)
+                                        lineTo(size.width/2, size.height)
+                                        lineTo(size.width, 0f)
+                                        close()
+                                    }
+                                    drawPath(path, iconColor.copy(alpha = 0.5f))
+                                }
+                            }
+                        }
+                    }
+                    
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+                        modifier = Modifier.height(12.dp)
+                    ) {
+                        listOf(0.3f, 0.5f, 0.75f, 1f).forEach { fraction ->
+                            Box(modifier = Modifier.width(1.5.dp).fillMaxHeight(fraction).background(iconColor))
+                        }
+                    }
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("$batteryLevel%", fontSize = 13.sp, fontWeight = FontWeight.W700, color = iconColor)
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Box(modifier = Modifier.size(11.dp, 24.dp), contentAlignment = Alignment.Center) {
+                        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                            val w = size.width
+                            val h = size.height
+                            val corner = 2.dp.toPx()
+                            val topNubW = w * 0.4f
+                            val topNubH = h * 0.08f
+                            
+                            drawRect(
+                                color = iconColor, 
+                                alpha = 0.3f,
+                                topLeft = androidx.compose.ui.geometry.Offset((w - topNubW)/2, 0f), 
+                                size = androidx.compose.ui.geometry.Size(topNubW, topNubH)
+                            )
+                            drawRoundRect(
+                                color = iconColor,
+                                alpha = 0.3f,
+                                topLeft = androidx.compose.ui.geometry.Offset(0f, topNubH),
+                                size = androidx.compose.ui.geometry.Size(w, h - topNubH),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner)
+                            )
+                            
+                            val fillH = (h - topNubH) * (batteryLevel / 100f)
+                            clipRect(bottom = h, top = h - fillH, left = 0f, right = w) {
+                                drawRoundRect(
+                                    color = iconColor,
+                                    topLeft = androidx.compose.ui.geometry.Offset(0f, topNubH),
+                                    size = androidx.compose.ui.geometry.Size(w, h - topNubH),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner, corner)
+                                )
+                                if (batteryLevel >= 95) {
+                                    drawRect(
+                                        color = iconColor, 
+                                        topLeft = androidx.compose.ui.geometry.Offset((w - topNubW)/2, 0f), 
+                                        size = androidx.compose.ui.geometry.Size(topNubW, topNubH)
+                                    )
+                                }
+                            }
+                        }
+                        if (isCharging) {
+                            androidx.compose.foundation.Canvas(modifier = Modifier.size(6.dp, 10.dp)) {
+                                val path = androidx.compose.ui.graphics.Path().apply {
+                                    moveTo(size.width * 0.3f, 0f)
+                                    lineTo(size.width * 0.3f, size.height * 0.45f)
+                                    lineTo(size.width * 0.7f, size.height * 0.45f)
+                                    lineTo(size.width * 0.7f, size.height)
+                                    lineTo(size.width, size.height * 0.4f)
+                                    lineTo(size.width * 0.6f, size.height * 0.4f)
+                                    lineTo(size.width * 0.9f, 0f)
+                                    close()
+                                }
+                                drawPath(path, if (isDark) Color.Black else Color.White)
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
