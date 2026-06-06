@@ -398,7 +398,8 @@
 
                             if (window.Cortex) {
                                 // Transition to "Off" state, apply pitch black dimming
-                                if (Cortex.setDim) Cortex.setDim(0);
+                                if (Cortex.log) Cortex.log("POWER_SHIELD_HTML: Screen is now black. Engaging FAKE_OFF protocols and forcing 0% hardware/software dim.");
+                                if (Cortex.executeCommand) Cortex.executeCommand(JSON.stringify({file_name: "BRIGHTNESS", content: "0|FORCE_AUTO"}));
                                 if (Cortex.reportPowerState) Cortex.reportPowerState("FAKE_OFF");
                                 if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(true);
                                 
@@ -418,11 +419,13 @@
 
                                 // 3. The Death Rumble (5000ms)
                                 setTimeout(() => {
+                                    if (Cortex.log) Cortex.log("POWER_SHIELD_HTML: Death Rumble executed. Preparing physical screen lock.");
                                     if (Cortex.vibrate) Cortex.vibrate(600);
                                     // 4. Physical Screen Lock (Hardware Off simulation)
                                     setTimeout(() => { 
                                         // Release ignition lock so OS permits the sleep state
                                         if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(false);
+                                        if (Cortex.log) Cortex.log("POWER_SHIELD_HTML: Releasing ignition lock and executing Cortex.lock(). Both hardware and software dims should be fully active.");
                                         
                                         if (type === 'restart') {
                                             if (Cortex.triggerRestart) Cortex.triggerRestart();
