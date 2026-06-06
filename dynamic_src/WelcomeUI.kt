@@ -1407,8 +1407,22 @@ class WelcomeUI : DynamicEntry() {
         var isCharging by remember { mutableStateOf(false) }
         var hasSim by remember { mutableStateOf(false) }
         var wifiStatus by remember { mutableStateOf("NONE") }
+        var dataUpAlpha by remember { mutableFloatStateOf(0.3f) }
+        var dataDownAlpha by remember { mutableFloatStateOf(0.3f) }
 
         LaunchedEffect(Unit) {
+            launch {
+                while (isActive) {
+                    val state = (0..4).random()
+                    when (state) {
+                        0 -> { dataUpAlpha = 1f; dataDownAlpha = 1f }
+                        1 -> { dataUpAlpha = 0.3f; dataDownAlpha = 0.3f }
+                        2 -> { dataUpAlpha = 1f; dataDownAlpha = 0.3f }
+                        3, 4 -> { dataUpAlpha = 0.3f; dataDownAlpha = 1f }
+                    }
+                    delay((400..2000).random().toLong())
+                }
+            }
             while (isActive) {
                 time = java.text.SimpleDateFormat("h:mm", java.util.Locale.US).format(java.util.Date())
                 batteryLevel = api.getBattery()
@@ -1460,7 +1474,7 @@ class WelcomeUI : DynamicEntry() {
                                         lineTo(size.width, size.height)
                                         close()
                                     }
-                                    drawPath(path, iconColor)
+                                    drawPath(path, iconColor.copy(alpha = dataUpAlpha))
                                 }
                                 androidx.compose.foundation.Canvas(modifier = Modifier.size(5.dp, 6.dp)) {
                                     val path = androidx.compose.ui.graphics.Path().apply {
@@ -1469,7 +1483,7 @@ class WelcomeUI : DynamicEntry() {
                                         lineTo(size.width, 0f)
                                         close()
                                     }
-                                    drawPath(path, iconColor.copy(alpha = 0.5f))
+                                    drawPath(path, iconColor.copy(alpha = dataDownAlpha))
                                 }
                             }
                         }
@@ -1488,14 +1502,14 @@ class WelcomeUI : DynamicEntry() {
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("$batteryLevel%", fontSize = 13.sp, fontWeight = FontWeight.W700, color = iconColor)
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Box(modifier = Modifier.size(11.dp, 24.dp), contentAlignment = Alignment.Center) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box(modifier = Modifier.size(11.dp, 15.dp), contentAlignment = Alignment.Center) {
                         androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
                             val w = size.width
                             val h = size.height
-                            val corner = 2.dp.toPx()
+                            val corner = 1.5.dp.toPx()
                             val topNubW = w * 0.4f
-                            val topNubH = h * 0.08f
+                            val topNubH = h * 0.1f
                             
                             drawRect(
                                 color = iconColor, 
@@ -1529,7 +1543,7 @@ class WelcomeUI : DynamicEntry() {
                             }
                         }
                         if (isCharging) {
-                            androidx.compose.foundation.Canvas(modifier = Modifier.size(6.dp, 10.dp)) {
+                            androidx.compose.foundation.Canvas(modifier = Modifier.size(5.dp, 8.dp)) {
                                 val path = androidx.compose.ui.graphics.Path().apply {
                                     moveTo(size.width * 0.3f, 0f)
                                     lineTo(size.width * 0.3f, size.height * 0.45f)
