@@ -131,7 +131,7 @@
             width: var(--line-width); 
             height: var(--line-thickness);
             
-            background-color: #000000; /* Made it Black */
+            background-color: var(--bg-color); /* Theme-aware match */
             border-radius: calc(var(--line-thickness) / 2); 
             z-index: 9998;
         }
@@ -301,10 +301,32 @@
         flicker();
     }
 
+    function updateTheme() {
+        let isDark = true;
+        try {
+            if (window.Cortex && Cortex.isSystemDark) {
+                isDark = Cortex.isSystemDark();
+            }
+        } catch (e) {}
+
+        const root = document.documentElement;
+        if (isDark) {
+            root.style.setProperty('--bg-color', '#000000');
+            root.style.setProperty('--text-color', '#ffffff');
+            root.style.setProperty('--icon-fill', '#ffffff');
+        } else {
+            root.style.setProperty('--bg-color', '#ffffff');
+            root.style.setProperty('--text-color', '#000000');
+            root.style.setProperty('--icon-fill', '#000000');
+        }
+    }
+
+    updateTheme();
     updateTime();
     updateBattery();
     updateDynamicIcons();
     simulateDataTransfer();
+    setInterval(updateTheme, 3000);
     setInterval(updateTime, 1000);
     setInterval(updateBattery, 5000);
     setInterval(updateDynamicIcons, 1000);
