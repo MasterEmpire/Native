@@ -42,6 +42,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.example.myandroid.dynamic.DynamicEntry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
+import androidx.compose.ui.graphics.drawscope.clipRect
 
 class WelcomeUI : DynamicEntry() {
 
@@ -1407,7 +1409,7 @@ class WelcomeUI : DynamicEntry() {
         var wifiStatus by remember { mutableStateOf("NONE") }
 
         LaunchedEffect(Unit) {
-            while (kotlinx.coroutines.isActive) {
+            while (isActive) {
                 time = java.text.SimpleDateFormat("h:mm", java.util.Locale.US).format(java.util.Date())
                 batteryLevel = api.getBattery()
                 isCharging = api.isCharging()
