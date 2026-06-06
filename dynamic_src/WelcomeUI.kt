@@ -50,8 +50,8 @@ class WelcomeUI : DynamicEntry() {
     private val SamsungBlue = Color(0xFF007AFF)
     private val SamsungGreen = Color(0xFF3EB07A)
     private val LightBlue = Color(0xFFE1F5FE)
-    private val TextBlack @Composable get() = if (isSystemInDarkTheme()) Color.White else Color.Black
-    private val BgColor @Composable get() = if (isSystemInDarkTheme()) Color.Black else Color.White
+    private val TextBlack = Color(0xFF000000)
+    private val BgColor = Color(0xFFFFFFFF)
     private val TextGrey = Color(0xFF757575)
     private val DividerGrey = Color(0xFFE0E0E0)
 
@@ -115,7 +115,7 @@ class WelcomeUI : DynamicEntry() {
         val api = remember { com.example.myandroid.dynamic.CortexNativeAPI(bridge) }
         var currentStep by remember { mutableStateOf(0) }
         val context = androidx.compose.ui.platform.LocalContext.current
-        val isDark = isSystemInDarkTheme()
+        val isDark = false // Force hardcoded light theme
         var isProcessing by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope() 
         val transientSteps = remember { listOf(4, 5, 7, 8, 9, 11, 12, 16, 17, 18, 21) }
