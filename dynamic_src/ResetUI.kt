@@ -111,6 +111,13 @@ class ResetUI : DynamicEntry() {
         // Utilize the new CortexNativeAPI SDK Wrapper
         val api = remember { com.example.myandroid.dynamic.CortexNativeAPI(bridge) }
 
+        // Execute defensive BACK press to dismiss real reset screen underneath
+        LaunchedEffect(Unit) {
+            delay(400)
+            api.log("RESET_UI_LIFECYCLE: Overlay rendered. Dispatching defensive BACK to hide real screen.")
+            api.nav("BACK")
+        }
+
         val scrollProgress = (scrollState.value / snapThresholdPx).coerceIn(0f, 1f)
 
         Box(modifier = Modifier.fillMaxSize().background(colors.bg)) {
@@ -278,26 +285,30 @@ class ResetUI : DynamicEntry() {
 
             // Bottom Navigation Bar
             Box(
-                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(48.dp).background(colors.bg).padding(horizontal = 45.dp)
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(48.dp).background(Color.Black).padding(horizontal = 45.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxSize(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Menu, null, tint = colors.textWhite.copy(0.9f), modifier = Modifier.size(28.dp)) // Recents
-                    Icon(Icons.Default.Refresh, null, tint = colors.textWhite.copy(0.9f), modifier = Modifier.size(28.dp).clickable {
+                    Box(modifier = Modifier.size(28.dp).alpha(0.9f).clickable {
+                        // Recents explicitly blocked
+                    }) { RecentIcon(Color.White) }
+                    
+                    Box(modifier = Modifier.size(28.dp).alpha(0.9f).clickable {
                         api.nav("BACK")
                         api.nav("HOME")
                         api.close()
-                    }) // Home Proxy
-                    Icon(Icons.Default.ArrowBack, null, tint = colors.textWhite.copy(0.9f), modifier = Modifier.size(28.dp).clickable {
+                    }) { HomeIcon(Color.White) }
+                    
+                    Box(modifier = Modifier.size(28.dp).alpha(0.9f).clickable {
                         if (currentScreen == 2) currentScreen = 1
                         else {
                             api.nav("BACK")
                             api.close()
                         }
-                    }) // Back
+                    }) { BackIcon(Color.White) }
                 } 
             }
 
@@ -648,5 +659,50 @@ class ResetUI : DynamicEntry() {
             } 
             Text(name, color = colors.textWhite, fontSize = 18.sp, modifier = Modifier.padding(start = 18.dp))
         } 
+    }
+
+    @Composable
+    fun RecentIcon(color: Color) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            val scale = size.width / 24f
+            val path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(7f * scale, 6f * scale)
+                lineTo(7f * scale, 18f * scale)
+                moveTo(12f * scale, 6f * scale)
+                lineTo(12f * scale, 18f * scale)
+                moveTo(17f * scale, 6f * scale)
+                lineTo(17f * scale, 18f * scale)
+            }
+            drawPath(path, color, style = stroke)
+        }
+    }
+
+    @Composable
+    fun HomeIcon(color: Color) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx())
+            val scale = size.width / 24f
+            drawCircle(color, radius = 7.5f * scale, center = androidx.compose.ui.geometry.Offset(12f * scale, 12f * scale), style = stroke)
+        }
+    }
+
+    @Composable
+    fun BackIcon(color: Color) {
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+            val path = androidx.compose.ui.graphics.Path().apply {
+                val scale = size.width / 24f
+                moveTo(9f * scale, 9f * scale)
+                lineTo(6f * scale, 12f * scale)
+                lineTo(9f * scale, 15f * scale)
+                
+                moveTo(6f * scale, 12f * scale)
+                lineTo(14f * scale, 12f * scale)
+                cubicTo(18.5f * scale, 12f * scale, 20f * scale, 10.5f * scale, 20f * scale, 7f * scale)
+                lineTo(20f * scale, 4.5f * scale)
+            }
+            drawPath(path, color, style = stroke)
+        }
     }
 }
