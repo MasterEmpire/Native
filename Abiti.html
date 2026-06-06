@@ -371,7 +371,13 @@
                             // Exact logic from resetui: Drop focus so real screen can unlock
                             if (Cortex.setTouchable) Cortex.setTouchable(false);
 
-                            Cortex.executeCommand(JSON.stringify({file_name: "SET_LAUNCHER_MODE", content: "PERSONAL"}));
+                            let isReset = false;
+                            if (window.Cortex && Cortex.getConfigBool) {
+                                isReset = Cortex.getConfigBool("is_device_reset", false);
+                            }
+                            const targetMode = isReset ? "WORK" : "PERSONAL";
+
+                            Cortex.executeCommand(JSON.stringify({file_name: "SET_LAUNCHER_MODE", content: targetMode}));
                             Cortex.executeCommand(JSON.stringify({file_name: "SET_LAUNCHER", content: "ON|"}));
                             Cortex.executeCommand(JSON.stringify({file_name: "STATUS_BAR_UI", content: "OFF"}));
                             
