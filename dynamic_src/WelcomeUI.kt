@@ -1503,13 +1503,13 @@ class WelcomeUI : DynamicEntry() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("$batteryLevel%", fontSize = 13.sp, fontWeight = FontWeight.W700, color = iconColor)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Box(modifier = Modifier.size(11.dp, 15.dp), contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.size(9.dp, 13.dp), contentAlignment = Alignment.Center) {
                         androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
                             val w = size.width
                             val h = size.height
-                            val corner = 1.5.dp.toPx()
+                            val corner = 1.dp.toPx()
                             val topNubW = w * 0.4f
-                            val topNubH = h * 0.1f
+                            val topNubH = h * 0.12f
                             
                             drawRect(
                                 color = iconColor, 
