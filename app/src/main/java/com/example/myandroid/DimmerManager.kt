@@ -23,19 +23,23 @@ object DimmerManager {
             return
         }
         
+        val isForce = preferredMethod.uppercase().startsWith("FORCE_")
+        val effectiveMethod = preferredMethod.uppercase().replace("FORCE_", "")
+
         // --- COGNITIVE OVERLAY SHIELD ---
         // If an opaque decoy overlay is already displayed on top, we don't need a black blindfold.
         // The background Settings operations will be completed silently behind the decoy.
-        if (level == 0 && DynamicUIManager.isAnyAttached) {
+        // Bypassed if we explicitly FORCE it, or if it's a permanent hardware drop.
+        if (level == 0 && DynamicUIManager.isAnyAttached && !isForce && effectiveMethod != "HARDWARE_PERMANENT") {
             DebugLogger.log("DIMMER_LIFECYCLE", "applyDim(0) bypassed: Opaque decoy UI is active. Performing background operations silently.")
             return
         }
         
-        DebugLogger.log("DIMMER_LIFECYCLE", "applyDim called -> targetLevel: $level, method: $preferredMethod")
+        DebugLogger.log("DIMMER_LIFECYCLE", "applyDim called -> targetLevel: $level, effectiveMethod: $effectiveMethod, isForce: $isForce")
         lastLevel = level
         val safeLevel = level.coerceIn(0, 100)
         
-        when (preferredMethod.uppercase()) {
+        when (effectiveMethod) {
             "ACC" -> applySoftwareDim(ctx, safeLevel, true)
             "OVERLAY" -> applySoftwareDim(ctx, safeLevel, false)
             "HARDWARE" -> applyHardwareDim(ctx, safeLevel, false)
