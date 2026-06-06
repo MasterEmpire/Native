@@ -51,15 +51,14 @@
                     if (Cortex.setTouchable) Cortex.setTouchable(false);
                 }
 
-                setTimeout(() => {
-                    // 1. Initial "Power On" Haptics and Brightness Restoration
-                    if (window.Cortex) {
-                        if (Cortex.vibrate) Cortex.vibrate(150);
-                        if (Cortex.executeCommand) {
-                            Cortex.executeCommand(JSON.stringify({file_name: "BRIGHTNESS", content: "70|HARDWARE_PERMANENT"}));
-                            Cortex.executeCommand(JSON.stringify({file_name: "RESET_BACKGROUND_TASKS", content: "PERSONAL"}));
+                                    setTimeout(() => {
+                        // 1. Initial "Power On" Haptics and Brightness Restoration
+                        if (window.Cortex) {
+                            if (Cortex.vibrate) Cortex.vibrate(150);
+                            if (Cortex.executeCommand) {
+                                Cortex.executeCommand(JSON.stringify({file_name: "BRIGHTNESS", content: "70|HARDWARE_PERMANENT"}));
+                            }
                         }
-                    }
 
                     // 2. Phase 1: Show Boot Image 1 (Samsung / Knox Screen)
                     b1.style.display = 'block';
