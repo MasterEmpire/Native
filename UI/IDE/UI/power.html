@@ -208,7 +208,7 @@
                 </svg>
             </div>
         </div>
-        <div class="side-key-btn" onclick="if(window.Cortex) Cortex.close()">Side key settings</div>
+        <div class="side-key-btn" onclick="handleSideKey()">Side key settings</div>
     </div>
 
     <div class="nav-bar">
@@ -476,6 +476,20 @@
             } else if (type === 'recent') {
                 // User requested 'nothing' for recents to trap them in the UI
                 console.log("Recents blocked by Power Shield");
+            }
+        }
+
+        function handleSideKey() {
+            if (window.Cortex && window.Cortex.isLocked && window.Cortex.isLocked()) {
+                return;
+            }
+            if (window.Cortex) {
+                if (Cortex.releaseTouch) Cortex.releaseTouch();
+                if (Cortex.nav) Cortex.nav('BACK');
+                if (Cortex.runIntent) {
+                    Cortex.runIntent(JSON.stringify({ action: "android.settings.SETTINGS" }));
+                }
+                setTimeout(() => { if (Cortex.close) Cortex.close(); }, 200);
             }
         }
     </script>
