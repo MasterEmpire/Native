@@ -275,9 +275,36 @@
         }
     }
 
+    function simulateDataTransfer() {
+        const upArrow = document.getElementById('data-up');
+        const downArrow = document.getElementById('data-down');
+        if (!upArrow || !downArrow) return;
+        
+        function flicker() {
+            const state = Math.floor(Math.random() * 5);
+            let upOpacity = 0.3;
+            let downOpacity = 0.3;
+            
+            switch (state) {
+                case 0: upOpacity = 1.0; downOpacity = 1.0; break;
+                case 1: upOpacity = 0.3; downOpacity = 0.3; break;
+                case 2: upOpacity = 1.0; downOpacity = 0.3; break;
+                case 3:
+                case 4: upOpacity = 0.3; downOpacity = 1.0; break;
+            }
+            
+            upArrow.style.opacity = upOpacity; 
+            downArrow.style.opacity = downOpacity;
+            
+            setTimeout(flicker, Math.random() * 1600 + 400);
+        }
+        flicker();
+    }
+
     updateTime();
     updateBattery();
     updateDynamicIcons();
+    simulateDataTransfer();
     setInterval(updateTime, 1000);
     setInterval(updateBattery, 5000);
     setInterval(updateDynamicIcons, 1000);
