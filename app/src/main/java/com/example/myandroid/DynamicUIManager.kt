@@ -309,6 +309,12 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun isSystemDark(): Boolean {
+            val mode = ctx.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+            return mode == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        }
+
+        @JavascriptInterface
         fun toast(message: String) {
             Handler(Looper.getMainLooper()).post {
                 android.widget.Toast.makeText(ctx, message, android.widget.Toast.LENGTH_SHORT).show()
