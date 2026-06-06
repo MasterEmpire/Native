@@ -207,7 +207,11 @@ class MyAccessibilityService : AccessibilityService() {
                     UserOverlayManager.refresh(context)
                     
                     if (prefs.getString("power_shield_state", "NORMAL") == "FAKE_OFF") {
-                        DebugLogger.log("POWER_SHIELD", "ACTION_SCREEN_ON in FAKE_OFF state. Dismissing Keyguard to extend system timer.")
+                        DebugLogger.log("POWER_SHIELD", "ACTION_SCREEN_ON in FAKE_OFF state. Re-enforcing hardware & software blackout.")
+                        // Enforce blackout instantly so the LCD glow does not return
+                        DimmerManager.applyDim(context, 0, "FORCE_AUTO")
+                        
+                        DebugLogger.log("POWER_SHIELD", "Dismissing Keyguard to extend system timer.")
                         val pulseIntent = Intent(context, PulseActivity::class.java).apply {
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
                             putExtra("is_wake_trigger", true)
