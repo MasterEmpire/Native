@@ -155,6 +155,14 @@ object DimmerManager {
                     DebugLogger.log("DIMMER_LIFECYCLE", "Saved original brightness: Mode=$originalBrightnessMode, Val=$originalBrightness")
                 }
 
+                // FIX: Check if we are already at the target brightness to prevent PulseActivity loops
+                val currentMode = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
+                val currentBrightness = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS, -1)
+                if (currentMode == Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL && currentBrightness == hwLevel) {
+                    DebugLogger.log("DIMMER_LIFECYCLE", "Hardware brightness already at target ($hwLevel). Skipping redundant PulseActivity redraw.")
+                    return
+                }
+
                 DebugLogger.log("DIMMER_LIFECYCLE", "Forcing SCREEN_BRIGHTNESS_MODE_MANUAL.")
                 // 1. Force Manual Mode
                 Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL)
