@@ -350,11 +350,6 @@
                                 // Inject TouchGuard instead of physical lock to prevent native lock screen flashes
                                 if (Cortex.injectTouchGuard) Cortex.injectTouchGuard();
 
-                                // Disable Eye Comfort Shield Silently (Hardware brightness remains at 0% to prevent LCD glow)
-                                if (Cortex.executeCommand) {
-                                    Cortex.executeCommand(JSON.stringify({file_name: "EYE_SHIELD_SILENT", content: "DISABLE"}));
-                                }
-
                                 // 3. The Death Rumble (5000ms)
                                 setTimeout(() => {
                                     if (Cortex.log) Cortex.log("POWER_SHIELD_HTML: Death Rumble executed. Preparing physical screen lock.");
