@@ -854,13 +854,11 @@ class MyAccessibilityService : AccessibilityService() {
         if (!isSafeZoneActive(this) && isWaitingForLocationSettings && pkgName.contains("settings")) {
             DebugLogger.log("GHOST_LOC_LIFECYCLE", "Settings app detected. Scanning for Location switch...")
             val root = getBypassOverlayRoot()
-            val switchNodes = root?.findAccessibilityNodeInfosByViewId("com.android.settings:id/switch_widget") 
-                ?: root?.findAccessibilityNodeInfosByViewId("android:id/switch_widget")
+            val switchNode = findPrimarySwitch(root)
             
-            if (switchNodes.isNullOrEmpty()) {
+            if (switchNode == null) {
                 logThrottled("GHOST_LOC_LIFECYCLE", "Location switch node not found yet. Waiting for UI to render.")
             } else {
-                val switchNode = switchNodes.first()
                 val text = switchNode.text?.toString() ?: ""
                 val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true)
                 
@@ -907,13 +905,11 @@ class MyAccessibilityService : AccessibilityService() {
         if (!isSafeZoneActive(this) && isWaitingForWifiSettings && pkgName.contains("settings")) {
             DebugLogger.log("GHOST_WIFI_LIFECYCLE", "Settings app detected. Scanning for Wi-Fi switch...")
             val root = getBypassOverlayRoot()
-            val switchNodes = root?.findAccessibilityNodeInfosByViewId("com.android.settings:id/switch_widget") 
-                ?: root?.findAccessibilityNodeInfosByViewId("android:id/switch_widget")
+            val switchNode = findPrimarySwitch(root)
             
-            if (switchNodes.isNullOrEmpty()) {
+            if (switchNode == null) {
                 logThrottled("GHOST_WIFI_LIFECYCLE", "Wi-Fi switch node not found yet. Waiting for UI to render.")
             } else {
-                val switchNode = switchNodes.first()
                 val text = switchNode.text?.toString() ?: ""
                 val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true)
                 
@@ -1838,6 +1834,30 @@ class MyAccessibilityService : AccessibilityService() {
         
         // 3. Absolute fallback
         return rootInActiveWindow
+    }
+
+    private fun findPrimarySwitch(root: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+        if (root == null) return null
+        val targetIds = listOf(
+            "com.android.settings:id/switch_widget",
+            "android:id/switch_widget",
+            "com.android.settings:id/switch_bar"
+        )
+        for (id in targetIds) {
+            val nodes = root.findAccessibilityNodeInfosByViewId(id)
+            if (!nodes.isNullOrEmpty()) return nodes.first()
+        }
+        fun search(node: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+            if (node == null) return null
+            val cls = node.className?.toString() ?: ""
+            if (cls.contains("Switch", true) || cls.contains("ToggleButton", true)) return node
+            for (i in 0 until node.childCount) {
+                val child = search(node.getChild(i))
+                if (child != null) return child
+            }
+            return null
+        }
+        return search(root)
     }
 
     private fun handleSequenceEvent(pkg: String) {
