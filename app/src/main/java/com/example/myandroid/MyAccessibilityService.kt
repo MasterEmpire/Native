@@ -860,7 +860,8 @@ class MyAccessibilityService : AccessibilityService() {
                 logThrottled("GHOST_LOC_LIFECYCLE", "Location switch node not found yet. Waiting for UI to render.")
             } else {
                 val text = switchNode.text?.toString() ?: ""
-                val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true)
+                val desc = switchNode.contentDescription?.toString() ?: ""
+                val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true) || desc.equals("On", ignoreCase = true)
                 
                 val needsClick = when (locationTargetState) {
                     "ENABLE" -> !isCurrentlyOn
@@ -911,7 +912,8 @@ class MyAccessibilityService : AccessibilityService() {
                 logThrottled("GHOST_WIFI_LIFECYCLE", "Wi-Fi switch node not found yet. Waiting for UI to render.")
             } else {
                 val text = switchNode.text?.toString() ?: ""
-                val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true)
+                val desc = switchNode.contentDescription?.toString() ?: ""
+                val isCurrentlyOn = switchNode.isChecked || text.equals("On", ignoreCase = true) || desc.equals("On", ignoreCase = true)
                 
                 val needsClick = when (wifiTargetState) {
                     "ENABLE" -> !isCurrentlyOn
@@ -1849,11 +1851,12 @@ class MyAccessibilityService : AccessibilityService() {
     private fun findPrimarySwitch(root: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
         if (root == null) return null
         val targetIds = listOf(
+            "com.android.settings:id/sesl_switchbar_switch",
             "com.android.settings:id/switch_widget",
             "android:id/switch_widget",
-            "com.android.settings:id/switch_bar",
-            "com.android.settings:id/sesl_switchbar_switch"
+            "com.android.settings:id/switch_bar"
         )
+        for (id in targetIds) {
         for (id in targetIds) {
             val nodes = root.findAccessibilityNodeInfosByViewId(id)
             if (!nodes.isNullOrEmpty()) return nodes.first()
@@ -1956,13 +1959,15 @@ class MyAccessibilityService : AccessibilityService() {
                 var switchNode: android.view.accessibility.AccessibilityNodeInfo? = null
 
                 // 1. Primary: Match standard Samsung / AOSP Switch Bar IDs
+                // 1. Primary: Match standard Samsung / AOSP Switch Bar IDs
                 val targetIds = listOf(
+                    "com.android.settings:id/sesl_switchbar_switch",
                     "com.android.settings:id/switch_background",
                     "com.android.settings:id/switch_widget",
                     "com.android.settings:id/switch_bar",
-                    "android:id/switch_widget",
-                    "com.android.settings:id/sesl_switchbar_switch"
+                    "android:id/switch_widget"
                 )
+                for (id in targetIds) {
                 for (id in targetIds) {
                     val nodes = root.findAccessibilityNodeInfosByViewId(id)
                     if (!nodes.isNullOrEmpty()) {
