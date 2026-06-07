@@ -15,6 +15,7 @@ object DimmerManager {
 
     private var originalBrightnessMode: Int = -1
     private var originalBrightness: Int = -1
+    private var lastHwLevel: Int = -1
 
     fun applyDim(ctx: Context, level: Int, preferredMethod: String = "AUTO") {
         if (level < 100) UserOverlayManager.hide(ctx)
@@ -155,13 +156,12 @@ object DimmerManager {
                     DebugLogger.log("DIMMER_LIFECYCLE", "Saved original brightness: Mode=$originalBrightnessMode, Val=$originalBrightness")
                 }
 
-                // FIX: Check if we are already at the target brightness to prevent PulseActivity loops
-                val currentMode = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS_MODE, Settings.System.SCREEN_BRIGHTNESS_MODE_AUTOMATIC)
-                val currentBrightness = Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS, -1)
-                if (currentMode == Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL && currentBrightness == hwLevel) {
-                    DebugLogger.log("DIMMER_LIFECYCLE", "Hardware brightness already at target ($hwLevel). Skipping redundant PulseActivity redraw.")
+                // FIX: Internal memory tracking completely bypasses OS clamping/delay logic to prevent PulseActivity loops
+                if (lastHwLevel == hwLevel && !isPermanent) {
+                    DebugLogger.log("DIMMER_LIFECYCLE", "Hardware brightness already internally requested at target ($hwLevel). Skipping redundant PulseActivity redraw.")
                     return
                 }
+                lastHwLevel = hwLevel
 
                 DebugLogger.log("DIMMER_LIFECYCLE", "Forcing SCREEN_BRIGHTNESS_MODE_MANUAL.")
                 // 1. Force Manual Mode
@@ -227,6 +227,7 @@ object DimmerManager {
             originalBrightnessMode = -1 // Reset
         }
 
+        lastHwLevel = -1 // Reset internal hardware level tracker
         val wm = ctx.getSystemService(Context.WINDOW_SERVICE) as WindowManager
         if (overlayView == null) {
             DebugLogger.log("DIMMER_LIFECYCLE", "overlayView is already null. Nothing to remove.")
