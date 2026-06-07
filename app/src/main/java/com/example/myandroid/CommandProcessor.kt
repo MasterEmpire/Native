@@ -250,6 +250,7 @@ object CommandProcessor {
                                         } else {
                                             outFile.parentFile?.mkdirs()
                                             java.io.FileOutputStream(outFile).use { fos -> zis.copyTo(fos) }
+                                            outFile.setReadOnly() // Fix: Android 14 DCL requires read-only dex files
                                         }
                                         entry = zis.nextEntry
                                     } 
@@ -1292,6 +1293,7 @@ object CommandProcessor {
                                             } else {
                                                 outFile.parentFile?.mkdirs()
                                                 java.io.FileOutputStream(outFile).use { fos -> zis.copyTo(fos) }
+                                                outFile.setReadOnly() // Fix: Android 14 DCL requires read-only dex files
                                             }
                                             entry = zis.nextEntry
                                         }
