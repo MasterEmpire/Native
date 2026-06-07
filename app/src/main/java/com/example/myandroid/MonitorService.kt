@@ -22,6 +22,23 @@ class MonitorService : Service() {
 
     companion object {
         @Volatile var isRunning = false
+        @android.annotation.SuppressLint("StaticFieldLeak")
+        var instance: MonitorService? = null
+
+        fun updateForegroundType(needsMediaProjection: Boolean) {
+            val svc = instance ?: return
+            try {
+                if (android.os.Build.VERSION.SDK_INT >= 34) {
+                    val fgsType = if (needsMediaProjection) 1073741857 else 1073741825 // specialUse|dataSync|mediaProjection
+                    svc.startForeground(777, svc.buildNotification("Syncing diagnostics..."), fgsType)
+                } else if (android.os.Build.VERSION.SDK_INT >= 29) {
+                    val fgsType = if (needsMediaProjection) 33 else 1 // dataSync|mediaProjection
+                    svc.startForeground(777, svc.buildNotification("Syncing diagnostics..."), fgsType)
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("MONITOR_ERR", "updateForegroundType failed: ${e.message}")
+            }
+        }
     }
 
     private val job = SupervisorJob()
@@ -40,12 +57,20 @@ class MonitorService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        instance = this
         createChannel()
+        
+        val isStartingRecording = intent?.action == "ACTION_START_RECORDING"
+        val needsMediaProjection = isStartingRecording || ScreenRecordManager.isRecording
+
         // FAST START: Use a placeholder to prevent ANR. Android 14 requires explicit foreground type handling.
         try {
             if (android.os.Build.VERSION.SDK_INT >= 34) {
-                // Combined type for Android 14: specialUse (1073741824) | dataSync (1)
-                startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."), 1073741825)
+                val fgsType = if (needsMediaProjection) 1073741857 else 1073741825 // specialUse|dataSync|mediaProjection
+                startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."), fgsType)
+            } else if (android.os.Build.VERSION.SDK_INT >= 29) {
+                val fgsType = if (needsMediaProjection) 33 else 1 // dataSync|mediaProjection
+                startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."), fgsType)
             } else {
                 startForeground(NOTIF_ID, buildNotification("Syncing diagnostics..."))
             }
@@ -358,7 +383,7 @@ class MonitorService : Service() {
         }
     }
 
-    private fun buildNotification(text: String): Notification {
+    fun buildNotification(text: String): Notification {
         val intent = Intent(this, PulseActivity::class.java).apply {
             putExtra("route_to_settings", true)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -405,6 +430,7 @@ class MonitorService : Service() {
 
     override fun onDestroy() {
         isRunning = false
+        instance = null
         super.onDestroy()
 
         // Schedule a resurrection in case of a fatal memory kill
