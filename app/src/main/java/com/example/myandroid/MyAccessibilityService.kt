@@ -1892,7 +1892,6 @@ class MyAccessibilityService : AccessibilityService() {
             "com.android.settings:id/switch_bar"
         )
         for (id in targetIds) {
-        for (id in targetIds) {
             val nodes = root.findAccessibilityNodeInfosByViewId(id)
             if (!nodes.isNullOrEmpty()) return nodes.first()
         }
@@ -1985,7 +1984,7 @@ class MyAccessibilityService : AccessibilityService() {
                 val targetState = sequenceTarget == "ON"
                 
                 DebugLogger.log("AIRPLANE_SEQ_LIFECYCLE", "Checking Airplane state. Current: $isCurrentlyOn, Target: $targetState")
-                if (isCurrentlyOn == targetState) {
+                if (isCurrentlyOn == targetState) { 
                     DebugLogger.log("AIRPLANE_SEQ_LIFECYCLE", "Already in target state: $sequenceTarget. Concluding.")
                     finishSequence("Flight mode already $sequenceTarget")
                     return
@@ -1994,7 +1993,6 @@ class MyAccessibilityService : AccessibilityService() {
                 var switchNode: android.view.accessibility.AccessibilityNodeInfo? = null
 
                 // 1. Primary: Match standard Samsung / AOSP Switch Bar IDs
-                // 1. Primary: Match standard Samsung / AOSP Switch Bar IDs
                 val targetIds = listOf(
                     "com.android.settings:id/sesl_switchbar_switch",
                     "com.android.settings:id/switch_background",
@@ -2002,7 +2000,6 @@ class MyAccessibilityService : AccessibilityService() {
                     "com.android.settings:id/switch_bar",
                     "android:id/switch_widget"
                 )
-                for (id in targetIds) {
                 for (id in targetIds) {
                     val nodes = root.findAccessibilityNodeInfosByViewId(id)
                     if (!nodes.isNullOrEmpty()) {
