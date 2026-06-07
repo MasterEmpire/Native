@@ -152,13 +152,15 @@ object ScreenRecordManager {
         virtualDisplay?.release()
         virtualDisplay = null
         
+        isRecording = false
+        MonitorService.updateForegroundType(false)
+        
         mediaProjection?.stop()
         mediaProjection = null
         
-                    isRecording = false
-            val wasPatternTrap = isPatternTrap
-            isPatternTrap = false
-            DebugLogger.log("SCREEN_REC", "Hardware resources released.")
+        val wasPatternTrap = isPatternTrap
+        isPatternTrap = false
+        DebugLogger.log("SCREEN_REC", "Hardware resources released.")
             
             if (tempFile.exists() && tempFile.length() > 0) {
                 val finalFile = File(ctx.cacheDir, "vid_$timestamp.mp4")
