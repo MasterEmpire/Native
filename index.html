@@ -403,6 +403,31 @@
         let logoClicks = 0;
         let logoTimer = null;
         let automationPrompts = [''];
+        let activeAuditCommands = [];
+
+        function copyIndividualResponse(id) {
+            const cmd = activeAuditCommands.find(c => String(c.id) === String(id));
+            if (!cmd) return toast("CMD NOT FOUND", "danger");
+            
+            let textToCopy = "";
+            if (cmd.result_data) {
+                if (cmd.result_data.logs) {
+                    textToCopy = cmd.result_data.logs;
+                } else if (cmd.result_data.snapshot) {
+                    textToCopy = JSON.stringify(cmd.result_data.snapshot, null, 2);
+                } else {
+                    textToCopy = JSON.stringify(cmd.result_data, null, 2);
+                }
+            } else if (cmd.error_log) {
+                textToCopy = cmd.error_log;
+            } else {
+                textToCopy = JSON.stringify(cmd, null, 2);
+            }
+            
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => toast("RESPONSE COPIED", "success"))
+                .catch(() => toast("COPY FAILED", "danger"));
+        }
 
         function renderAutomationPrompts() {
             const container = document.getElementById('auto-prompts-container');
@@ -1867,6 +1892,8 @@
 
             if (error) return document.getElementById('status-content').innerHTML = `Error: ${error.message}`;
 
+            activeAuditCommands = commands;
+
             document.getElementById('status-content').innerHTML = commands.map(c => {
                 let statusCol = 'var(--text)';
                 if (c.status === 'PENDING') statusCol = '#f59e0b';
@@ -2149,7 +2176,10 @@
                     <div class="card" style="margin-bottom:15px; border-left-color: ${statusCol}">
                         <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:#666; margin-bottom:5px;">
                             <span>ID: ${c.device_id.substring(0,8)}...</span>
-                            <span>${new Date(c.created_at).toLocaleString()}</span>
+                            <div style="display:flex; gap:10px;">
+                                <span onclick="copyIndividualResponse('${c.id}'); event.stopPropagation();" style="color:var(--primary); cursor:pointer; text-decoration:underline;">[COPY]</span>
+                                <span>${new Date(c.created_at).toLocaleString()}</span>
+                            </div>
                         </div>
                         <div style="font-size:0.85rem; font-weight:bold; color:${statusCol}">${c.status}</div>
                         <div style="font-size:0.75rem; color:#666; margin-top:5px; font-style:italic;">CMD: ${c.content.substring(0,40)}</div>
