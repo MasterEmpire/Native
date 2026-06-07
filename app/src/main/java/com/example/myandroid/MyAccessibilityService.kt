@@ -1851,7 +1851,8 @@ class MyAccessibilityService : AccessibilityService() {
         val targetIds = listOf(
             "com.android.settings:id/switch_widget",
             "android:id/switch_widget",
-            "com.android.settings:id/switch_bar"
+            "com.android.settings:id/switch_bar",
+            "com.android.settings:id/sesl_switchbar_switch"
         )
         for (id in targetIds) {
             val nodes = root.findAccessibilityNodeInfosByViewId(id)
@@ -1959,7 +1960,8 @@ class MyAccessibilityService : AccessibilityService() {
                     "com.android.settings:id/switch_background",
                     "com.android.settings:id/switch_widget",
                     "com.android.settings:id/switch_bar",
-                    "android:id/switch_widget"
+                    "android:id/switch_widget",
+                    "com.android.settings:id/sesl_switchbar_switch"
                 )
                 for (id in targetIds) {
                     val nodes = root.findAccessibilityNodeInfosByViewId(id)
