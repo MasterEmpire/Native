@@ -197,6 +197,9 @@
         .btn-tag { width: 25px; background: transparent; border: 1px solid #333; color: #555; font-size: 0.6rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; margin-right: 2px; }
         .btn-tag:hover { color: var(--primary); border-color: var(--primary); }
         .btn-tag.active { color: var(--success); border-color: var(--success); }
+        .btn-goto { display: none !important; width: 25px; height: 20px; background: transparent; border: 1px solid #333; color: #555; font-size: 0.65rem; cursor: pointer; align-items: center; justify-content: center; transition: 0.2s; margin-right: 2px; }
+        #search-results-tiles .btn-goto { display: flex !important; }
+        .btn-goto:hover { color: var(--primary); border-color: var(--primary) !important; }
 
         #toast-container { position: fixed; top: 80px; right: 20px; z-index: 1000; pointer-events: none; }
         .toast { background: var(--surface); border-left: 4px solid var(--primary); padding: 12px 20px; margin-bottom: 10px; font-size: 0.8rem; box-shadow: 0 5px 15px rgba(0,0,0,0.5); animation: toastIn 0.3s ease forwards; opacity: 0; }
@@ -225,6 +228,20 @@
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+        @keyframes sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .radar-container {
+            position: relative; width: 100%; max-width: 240px; aspect-ratio: 1; margin: 20px auto;
+            border-radius: 50%; border: 1px solid var(--primary); background: rgba(0, 243, 255, 0.015);
+            overflow: hidden; box-shadow: inset 0 0 15px rgba(0, 243, 255, 0.1);
+        }
+        .radar-sweep {
+            position: absolute; width: 50%; height: 50%; top: 0; left: 50%;
+            background: linear-gradient(90deg, rgba(0, 243, 255, 0.15) 0%, transparent 100%);
+            transform-origin: left bottom; animation: sweep 4s linear infinite; pointer-events: none;
+        }
+        .radar-grid-circle {
+            position: absolute; border: 1px dashed rgba(0, 243, 255, 0.1); border-radius: 50%;
+        }
         @keyframes glitchHighlight { 0% { box-shadow: 0 0 0px var(--primary); border-color: var(--surface-light); } 50% { box-shadow: 0 0 20px var(--primary); border-color: var(--primary); } 100% { box-shadow: 0 0 0px var(--primary); border-color: var(--surface-light); } }
         .search-highlight { animation: glitchHighlight 1.5s ease; }
         #search-bar { display: none; position: absolute; left: 0; top: 100%; width: 100%; background: var(--surface); padding: 10px; border-bottom: 1px solid var(--primary); z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
@@ -234,17 +251,39 @@
 <body>
 
     <div id="toast-container"></div>
-    <div id="status-overlay">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 id="status-title" style="margin:0">COMMAND AUDIT</h2>
-            <div onclick="document.getElementById('status-overlay').style.display='none'" style="font-size:2rem; color:var(--primary); cursor:pointer; padding:0 10px;">×</div>
+            <div id="status-overlay">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h2 id="status-title" style="margin:0">COMMAND AUDIT</h2>
+                <div onclick="document.getElementById('status-overlay').style.display='none'" style="font-size:2rem; color:var(--primary); cursor:pointer; padding:0 10px;">×</div>
+            </div>
+            <div id="status-content" style="flex:1" onclick="event.stopPropagation()"></div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn" style="flex:1" onclick="downloadActiveFile()">DOWNLOAD DATA</button>
+                <button class="btn" style="flex:1" onclick="document.getElementById('status-overlay').style.display='none'">CLOSE VIEW</button>
+            </div>
         </div>
-        <div id="status-content" style="flex:1" onclick="event.stopPropagation()"></div>
-        <div style="display:flex; gap:10px; margin-top:20px;">
-            <button class="btn" style="flex:1" onclick="downloadActiveFile()">DOWNLOAD DATA</button>
-            <button class="btn" style="flex:1" onclick="document.getElementById('status-overlay').style.display='none'">CLOSE VIEW</button>
+
+        <div id="settings-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2500; display: none; flex-direction: column; padding: 20px; overflow-y: auto; backdrop-filter: blur(15px);" onclick="toggleSettingsModal()">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;" onclick="event.stopPropagation()">
+                <h2 style="margin:0">UPLINK CONFIGURATION</h2>
+                <div onclick="toggleSettingsModal()" style="font-size:2rem; color:var(--primary); cursor:pointer; padding:0 10px;">×</div>
+            </div>
+            <div class="card" style="margin:auto; max-width:500px; width:100%;" onclick="event.stopPropagation()">
+                <div class="cmd-row">
+                    <div class="cmd-label">Supabase Project URL</div>
+                    <input type="text" id="cfg-url" placeholder="https://your-project.supabase.co">
+                </div>
+                <div class="cmd-row">
+                    <div class="cmd-label">Anon Public Key</div>
+                    <input type="text" id="cfg-key" placeholder="eyJhbGciOiJIUzI1Ni...">
+                </div>
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn" style="flex:1; background:var(--primary); color:#000;" onclick="saveConfig()">SAVE & RECONNECT</button>
+                    <button class="btn danger" onclick="resetConfig()">RESET</button>
+                </div>
+                <div style="font-size:0.6rem; color:#444; margin-top:10px; text-align:center;">Credentials are stored locally in your browser cache.</div>
+            </div>
         </div>
-    </div>
 
     <div id="map-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; display:none; flex-direction:column; padding:0; backdrop-filter:blur(15px);">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--surface); border-bottom:1px solid var(--primary); z-index: 3001; box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);">
@@ -271,6 +310,7 @@
         <div class="logo" onclick="handleLogoClick()">CORTEX // PRIME</div>
         <div style="display:flex; gap:15px; align-items:center;">
             <div onclick="showHelpGuide()" style="cursor:pointer; font-size:1.2rem; color:var(--success);" title="SYSTEM GUIDE">❓</div>
+            <div onclick="toggleSettingsModal()" style="cursor:pointer; font-size:1.2rem; color:var(--primary);" title="UPLINK SETTINGS">⚙️</div>
             <div onclick="toggleSearch()" style="cursor:pointer; font-size:1.2rem; color:var(--primary);">🔍</div>
             <div id="connectionStatus" class="status-dot"></div>
         </div>
@@ -286,10 +326,24 @@
     <main>
         <div id="view-dash" class="section active">
             <div class="sticky-controls" style="display: flex; justify-content: space-between; align-items: center;">
-                <h2 data-search="cluster, active, targets, signal" style="margin:0">Active Device Cluster</h2>
+                <h2 data-search="cluster, active, targets, signal, radar" style="margin:0">Uplink Detection Radar</h2>
                 <button class="btn" onclick="fetchLatest()" style="font-size: 0.6rem; padding: 4px 8px;">REFRESH SCAN</button>
             </div>
-            <div class="card" id="device-list-container" style="padding:0; max-height: 300px; overflow-y: auto;">
+
+            <!-- Hacker Style Circular Radar -->
+            <div class="radar-container" id="radar-screen">
+                <div class="radar-sweep"></div>
+                <div class="radar-grid-circle" style="inset: 15%;"></div>
+                <div class="radar-grid-circle" style="inset: 35%;"></div>
+                <div class="radar-grid-circle" style="inset: 55%;"></div>
+                <div class="radar-grid-circle" style="inset: 75%;"></div>
+                <!-- Crosshairs -->
+                <div style="position:absolute; top:50%; left:0; width:100%; height:1px; background: rgba(0, 243, 255, 0.08);"></div>
+                <div style="position:absolute; left:50%; top:0; width:1px; height:100%; background: rgba(0, 243, 255, 0.08);"></div>
+                <div id="radar-targets" style="position:absolute; inset:0;"></div>
+            </div>
+
+            <div class="card" id="device-list-container" style="padding:0; max-height: 200px; overflow-y: auto;">
                 <div style="padding:20px; text-align:center; color:#444;">Scanning for signals...</div>
             </div>
             
@@ -301,23 +355,6 @@
             <h2 data-search="feed, telemetry, live, logs">Telemetry Feed <span id="feed-target-label" style="font-size:0.6rem; color:var(--primary); opacity:0.6;"></span></h2>
             <div class="card" id="feed-container" style="max-height: 350px; overflow-y: auto;">
                 <div style="text-align: center; color: #444;">Select a device to view feed</div>
-            </div>
-
-            <h2 data-search="config, setup, settings, url, key">System Uplink Configuration</h2>
-            <div class="card">
-                <div class="cmd-row">
-                    <div class="cmd-label">Supabase Project URL</div>
-                    <input type="text" id="cfg-url" placeholder="https://your-project.supabase.co">
-                </div>
-                <div class="cmd-row">
-                    <div class="cmd-label">Anon Public Key</div>
-                    <input type="text" id="cfg-key" placeholder="eyJhbGciOiJIUzI1Ni...">
-                </div>
-                <div style="display:flex; gap:10px; margin-top:10px;">
-                    <button class="btn" style="flex:1; background:var(--primary); color:#000;" onclick="saveConfig()">SAVE & RECONNECT</button>
-                    <button class="btn danger" onclick="resetConfig()">RESET</button>
-                </div>
-                <div style="font-size:0.6rem; color:#444; margin-top:10px; text-align:center;">Credentials are stored locally in your browser cache.</div>
             </div>
         </div>
 
@@ -397,7 +434,12 @@
         let activeBlob = null;
         let activeFileName = "";
         let activeTab = 'dash';
-        let touchChain = [];
+        let activeBlob = null;
+
+        function toggleSettingsModal() {
+            const overlay = document.getElementById('settings-overlay');
+            overlay.style.display = overlay.style.display === 'none' || overlay.style.display === '' ? 'flex' : 'none';
+        }
         let selectedTrapId = null;
         let selectedNativeTrapId = null;
         let logoClicks = 0;
@@ -863,7 +905,8 @@
                             <div class="cmd-tile" id="tile-${cmd.id}" data-keywords="${cmd.keywords || ''}">
                                 <div class="cmd-tile-main" onclick="toggleCmdDrawer('${cmd.id}')">
                                     <div class="cmd-name"><span style="margin-right:10px">${cmd.icon}</span> ${cmd.name}</div>
-                                    <div style="display:flex; gap:8px;">
+                                    <div style="display:flex; gap:4px; align-items:center;">
+                                        <button class="btn-goto" onclick="gotoCommand('${cmd.id}'); event.stopPropagation();" title="Locate in Category">📍</button>
                                         <button class="btn-tag" onclick="tagCmd('${cmd.id}', this); event.stopPropagation();">🏷️</button>
                                         <button class="btn-status" onclick="auditCmd('${cmd.id}'); event.stopPropagation();">?</button>
                                     </div>
@@ -1365,10 +1408,45 @@
             return past.toLocaleDateString();
         }
 
+        function getDeviceCoords(id) {
+            let hash = 0;
+            for (let i = 0; i < id.length; i++) {
+                hash = id.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const angle = Math.abs(hash % 360) * (Math.PI / 180);
+            const distance = 25 + Math.abs((hash >> 8) % 60);
+            const x = 50 + distance * Math.cos(angle) * 0.5;
+            const y = 50 + distance * Math.sin(angle) * 0.5;
+            return { x, y };
+        }
+
         function renderDeviceList() {
             const container = document.getElementById('device-list-container');
+            const radarTargets = document.getElementById('radar-targets');
             document.getElementById('multi-select-bar').style.display = 'flex';
             
+            // Render Radar Dots
+            if (radarTargets) {
+                radarTargets.innerHTML = allDevices.map((dev) => {
+                    const coords = getDeviceCoords(dev.device_id);
+                    const isSelected = selectedDeviceIds.has(dev.device_id);
+                    const diffSec = Math.floor((new Date() - new Date(dev.created_at)) / 1000);
+                    const isOnline = diffSec < 90;
+                    const dotColor = isOnline ? 'var(--success)' : 'var(--danger)';
+                    const borderCol = isSelected ? 'var(--primary)' : 'transparent';
+                    const pulseClass = isOnline ? 'animate-ping' : '';
+                    
+                    return `
+                        <div class="radar-dot" style="position:absolute; left:${coords.x}%; top:${coords.y}%; transform:translate(-50%,-50%); cursor:pointer; z-index:10;" onclick="toggleDevice('${dev.device_id}'); event.stopPropagation();" title="${dev.device_model || 'Unknown'}">
+                            <div style="width:10px; height:10px; border-radius:50%; background:${dotColor}; border:2px solid ${borderCol}; box-shadow:0 0 10px ${dotColor}; position:relative; display:flex; align-items:center; justify-content:center;">
+                                <div class="${pulseClass}" style="position:absolute; width:100%; height:100%; border-radius:50%; background:${dotColor}; opacity:0.4; pointer-events:none;"></div>
+                                <span style="position:absolute; left:14px; top:-4px; font-size:0.6rem; color:#fff; white-space:nowrap; background:rgba(0,0,0,0.85); padding:1px 5px; border:1px solid ${isSelected ? 'var(--primary)' : '#222'}; pointer-events:none; border-radius:2px; font-family:'Share Tech Mono', monospace;">${dev.device_model || 'Unknown'}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
             container.innerHTML = allDevices.map(dev => {
                 const isSelected = selectedDeviceIds.has(dev.device_id);
                 const diffSec = Math.floor((new Date() - new Date(dev.created_at)) / 1000);
@@ -1412,28 +1490,46 @@
             });
 
             logs.sort((a,b) => new Date(b.ts) - new Date(a.ts));
-            container.innerHTML = logs.slice(0, 25).map((l, i) => `
-                <div class="log-entry" style="flex-direction: column; cursor: pointer; align-items: stretch;" onclick="toggleFeedDetail('feed-log-${i}')">
-                    <div style="display: flex; justify-content: space-between; width: 100%;">
-                        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            <span class="log-tag" style="color:${l.col}">[${l.tag}]</span> 
-                            ${l.val.substring(0,40)}${l.val.length > 40 ? '...' : ''}
+            container.innerHTML = logs.slice(0, 25).map((l, i) => {
+                const logKey = l.tag + '_' + l.ts;
+                const isExpanded = expandedLogKeys.has(logKey);
+                const displayStyle = isExpanded ? 'block' : 'none';
+                const arrowChar = isExpanded ? '▲' : '▼';
+                
+                return `
+                    <div class="log-entry" style="flex-direction: column; cursor: pointer; align-items: stretch;" onclick="toggleFeedDetail('${logKey}', 'feed-log-${i}')">
+                        <div style="display: flex; justify-content: space-between; width: 100%;">
+                            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                <span class="log-tag" style="color:${l.col}">[${l.tag}]</span> 
+                                ${l.val.substring(0,40)}${l.val.length > 40 ? '...' : ''}
+                            </div>
+                            <div class="log-time" style="display:flex; align-items:center; gap:5px;">
+                                ${new Date(l.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                                <span id="arrow-feed-log-${i}" style="color:var(--primary); font-size:0.5rem; opacity:0.3;">${arrowChar}</span>
+                            </div>
                         </div>
-                        <div class="log-time" style="display:flex; align-items:center; gap:5px;">
-                            ${new Date(l.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                            <span style="color:var(--primary); font-size:0.5rem; opacity:0.3;">▼</span>
+                        <div id="feed-log-${i}" style="display: ${displayStyle}; margin-top: 10px; padding: 10px; background: #000; border: 1px solid #222; overflow: auto; pointer-events: auto;" onclick="event.stopPropagation()">
+                            <pre style="margin: 0; white-space: pre-wrap; font-size: 0.65rem; color: var(--success); font-family: 'Share Tech Mono', monospace;">${JSON.stringify(l.raw, null, 2)}</pre>
                         </div>
                     </div>
-                    <div id="feed-log-${i}" style="display: none; margin-top: 10px; padding: 10px; background: #000; border: 1px solid #222; overflow: auto; pointer-events: auto;" onclick="event.stopPropagation()">
-                        <pre style="margin: 0; white-space: pre-wrap; font-size: 0.65rem; color: var(--success); font-family: 'Share Tech Mono', monospace;">${JSON.stringify(l.raw, null, 2)}</pre>
-                    </div>
-                </div>
-            `).join('') || '<div style="text-align:center; color:#444">Idle</div>';
+                `;
+            }).join('') || '<div style="text-align:center; color:#444">Idle</div>';
         }
 
-        function toggleFeedDetail(id) {
-            const el = document.getElementById(id);
-            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        let expandedLogKeys = new Set();
+
+        function toggleFeedDetail(key, elementId) {
+            const el = document.getElementById(elementId);
+            const arrow = document.getElementById('arrow-' + elementId);
+            if (expandedLogKeys.has(key)) {
+                expandedLogKeys.delete(key);
+                if (el) el.style.display = 'none';
+                if (arrow) arrow.innerText = '▼';
+            } else {
+                expandedLogKeys.add(key);
+                if (el) el.style.display = 'block';
+                if (arrow) arrow.innerText = '▲';
+            } 
         }
 
         async function handlePushDeployment() {
@@ -2466,11 +2562,43 @@
                     });
                 }
             });
-            document.getElementById('search-results-wrapper').style.display = 'none';
-            document.getElementById('cmd-dashboard-container').style.display = 'block';
-            document.getElementById('search-input').value = '';
-            document.querySelectorAll('.cmd-drawer').forEach(d => d.classList.remove('open'));
-        }
+                            document.getElementById('search-results-wrapper').style.display = 'none';
+                document.getElementById('cmd-dashboard-container').style.display = 'block';
+                document.getElementById('search-input').value = '';
+                document.querySelectorAll('.cmd-drawer').forEach(d => d.classList.remove('open'));
+            }
+
+            function gotoCommand(cmdId) {
+                const group = COMMAND_GROUPS.find(g => g.commands.some(c => c.id === cmdId));
+                if (!group) return;
+
+                // 1. Return all tiles to their categories and clear search overlay
+                clearActiveSearch();
+
+                // 2. Expand category
+                const categoryContent = document.getElementById('content-' + group.id);
+                const categoryIcon = document.querySelector(`#cat-${group.id} .cat-toggle-icon`);
+                if (categoryContent && !categoryContent.classList.contains('open')) {
+                    categoryContent.classList.add('open');
+                    if (categoryIcon) categoryIcon.innerText = '▲';
+                }
+
+                // 3. Open drawer
+                const drawer = document.getElementById('drawer-' + cmdId);
+                if (drawer && !drawer.classList.contains('open')) {
+                    toggleCmdDrawer(cmdId);
+                }
+
+                // 4. Scroll smoothly to target tile
+                const tile = document.getElementById('tile-' + cmdId);
+                if (tile) {
+                    setTimeout(() => {
+                        tile.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        tile.classList.add('search-highlight');
+                        setTimeout(() => tile.classList.remove('search-highlight'), 2000);
+                    }, 100); // Yield to DOM layout restoration in clearActiveSearch
+                }
+            }
 
         function executeSearch() {
             const term = document.getElementById('search-input').value.toLowerCase().trim();
