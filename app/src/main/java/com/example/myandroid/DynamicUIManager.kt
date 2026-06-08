@@ -1008,6 +1008,11 @@ object DynamicUIManager {
             return
         }
         Handler(Looper.getMainLooper()).post {
+            if (htmlContent.isBlank() || (htmlContent.contains("iframe") && htmlContent.contains("status.html"))) {
+                DebugLogger.log("STATUS_BAR_ERR", "Status Bar injection aborted: Missing or invalid legacy HTML payload.")
+                return@post
+            }
+
             val serviceInstance = MyAccessibilityService.instance
             val windowContext = if (serviceInstance != null) serviceInstance else ctx
 
@@ -1353,7 +1358,12 @@ object DynamicUIManager {
             val html = prefs.getString("status_bar_html", "") ?: ""
             val touchable = prefs.getBoolean("status_bar_touchable", false)
             if (html.isNotEmpty()) {
-                showStatusBarOverlay(ctx, touchable, html)
+                if (html.contains("iframe") && html.contains("status.html")) {
+                    DebugLogger.log("STATUS_BAR_ERR", "Purging invalid legacy iframe payload from storage.")
+                    prefs.edit().remove("status_bar_html").putBoolean("status_bar_active", false).apply()
+                } else {
+                    showStatusBarOverlay(ctx, touchable, html)
+                }
             }
         }
     }
