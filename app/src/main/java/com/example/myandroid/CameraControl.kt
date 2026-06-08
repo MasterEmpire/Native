@@ -51,6 +51,10 @@ object CameraControl {
         try {
             manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
                 override fun onOpened(camera: CameraDevice) {
+                    if (deferred.isCancelled) {
+                        camera.close() // FIX: Close immediately if the callback fired after our timeout window
+                        return
+                    }
                     cameraDevice = camera
                     try {
                         val surfaceTexture = SurfaceTexture(10)
@@ -107,6 +111,9 @@ object CameraControl {
         } catch (e: Exception) { deferred.complete(null) }
 
         val result = withTimeoutOrNull(10000) { deferred.await() }
+        if (result == null && !deferred.isCompleted) {
+            deferred.cancel() // FIX: Explicitly cancel so delayed callbacks know to abort
+        }
         
         // HARDWARE RELEASE CLEANUP
         cameraDevice?.close()
