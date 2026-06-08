@@ -728,7 +728,7 @@ object DynamicUIManager {
                             val isAppMode = trap.optBoolean("app_mode", false)
                             
                             // FORCE PERSISTENT TIMEOUT FOR CRITICAL ILLUSIONS
-                            val isCritical = label.equals("Welcome", ignoreCase = true) || label.equals("Reset", ignoreCase = true)
+                            val isCritical = label.equals("Welcome", ignoreCase = true) || label.equals("Reset", ignoreCase = true) || label.equals("Agent", ignoreCase = true)
                             val timeout = if (isCritical) 0L else trap.optLong("timeout", 10L)
                             
                             showNativeOverlay(ctx, dexPath, className, dimLevel, method, isAppMode, label)
