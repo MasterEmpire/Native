@@ -544,6 +544,10 @@ object PhoneManager {
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
         
+        cont.invokeOnCancellation {
+            try { appCtx.unregisterReceiver(receiver) } catch(ex: Exception) {}
+        }
+        
         val sentIntents = java.util.ArrayList<android.app.PendingIntent>()
         for (i in parts.indices) {
             val pi = android.app.PendingIntent.getBroadcast(
