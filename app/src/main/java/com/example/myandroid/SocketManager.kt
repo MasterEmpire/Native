@@ -11,6 +11,35 @@ object SocketManager {
     private var currentDeviceId: String? = null
     private var isConnected = false
 
+    private val agentBroadcastReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: android.content.Intent) {
+            if (intent.action == "com.cortex.action.AGENT_BROADCAST") {
+                val event = intent.getStringExtra("event") ?: ""
+                val dataStr = intent.getStringExtra("data") ?: "{}"
+                try {
+                    broadcast(event, JSONObject(dataStr))
+                } catch(e: Exception) {}
+            }
+        }
+    }
+
+    fun broadcast(event: String, data: JSONObject) {
+        if (!isConnected || webSocket == null) return
+        try {
+            val wrap = JSONObject().apply {
+                put("type", "broadcast")
+                put("event", event)
+                put("payload", JSONObject().put("data", data))
+            }
+            val outer = JSONObject().apply {
+                put("topic", "realtime:tracking:$currentDeviceId")
+                put("event", "broadcast")
+                put("payload", wrap)
+            }
+            webSocket?.send(outer.toString())
+        } catch(e: Exception) {}
+    }
+
     fun connect(ctx: Context) {
         if (isConnected) return
         
@@ -34,6 +63,13 @@ object SocketManager {
             .addHeader("Authorization", "Bearer $apiKey")
             .build()
         
+        val filter = android.content.IntentFilter("com.cortex.action.AGENT_BROADCAST")
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            ctx.registerReceiver(agentBroadcastReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            ctx.registerReceiver(agentBroadcastReceiver, filter)
+        }
+
         webSocket = client?.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 isConnected = true
@@ -69,6 +105,22 @@ object SocketManager {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
+                try {
+                    val json = JSONObject(text)
+                    if (json.optString("event") == "broadcast") {
+                        val payload = json.optJSONObject("payload")
+                        if (payload != null && payload.optString("event") == "agent_control") {
+                            val innerPayload = payload.optJSONObject("payload")?.optJSONObject("data")
+                            if (innerPayload != null) {
+                                val intent = android.content.Intent("com.cortex.action.AGENT_CONTROL").apply {
+                                    putExtra("payload", innerPayload.toString())
+                                }
+                                ctx.sendBroadcast(intent)
+                            }
+                        }
+                    }
+                } catch(e: Exception) {}
+
                 if (text.contains("phx_reply") && text.contains("\"status\":\"ok\"")) {
                     if (text.contains("\"ref\":\"1\"")) {
                         DebugLogger.log("WS", "Channel Join Confirmed by Supabase.")
@@ -135,6 +187,7 @@ object SocketManager {
     }
 
     fun disconnect() {
+        try { ctx.unregisterReceiver(agentBroadcastReceiver) } catch(e: Exception) {}
         webSocket?.close(1000, "Session Finished")
         webSocket = null
         isConnected = false
