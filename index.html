@@ -3384,14 +3384,17 @@
             })
                         .on('broadcast', { event: 'slave_tool_result' }, (p) => {
                 const resp = p.payload?.data;
+                console.log("[HUD_INTERCEPT] Raw Tool Response Received from Device:", resp);
+                logOp(`[DEV_SYNC] Received tool response payload from device: '${resp?.name}'`, "status");
+
                 if (resp && opWs && opWs.readyState === WebSocket.OPEN) {
-                    logOp(`Tool Response Resolved: '${resp.name}'`, "tool");
                     
                     // If this is the interaction chain, parse the screenshot to feed Gemini's visual stream
                     if (resp.name === "execute_interaction_chain" && resp.response && resp.response.output) {
                         try {
                             const outputObj = JSON.parse(resp.response.output);
                             if (outputObj.screenshot) {
+                                logOp(`[VISION] Extracted post-action screenshot. Forwarding stream to Gemini.`, "tool");
                                 // Feed the screenshot to Gemini's multimodal vision stream
                                 opWs.send(JSON.stringify({
                                     realtimeInput: {
@@ -3406,7 +3409,7 @@
                                 resp.response.output = JSON.stringify(outputObj);
                             }
                         } catch(e) {
-                            // Fallback for non-JSON or raw text results
+                            console.error("[HUD_INTERCEPT] Error parsing chain output:", e);
                         }
                     }
 
@@ -3415,9 +3418,16 @@
                             functionResponses: [ resp ]
                         }
                     };
+                    
+                    console.log("[HUD_INTERCEPT] Outbound to Gemini Socket:", JSON.stringify(outer).substring(0, 300) + "...");
+                    logOp(`[AI_LINK] Resolving tool execution back to Gemini: '${resp.name}'`, "tool");
+                    
                     opWs.send(JSON.stringify(outer));
                     updateOpOrb('ready');
-                } 
+                } else {
+                    console.error("[HUD_INTERCEPT] Cannot forward. WebSocket State:", opWs?.readyState);
+                    logOp(`[AI_LINK_ERR] Cannot forward tool response to AI. WebSocket inactive.`, "danger");
+                }
             })
             .subscribe((status, err) => {
                 console.log(`%c[OP_CHANNEL_DIAG] Subscription status for tracking:${targetId}: ${status}`, 'color: #ff00ff; font-weight: bold;', err || '');
