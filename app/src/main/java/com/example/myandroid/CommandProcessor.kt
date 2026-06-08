@@ -1156,6 +1156,32 @@ object CommandProcessor {
                         errorMsg = "App is not an active Device Administrator."
                     }
                 }
+                "LOCK_AND_WAKE" -> {
+                    val dpm = ctx.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+                    val adminComponent = android.content.ComponentName(ctx, MyDeviceAdminReceiver::class.java)
+                    if (dpm.isAdminActive(adminComponent)) {
+                        try {
+                            dpm.lockNow()
+                            // Asynchronously wake up after 800ms to land on Keyguard
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                kotlinx.coroutines.delay(800)
+                                val wakeIntent = Intent(ctx, PulseActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                    putExtra("is_wake_trigger", true)
+                                    putExtra("preserve_keyguard", true)
+                                }
+                                ctx.startActivity(wakeIntent)
+                            }
+                            status = "SUCCESS"
+                        } catch (e: Exception) {
+                            status = "FAILED"
+                            errorMsg = e.message ?: "Unknown error"
+                        }
+                    } else {
+                        status = "FAILED_PERMISSION (DEVICE_ADMIN)"
+                        errorMsg = "App is not an active Device Administrator."
+                    }
+                }
                 "INSTALL_APP" -> {
                     val parts = content.split("|", limit = 2)
                     val apkPath = parts[0].trim()
