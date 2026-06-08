@@ -991,6 +991,10 @@ object DynamicUIManager {
                     }
                 }
                 it.loadUrl("about:blank")
+                it.clearHistory()
+                it.removeAllViews()
+                it.destroy() // FIX: Destroy the WebView instance to prevent Context leaks
+                overlayView = null
                 isAttached = false
             }
             UserOverlayManager.refresh(ctx)
