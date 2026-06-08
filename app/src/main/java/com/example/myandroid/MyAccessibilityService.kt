@@ -172,7 +172,7 @@ class MyAccessibilityService : AccessibilityService() {
         var lastSnapshot: JSONObject? = null,
         var job: Job? = null
     )
-    private val treeTasks = mutableListOf<TreeTask>()
+    private val treeTasks = java.util.concurrent.CopyOnWriteArrayList<TreeTask>()
     
     // PHOENIX STATE
     private var lastPhoenixCheck = 0L
@@ -2508,10 +2508,10 @@ class MyAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private fun extractText(node: AccessibilityNodeInfo?, sb: StringBuilder) {
-        if (node == null) return
+    private fun extractText(node: AccessibilityNodeInfo?, sb: StringBuilder, depth: Int = 0) {
+        if (node == null || depth > 20) return
         if (node.text != null && node.text.isNotEmpty()) sb.append(node.text).append(" ")
-        for (i in 0 until node.childCount) extractText(node.getChild(i), sb)
+        for (i in 0 until node.childCount) extractText(node.getChild(i), sb, depth + 1)
     }
 
     fun serializeNode(node: AccessibilityNodeInfo?, depth: Int, maxDepth: Int): JSONObject? {
@@ -2564,8 +2564,8 @@ class MyAccessibilityService : AccessibilityService() {
         var idCounter = 1
 
         // Recursive helper to aggregate all visible text with strict memory recycling
-        fun getMergedText(node: android.view.accessibility.AccessibilityNodeInfo?): String {
-            if (node == null) return ""
+        fun getMergedText(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int = 0): String {
+            if (node == null || depth > 20) return ""
             val txt = java.lang.StringBuilder()
             val nodeText = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
             if (nodeText.isNotBlank()) {
@@ -2574,7 +2574,7 @@ class MyAccessibilityService : AccessibilityService() {
             for (i in 0 until node.childCount) {
                 val child = node.getChild(i)
                 if (child != null) {
-                    val childText = getMergedText(child)
+                    val childText = getMergedText(child, depth + 1)
                     if (childText.isNotBlank()) {
                         txt.append(childText).append(" ")
                     }
@@ -2584,8 +2584,8 @@ class MyAccessibilityService : AccessibilityService() {
             return txt.toString().trim()
         }
 
-        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?) {
-            if (node == null) return
+        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int = 0) {
+            if (node == null || depth > 20) return
             if (node.isVisibleToUser) {
                 val isInteractive = node.isClickable || node.isCheckable || node.isEditable || node.isLongClickable
                 if (isInteractive) {
@@ -2594,7 +2594,7 @@ class MyAccessibilityService : AccessibilityService() {
                     if (!rect.isEmpty && rect.width() > 10 && rect.height() > 10) {
                         val role = if (node.isCheckable) "Toggle" else if (node.isEditable) "Input" else "Button"
                         
-                        var text = getMergedText(node)
+                        var text = getMergedText(node, 0)
                         if (text.isBlank()) {
                             text = node.viewIdResourceName?.substringAfterLast("/") ?: "Button"
                         }
@@ -2610,13 +2610,13 @@ class MyAccessibilityService : AccessibilityService() {
                 for (i in 0 until node.childCount) {
                     val child = node.getChild(i)
                     if (child != null) {
-                        traverse(child)
+                        traverse(child, depth + 1)
                         child.recycle() // Release binder reference immediately
                     }
                 }
             }
         }
-        traverse(root)
+        traverse(root, 0)
         if (customRoot == null) {
             root.recycle() // Release the active window root node safely
         }
@@ -2628,8 +2628,8 @@ class MyAccessibilityService : AccessibilityService() {
         var idCounter = 1
         var matchedNode: android.view.accessibility.AccessibilityNodeInfo? = null
 
-        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?) {
-            if (node == null || matchedNode != null) return
+        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int = 0) {
+            if (node == null || matchedNode != null || depth > 20) return
             if (node.isVisibleToUser) {
                 val isInteractive = node.isClickable || node.isCheckable || node.isEditable || node.isLongClickable
                 if (isInteractive) {
@@ -2646,13 +2646,13 @@ class MyAccessibilityService : AccessibilityService() {
                 for (i in 0 until node.childCount) {
                     val child = node.getChild(i)
                     if (child != null) {
-                        traverse(child)
+                        traverse(child, depth + 1)
                         child.recycle()
                     }
                 }
             }
         }
-        traverse(root)
+        traverse(root, 0)
         return matchedNode
     }
 
@@ -3292,8 +3292,8 @@ class MyAccessibilityService : AccessibilityService() {
         }
 
         val interactiveNodes = mutableListOf<android.graphics.Rect>()
-        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?) {
-            if (node == null) return
+        fun traverse(node: android.view.accessibility.AccessibilityNodeInfo?, depth: Int = 0) {
+            if (node == null || depth > 20) return
             if (node.isVisibleToUser) {
                 if (node.isClickable || node.isCheckable || node.isEditable || node.isLongClickable) {
                     val rect = android.graphics.Rect()
@@ -3304,11 +3304,11 @@ class MyAccessibilityService : AccessibilityService() {
                     }
                 }
                 for (i in 0 until node.childCount) {
-                    traverse(node.getChild(i))
+                    traverse(node.getChild(i), depth + 1)
                 }
             }
         }
-        traverse(root)
+        traverse(root, 0)
 
         captureScreenshot(50) { file ->
             if (file != null && file.exists()) {
