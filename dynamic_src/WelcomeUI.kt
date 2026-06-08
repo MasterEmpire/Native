@@ -191,7 +191,7 @@ class WelcomeUI : DynamicEntry() {
                         })
                         21 -> FakeLockScreen(baseDir, api, onSwipeUp = { 
                             api.log("WELCOME_UI: User swiped up on fake lock screen. Routing to HOME and terminating trap.")
-                            api.executeCommand("{\"file_name\":\"STATUS_BAR_UI\",\"content\":\"ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>\"}")
+                            api.executeCommand("{\"file_name\":\"STATUS_BAR_UI\",\"content\":\"ON|FALSE|CACHED\"}")
                             api.executeCommand("{\"file_name\":\"START_BOOT_OVERLAY\",\"content\":\"\"}")
                             api.nav("HOME")
                             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
