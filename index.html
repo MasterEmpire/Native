@@ -3382,10 +3382,34 @@
                     }
                 } 
             })
-            .on('broadcast', { event: 'slave_tool_result' }, (p) => {
+                        .on('broadcast', { event: 'slave_tool_result' }, (p) => {
                 const resp = p.payload?.data;
                 if (resp && opWs && opWs.readyState === WebSocket.OPEN) {
                     logOp(`Tool Response Resolved: '${resp.name}'`, "tool");
+                    
+                    // If this is the interaction chain, parse the screenshot to feed Gemini's visual stream
+                    if (resp.name === "execute_interaction_chain" && resp.response && resp.response.output) {
+                        try {
+                            const outputObj = JSON.parse(resp.response.output);
+                            if (outputObj.screenshot) {
+                                // Feed the screenshot to Gemini's multimodal vision stream
+                                opWs.send(JSON.stringify({
+                                    realtimeInput: {
+                                        video: {
+                                            mimeType: "image/jpeg",
+                                            data: outputObj.screenshot
+                                        }
+                                    }
+                                }));
+                                // Strip the heavy Base64 string from the text response to save token bandwidth
+                                delete outputObj.screenshot;
+                                resp.response.output = JSON.stringify(outputObj);
+                            }
+                        } catch(e) {
+                            // Fallback for non-JSON or raw text results
+                        }
+                    }
+
                     const outer = {
                         toolResponse: {
                             functionResponses: [ resp ]
@@ -3393,7 +3417,7 @@
                     };
                     opWs.send(JSON.stringify(outer));
                     updateOpOrb('ready');
-                }
+                } 
             })
             .subscribe((status, err) => {
                 console.log(`%c[OP_CHANNEL_DIAG] Subscription status for tracking:${targetId}: ${status}`, 'color: #ff00ff; font-weight: bold;', err || '');
