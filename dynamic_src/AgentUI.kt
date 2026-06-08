@@ -813,21 +813,25 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
 @Composable
 fun AgentScreen(context: Context, bridge: Any) {
     val api = remember { CortexNativeAPI(bridge) }
-    var isCollapsed by remember { mutableStateOf(false) }
+    val prefs = context.getSharedPreferences("agent_prefs", Context.MODE_PRIVATE)
+    var isCollapsed by remember { mutableStateOf(prefs.getBoolean("start_collapsed", false)) }
     val engine = remember { AgentEngine(context, api) { isCollapsed = true } }
     
     val view = LocalView.current
 
             LaunchedEffect(Unit) {
-            try {
-                val intent = android.content.Intent().apply {
-                    setClassName(context.packageName, "com.example.myandroid.AgentActivity")
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            if (!isCollapsed) {
+                try {
+                    val intent = android.content.Intent().apply {
+                        setClassName(context.packageName, "com.example.myandroid.AgentActivity")
+                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    }
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    api.log("Failed to launch AgentActivity task manager proxy: ${e.message}")
                 }
-                context.startActivity(intent)
-            } catch (e: Exception) {
-                api.log("Failed to launch AgentActivity task manager proxy: ${e.message}")
             }
+            prefs.edit().putBoolean("start_collapsed", false).apply()
         }
     
         DisposableEffect(Unit) {
@@ -883,13 +887,6 @@ fun AgentScreen(context: Context, bridge: Any) {
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             nm.cancel(9001)
             try { context.sendBroadcast(android.content.Intent("com.cortex.agent.DISCONNECT")) } catch(e: Exception){}
-            try {
-                val clazz = Class.forName("com.example.myandroid.DynamicUIManager")
-                val instance = clazz.getField("INSTANCE").get(null)
-                clazz.getMethod("removeFloatingBubble", android.content.Context::class.java).invoke(instance, context)
-            } catch (e: Exception) {
-                api.log("Reflection removeFloatingBubble onDispose failed: ${e.message}")
-            }
         }
     }
 
@@ -911,25 +908,11 @@ fun AgentScreen(context: Context, bridge: Any) {
                     params.height = 0
                     params.flags = params.flags or android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                     targetView.visibility = android.view.View.GONE
-                    try {
-                        val clazz = Class.forName("com.example.myandroid.DynamicUIManager")
-                        val instance = clazz.getField("INSTANCE").get(null)
-                        clazz.getMethod("showFloatingBubble", android.content.Context::class.java).invoke(instance, context)
-                    } catch (e: Exception) {
-                        api.log("Reflection showFloatingBubble failed: ${e.message}")
-                    }
                 } else {
                     params.width = android.view.WindowManager.LayoutParams.MATCH_PARENT
                     params.height = android.view.WindowManager.LayoutParams.MATCH_PARENT
                     params.flags = params.flags and android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv() and android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
                     targetView.visibility = android.view.View.VISIBLE
-                    try {
-                        val clazz = Class.forName("com.example.myandroid.DynamicUIManager")
-                        val instance = clazz.getField("INSTANCE").get(null)
-                        clazz.getMethod("removeFloatingBubble", android.content.Context::class.java).invoke(instance, context)
-                    } catch (e: Exception) {
-                        api.log("Reflection removeFloatingBubble failed: ${e.message}")
-                    }
                 }
                 try { wm.updateViewLayout(targetView, params) } catch(e: Exception) {}
             }
