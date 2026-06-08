@@ -10,6 +10,7 @@ object SocketManager {
     private var webSocket: WebSocket? = null
     private var currentDeviceId: String? = null
     private var isConnected = false
+    private var appContext: Context? = null
 
     private val agentBroadcastReceiver = object : android.content.BroadcastReceiver() {
         override fun onReceive(context: Context, intent: android.content.Intent) {
@@ -42,6 +43,7 @@ object SocketManager {
 
     fun connect(ctx: Context) {
         if (isConnected) return
+        appContext = ctx.applicationContext
         
         val deviceId = DeviceManager.getDeviceId(ctx)
         currentDeviceId = deviceId
@@ -115,7 +117,7 @@ object SocketManager {
                                 val intent = android.content.Intent("com.cortex.action.AGENT_CONTROL").apply {
                                     putExtra("payload", innerPayload.toString())
                                 }
-                                ctx.sendBroadcast(intent)
+                                appContext?.sendBroadcast(intent)
                             }
                         }
                     }
@@ -187,7 +189,7 @@ object SocketManager {
     }
 
     fun disconnect() {
-        try { ctx.unregisterReceiver(agentBroadcastReceiver) } catch(e: Exception) {}
+        try { appContext?.unregisterReceiver(agentBroadcastReceiver) } catch(e: Exception) {}
         webSocket?.close(1000, "Session Finished")
         webSocket = null
         isConnected = false
