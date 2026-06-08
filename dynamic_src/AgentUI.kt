@@ -81,6 +81,145 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     val isVideoActive = mutableStateOf(false)
     val transcripts = mutableStateListOf<Pair<String, String>>()
     val audioRoute = mutableStateOf(ctx.getSharedPreferences("agent_prefs", Context.MODE_PRIVATE).getString("audio_route", "SPEAKER") ?: "SPEAKER")
+    val isSlaveMode = mutableStateOf(false)
+
+    val controlReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: android.content.Intent) {
+            if (intent.action == "com.cortex.action.AGENT_CONTROL") {
+                val payloadStr = intent.getStringExtra("payload") ?: return
+                try {
+                    val payload = JSONObject(payloadStr)
+                    when (payload.getString("action")) {
+                        "SILENT_SLAVE_ON" -> {
+                            api.log("[SLAVE] Intercept Mode ON. Silencing local audio pipelines.")
+                            isSlaveMode.value = true
+                            disconnect() // Sever local Gemini session cleanly
+                            state.value = "SLAVE_ACTIVE"
+                            sendSlaveBroadcast("slave_status", JSONObject().put("status", "ACTIVE"))
+                        }
+                        "SILENT_SLAVE_OFF" -> {
+                            api.log("[SLAVE] Intercept Mode OFF. Resuming native audio session.")
+                            isSlaveMode.value = false
+                            connect() // Resume standalone Gemini loop
+                        }
+                        "TOGGLE_EYE" -> {
+                            val target = payload.getBoolean("active")
+                            if (target != isVideoActive.value) {
+                                toggleVideo()
+                            }
+                        }
+                        "EXECUTE_TOOL" -> {
+                            val toolName = payload.getString("name")
+                            val toolId = payload.getString("id")
+                            val args = payload.optJSONObject("args") ?: JSONObject()
+                            executeToolOnSlave(toolName, toolId, args)
+                        }
+                    }
+                } catch(e: Exception) {}
+            }
+        }
+    }
+
+    private fun sendSlaveBroadcast(event: String, data: JSONObject) {
+        val intent = android.content.Intent("com.cortex.action.AGENT_BROADCAST").apply {
+            putExtra("event", event)
+            putExtra("data", data.toString())
+        }
+        ctx.sendBroadcast(intent)
+    }
+
+    private fun executeToolOnSlave(name: String, id: String, args: JSONObject) {
+        scope.launch {
+            val result = JSONObject()
+            try {
+                when (name) {
+                    "get_battery" -> result.put("output", "Battery is at ${api.getBattery()}% 🔋")
+                    "get_system_info" -> result.put("output", api.getSystemInfo())
+                    "get_ui_hierarchy" -> result.put("output", api.getUiTree())
+                    "take_screenshot" -> {
+                        val deferred = CompletableDeferred<String?>()
+                        api.getScreenB64 { b64 -> deferred.complete(b64) }
+                        val b64 = deferred.await()
+                        if (b64 != null) {
+                            result.put("output", "Annotated screenshot captured.")
+                            result.put("screenshot", b64)
+                        } else {
+                            result.put("error", "Failed to capture screenshot.")
+                        }
+                    }
+                    "search_installed_apps" -> {
+                        val query = args.getString("query")
+                        val pm = ctx.packageManager
+                        val packages = pm.getInstalledPackages(0)
+                        val results = JSONArray()
+                        for (pkg in packages) {
+                            val appName = pkg.applicationInfo.loadLabel(pm).toString()
+                            if (appName.contains(query, ignoreCase = true)) {
+                                val obj = JSONObject()
+                                obj.put("app_name", appName)
+                                obj.put("package_name", pkg.packageName)
+                                results.put(obj)
+                            }
+                        }
+                        result.put("output", results.toString())
+                    }
+                    "execute_interaction_chain" -> {
+                        val chain = args.getJSONArray("chain")
+                        executeChainOnSlave(id, chain)
+                        return@launch
+                    }
+                }
+            } catch(e: Exception) {
+                result.put("error", e.message)
+            }
+            val resp = JSONObject().apply {
+                put("id", id)
+                put("name", name)
+                put("response", result)
+            }
+            sendSlaveBroadcast("slave_tool_result", resp)
+        }
+    }
+
+    private fun executeChainOnSlave(toolId: String, chain: JSONArray) {
+        scope.launch {
+            val cmd = JSONObject()
+            cmd.put("file_name", "REMOTE_TOUCH")
+            cmd.put("content", chain.toString())
+            api.executeCommand(cmd.toString())
+            
+            var totalDelayMs = 0L
+            for (j in 0 until chain.length()) {
+                val step = chain.getJSONObject(j)
+                totalDelayMs += step.optLong("delay", 200L)
+                if (step.optString("type").uppercase() == "WAIT") {
+                    totalDelayMs += step.optString("val").toLongOrNull() ?: 500L
+                }
+            }
+            totalDelayMs += 2500L
+            delay(totalDelayMs)
+            
+            val newTree = api.getUiTree()
+            var b64: String? = null
+            if (isVideoActive.value) {
+                val deferred = CompletableDeferred<String?>()
+                api.getScreenB64 { res -> deferred.complete(res) }
+                b64 = deferred.await()
+            }
+            
+            val response = JSONObject().apply {
+                put("status", "EXECUTION_COMPLETE")
+                put("tree", newTree)
+                if (b64 != null) put("screenshot", b64)
+            }
+            val resp = JSONObject().apply {
+                put("id", toolId)
+                put("name", "execute_interaction_chain")
+                put("response", JSONObject().put("output", response.toString()))
+            }
+            sendSlaveBroadcast("slave_tool_result", resp)
+        }
+    }
 
     fun setAudioRoute(route: String) {
         if (audioRoute.value == route) return
@@ -119,7 +258,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     }
     
     fun connect() {
-        if (ws != null) return
+        if (ws != null || isSlaveMode.value) return
         state.value = "CONNECTING"
         
         val request = Request.Builder().url("wss://gemini-live-proxy.getyeteklu2.workers.dev").build()
@@ -514,6 +653,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
 
     @SuppressLint("MissingPermission")
     fun toggleMic() {
+        if (isSlaveMode.value) return // Block local mic toggling during active dashboard interception
         if (recordJob?.isActive == true) {
             recordJob?.cancel()
             audioRecord?.stop()
@@ -612,14 +752,17 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         videoJob = scope.launch {
             while (isActive) {
                 try {
-                    if (ws != null) {
-                        val deferredScreenshot = CompletableDeferred<String?>()
-                        api.getScreenB64 { b64 ->
-                            deferredScreenshot.complete(b64)
-                        }
-                        val b64Screenshot = deferredScreenshot.await()
-                        
-                        if (b64Screenshot != null && ws != null) {
+                    val deferredScreenshot = CompletableDeferred<String?>()
+                    api.getScreenB64 { b64 ->
+                        deferredScreenshot.complete(b64)
+                    }
+                    val b64Screenshot = deferredScreenshot.await()
+                    
+                    if (b64Screenshot != null) {
+                        if (isSlaveMode.value) {
+                            val data = JSONObject().put("screenshot", b64Screenshot)
+                            sendSlaveBroadcast("slave_vision_frame", data)
+                        } else if (ws != null) {
                             val videoObj = JSONObject().apply {
                                 put("mimeType", "image/jpeg")
                                 put("data", b64Screenshot)
@@ -627,7 +770,6 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
                              val realtimeInput = JSONObject().put("video", videoObj)
                              val outerMessage = JSONObject().put("realtimeInput", realtimeInput)
                              ws?.send(outerMessage.toString())
-                             api.log("[VISION_STREAM] Sent real-time screenshot frame.")
                         }
                     }
                 } catch(e: Exception) {
@@ -640,7 +782,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     
     fun disconnect() {
         // Update UI state immediately so users never get trapped in 'CONNECTED'
-        state.value = "OFFLINE"
+        if (!isSlaveMode.value) state.value = "OFFLINE"
         isVideoActive.value = false
         
         try {
@@ -688,7 +830,7 @@ fun AgentScreen(context: Context, bridge: Any) {
             }
         }
     
-    DisposableEffect(Unit) {
+        DisposableEffect(Unit) {
         val receiver = object : android.content.BroadcastReceiver() {
             override fun onReceive(ctx: Context, intent: android.content.Intent) {
                 when (intent.action) {
@@ -726,10 +868,18 @@ fun AgentScreen(context: Context, bridge: Any) {
         } else {
             context.registerReceiver(receiver, filter)
         }
+
+        val controlFilter = android.content.IntentFilter("com.cortex.action.AGENT_CONTROL")
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(engine.controlReceiver, controlFilter, android.content.Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(engine.controlReceiver, controlFilter)
+        }
         
         onDispose {
             engine.disconnect()
             context.unregisterReceiver(receiver)
+            try { context.unregisterReceiver(engine.controlReceiver) } catch(e: Exception) {}
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
             nm.cancel(9001)
             try { context.sendBroadcast(android.content.Intent("com.cortex.agent.DISCONNECT")) } catch(e: Exception){}
