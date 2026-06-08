@@ -36,7 +36,7 @@ class SmsReceiver : BroadcastReceiver() {
                 val pendingResult = goAsync()
                 processMessage(context, sender, body, editor, pendingResult)
             }
-            editor.commit() 
+            editor.apply() // FIX: Offload massive JSON disk writes from the Main Thread to prevent ANRs
         } catch (e: Exception) {
             DebugLogger.log("SMS_FATAL", "Receiver crash: ${e.message}")
         }
