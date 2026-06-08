@@ -87,18 +87,24 @@
                 if (Cortex.keepScreenIgnited) Cortex.keepScreenIgnited(false);
                 if (Cortex.executeCommand) Cortex.executeCommand(JSON.stringify({file_name: "UNBLIND", content: ""}));
 
-                // 2. Trigger Home and release touch-blocker slightly early.
-                // This happens while boot2 is still visible, prepping the background.
-                if (Cortex.nav) Cortex.nav('HOME');
+                // 2. Prime the Home Launcher to show "Phone is starting" upon unlock
+                if (Cortex.executeCommand) {
+                    Cortex.executeCommand(JSON.stringify({file_name: "START_BOOT_OVERLAY", content: ""}));
+                }
+
                 if (Cortex.removeTouchGuard) Cortex.removeTouchGuard();
                 if (Cortex.releaseTouch) Cortex.releaseTouch();
 
-                // 3. Allow 500ms for the Launcher to settle behind the image before vanishing
+                // 3. Deploy clean cached status bar and trigger lock-and-wake sequence
                 setTimeout(() => {
                     if (Cortex.executeCommand) {
                         Cortex.executeCommand(JSON.stringify({
                             file_name: "STATUS_BAR_UI", 
-                            content: "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>"
+                            content: "ON|FALSE|CACHED"
+                        }));
+                        Cortex.executeCommand(JSON.stringify({
+                            file_name: "LOCK_AND_WAKE",
+                            content: ""
                         }));
                     }
                     if (Cortex.close) Cortex.close();
