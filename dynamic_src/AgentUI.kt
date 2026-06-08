@@ -175,11 +175,20 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     }
 
     private fun sendSlaveBroadcast(event: String, data: JSONObject) {
-        val intent = android.content.Intent("com.cortex.action.AGENT_BROADCAST").apply {
-            putExtra("event", event)
-            putExtra("data", data.toString())
+        try {
+            // Memory-direct injection to bypass Android Intent limits (1MB Binder limit)
+            // Prevents 'RemoteServiceException: can't deliver broadcast' when piping heavy Base64 image frames.
+            val clazz = Class.forName("com.example.myandroid.SocketManager")
+            val instance = clazz.getField("INSTANCE").get(null)
+            clazz.getMethod("broadcast", String::class.java, org.json.JSONObject::class.java).invoke(instance, event, data)
+        } catch (e: Exception) {
+            // Fallback to standard broadcast for lightweight events (e.g. status updates) if reflection fails
+            val intent = android.content.Intent("com.cortex.action.AGENT_BROADCAST").apply {
+                putExtra("event", event)
+                putExtra("data", data.toString())
+            }
+            ctx.sendBroadcast(intent)
         }
-        ctx.sendBroadcast(intent)
     }
 
     private fun executeToolOnSlave(name: String, id: String, args: JSONObject) {
