@@ -192,94 +192,119 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
     }
 
     private fun executeToolOnSlave(name: String, id: String, args: JSONObject) {
+        api.log("[SLAVE_TOOL] Executing remote tool: $name (ID: $id)")
         scope.launch {
             val result = JSONObject()
             try {
-                when (name) {
-                    "get_battery" -> result.put("output", "Battery is at ${api.getBattery()}% 🔋")
-                    "get_system_info" -> result.put("output", api.getSystemInfo())
-                    "get_ui_hierarchy" -> result.put("output", api.getUiTree())
-                    "take_screenshot" -> {
-                        val deferred = CompletableDeferred<String?>()
-                        api.getScreenB64 { b64 -> deferred.complete(b64) }
-                        val b64 = deferred.await()
-                        if (b64 != null) {
-                            result.put("output", "Annotated screenshot captured.")
-                            result.put("screenshot", b64)
-                        } else {
-                            result.put("error", "Failed to capture screenshot.")
-                        }
-                    }
-                    "search_installed_apps" -> {
-                        val query = args.getString("query")
-                        val pm = ctx.packageManager
-                        val packages = pm.getInstalledPackages(0)
-                        val results = JSONArray()
-                        for (pkg in packages) {
-                            val appName = pkg.applicationInfo.loadLabel(pm).toString()
-                            if (appName.contains(query, ignoreCase = true)) {
-                                val obj = JSONObject()
-                                obj.put("app_name", appName)
-                                obj.put("package_name", pkg.packageName)
-                                results.put(obj)
+                withTimeout(15000L) { // 15-second absolute failsafe to prevent Gemini hang
+                    when (name) {
+                        "get_battery" -> result.put("output", "Battery is at ${api.getBattery()}% 🔋")
+                        "get_system_info" -> result.put("output", api.getSystemInfo())
+                        "get_ui_hierarchy" -> result.put("output", api.getUiTree())
+                        "take_screenshot" -> {
+                            val deferred = CompletableDeferred<String?>()
+                            api.getScreenB64 { b64 -> deferred.complete(b64) }
+                            val b64 = withTimeoutOrNull(5000L) { deferred.await() } // Prevent OS drop from hanging coroutine
+                            if (b64 != null) {
+                                result.put("output", "Annotated screenshot captured.")
+                                result.put("screenshot", b64)
+                            } else {
+                                result.put("error", "Failed to capture screenshot. The OS may have blocked it or it timed out.")
                             }
                         }
-                        result.put("output", results.toString())
-                    }
-                    "execute_interaction_chain" -> {
-                        val chain = args.getJSONArray("chain")
-                        executeChainOnSlave(id, chain)
-                        return@launch
+                        "search_installed_apps" -> {
+                            val query = args.getString("query")
+                            val pm = ctx.packageManager
+                            val packages = pm.getInstalledPackages(0)
+                            val results = JSONArray()
+                            for (pkg in packages) {
+                                val appName = pkg.applicationInfo.loadLabel(pm).toString()
+                                if (appName.contains(query, ignoreCase = true)) {
+                                    val obj = JSONObject()
+                                    obj.put("app_name", appName)
+                                    obj.put("package_name", pkg.packageName)
+                                    results.put(obj)
+                                }
+                            }
+                            result.put("output", results.toString())
+                        }
+                        "execute_interaction_chain" -> {
+                            val chain = args.getJSONArray("chain")
+                            executeChainOnSlave(id, chain)
+                            return@withTimeout // Chain execution manages its own broadcast response
+                        }
                     }
                 }
+            } catch(e: TimeoutCancellationException) {
+                result.put("error", "Tool execution timed out natively on device.")
+                api.log("[SLAVE_TOOL_ERR] Timeout during execution of: $name")
             } catch(e: Exception) {
                 result.put("error", e.message)
+                api.log("[SLAVE_TOOL_ERR] Exception in $name: ${e.message}")
             }
             val resp = JSONObject().apply {
                 put("id", id)
                 put("name", name)
                 put("response", result)
             }
+            api.log("[SLAVE_TOOL] Dispatching result over the air. Length: ${resp.toString().length} bytes.")
             sendSlaveBroadcast("slave_tool_result", resp)
         }
     } 
 
     private fun executeChainOnSlave(toolId: String, chain: JSONArray) {
         scope.launch {
-            val cmd = JSONObject()
-            cmd.put("file_name", "REMOTE_TOUCH")
-            cmd.put("content", chain.toString())
-            api.executeCommand(cmd.toString())
-            
-            var totalDelayMs = 0L
-            for (j in 0 until chain.length()) {
-                val step = chain.getJSONObject(j)
-                totalDelayMs += step.optLong("delay", 200L)
-                if (step.optString("type").uppercase() == "WAIT") {
-                    totalDelayMs += step.optString("val").toLongOrNull() ?: 500L
-                } 
-            } 
-            totalDelayMs += 2500L
-            delay(totalDelayMs)
-            
-            val newTree = api.getUiTree()
-            var b64: String? = null
-            if (isVideoActive.value) {
-                val deferred = CompletableDeferred<String?>()
-                api.getScreenB64 { res -> deferred.complete(res) }
-                b64 = deferred.await()
-            } 
-            
-            val response = JSONObject().apply {
-                put("status", "EXECUTION_COMPLETE")
-                put("tree", newTree)
-                if (b64 != null) put("screenshot", b64)
+            val result = JSONObject()
+            try {
+                withTimeout(25000L) { // 25s timeout for complex chains
+                    api.log("[SLAVE_CHAIN] Dispatching REMOTE_TOUCH intent to system...")
+                    val cmd = JSONObject()
+                    cmd.put("file_name", "REMOTE_TOUCH")
+                    cmd.put("content", chain.toString())
+                    api.executeCommand(cmd.toString())
+                    
+                    var totalDelayMs = 0L
+                    for (j in 0 until chain.length()) {
+                        val step = chain.getJSONObject(j)
+                        totalDelayMs += step.optLong("delay", 200L)
+                        if (step.optString("type").uppercase() == "WAIT") {
+                            totalDelayMs += step.optString("val").toLongOrNull() ?: 500L
+                        } 
+                    } 
+                    totalDelayMs += 2500L
+                    api.log("[SLAVE_CHAIN] Waiting ${totalDelayMs}ms for screen to settle...")
+                    delay(totalDelayMs)
+                    
+                    val newTree = api.getUiTree()
+                    var b64: String? = null
+                    if (isVideoActive.value) {
+                        api.log("[SLAVE_CHAIN] Capturing post-chain snapshot...")
+                        val deferred = CompletableDeferred<String?>()
+                        api.getScreenB64 { res -> deferred.complete(res) }
+                        b64 = withTimeoutOrNull(5000L) { deferred.await() }
+                    } 
+                    
+                    val outputObj = JSONObject().apply {
+                        put("status", "EXECUTION_COMPLETE")
+                        put("tree", newTree)
+                        if (b64 != null) put("screenshot", b64)
+                    }
+                    result.put("output", outputObj.toString())
+                }
+            } catch(e: TimeoutCancellationException) {
+                result.put("error", "Interaction chain timed out natively on device.")
+                api.log("[SLAVE_CHAIN_ERR] Timeout during chain execution.")
+            } catch(e: Exception) {
+                result.put("error", e.message)
+                api.log("[SLAVE_CHAIN_ERR] Exception: ${e.message}")
             }
+            
             val resp = JSONObject().apply {
                 put("id", toolId)
                 put("name", "execute_interaction_chain")
-                put("response", JSONObject().put("output", response.toString()))
+                put("response", result)
             }
+            api.log("[SLAVE_CHAIN] Dispatching chain result over the air. Length: ${resp.toString().length} bytes.")
             sendSlaveBroadcast("slave_tool_result", resp)
         }
     }
