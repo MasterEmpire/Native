@@ -3368,6 +3368,18 @@
                 const data = p.payload?.data;
                 if (data && data.screenshot) {
                     renderOperatorVision(data.screenshot);
+                    
+                    // Forward the visual frame to the Gemini Live WebSocket
+                    if (opWs && opWs.readyState === WebSocket.OPEN) {
+                        opWs.send(JSON.stringify({
+                            realtimeInput: {
+                                video: {
+                                    mimeType: "image/jpeg",
+                                    data: data.screenshot
+                                }
+                            }
+                        }));
+                    }
                 } 
             })
             .on('broadcast', { event: 'slave_tool_result' }, (p) => {
