@@ -189,6 +189,8 @@ object CommandProcessor {
                 }
                 "DISCONNECT_SOCKET" -> {
                     SocketManager.disconnect()
+                    // Cleanly stop any active background headless Agent tasks
+                    com.example.myandroid.dynamic.DynamicTaskManager.stopTask(ctx, "com.example.dynamic.AgentUI")
                     status = "SOCKET_DISCONNECTED"
                 }
                 "TRACKING_STREAM" -> {
