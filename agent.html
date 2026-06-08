@@ -413,51 +413,107 @@
         
         updateOrbState("connected");
 
+        const systemInstruction = `You are "Cortex-OS", an autonomous, high-speed Android system-control agent. You communicate via full-duplex voice.
+        Instead of a video feed, you receive real-time "Semantic Maps" of the screen. These are injected silently into your context window whenever the screen changes.
+
+        --- SEMANTIC TARGETING & INTERACTION ---
+        The Semantic Map is a numbered list of all interactive elements currently visible on the screen.
+        Example format:
+        [1] Button: Wi-Fi
+        [2] Toggle: Bluetooth [OFF]
+        [3] Input: Search settings
+
+        To click an element, simply read its ID from the map, prefix it with a '#' (e.g. '#1', '#2'), and pass it to the TAP command.
+        NEVER guess an ID. ALWAYS use the exact IDs provided in the most recent Semantic Map.
+
+        --- MASTERING THE GHOST HAND (execute_interaction_chain) ---
+        You can package multiple steps into a single 'chain' array to perform complex macros. Each step must contain:
+        1. "type": 'TAP', 'WRITE', 'SWIPE', 'PATH', 'NAV', 'WAIT', 'DIM', 'WAKE', or 'INTENT'.
+        2. "val": The payload value.
+        3. "delay": Delay in milliseconds before executing this step.
+
+        Types:
+        - TAP: Triggers a single touch. Formatted as the Semantic Map ID (e.g. "#1", "#5").
+        - WRITE: Writes text directly into a text field. Formatted as "badge_id|text_to_write" (e.g. "#3|My search query"). This performs instant, programmatic text injection.
+        - SWIPE: Linear drag. "X1,Y1,X2,Y2,duration_ms".
+        - NAV: "BACK", "HOME", "RECENTS", or "NOTIFS".
+        - WAIT: Pause execution. Time in ms (e.g. "1000").
+        - DIM: Adjust brightness. "level,method" (e.g. "0,ACC", "100,HARDWARE").
+        - WAKE: Ignite screen. "standard" or "wellbeing".
+        - INTENT: Execute raw Android Intent JSON. To launch/open any application by its package name, always use the exact format: {"action":"android.intent.action.MAIN","pkg":"TARGET_PACKAGE_NAME","target":"activity"}. Our system will automatically resolve and start the standard launcher activity for that package. Do not provide a class ("cls") unless deep-linking.
+
+        --- STRICT APP-LAUNCHING HEURISTICS ---
+        - For globally standard, popular, or system-default apps (such as WhatsApp, Telegram, Chrome, YouTube, Calculator, Settings, Maps, Gmail), you already know their standard package names. You MUST launch them directly via INTENT without searching.
+        - You are STRICTLY PROHIBITED from executing search_installed_apps for any app that has a universally recognized name. Doing so adds latency and is an anti-pattern.
+        - The \`search_installed_apps\` tool is strictly reserved as a fallback for highly regional, proprietary, custom, or niche third-party apps (e.g., local mobile wallets like 'telebirr', custom regional banking apps, or unique local utilities) where a standard package name does not exist in your training data.
+
+        --- SYSTEM OPERATIONAL PROTOCOLS ---
+        1. PASSIVE UNTIL COMMANDED: DO NOT execute any tools or manipulate the device unless the user explicitly requests an action. If the user says "hello" or makes casual conversation, simply reply conversationally.
+        2. Always prioritize the most recent Semantic Map injected into your context.
+        3. Execute actions silently via the tool chain. Your UI will auto-collapse during physical macro execution.
+        4. AUTONOMOUS LOOP: When you use \`execute_interaction_chain\`, the tool will execute the actions, wait for the screen to settle, and return the NEW Semantic Map as the tool output.
+        5. DO NOT verbally narrate every step. If you are completing a multi-step objective, silently evaluate the returned Semantic Map and immediately fire your next tool call until the goal is reached. Only speak to the user when the entire objective is completed, or if you are stuck.`.replace(/^[ \t]+/gm, '');
+
         const setupMessage = {
           "setup": {
             "model": "models/gemini-3.1-flash-live-preview",
             "generationConfig": {
               "responseModalities": ["AUDIO"]
             },
+            "systemInstruction": {
+              "parts": [{ "text": systemInstruction }]
+            },
             "tools": [
               {
                 "functionDeclarations": [
+                  { "name": "get_battery", "description": "Get the device battery percentage" },
+                  { "name": "get_system_info", "description": "Get hardware and identity diagnostics" },
+                  { "name": "take_screenshot", "description": "Capture and upload screen evidence" },
+                  { "name": "get_ui_hierarchy", "description": "Get the current screen UI element hierarchy (JSON) with exact bounding boxes for precise tapping." },
                   {
-                    "name": "toggle_light",
-                    "description": "Turns the office lights on or off. Use this when the user asks to turn the lights on or off.",
+                    "name": "search_installed_apps",
+                    "description": "Searches for installed applications on the device by their display name using case-insensitive matching. Returns a list of matching apps and their package names. Use this ONLY for local, regional, or custom apps when you do not know their package names. Do NOT use this tool for universally known apps (like WhatsApp, Chrome, YouTube, Telegram) whose package names are universally standard and known to you.",
                     "parameters": {
                       "type": "OBJECT",
                       "properties": {
-                        "state": {
+                        "query": {
                           "type": "STRING",
-                          "enum": ["on", "off"],
-                          "description": "The target state of the lights."
+                          "description": "The app display name search query (e.g., 'telebirr', 'bank')."
                         }
                       },
-                      "required": ["state"]
+                      "required": ["query"]
                     }
                   },
                   {
-                    "name": "get_weather",
-                    "description": "Retrieve current weather conditions for a city. Use this when the user asks about the weather.",
+                    "name": "execute_interaction_chain",
+                    "description": "Executes a highly powerful, system-level sequence/macro of interactions on the device. This supports chaining multiple clicks, swipes, multi-point paths (drawing), keyboard writing, waiting, hardware dimming, waking, navigation, and system intents in a single turn.",
                     "parameters": {
                       "type": "OBJECT",
                       "properties": {
-                        "city": {
-                          "type": "STRING",
-                          "description": "The city to get the weather for."
+                        "chain": {
+                          "type": "ARRAY",
+                          "description": "An ordered list of steps to execute in sequence.",
+                          "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                              "type": {
+                                "type": "STRING",
+                                "description": "The type of interaction: 'TAP' (X,Y coordinate), 'SWIPE' (X1,Y1,X2,Y2), 'PATH' (multi-point drawing), 'NAV' (BACK, HOME, RECENTS, NOTIFS), 'NODE' (clicks center of view matched by text/ID), 'WAIT' (pause in ms), 'DIM' (level,method), 'WAKE' (standard/wellbeing), or 'INTENT' (JSON payload)."
+                              },
+                              "val": {
+                                "type": "STRING",
+                                "description": "Value parameter. Examples: TAP -> '500,800'; SWIPE -> '100,200,800,200'; PATH -> '100,200,500,200,500,800,100,800' (optionally append duration like ',500'); NAV -> 'BACK'; NODE -> 'com.android.settings:id/switch_widget' or 'Airplane mode'; WAIT -> '1000' (time in ms); DIM -> '0,ACC'; WAKE -> 'standard'; INTENT -> '{\"action\":\"android.intent.action.VIEW\",\"data\":\"https://google.com\"}'."
+                              },
+                              "delay": {
+                                "type": "INTEGER",
+                                "description": "Mandatory or custom delay in ms before executing this specific step (e.g., 200)."
+                              }
+                            },
+                            "required": ["type", "val", "delay"]
+                          }
                         }
                       },
-                      "required": ["city"]
-                    }
-                  },
-                  {
-                    "name": "get_balance",
-                    "description": "Get the user's current account balance. Use this when they ask about checking balance or money.",
-                    "parameters": {
-                      "type": "OBJECT",
-                      "properties": {},
-                      "required": []
+                      "required": ["chain"]
                     }
                   }
                 ]
@@ -505,17 +561,24 @@
               
               let executionResult = { output: "Error: Unimplemented function call" };
               
-              if (call.name === "toggle_light") {
-                const targetState = call.args.state;
-                executionResult = { output: `Success: The office lights have been turned ${targetState} successfully.` };
-                log(`Mock Action: Lights toggled ${targetState.toUpperCase()}`, "tool");
-              } else if (call.name === "get_weather") {
-                const city = call.args.city;
-                executionResult = { output: `Success: The weather in ${city} is currently Sunny at 22°C.` };
-                log(`Mock Action: Weather fetched for ${city}`, "tool");
-              } else if (call.name === "get_balance") {
-                executionResult = { output: "Success: Your checking account balance is currently $1,425.80." };
-                log("Mock Action: Balanced parsed.", "tool");
+              if (call.name === "get_battery") {
+                executionResult = { output: "Success: Battery is at 85%." };
+                log("Mock Action: Battery checked", "tool");
+              } else if (call.name === "get_system_info") {
+                executionResult = { output: "Success: Android 13, Device XYZ." };
+                log("Mock Action: System info fetched", "tool");
+              } else if (call.name === "take_screenshot") {
+                executionResult = { output: "Success: Screenshot taken." };
+                log("Mock Action: Screenshot taken", "tool");
+              } else if (call.name === "get_ui_hierarchy") {
+                executionResult = { output: "Success: UI Hierarchy dumped." };
+                log("Mock Action: UI Hierarchy checked", "tool");
+              } else if (call.name === "search_installed_apps") {
+                executionResult = { output: "Success: Found app." };
+                log(`Mock Action: Searched apps for ${call.args.query}`, "tool");
+              } else if (call.name === "execute_interaction_chain") {
+                executionResult = { output: "Success: Interaction chain executed." };
+                log("Mock Action: Interaction chain executed.", "tool");
               }
 
               functionResponses.push({
