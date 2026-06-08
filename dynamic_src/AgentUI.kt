@@ -184,6 +184,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
         } catch (e: Exception) {
             // Fallback to standard broadcast for lightweight events (e.g. status updates) if reflection fails
             val intent = android.content.Intent("com.cortex.action.AGENT_BROADCAST").apply {
+                setPackage(ctx.packageName) // Fix Android 14 implicit broadcast restriction
                 putExtra("event", event)
                 putExtra("data", data.toString())
             }
