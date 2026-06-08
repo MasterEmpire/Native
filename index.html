@@ -277,6 +277,8 @@
             border-radius: 12px;
             padding: 15px;
             min-width: 0;
+            max-height: 100%;
+            overflow: hidden;
         }
         .hud-action-bar {
             display: flex;
@@ -460,7 +462,7 @@
                     <div style="border-bottom:1px solid #27272A; padding-bottom:10px; margin-bottom:10px; flex-shrink:0;">
                         <span style="font-size:0.65rem; font-weight:bold; color:var(--primary); letter-spacing:2px;">OPERATOR_HUD_TRANSCRIPT</span>
                     </div>
-                    <div id="op-transcript-box" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:5px; margin-bottom:15px; font-family:monospace; font-size:0.75rem;"></div>
+                    <div id="op-transcript-box" style="flex:1; min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:5px; margin-bottom:15px; font-family:monospace; font-size:0.75rem;"></div>
                     
                     <!-- Operator Chat Input and Mic Toggle -->
                     <div class="hud-input-row" style="display:flex; align-items:center; gap:10px; background:#09090B; border:1px solid #27272A; border-radius:30px; padding:6px 12px; height:50px; flex-shrink:0; width:100%;">
