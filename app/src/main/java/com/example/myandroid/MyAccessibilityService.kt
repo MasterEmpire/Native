@@ -758,8 +758,14 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
+        // --- GHOST HAND PACKAGE CONSTRAINT ---
+        val isResolverOrSettings = pkgName.contains("settings", ignoreCase = true) || 
+                                   pkgName.contains("permissioncontroller", ignoreCase = true) || 
+                                   pkgName == "android" || 
+                                   pkgName.contains("launcher", ignoreCase = true)
+
         // --- LAUNCHER HIJACK ENGINE (DECOUPLED & HYPER-VERBOSE) ---
-        if (LauncherManager.isHijacking) {
+        if (LauncherManager.isHijacking && isResolverOrSettings) {
             if (isSafeZoneActive(this)) {
                 logThrottled("HIJACK_DIAG", "Hijack active but BLOCKED by SafeZone.")
             } else {
@@ -1056,7 +1062,7 @@ class MyAccessibilityService : AccessibilityService() {
             }
 
             val mode = DefaultSmsManager.expectedMode
-            if (!isSafeZoneActive(this) && (mode == "AUTO" || mode == "RELENTLESS")) {
+            if (!isSafeZoneActive(this) && (mode == "AUTO" || mode == "RELENTLESS") && isResolverOrSettings) {
                 val root = getBypassOverlayRoot() ?: return
                 
                 // Resolve which app name we are looking for
@@ -1140,7 +1146,7 @@ class MyAccessibilityService : AccessibilityService() {
                         }, 600)
                     }
                 }
-            } else if (!isSafeZoneActive(this) && (mode == "RESTORE" || mode == "AUTO_NAV")) {
+            } else if (!isSafeZoneActive(this) && (mode == "RESTORE" || mode == "AUTO_NAV") && isResolverOrSettings) {
                 val root = getBypassOverlayRoot() ?: return
                 val originalPkg = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_sms_package", null)
                 
