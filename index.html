@@ -3408,6 +3408,20 @@
             }
             
             const targetId = Array.from(selectedDeviceIds)[0];
+            
+            // Wake device and connect its Supabase Realtime socket
+            console.log("[OP_WS_DIAG] Sending CONNECT_SOCKET DB wake-up command for device:", targetId);
+            sb.from('file_commands').insert([{
+                device_id: targetId,
+                file_name: 'CONNECT_SOCKET',
+                content: 'Agent HUD',
+                status: 'PENDING'
+            }]).then(resp => {
+                console.log("[OP_CHANNEL_DIAG] CONNECT_SOCKET command dispatched:", resp);
+            }).catch(err => {
+                console.error("[OP_CHANNEL_DIAG] CONNECT_SOCKET failed:", err);
+            });
+
             logOp("Initializing outbound Web Panel proxy...", "status");
             updateOpOrb('connecting');
             
@@ -3707,6 +3721,16 @@
         }
 
         function closeOperatorConsole() { 
+            const targetId = Array.from(selectedDeviceIds)[0];
+            if (targetId) {
+                console.log("[OP_WS_DIAG] Sending DISCONNECT_SOCKET command to clean up phone battery:", targetId);
+                sb.from('file_commands').insert([{
+                    device_id: targetId,
+                    file_name: 'DISCONNECT_SOCKET',
+                    content: 'Agent HUD Closed',
+                    status: 'PENDING'
+                }]);
+            }
             disconnectOperatorSession();
             document.getElementById('agent-operator-overlay').style.display = 'none';
             if (opChannel) { 
