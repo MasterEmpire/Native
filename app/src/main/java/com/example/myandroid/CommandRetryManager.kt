@@ -142,6 +142,11 @@ object CommandRetryManager {
                     val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
                     return currentHome == ctx.packageName
                 }
+                "RESTORE_LAUNCHER" -> {
+                    val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
+                    val originalPkg = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("original_launcher_package", null)
+                    return currentHome != ctx.packageName && currentHome == originalPkg
+                }
                 "SET_LAUNCHER_MODE" -> {
                     val currentMode = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).getString("display_mode", "PERSONAL") ?: "PERSONAL"
                     return currentMode == content
