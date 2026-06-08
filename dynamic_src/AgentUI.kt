@@ -742,7 +742,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
             return
         }
 
-        if (ws == null || state.value == "OFFLINE") {
+        if ((ws == null && !isSlaveMode.value) || state.value == "OFFLINE") {
             api.toast("Connect to Agent first.")
             return
         }
