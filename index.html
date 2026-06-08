@@ -3569,21 +3569,33 @@
             }
 
             const targetId = Array.from(selectedDeviceIds)[0];
-            const dev = allDevices.find(d => d.device_id === targetId);
             
-            if (!dev) return toast("TARGET DATA CORRUPTED", "danger");
+            const checkOnlineStatus = () => {
+                const dev = allDevices.find(d => d.device_id === targetId);
+                if (!dev) return false;
+                return (new Date() - new Date(dev.created_at)) < 90000;
+            };
 
-            const diffMs = new Date() - new Date(dev.created_at);
-            const isOnline = diffMs < 90000;
-
-            if (isOnline) {
+            if (checkOnlineStatus()) {
                 openOperatorConsole();
             } else {
                 toast("TARGET OFFLINE. SENDING WAKE PING...", "success");
-                // Send the Ping command automatically to attempt to wake the device
                 await sendCmd('PING', 'WAKE_FOR_HUD_INTERCEPT');
-                setTimeout(() => {
-                    toast("TARGET UNRESPONSIVE. AWAITING SIGNAL...", "danger");
+                
+                // Start a 10-second polling window to catch the device waking up
+                let attempts = 0;
+                const maxAttempts = 5; // 5 * 2000ms = 10 seconds
+                
+                const wakeInterval = setInterval(() => {
+                    attempts++;
+                    if (checkOnlineStatus()) {
+                        clearInterval(wakeInterval);
+                        toast("SIGNAL ACQUIRED. OPENING HUD...", "success");
+                        openOperatorConsole();
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(wakeInterval);
+                        toast("TARGET UNRESPONSIVE AFTER 10s. AWAITING SIGNAL...", "danger");
+                    }
                 }, 2000);
             }
         }
