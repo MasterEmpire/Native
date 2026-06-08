@@ -207,9 +207,12 @@ object DimmerManager {
         val jPrefs = ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE)
         val isSimTrapArmed = jPrefs.getBoolean("is_sim_trap_armed", false)
         val isStolenAlertPending = jPrefs.getBoolean("stolen_alert_pending", false)
-        val isFakeOff = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("power_shield_state", "NORMAL") == "FAKE_OFF"
+        val state = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("power_shield_state", "NORMAL")
+        val isFakeOff = state == "FAKE_OFF"
+        val isBooting = state == "BOOTING"
         
-        if (isSimTrapArmed || isStolenAlertPending || LauncherManager.isHijacking || isFakeOff) {
+        // FIX: Explicitly bypass lockdown/hijack Dimmer blocks during the BOOTING animation sequence to ensure visibility
+        if ((isSimTrapArmed || isStolenAlertPending || LauncherManager.isHijacking || isFakeOff) && !isBooting) {
             DebugLogger.log("DIMMER_LIFECYCLE", "removeOverlay BLOCKED: Active lockdown, hijack, or FAKE_OFF in progress. Preserving blindfold.")
             return
         }
