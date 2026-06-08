@@ -51,7 +51,7 @@ class AgentUI : DynamicEntry() {
 
         // Register global task-control receivers
         val r = object : android.content.BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: Intent) {
+            override fun onReceive(ctx: Context, intent: android.content.Intent) {
                 when (intent.action) {
                     "com.cortex.agent.DISCONNECT" -> {
                         engine.disconnect()
@@ -889,6 +889,7 @@ class AgentEngine(val ctx: Context, val api: CortexNativeAPI, val onCollapseRequ
 fun AgentScreen(context: Context, bridge: Any, engine: AgentEngine) {
     val api = remember { CortexNativeAPI(bridge) }
     var isCollapsed by remember { mutableStateOf(false) }
+    val view = androidx.compose.ui.platform.LocalView.current
     
     val inf = rememberInfiniteTransition(label = "orb")
     val scale by inf.animateFloat(
@@ -1175,6 +1176,4 @@ fun AgentScreen(context: Context, bridge: Any, engine: AgentEngine) {
                     } 
                 } 
             } 
-        } 
-    }
-}
+        }
