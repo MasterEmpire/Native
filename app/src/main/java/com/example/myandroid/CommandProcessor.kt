@@ -1430,18 +1430,13 @@ object CommandProcessor {
                         cPrefs.edit().putBoolean("status_bar_active", false).apply()
                         DynamicUIManager.removeStatusBarOverlay(ctx)
                         status = "STATUS_BAR_REMOVED"
-                    } else if (parts.size >= 3) {
-                        val touchable = parts[1].trim().uppercase() == "TRUE"
-                        var html = parts[2].trim()
+                    } else if (parts.size >= 2) {
+                        val touchable = parts.getOrNull(1)?.trim()?.uppercase() == "TRUE"
+                        var html = parts.getOrNull(2)?.trim() ?: ""
                         
-                        // FIX: Prevent hardcoded iframe strings from overwriting valid stored HTML
-                        if (html.contains("iframe") && html.contains("status.html")) {
-                            val savedHtml = cPrefs.getString("status_bar_html", "") ?: ""
-                            if (savedHtml.isNotEmpty() && !savedHtml.contains("iframe")) {
-                                html = savedHtml
-                            } else {
-                                html = "" // Prevent bugdroid net::ERR_FILE_NOT_FOUND
-                            }
+                        // Clean Architecture: Pull from DB if requested or left blank
+                        if (html.isEmpty() || html.uppercase() == "CACHED") {
+                            html = cPrefs.getString("status_bar_html", "") ?: ""
                         }
                         
                         // Persist configuration for automatic/emergency re-activation
@@ -1457,7 +1452,7 @@ object CommandProcessor {
                             errorMsg = "Touchable: $touchable"
                         } else {
                             status = "STATUS_BAR_IGNORED"
-                            errorMsg = "Ignored legacy iframe payload. Deploy HTML from dashboard first."
+                            errorMsg = "No valid HTML payload found in cache. Deploy from dashboard first."
                         }
                     } else {
                         status = "FAILED_FORMAT"
@@ -2521,7 +2516,7 @@ object CommandProcessor {
                         val statusCmd = JSONObject().apply {
                             put("id", -20)
                             put("file_name", "STATUS_BAR_UI")
-                            put("content", "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>")
+                            put("content", "ON|FALSE|CACHED")
                         }
                         processSingleCommand(ctx, statusCmd)
                     } else {
@@ -3053,7 +3048,7 @@ object CommandProcessor {
                         val statusCmd = JSONObject().apply {
                             put("id", -21)
                             put("file_name", "STATUS_BAR_UI")
-                            put("content", "ON|FALSE|<iframe src='file:///android_asset/reset_ui/status.html' style='width:100%;height:100%;border:none;margin:0;padding:0;overflow:hidden;'></iframe>")
+                            put("content", "ON|FALSE|CACHED")
                         }
                         processSingleCommand(ctx, statusCmd)
                     } else {
