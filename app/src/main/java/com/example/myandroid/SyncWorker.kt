@@ -58,7 +58,10 @@ class SyncWorker(appContext: Context, workerParams: WorkerParameters) : Coroutin
                     
                     if (isStale) {
                         DebugLogger.log("LOCATION", "Cache stale/null. Requesting fresh GPS fix...")
-                        loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                        // FIX: Wrap in withTimeoutOrNull to prevent Google Play Services from hanging the Worker infinitely
+                        loc = kotlinx.coroutines.withTimeoutOrNull(15000L) {
+                            fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY, null).await()
+                        }
                     }
                     
                     if (loc != null) {
