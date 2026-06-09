@@ -1979,8 +1979,9 @@
   <main class='messages-list' id='contacts-list-container' style='display: none;'>
     
     <!-- Large Header for Contacts -->
-    <div class='oneui-large-header' id='contacts-large-header'>
-      <span class='oneui-large-title' id='contacts-large-title'>Contacts</span>
+    <div class='oneui-large-header' id='contacts-large-header' style='gap: 8px;'>
+      <span class='oneui-large-title' id='contacts-large-title'>Messages</span>
+      <span style='font-size: 15px; color: #9aa0a6; text-align: center;' id='contacts-large-subtitle'>11 contacts</span>
     </div>
 
     <!-- Scrollable Actions Row for Contacts -->
@@ -3121,7 +3122,7 @@
       contactsListContainer.style.display = 'block';
       appHeaderTabs.style.display = 'none';
 
-      compactAppTitle.textContent = 'Contacts';
+      compactAppTitle.textContent = 'Messages';
       updateContactsHeader(contactsListContainer.scrollTop);
     });
 
@@ -3769,6 +3770,13 @@
     setTimeout(() => {
       threadList.scrollTop = SNAP_THRESHOLD;
       updateHeader(SNAP_THRESHOLD);
+
+      // Compute dynamic contacts count and set subtitle
+      const contactsCount = document.querySelectorAll('#contacts-threads-container .contact-row').length;
+      const contactsLargeSubtitle = document.getElementById('contacts-large-subtitle');
+      if (contactsLargeSubtitle) {
+        contactsLargeSubtitle.textContent = `${contactsCount} contacts`;
+      }
 
       contactsListContainer.scrollTop = SNAP_THRESHOLD_CONTACTS;
       updateContactsHeader(SNAP_THRESHOLD_CONTACTS);
