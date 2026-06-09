@@ -346,7 +346,7 @@
     /* High-Fidelity Contacts Directory Layout Styles */
     .contact-row {
       display: flex;
-      padding: 14px 20px;
+      padding: 8px 20px; /* Zoomed out vertically to show more rows */
       cursor: pointer;
       align-items: center;
       transition: background-color 0.15s ease;
@@ -356,9 +356,19 @@
       background-color: #16161a;
     }
 
+    .contact-row .avatar {
+      width: 38px !important;  /* Compact avatar diameter */
+      height: 38px !important;
+      margin-right: 12px !important; /* Tighter margins */
+    }
+
+    .contact-row .avatar.text-avatar {
+      font-size: 15px !important; /* scaled text */
+    }
+
     .contact-name {
-      font-size: 16px;
-      font-weight: 500;
+      font-size: 15px; /* Compact name size */
+      font-weight: 400; /* Regular weight matches Samsung directory density */
       color: #e3e3e3;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -392,7 +402,7 @@
     .section-divider-row {
       display: flex;
       align-items: center;
-      padding: 8px 20px;
+      padding: 4px 20px; /* Tighter vertical gaps */
       gap: 12px;
     }
 
