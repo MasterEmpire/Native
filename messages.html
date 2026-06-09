@@ -365,6 +365,30 @@
       white-space: nowrap;
     }
 
+    /* Recipient Field and Container Styles */
+    .recipient-container {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      gap: 12px;
+      background-color: #000000;
+    }
+
+    .recipient-input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: #ffffff;
+      font-size: 16px;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .recipient-input::placeholder {
+      color: #9aa0a6;
+    }
+
     .section-divider-row {
       display: flex;
       align-items: center;
@@ -1458,11 +1482,11 @@
       transition: opacity 0.2s ease;
     }
 
-    #chat-actions-collapsed {
+    #chat-actions-collapsed, #new-conv-actions-collapsed {
       display: none;
       width: 40px;
       height: 40px;
-      align-items: center;
+      align-items: center; 
       justify-content: center;
     }
 
@@ -1508,7 +1532,8 @@
       display: none !important;
     }
 
-    .chat-footer.keyboard-focused #chat-actions-collapsed {
+    .chat-footer.keyboard-focused #chat-actions-collapsed,
+    .chat-footer.keyboard-focused #new-conv-actions-collapsed {
       display: flex !important;
     }
 
@@ -2044,6 +2069,13 @@
           </svg>
         </button>
       </div>
+
+      <!-- Collapsed Chevron Button (Focused View) -->
+      <button class="icon-btn" id="new-conv-actions-collapsed" aria-label="Expand actions">
+        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+          <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+        </svg>
+      </button>
 
       <div class='chat-input-pill'>
         <input type='text' class='chat-input-field' id='new-conv-input-field' placeholder='Text message' aria-label='Type a message'>
@@ -5006,6 +5038,26 @@
     chatActionsCollapsed.addEventListener('click', () => {
       chatInputField.blur();
     });
+
+    // Keyboard Focus Interaction for New Conversation Footer
+    const newConvFooter = document.getElementById('new-conv-footer');
+    const newConvActionsCollapsed = document.getElementById('new-conv-actions-collapsed');
+
+    newConvInputField.addEventListener('focus', () => {
+      newConvFooter.classList.add('keyboard-focused');
+      newConvInputField.placeholder = 'Enter message';
+    });
+
+    newConvInputField.addEventListener('blur', () => {
+      newConvFooter.classList.remove('keyboard-focused');
+      newConvInputField.placeholder = 'Text message';
+    });
+
+    if (newConvActionsCollapsed) {
+      newConvActionsCollapsed.addEventListener('click', () => {
+        newConvInputField.blur();
+      });
+    }
 
     // Listen to keystrokes inside the input text field
     chatInputField.addEventListener('input', () => {
