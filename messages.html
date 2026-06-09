@@ -771,12 +771,25 @@
       flex-direction: column;
       gap: 16px;
       scrollbar-width: none;
-      transition: padding-top 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    /* Offsets scrolling viewport when detailed profile expands at the top */
-    .chat-header.expanded ~ .chat-messages-container {
-      padding-top: 266px;
+    /* Dim backdrop overlay for expanded header */
+    .header-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 108;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .header-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
     }
 
     .chat-messages-container::-webkit-scrollbar {
@@ -1197,6 +1210,8 @@
        Immersive Chat Conversation Screen View Container
        ========================================================================== -->
   <div class="chat-view" id="chat-view">
+    <!-- Header dim backdrop overlay -->
+    <div class='header-backdrop' id='header-backdrop'></div>
     
     <!-- Immersive Header mimicking screenshot -->
     <header class="chat-header" id="chat-header">
@@ -1696,6 +1711,7 @@
     chatBackBtn.addEventListener('click', () => {
       chatView.classList.remove('active');
       document.getElementById('chat-header').classList.remove('expanded');
+      document.getElementById('header-backdrop').classList.remove('active');
     });
 
     // ==========================================================================
@@ -1799,13 +1815,22 @@
     const chatHeaderClickable = document.getElementById('chat-header-clickable');
     const chatHeader = document.getElementById('chat-header');
     const chatCollapseBtn = document.getElementById('chat-collapse-btn');
+    const headerBackdrop = document.getElementById('header-backdrop');
 
     chatHeaderClickable.addEventListener('click', () => {
       chatHeader.classList.add('expanded');
+      headerBackdrop.classList.add('active');
     });
 
     chatCollapseBtn.addEventListener('click', () => {
       chatHeader.classList.remove('expanded');
+      headerBackdrop.classList.remove('active');
+    });
+
+    // Dismiss expanded profile layout by tapping on the dimmed backdrop
+    headerBackdrop.addEventListener('click', () => {
+      chatHeader.classList.remove('expanded');
+      headerBackdrop.classList.remove('active');
     });
 
     // ==========================================================================
