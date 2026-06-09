@@ -3614,6 +3614,20 @@
 
     function updateCategoryUI() {
       const activeCat = threadCategories[activeThreadId] || '';
+      
+      // Update Expanded Header panel subtitle category indicator
+      const headerSub = document.querySelector('.expanded-category');
+      if (headerSub) {
+        headerSub.textContent = activeCat || 'None';
+      }
+
+      // Sync side-drawer category descriptor subtitle
+      const drawerSub = document.getElementById('drawer-category-subtitle');
+      if (drawerSub) {
+        drawerSub.textContent = activeCat || 'None';
+      }
+    }
+
     // Expanded Message View Logic & Event Delegation
     const expandedMsgView = document.getElementById('expanded-msg-view');
     const expandedMsgBackBtn = document.getElementById('expanded-msg-back-btn');
@@ -3884,15 +3898,6 @@
     // Stateful Bubble Context Menu (Long-Press) Logic
     let longPressTimeout = null;
     let selectedBubbleElement = null;
-        headerSub.textContent = activeCat || 'None';
-      }
-
-      // Sync side-drawer category descriptor subtitle
-      const drawerSub = document.getElementById('drawer-category-subtitle');
-      if (drawerSub) {
-        drawerSub.textContent = activeCat || 'None';
-      }
-    }
 
     // ==========================================================================
     // Conversation Categories Screen View Specific Edit/Rename/Delete Logic
