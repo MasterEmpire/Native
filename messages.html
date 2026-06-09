@@ -572,19 +572,56 @@
       transform: translateX(0);
     }
 
-    /* Chat App Header */
+    /* Chat App Header Collapse / Expand Rules */
     .chat-header {
       height: 64px;
       background-color: #000000;
-      display: flex;
-      align-items: center;
-      padding: 0 12px;
-      gap: 4px;
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       z-index: 110;
+      transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+
+    .chat-header-standard {
+      height: 64px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 4px;
+      width: 100%;
+      opacity: 1;
+      transition: opacity 0.15s ease;
+    }
+
+    .chat-header-expanded {
+      display: flex;
+      flex-direction: column;
+      padding: 12px 12px 20px 12px;
+      width: 100%;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease;
+      height: 0;
+    }
+
+    .chat-header.expanded {
+      height: 250px; /* Pushes height to match details panel */
+    }
+
+    .chat-header.expanded .chat-header-standard {
+      opacity: 0;
+      pointer-events: none;
+      height: 0;
+      overflow: hidden;
+    }
+
+    .chat-header.expanded .chat-header-expanded {
+      opacity: 1;
+      pointer-events: auto;
+      height: auto;
     }
 
     .chat-header-left {
@@ -592,6 +629,7 @@
       align-items: center;
       flex: 1;
       min-width: 0;
+      cursor: pointer;
     }
 
     .chat-avatar {
@@ -605,6 +643,7 @@
       font-weight: 500;
       color: #ffffff;
       margin-right: 12px;
+      flex-shrink: 0;
     }
 
     .chat-info-block {
@@ -621,6 +660,84 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    /* Expanded UI Details styling matching screenshot */
+    .expanded-top-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+    }
+
+    .expanded-top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .expanded-profile-area {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      gap: 16px;
+    }
+
+    .large-avatar {
+      width: 64px;
+      height: 64px;
+      font-size: 26px;
+      border-radius: 50%;
+    }
+
+    .expanded-profile-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .expanded-category {
+      font-size: 14px;
+      color: #9aa0a6;
+    }
+
+    .expanded-name-row {
+      display: flex;
+      align-items: center;
+    }
+
+    .expanded-name {
+      font-size: 26px;
+      font-weight: 500;
+      color: #ffffff;
+    }
+
+    .expanded-number {
+      font-size: 14px;
+      color: #9aa0a6;
+    }
+
+    .expanded-recipients-container {
+      display: flex;
+      justify-content: center;
+      width: 100%;
+      padding-top: 12px;
+    }
+
+    .recipients-btn {
+      background: none;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 500;
+      padding: 8px 32px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .recipients-btn:active {
+      background-color: rgba(255, 255, 255, 0.1);
     }
 
     /* Simulated Dual SIM Badge Indicator */
@@ -654,6 +771,12 @@
       flex-direction: column;
       gap: 16px;
       scrollbar-width: none;
+      transition: padding-top 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Offsets scrolling viewport when detailed profile expands at the top */
+    .chat-header.expanded ~ .chat-messages-container {
+      padding-top: 266px;
     }
 
     .chat-messages-container::-webkit-scrollbar {
@@ -1076,34 +1199,86 @@
   <div class="chat-view" id="chat-view">
     
     <!-- Immersive Header mimicking screenshot -->
-    <header class="chat-header">
-      <button class="icon-btn" id="chat-back-btn" aria-label="Navigate back">
-        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-          <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/>
-        </svg>
-      </button>
-      
-      <div class="chat-header-left">
-        <div class="chat-avatar" id="chat-header-avatar"></div>
-        <div class="chat-info-block">
-          <span class="chat-name" id="chat-header-name"></span>
-          <!-- Dynamic SIM slot indicators -->
-          <div class="sim-badge-container">
-            <span class="sim-badge">1</span>
-            <span class="dropdown-arrow">
-              <svg viewBox="0 0 24 24" fill="#8ab4f8" width="16" height="16">
-                <path d="M7 10l5 5 5-5H7z"/>
-              </svg>
-            </span>
+    <header class="chat-header" id="chat-header">
+      <!-- STANDARD HEADER VIEW -->
+      <div class="chat-header-standard" id="chat-header-standard">
+        <button class="icon-btn" id="chat-back-btn" aria-label="Navigate back">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/>
+          </svg>
+        </button>
+        
+        <div class="chat-header-left" id="chat-header-clickable">
+          <div class="chat-avatar" id="chat-header-avatar"></div>
+          <div class="chat-info-block">
+            <span class="chat-name" id="chat-header-name"></span>
+            <!-- Dynamic SIM slot indicators -->
+            <div class="sim-badge-container">
+              <span class="sim-badge">1</span>
+              <span class="dropdown-arrow">
+                <svg viewBox="0 0 24 24" fill="#8ab4f8" width="16" height="16">
+                  <path d="M7 10l5 5 5-5H7z"/>
+                </svg>
+              </span>
+            </div>
           </div>
         </div>
+        
+        <button class="icon-btn" id="chat-more-btn" aria-label="Chat options">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+        </button>
       </div>
-      
-      <button class="icon-btn" id="chat-more-btn" aria-label="Chat options">
-        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-        </svg>
-      </button>
+
+      <!-- EXPANDED DETAILED PROFILE VIEW -->
+      <div class="chat-header-expanded" id="chat-header-expanded">
+        <!-- Action row -->
+        <div class="expanded-top-row">
+          <button class="icon-btn" id="chat-collapse-btn" aria-label="Collapse detailed header">
+            <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+              <path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/>
+            </svg>
+          </button>
+          <div class="expanded-top-actions">
+            <button class="icon-btn" aria-label="Call contact">
+              <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+                <path d="M6.62 10.79c1.44 2.53 3.61 4.7 6.14 6.14l2.2-2.2c.27-.27.67-.36 1.02-.26 1.12.32 2.33.5 3.57.5.55 0 1-.45 1-1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.18 2.45.5 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+              </svg>
+            </button>
+            <button class="icon-btn" aria-label="Contact info">
+              <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Large Profile Area -->
+        <div class="expanded-profile-area">
+          <div class="chat-avatar large-avatar" id="chat-header-avatar-large"></div>
+          <div class="expanded-profile-details">
+            <span class="expanded-category">Bs</span>
+            <div class="expanded-name-row">
+              <span class="expanded-name" id="chat-header-name-large"></span>
+              <div class="sim-badge-container" style="margin-left: 8px;">
+                <span class="sim-badge">1</span>
+                <span class="dropdown-arrow">
+                  <svg viewBox="0 0 24 24" fill="#8ab4f8" width="16" height="16">
+                    <path d="M7 10l5 5 5-5H7z"/>
+                  </svg>
+                </span>
+              </div>
+            </div>
+            <span class="expanded-number" id="chat-header-number-large"></span>
+          </div>
+        </div>
+
+          <!-- Add/remove recipients pill shape button -->
+        <div class="expanded-recipients-container">
+          <button class="recipients-btn">Add/remove recipients</button>
+        </div>
+      </div>
     </header>
 
     <!-- Chat Messages Scrolling list -->
@@ -1325,6 +1500,7 @@
         "name": "Dfdkjgeeqwilt",
         "avatarColor": "#00796b",
         "isTextAvatar": true,
+        "number": "994",
         "bubbles": [
           {
             "text": "Monthly voice 228 Min  from telebirr to be expired after 30 days with 114 Min night package bonus valid for 30 days ከ 0 ተልኮልዎታል።ጥቅሉ የሚያበቃው በ <span class='blue-link'>09-07-2026 08:30:12</span> ነው።\nምርት እና አገልግሎታችንን ጋር በተገናኘ መረጃ ወይም ድጋፍ ሲፈልጉ ከዚህ በታች የተጠቀሱትን አማራጮች ይጠቀሙ።\nወደ 994 አጭር የጽሁፍ መልዕክት በመላክ፤\nዌብ: <span class='blue-link'>https://www.ethiotelecom.net/</span>",
@@ -1342,6 +1518,7 @@
         "name": "251994",
         "avatarColor": "#2b2c30",
         "isTextAvatar": false,
+        "number": "251994",
         "bubbles": [
           {
             "text": "ውድ ደንበኛችን፤ ካለዎት Monthly student pack 234Min + 120SMS plus 234Min night bonus... ጥቅሉ የሚያበቃው በ <span class='blue-link'>15-07-2026 12:00:00</span> ነው።\nተጨማሪ መረጃ ለማግኘት በ <span class='blue-link'>https://www.ethiotelecom.et/</span> ይጎብኙ።",
@@ -1354,6 +1531,7 @@
         "name": "127",
         "avatarColor": "#2b2c30",
         "isTextAvatar": false,
+        "number": "127",
         "bubbles": [
           {
             "text": "Dear Customer You have received ETB 2.00 airtime from <span class='blue-link'>251933407551</span> on 09/06/2026. Your current balance is ETB 15.42. Thank you for choosing ethio telecom!",
@@ -1366,6 +1544,7 @@
         "name": "ethio tel",
         "avatarColor": "#2b2c30",
         "isTextAvatar": false,
+        "number": "994",
         "bubbles": [
           {
             "text": "ውድ ደንበኛችን፤ የፋይዳ ዲጂታል መታወቂያ በነጻ ይመዝገቡ! የካርድ ህትመት ትዕዛዝዎን በቴሌብር ሱፐር አፕ በኩል ማከናወን ይችላሉ። ለበለጠ መረጃ <span class='blue-link'>https://www.telebirr.com</span> ይጎብኙ።",
@@ -1378,6 +1557,7 @@
         "name": "CBE",
         "avatarColor": "#2b2c30",
         "isTextAvatar": false,
+        "number": "889",
         "bubbles": [
           {
             "text": "Dear Getiye Tekilu Eshetie You have received ETB 150.00 from account 1********1234 on 07/06/2026. Available Balance is ETB 2,450.00.",
@@ -1390,6 +1570,7 @@
         "name": "+251908982393",
         "avatarColor": "#2b2c30",
         "isTextAvatar": false,
+        "number": "+251908982393",
         "bubbles": [
           {
             "text": "Etyuuopufdfhkkklufyu Dgjiooojgiopjuoopoui Eryuiopphgjklhkllkjkl Sthkoooyeadhklhfhk... Let us meet at <span class='blue-link'>10:30 AM</span> tomorrow.",
@@ -1402,6 +1583,7 @@
         "name": "MPESA Info",
         "avatarColor": "#2b2c30",
         "isTextAvatar": false,
+        "number": "8022",
         "bubbles": [
           {
             "text": "ውድ ደንበኛችን፤ በትንሽ ክፍያ በM-PESA ይላኩ፤ ይቀበሉ። እንዲሁም የአየር ሰዓት ሲገዙ ተጨማሪ በነፃ የአየር ሰዓት ጉርሻ ያግኙ! ዝርዝሩን ለማየት <span class='blue-link'>https://www.safaricom.et</span> ይጎብኙ።",
@@ -1437,19 +1619,36 @@
     // Populate chat view dynamically and transition smooth active state
     function openChat(data) {
       chatHeaderName.textContent = data.name;
+      document.getElementById('chat-header-name-large').textContent = data.name;
+      document.getElementById('chat-header-number-large').textContent = data.number || '994';
       
+      const chatHeaderAvatarLarge = document.getElementById('chat-header-avatar-large');
+
       // Configure avatar element based on contact properties
       if (data.isTextAvatar) {
         chatHeaderAvatar.textContent = data.name.charAt(0);
         chatHeaderAvatar.style.backgroundColor = data.avatarColor;
         chatHeaderAvatar.classList.remove('default-avatar');
+
+        chatHeaderAvatarLarge.textContent = data.name.charAt(0);
+        chatHeaderAvatarLarge.style.backgroundColor = data.avatarColor;
+        chatHeaderAvatarLarge.classList.remove('default-avatar');
       } else {
         chatHeaderAvatar.textContent = '';
         chatHeaderAvatar.style.backgroundColor = data.avatarColor;
         chatHeaderAvatar.classList.add('default-avatar');
         chatHeaderAvatar.innerHTML = `
-          <svg viewBox="0 0 24 24" width="22" height="22">
-            <path fill="#9aa0a6" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+          <svg viewBox='0 0 24 24' width='22' height='22'>
+            <path fill='#9aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/>
+          </svg>
+        `;
+
+        chatHeaderAvatarLarge.textContent = '';
+        chatHeaderAvatarLarge.style.backgroundColor = data.avatarColor;
+        chatHeaderAvatarLarge.classList.add('default-avatar');
+        chatHeaderAvatarLarge.innerHTML = `
+          <svg viewBox='0 0 24 24' width='32' height='32'>
+            <path fill='#9aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/>
           </svg>
         `;
       }
@@ -1496,6 +1695,7 @@
     // Handle smooth dismiss click action
     chatBackBtn.addEventListener('click', () => {
       chatView.classList.remove('active');
+      document.getElementById('chat-header').classList.remove('expanded');
     });
 
     // ==========================================================================
@@ -1591,6 +1791,21 @@
         searchView.classList.add('active');
         searchInputField.focus();
       }, 150);
+    });
+
+    // ==========================================================================
+    // Toggling Collapsible / Expanded Chat Header State
+    // ==========================================================================
+    const chatHeaderClickable = document.getElementById('chat-header-clickable');
+    const chatHeader = document.getElementById('chat-header');
+    const chatCollapseBtn = document.getElementById('chat-collapse-btn');
+
+    chatHeaderClickable.addEventListener('click', () => {
+      chatHeader.classList.add('expanded');
+    });
+
+    chatCollapseBtn.addEventListener('click', () => {
+      chatHeader.classList.remove('expanded');
     });
 
     // ==========================================================================
