@@ -2359,7 +2359,7 @@
           <span class="sheet-option-title">Search messages</span>
         </div>
       </div>
-      <div class="sheet-option">
+      <div class="sheet-option" id="drawer-option-sound">
         <div class="sheet-option-icon">
           <svg viewBox="0 0 24 24" fill="#e3e3e3" width="24" height="24">
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
@@ -2717,6 +2717,55 @@
         <span>More</span>
       </button>
     </footer>
+  </div>
+
+  <!-- Unread Messages Fullscreen View Overlay -->
+  <div class='category-select-view' id='unread-messages-view' style='z-index: 240;'>
+    <header class='search-header'>
+      <button class='icon-btn' id='unread-back-btn' aria-label='Go back'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+        </svg>
+      </button>
+      <span style='font-size: 20px; font-weight: 500; color: #ffffff; flex: 1;'>Unread messages</span>
+      <button class='icon-btn' id='unread-more-btn' aria-label='More options'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z'/>
+        </svg>
+      </button>
+    </header>
+
+    <div style='flex: 1; overflow-y: auto;' id='unread-messages-list-container'>
+      <!-- Populated dynamically via JS -->
+    </div>
+  </div>
+
+  <!-- Unread Messages More Options Dropdown -->
+  <div class='context-menu-backdrop' id='unread-more-backdrop'></div>
+  <div class='main-more-card' id='unread-more-card' style='top: 60px; right: 16px; z-index: 310;'>
+    <div class='context-menu-item' id='unread-mark-all-read-btn'>Mark all as read</div>
+  </div>
+
+  <!-- Notification Sound Fullscreen View Overlay -->
+  <div class='category-select-view' id='notification-sound-view' style='z-index: 240;'>
+    <header class='search-header'>
+      <button class='icon-btn' id='sound-back-btn' aria-label='Go back'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+        </svg>
+      </button>
+      <span style='font-size: 20px; font-weight: 500; color: #ffffff;'>Notification sound</span>
+    </header>
+
+    <div style='flex: 1; overflow-y: auto;'>
+      <p style='padding: 16px 24px; font-size: 14px; color: #9aa0a6; line-height: 1.4;'>
+        Choosing a custom notification sound will create a new notification category for this conversation.
+      </p>
+
+      <div class='settings-card' id='sound-options-list-container'>
+        <!-- Populated dynamically via JS -->
+      </div>
+    </div>
   </div>
 
   <!-- Recycle Bin Fullscreen View Overlay -->
@@ -3640,6 +3689,207 @@
 
       openExpandedMessage(activeData.name, time, fullTextToShow);
     });
+
+    // Unread Messages Dataset mimicking Screenshot 1
+    const unreadMessagesData = [
+      { id: '1', name: 'Dfdkjgeeqwilt', time: '6:37 pm', text: 'Dear Customer As per your request the new service offer Two Birr 480 MB Telegram pa...', count: 2, avatarColor: '#00796b', isTextAvatar: true },
+      { id: '3', name: '127', time: '6:37 pm', text: 'Dear Getye You have paid ETB 2.00 for package Telegram Two hours Package 4...', count: 11, avatarColor: '#2b2c30', isTextAvatar: false },
+      { id: '6', name: '+251908982393', time: '7 Jun', text: 'Etyuuopufdfhkkklufyu Dgjiooojgiopjuoopoui Eryuiopphgjklhkllkjkl Sthkoooyeadhklhfhk...', count: 2, avatarColor: '#2b2c30', isTextAvatar: false },
+      { id: '7', name: 'MPESA Info', time: '7 Jun', text: 'ውድ ደንበኛችን፤ በትንሽ ክፍያ በM-PESA ይላኩ፤ ይቀበሉ። እንዲሁም የአየር ሰዓት ሲገዙ ተጨማሪ በነ...', count: 5, avatarColor: '#2b2c30', isTextAvatar: false },
+      { id: '8', name: 'Mekedonia', time: '6 Jun', text: 'ማስፈንጠሪያውን ይጫኑ https://www.youtube.com/live/vtyClslmn1A?si=5Xp3T...', count: 1, avatarColor: '#2b2c30', isTextAvatar: false },
+      { id: '9', name: 'Safaricom', time: '4 Jun', text: 'የጥንቃቄ መልዕክት : ውድ ደንበኛችን! አጭበርባሪዎች ዓለም አቀፍ ቁጥሮችን በመጠቀም በመደወል እንዴ እ...', count: 8, avatarColor: '#2b2c30', isTextAvatar: false },
+      { id: '10', name: 'BOA', time: '4 Jun', text: 'ይጠንቀቁ ! ውድ ደንበኛችን ያስተውሉ! አንዳንድ ደንበኞች በሞባይል በተለይ በግብይት ወቅት ሂሳብ ስንፍ...', count: 2, avatarColor: '#2b2c30', isTextAvatar: false },
+      { id: '11', name: '131', time: '3 Jun', text: 'The moment is yours! Dial *131# to play Lucky Slot+ and win 500,000 ETB, top sma...', count: 1, avatarColor: '#2b2c30', isTextAvatar: false },
+      { id: '12', name: 'Bunna Bank', time: '3 Jun', text: 'ውድ ደንበኛችን፤ የካርድ ህትመት ትዕዛዝዎን በቴሌብር ሱፐር አፕ በኩል ማከናወን ይችላሉ። ለበለጠ...', count: 1, avatarColor: '#2b2c30', isTextAvatar: false }
+    ];
+
+    // Notification Sounds Dataset mimicking Screenshot 2
+    const soundSounds = [
+      'Default notification sound',
+      'Silent',
+      '80s Toms',
+      'Alien',
+      'Alpha',
+      'Aurora',
+      'Banjo',
+      'Beep Once',
+      'Bells',
+      'Cassiopeia',
+      'Chaos',
+      'Clavinet',
+      'Clue'
+    ];
+    let selectedSound = 'Default notification sound';
+
+    function renderSoundOptionsScreen() {
+      const container = document.getElementById('sound-options-list-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      soundSounds.forEach((sound, idx) => {
+        const row = document.createElement('div');
+        row.className = 'settings-item';
+        row.style.padding = '14px 24px';
+        row.style.gap = '16px';
+        row.style.justifyContent = 'flex-start';
+
+        const isChecked = (sound === selectedSound);
+        const radioSVG = isChecked
+          ? `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#8ab4f8" stroke-width="2" style="flex-shrink: 0;">
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="5" fill="#8ab4f8" />
+             </svg>`
+          : `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#9aa0a6" stroke-width="2" style="flex-shrink: 0;">
+              <circle cx="12" cy="12" r="10" />
+             </svg>`;
+
+        row.innerHTML = `
+          ${radioSVG}
+          <span class="settings-item-title" style="font-size: 16px; font-weight: 400; color: #ffffff;">${sound}</span>
+        `;
+
+        row.addEventListener('click', () => {
+          selectedSound = sound;
+          renderSoundOptionsScreen();
+          showToast(`${sound} selected`);
+        });
+
+        container.appendChild(row);
+
+        if (idx < soundSounds.length - 1) {
+          const divider = document.createElement('div');
+          divider.className = 'settings-card-divider';
+          container.appendChild(divider);
+        }
+      });
+    }
+
+    function renderUnreadMessagesScreen() {
+      const container = document.getElementById('unread-messages-list-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      unreadMessagesData.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'message-thread';
+        row.setAttribute('data-id', item.id);
+
+        let avatarHTML = '';
+        if (item.isTextAvatar) {
+          avatarHTML = `<div class="avatar text-avatar" style="background-color: ${item.avatarColor}; margin-right: 16px;">${item.name.charAt(0)}</div>`;
+        } else {
+          avatarHTML = `
+            <div class="avatar default-avatar" style="margin-right: 16px;">
+              <svg viewBox="0 0 24 24">
+                <path fill="#9aa0a6" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+              </svg>
+            </div>
+          `;
+        }
+
+        row.innerHTML = `
+          ${avatarHTML}
+          <div class="thread-content">
+            <div class="thread-header">
+              <span class="sender-name">${item.name}</span>
+              <span class="timestamp">${item.time}</span>
+            </div>
+            <div class="thread-body">
+              <span class="preview-text">${item.text}</span>
+              <span class="unread-badge" style="${item.count === 0 ? 'display: none !important;' : ''}">${item.count}</span>
+            </div>
+          </div>
+        `;
+
+        row.addEventListener('click', () => {
+          if (!threadData[item.id]) {
+            threadData[item.id] = {
+              name: item.name,
+              avatarColor: item.avatarColor,
+              isTextAvatar: item.isTextAvatar,
+              number: '994',
+              bubbles: [
+                {
+                  text: item.text,
+                  time: item.time
+                }
+              ]
+            };
+          }
+          activeThreadId = item.id;
+          openChat(threadData[item.id]);
+          document.getElementById('unread-messages-view').classList.remove('active');
+        });
+
+        container.appendChild(row);
+      });
+    }
+
+    // Bind view button clicks and unread menu clicks
+    const largeViewBtn = document.getElementById('large-view-btn');
+    if (largeViewBtn) {
+      largeViewBtn.addEventListener('click', () => {
+        renderUnreadMessagesScreen();
+        document.getElementById('unread-messages-view').classList.add('active');
+      });
+    }
+
+    const unreadBackBtn = document.getElementById('unread-back-btn');
+    if (unreadBackBtn) {
+      unreadBackBtn.addEventListener('click', () => {
+        document.getElementById('unread-messages-view').classList.remove('active');
+      });
+    }
+
+    const unreadMoreBtn = document.getElementById('unread-more-btn');
+    const unreadMoreCard = document.getElementById('unread-more-card');
+    const unreadMoreBackdrop = document.getElementById('unread-more-backdrop');
+
+    if (unreadMoreBtn) {
+      unreadMoreBtn.addEventListener('click', () => {
+        unreadMoreCard.classList.add('active');
+        unreadMoreBackdrop.classList.add('active');
+      });
+    }
+
+    if (unreadMoreBackdrop) {
+      unreadMoreBackdrop.addEventListener('click', () => {
+        unreadMoreCard.classList.remove('active');
+        unreadMoreBackdrop.classList.remove('active');
+      });
+    }
+
+    const unreadMarkAllReadBtn = document.getElementById('unread-mark-all-read-btn');
+    if (unreadMarkAllReadBtn) {
+      unreadMarkAllReadBtn.addEventListener('click', () => {
+        unreadMessagesData.forEach(item => item.count = 0);
+        renderUnreadMessagesScreen();
+        document.querySelectorAll('.unread-badge').forEach(badge => badge.remove());
+        updateUnreadCount();
+        showToast('All messages marked as read');
+        unreadMoreCard.classList.remove('active');
+        unreadMoreBackdrop.classList.remove('active');
+      });
+    }
+
+    const drawerOptionSound = document.getElementById('drawer-option-sound');
+    if (drawerOptionSound) {
+      drawerOptionSound.addEventListener('click', () => {
+        sideDrawer.classList.remove('active');
+        sheetBackdrop.classList.remove('active');
+        setTimeout(() => {
+          renderSoundOptionsScreen();
+          document.getElementById('notification-sound-view').classList.add('active');
+        }, 150);
+      });
+    }
+
+    const soundBackBtn = document.getElementById('sound-back-btn');
+    if (soundBackBtn) {
+      soundBackBtn.addEventListener('click', () => {
+        document.getElementById('notification-sound-view').classList.remove('active');
+      });
+    }
 
     // Stateful Bubble Context Menu (Long-Press) Logic
     let longPressTimeout = null;
