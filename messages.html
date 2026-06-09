@@ -1563,24 +1563,44 @@
     <!-- Large Header inside Scroll Wrapper -->
     <div class='oneui-large-header' id='oneui-large-header'>
       <span class='oneui-large-title' id='large-unread-title'>52 unread messages</span>
-      <button class='view-btn'>View</button>
+      <button class='view-btn' id="large-view-btn">View</button>
     </div>
 
     <!-- Scrollable Actions Row inside Scroll Wrapper -->
     <div class="scrollable-actions-row" id="scrollable-actions-row">
-      <!-- Scrollable Search Button -->
-      <button class="icon-btn" aria-label="Search" id="scrollable-search-btn">
-        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-        </svg>
-      </button>
-      <!-- Scrollable Menu/More Button with "N" Badge -->
-      <button class="icon-btn" aria-label="More options" id="scrollable-more-btn">
-        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-        </svg>
-        <span class="more-badge">N</span>
-      </button>
+      <!-- Standard Scrollable actions -->
+      <div id="standard-scrollable-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; width: 100%;">
+        <!-- Scrollable Search Button -->
+        <button class="icon-btn" aria-label="Search" id="scrollable-search-btn">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+        </button>
+        <!-- Scrollable Menu/More Button with "N" Badge -->
+        <button class="icon-btn" aria-label="More options" id="scrollable-more-btn">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+          <span class="more-badge">N</span>
+        </button>
+      </div>
+
+      <!-- Selection Scrollable actions -->
+      <div id="selection-scrollable-actions" style="display: none; justify-content: space-between; align-items: center; width: 100%;">
+        <!-- Scrollable All select check Circle -->
+        <div id='scrollable-selection-toggle-all-btn' style='display: flex; flex-direction: column; align-items: center; cursor: pointer;'>
+          <svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'>
+            <circle cx='12' cy='12' r='10' />
+          </svg>
+          <span style='font-size: 11px; color: #ffffff; margin-top: 2px;'>All</span>
+        </div>
+        <!-- Scrollable Selection Search Button -->
+        <button class="icon-btn" aria-label="Search" id="scrollable-selection-search-btn">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Category Tabs Row inside Scroll Wrapper -->
@@ -3638,17 +3658,27 @@
       // Smooth fade-in translation for the sticky Compact App Title and actions
       if (progress > 0.8) {
         let fadeProgress = (progress - 0.8) * 5;
-        compactAppTitle.style.opacity = fadeProgress;
-        if (compactHeaderActions) compactHeaderActions.style.opacity = fadeProgress;
+        if (isSelectionMode) {
+          document.getElementById('app-header-selection').style.opacity = fadeProgress;
+          compactAppTitle.style.opacity = 0;
+          if (compactHeaderActions) compactHeaderActions.style.opacity = 0;
+        } else {
+          compactAppTitle.style.opacity = fadeProgress;
+          if (compactHeaderActions) compactHeaderActions.style.opacity = fadeProgress;
+          document.getElementById('app-header-selection').style.opacity = 0;
+        }
       } else {
         compactAppTitle.style.opacity = 0;
         if (compactHeaderActions) compactHeaderActions.style.opacity = 0;
+        document.getElementById('app-header-selection').style.opacity = 0;
       }
     }
 
     // Bind scrollable action buttons to exact same listeners
     const scrollableSearchBtn = document.getElementById('scrollable-search-btn');
     const scrollableMoreBtn = document.getElementById('scrollable-more-btn');
+    const scrollableSelectionToggleAllBtn = document.getElementById('scrollable-selection-toggle-all-btn');
+    const scrollableSelectionSearchBtn = document.getElementById('scrollable-selection-search-btn');
 
     if (scrollableSearchBtn) {
       scrollableSearchBtn.addEventListener('click', () => {
@@ -3663,6 +3693,22 @@
       scrollableMoreBtn.addEventListener('click', () => {
         mainMoreCard.classList.add('active');
         mainMoreBackdrop.classList.add('active');
+      });
+    }
+
+    if (scrollableSelectionToggleAllBtn) {
+      scrollableSelectionToggleAllBtn.addEventListener('click', () => {
+        const toggleAllBtn = document.getElementById('selection-toggle-all-btn');
+        if (toggleAllBtn) toggleAllBtn.click();
+      });
+    }
+
+    if (scrollableSelectionSearchBtn) {
+      scrollableSelectionSearchBtn.addEventListener('click', () => {
+        searchView.classList.add('active');
+        setTimeout(() => {
+          searchInputField.focus();
+        }, 100); 
       });
     }
 
@@ -4034,7 +4080,17 @@
       isSelectionMode = true;
       selectedThreadIds.clear();
 
-      // Swap header layouts
+      // Toggle expanded header components to selection mode
+      document.getElementById('large-unread-title').textContent = '0 selected';
+      const largeViewBtn = document.getElementById('large-view-btn');
+      if (largeViewBtn) largeViewBtn.style.display = 'none';
+      
+      const stdScrollActions = document.getElementById('standard-scrollable-actions');
+      const selScrollActions = document.getElementById('selection-scrollable-actions');
+      if (stdScrollActions) stdScrollActions.style.display = 'none';
+      if (selScrollActions) selScrollActions.style.display = 'flex';
+
+      // Swap compact header layouts
       document.getElementById('app-header-standard').style.display = 'none';
       document.getElementById('app-header-selection').style.display = 'block';
 
@@ -4044,6 +4100,7 @@
 
       // Toggle first row
       toggleThreadSelection(firstThreadId);
+      updateHeader(threadList.scrollTop);
 
       if (navigator.vibrate) navigator.vibrate(50);
     }
@@ -4051,6 +4108,16 @@
     function exitSelectionMode() {
       isSelectionMode = false;
       selectedThreadIds.clear();
+
+      // Restore expanded header components to standard
+      document.getElementById('large-unread-title').textContent = '52 unread messages';
+      const largeViewBtn = document.getElementById('large-view-btn');
+      if (largeViewBtn) largeViewBtn.style.display = 'inline-block';
+      
+      const stdScrollActions = document.getElementById('standard-scrollable-actions');
+      const selScrollActions = document.getElementById('selection-scrollable-actions');
+      if (stdScrollActions) stdScrollActions.style.display = 'flex';
+      if (selScrollActions) selScrollActions.style.display = 'none';
 
       // Restore standards
       document.getElementById('app-header-standard').style.display = 'block';
@@ -4067,21 +4134,26 @@
       });
 
       updateMainSelectAllIndicator();
+      updateUnreadCount();
+      updateHeader(threadList.scrollTop);
     }
 
     function updateMainSelectAllIndicator() {
       const toggleAllBtn = document.getElementById('selection-toggle-all-btn');
-      if (!toggleAllBtn) return;
+      const scrollableToggleAllBtn = document.getElementById('scrollable-selection-toggle-all-btn');
       const allThreads = document.querySelectorAll('.message-thread');
       const isAllSelected = (selectedThreadIds.size === allThreads.length && allThreads.length > 0);
       
-      const svgContainer = toggleAllBtn.querySelector('svg');
-      if (svgContainer) {
-        if (isAllSelected) {
-          svgContainer.outerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
-        } else {
-          svgContainer.outerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
-        }
+      const checkSVG = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+      const circleSVG = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+
+      if (toggleAllBtn) {
+        const svg = toggleAllBtn.querySelector('svg');
+        if (svg) svg.outerHTML = isAllSelected ? checkSVG : circleSVG;
+      }
+      if (scrollableToggleAllBtn) {
+        const svg = scrollableToggleAllBtn.querySelector('svg');
+        if (svg) svg.outerHTML = isAllSelected ? checkSVG : circleSVG;
       }
     }
 
@@ -4102,8 +4174,9 @@
         return;
       }
 
-      const countText = document.getElementById('selection-count-text');
-      countText.textContent = `${selectedThreadIds.size} selected`;
+      const countText = `${selectedThreadIds.size} selected`;
+      document.getElementById('selection-count-text').textContent = countText;
+      document.getElementById('large-unread-title').textContent = countText;
 
       updateMainSelectAllIndicator();
     }
@@ -4168,6 +4241,16 @@
         isSelectionMode = true;
         selectedThreadIds.clear();
 
+        // Toggle expanded header components to selection mode
+        document.getElementById('large-unread-title').textContent = '0 selected';
+        const largeViewBtn = document.getElementById('large-view-btn');
+        if (largeViewBtn) largeViewBtn.style.display = 'none';
+        
+        const stdScrollActions = document.getElementById('standard-scrollable-actions');
+        const selScrollActions = document.getElementById('selection-scrollable-actions');
+        if (stdScrollActions) stdScrollActions.style.display = 'none';
+        if (selScrollActions) selScrollActions.style.display = 'flex';
+
         document.getElementById('app-header-standard').style.display = 'none';
         document.getElementById('app-header-selection').style.display = 'block';
         document.getElementById('nav-conversations').closest('.bottom-nav').style.display = 'none';
@@ -4178,6 +4261,9 @@
 
         const countText = document.getElementById('selection-count-text');
         countText.textContent = '0 selected';
+
+        updateMainSelectAllIndicator();
+        updateHeader(threadList.scrollTop);
 
         if (navigator.vibrate) navigator.vibrate(50);
       }
