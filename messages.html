@@ -749,6 +749,60 @@
       order: -1;
     }
 
+    /* Immersive Bubble Context Menu Overlay */
+    .context-menu-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.4);
+      z-index: 290;
+      display: none;
+    }
+
+    .context-menu-backdrop.active {
+      display: block;
+    }
+
+    .context-menu-card {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 60%;
+      max-width: 240px;
+      background-color: #1e1f22;
+      border-radius: 28px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      z-index: 300;
+      padding: 16px 0;
+      display: flex;
+      flex-direction: column;
+      transform: scale(0.9) translateY(10px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    }
+
+    .context-menu-card.active {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .context-menu-item {
+      padding: 12px 24px;
+      font-size: 16px;
+      color: #ffffff;
+      cursor: pointer;
+      transition: background-color 0.15s;
+      text-align: left;
+    }
+
+    .context-menu-item:active {
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+
     /* Bottom Conversation Bar */
     .chat-footer {
       position: fixed;
@@ -1250,6 +1304,19 @@
     </div>
   </div>
 
+  <!-- Bubble Context Menu Overlay -->
+  <div class='context-menu-backdrop' id='context-menu-backdrop'></div>
+  <div class='context-menu-card' id='context-menu-card'>
+    <div class='context-menu-item' data-action='delete'>Delete</div>
+    <div class='context-menu-item' data-action='copy'>Copy text</div>
+    <div class='context-menu-item' data-action='select'>Select text</div>
+    <div class='context-menu-item' data-action='forward'>Forward</div>
+    <div class='context-menu-item' data-action='share'>Share</div>
+    <div class='context-menu-item' data-action='star'>Star message</div>
+    <div class='context-menu-item' data-action='reminder'>Add to reminder</div>
+    <div class='context-menu-item' data-action='details'>View details</div>
+  </div>
+
   <!-- JavaScript Interaction Layer -->
   <script>
     // Parsable JSON Thread Bubble Data matching screenshot content and formatting
@@ -1609,6 +1676,166 @@
       chatInputField.value = '';
       micSendBtn.innerHTML = soundwaveSVG;
       micSendBtn.setAttribute('aria-label', 'Record audio note');
+    });
+
+    // ==========================================================================
+    // Stateful Bubble Context Menu (Long-Press) Logic
+    // ==========================================================================
+    let longPressTimeout = null;
+    let selectedBubbleElement = null;
+
+    const contextMenuCard = document.getElementById('context-menu-card');
+    const contextMenuBackdrop = document.getElementById('context-menu-backdrop');
+
+    // Display a clean feedback toast overlay
+    function showToast(message) { 
+      let toast = document.getElementById('custom-toast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'custom-toast';
+        toast.style.cssText = 'position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background-color: #323336; color: #ffffff; padding: 12px 24px; border-radius: 20px; font-size: 14px; z-index: 400; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; box-shadow: 0 4px 12px rgba(0,0,0,0.4);';
+        document.body.appendChild(toast);
+      }
+      toast.textContent = message;
+      toast.style.opacity = '1';
+      setTimeout(() => {
+        toast.style.opacity = '0';
+      }, 2000);
+    }
+
+    function triggerContextMenu(e, bubbleElement) {
+      selectedBubbleElement = bubbleElement;
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      contextMenuCard.classList.add('active');
+      contextMenuBackdrop.classList.add('active');
+    }
+
+    // Capture standard touchstart & mousedown for contextual long-press triggers
+    chatMessagesList.addEventListener('mousedown', (e) => {
+      const bubble = e.target.closest('.bubble');
+      if (!bubble) return;
+      longPressTimeout = setTimeout(() => {
+        triggerContextMenu(e, bubble);
+      }, 600);
+    });
+
+    chatMessagesList.addEventListener('touchstart', (e) => {
+      const bubble = e.target.closest('.bubble');
+      if (!bubble) return;
+      longPressTimeout = setTimeout(() => {
+        triggerContextMenu(e, bubble);
+      }, 600);
+    });
+
+    function clearLongPress() {
+      if (longPressTimeout) {
+        clearTimeout(longPressTimeout);
+        longPressTimeout = null;
+      }
+    }
+
+    chatMessagesList.addEventListener('mouseup', clearLongPress);
+    chatMessagesList.addEventListener('mouseleave', clearLongPress);
+    chatMessagesList.addEventListener('touchend', clearLongPress);
+    chatMessagesList.addEventListener('touchcancel', clearLongPress);
+    chatMessagesList.addEventListener('mousemove', clearLongPress);
+    chatMessagesList.addEventListener('touchmove', clearLongPress);
+
+    // Close on backdrop tap
+    contextMenuBackdrop.addEventListener('click', () => {
+      contextMenuCard.classList.remove('active');
+      contextMenuBackdrop.classList.remove('active');
+    });
+
+    // Handle distinct functional menu options clicked
+    contextMenuCard.addEventListener('click', (e) => {
+      const item = e.target.closest('.context-menu-item');
+      if (!item) return;
+
+      const action = item.getAttribute('data-action');
+      contextMenuCard.classList.remove('active');
+      contextMenuBackdrop.classList.remove('active');
+
+      if (!selectedBubbleElement) return;
+
+      if (action === 'delete') {
+        const wrapper = selectedBubbleElement.closest('.bubble-wrapper');
+        if (wrapper) {
+          wrapper.style.transition = 'opacity 0.2s, transform 0.2s';
+          wrapper.style.opacity = '0';
+          wrapper.style.transform = 'scale(0.8)';
+          setTimeout(() => {
+            wrapper.remove();
+            showToast('Message deleted');
+          }, 200);
+        }
+      }
+
+      if (action === 'copy') {
+        const textContent = selectedBubbleElement.querySelector('.bubble-text-content').innerText;
+        navigator.clipboard.writeText(textContent).then(() => {
+          showToast('Text copied to clipboard');
+        }).catch(() => {
+          showToast('Failed to copy text');
+        });
+      }
+
+      if (action === 'select') {
+        const textElement = selectedBubbleElement.querySelector('.bubble-text-content');
+        if (textElement) {
+          const range = document.createRange();
+          range.selectNodeContents(textElement);
+          const selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+          showToast('Text selected');
+        }
+      }
+
+      if (action === 'forward') {
+        showToast('Message forwarded');
+      }
+
+      if (action === 'share') {
+        const textContent = selectedBubbleElement.querySelector('.bubble-text-content').innerText;
+        if (navigator.share) {
+          navigator.share({ text: textContent }).catch(() => {});
+        } else {
+          showToast('Sharing message text...');
+        }
+      }
+
+      if (action === 'star') {
+        const wrapper = selectedBubbleElement.closest('.bubble-wrapper');
+        let starSpan = wrapper.querySelector('.star-indicator');
+        if (!starSpan) {
+          starSpan = document.createElement('span');
+          starSpan.className = 'star-indicator';
+          starSpan.innerHTML = "<svg viewBox='0 0 24 24' fill='#f4b400' width='14' height='14' style='margin-right: 4px; vertical-align: middle;'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>";
+          const timestamp = wrapper.querySelector('.bubble-timestamp');
+          if (timestamp) {
+            timestamp.insertBefore(starSpan, timestamp.firstChild);
+            showToast('Message starred');
+          } 
+        } else {
+          starSpan.remove();
+          showToast('Message unstarred');
+        }
+      }
+
+      if (action === 'reminder') {
+        showToast('Added to reminders');
+      }
+
+      if (action === 'details') {
+        const wrapper = selectedBubbleElement.closest('.bubble-wrapper');
+        const isSent = wrapper.classList.contains('sent');
+        const timestamp = wrapper.querySelector('.bubble-timestamp').textContent;
+        const type = isSent ? 'Sent' : 'Received';
+        alert('Message Details:\n\nType: ' + type + '\nTime: ' + timestamp + '\nStatus: Delivered\nNetwork: Delivered via SIM 1');
+      }
     });
   </script>
 </body>
