@@ -397,11 +397,11 @@
       height: 72px;
       background-color: #000000;
       display: flex;
-      justify-content: center;
+      justify-content: space-around; /* Buttons sit beautifully far apart */
       align-items: center;
-      gap: 64px;
       border-top: 1px solid #141414;
       z-index: 15;
+      padding: 0 32px;
     }
 
     /* Overrides bottom selection action bar to show ONLY the Delete button */
@@ -2094,6 +2094,25 @@
     </div>
   </div>
 
+  <!-- Custom Samsung Dialogues Backdrop confirmation modal -->
+  <div class='dialog-backdrop' id='confirm-dialog-backdrop'>
+    <div class='dialog-card'>
+      <span class='dialog-title' id='confirm-dialog-title'>Delete permanently?</span>
+      <p id='confirm-dialog-desc' style='font-size: 15px; color: #9aa0a6; line-height: 1.4; margin-top: 8px;'>This cannot be undone.</p>
+      <div class='dialog-actions' style='margin-top: 24px;'>
+        <button class='dialog-btn' id='confirm-cancel-btn'>Cancel</button>
+        <div class='dialog-btn-divider'></div>
+        <button class='dialog-btn' id='confirm-ok-btn' style='color: #f4511e;'>Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recycle Bin More Options Dropdown -->
+  <div class='context-menu-backdrop' id='recycle-more-backdrop'></div>
+  <div class='main-more-card' id='recycle-more-card' style='top: 60px; right: 16px;'>
+    <div class='context-menu-item' id='recycle-more-empty-btn'>Empty</div>
+  </div>
+
   <!-- Messages Settings Fullscreen view overlay -->
   <div class='category-select-view' id='settings-view'>
     <header class='search-header'>
@@ -2301,34 +2320,22 @@
 
   <!-- Recycle Bin Fullscreen View Overlay -->
   <div class='category-select-view' id='recycle-bin-view'>
-    <!-- STANDARD RECYCLE BIN HEADER -->
+    <!-- CONSOLIDATED RECYCLE BIN HEADER -->
     <header class='search-header' id='recycle-header-standard'>
       <button class='icon-btn' id='recycle-back-btn' aria-label='Go back'>
-        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
-          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
-        </svg>
+        <span id='recycle-back-icon-container' style='display: flex; align-items: center;'>
+          <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+            <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+          </svg>
+        </span>
       </button>
-      <span style='font-size: 20px; font-weight: 500; color: #ffffff; flex: 1;'>Recycle bin</span>
+      <span style='font-size: 20px; font-weight: 500; color: #ffffff; flex: 1;' id='recycle-title-text'>Recycle bin</span>
       <button class='recipients-btn' id='recycle-edit-btn' style='border: none; padding: 4px 12px; font-size: 16px;'>Edit</button>
       <button class='icon-btn' id='recycle-empty-btn' aria-label='Empty recycle bin'>
         <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
           <path d='M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z'/>
         </svg>
       </button>
-    </header>
-
-    <!-- SELECTION RECYCLE BIN HEADER -->
-    <header class='search-header' id='recycle-header-selection' style='display: none;'>
-      <div style='display: flex; align-items: center; gap: 16px; flex: 1;'>
-        <div id='recycle-toggle-all-btn' style='display: flex; flex-direction: column; align-items: center; cursor: pointer;'>
-          <svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'>
-            <circle cx='12' cy='12' r='10' />
-          </svg>
-          <span style='font-size: 11px; color: #ffffff; margin-top: 2px;'>All</span>
-        </div>
-        <span style='font-size: 20px; font-weight: 500; color: #ffffff;' id='recycle-select-title'>Select conversations</span>
-      </div>
-      <button class='recipients-btn' id='recycle-cancel-btn' style='border: none; padding: 4px 12px; font-size: 16px;'>Cancel</button>
     </header>
 
     <div style='flex: 1; overflow-y: auto;'>
@@ -2359,14 +2366,17 @@
   </div>
 
   <!-- Conversation Categories settings view card overlay -->
+  <!-- Conversation Categories View -->
   <div class='category-select-view' id='conversation-categories-view'>
     <header class='search-header'>
       <button class='icon-btn' id='conv-categories-back-btn' aria-label='Go back'>
-        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
-          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
-        </svg>
+        <span id='conv-categories-back-icon-container' style='display: flex; align-items: center;'>
+          <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+            <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+          </svg>
+        </span>
       </button>
-      <span style='font-size: 20px; font-weight: 500; color: #ffffff; flex: 1;'>Conversation categories</span>
+      <span style='font-size: 20px; font-weight: 500; color: #ffffff; flex: 1;' id='conv-categories-title-text'>Conversation categories</span>
       <button class='recipients-btn' id='conv-categories-edit-btn' style='border: none; padding: 4px 16px; font-size: 16px;'>Edit</button>
     </header>
 
@@ -2428,9 +2438,187 @@
 
   <!-- JavaScript Interaction Layer -->
   <script>
-    // Parsable JSON Thread Bubble Data matching screenshot content and formatting
-    const threadData = {
-      "1": {
+    // ==========================================================================
+    // Custom Reusable Confirmation Dialogue Modal Logic
+    // ==========================================================================
+    let onConfirmDialogSuccess = null;
+    const confirmDialogBackdrop = document.getElementById('confirm-dialog-backdrop');
+    const confirmDialogTitle = document.getElementById('confirm-dialog-title');
+    const confirmDialogDesc = document.getElementById('confirm-dialog-desc');
+    const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+    const confirmOkBtn = document.getElementById('confirm-ok-btn');
+
+    confirmCancelBtn.addEventListener('click', () => {
+      confirmDialogBackdrop.classList.remove('active');
+      onConfirmDialogSuccess = null;
+    });
+
+    confirmOkBtn.addEventListener('click', () => {
+      if (onConfirmDialogSuccess) onConfirmDialogSuccess();
+      confirmDialogBackdrop.classList.remove('active');
+      onConfirmDialogSuccess = null;
+    });
+
+    function showConfirmDialog(title, desc, onOkCallback) {
+      confirmDialogTitle.textContent = title;
+      confirmDialogDesc.textContent = desc;
+      onConfirmDialogSuccess = onOkCallback;
+      confirmDialogBackdrop.classList.add('active');
+    }
+
+    // ==========================================================================
+    // Long-Press list gesture triggers for both Recycle Bin and Categories
+    // ==========================================================================
+    let recycleLongPressTimeout = null;
+    const recycleBinListContainer = document.getElementById('recycle-bin-list-container');
+
+    // Long-press detection inside Recycle Bin list
+    recycleBinListContainer.addEventListener('mousedown', (e) => {
+      const row = e.target.closest('.message-thread');
+      if (!row || isRecycleEditMode) return;
+      recycleLongPressTimeout = setTimeout(() => {
+        enterRecycleEditMode();
+        const index = Array.from(recycleBinListContainer.children).indexOf(row);
+        if (recycleBinData[index]) toggleRecycleSelection(recycleBinData[index].id);
+      }, 600);
+    });
+
+    recycleBinListContainer.addEventListener('touchstart', (e) => {
+      const row = e.target.closest('.message-thread');
+      if (!row || isRecycleEditMode) return;
+      recycleLongPressTimeout = setTimeout(() => {
+        enterRecycleEditMode();
+        const index = Array.from(recycleBinListContainer.children).indexOf(row);
+        if (recycleBinData[index]) toggleRecycleSelection(recycleBinData[index].id);
+      }, 600);
+    });
+
+    function clearRecycleLongPress() {
+      if (recycleLongPressTimeout) {
+        clearTimeout(recycleLongPressTimeout);
+        recycleLongPressTimeout = null;
+      }
+    }
+
+    recycleBinListContainer.addEventListener('mouseup', clearRecycleLongPress);
+    recycleBinListContainer.addEventListener('mouseleave', clearRecycleLongPress);
+    recycleBinListContainer.addEventListener('touchend', clearRecycleLongPress);
+    recycleBinListContainer.addEventListener('touchcancel', clearRecycleLongPress);
+    recycleBinListContainer.addEventListener('mousemove', clearRecycleLongPress);
+    recycleBinListContainer.addEventListener('touchmove', clearRecycleLongPress);
+
+    let catLongPressTimeout = null;
+    const convCategoriesListCard = document.getElementById('conv-categories-list-card');
+
+    // Long-press detection inside Category list card
+    convCategoriesListCard.addEventListener('mousedown', (e) => {
+      const row = e.target.closest('.settings-item');
+      if (!row || isCategoryEditMode) return;
+      const index = Array.from(convCategoriesListCard.children).indexOf(row);
+      if (index === 0) return; // Ignore 'All (X)'
+
+      catLongPressTimeout = setTimeout(() => {
+        enterCategoryEditMode();
+        const titleEl = row.querySelector('.settings-item-title');
+        if (titleEl) {
+          const text = titleEl.textContent.split(' (')[0];
+          if (categories.includes(text)) {
+            selectedEditCategories.add(text);
+            document.getElementById('conv-categories-title-text').textContent = '1 selected';
+            
+            // Sync header Select All check indicator circle
+            const convCategoriesBackIconContainer = document.getElementById('conv-categories-back-icon-container');
+            if (selectedEditCategories.size === categories.length) {
+              convCategoriesBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+            } else {
+              convCategoriesBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+            }
+            updateCategoryEditButtonsState();
+            renderConversationCategoriesScreen();
+          }
+        }
+      }, 600);
+    });
+
+    convCategoriesListCard.addEventListener('touchstart', (e) => {
+      const row = e.target.closest('.settings-item');
+      if (!row || isCategoryEditMode) return;
+      const index = Array.from(convCategoriesListCard.children).indexOf(row);
+      if (index === 0) return;
+
+      catLongPressTimeout = setTimeout(() => {
+        enterCategoryEditMode();
+        const titleEl = row.querySelector('.settings-item-title');
+        if (titleEl) {
+          const text = titleEl.textContent.split(' (')[0];
+          if (categories.includes(text)) {
+            selectedEditCategories.add(text);
+            document.getElementById('conv-categories-title-text').textContent = '1 selected';
+            
+            const convCategoriesBackIconContainer = document.getElementById('conv-categories-back-icon-container');
+            if (selectedEditCategories.size === categories.length) {
+              convCategoriesBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+            } else {
+              convCategoriesBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+            }
+            updateCategoryEditButtonsState();
+            renderConversationCategoriesScreen();
+          }
+        }
+      }, 600);
+    });
+
+    function clearCatLongPress() {
+      if (catLongPressTimeout) {
+        clearTimeout(catLongPressTimeout);
+        catLongPressTimeout = null;
+      }
+    }
+
+    convCategoriesListCard.addEventListener('mouseup', clearCatLongPress);
+    convCategoriesListCard.addEventListener('mouseleave', clearCatLongPress);
+    convCategoriesListCard.addEventListener('touchend', clearCatLongPress);
+    convCategoriesListCard.addEventListener('touchcancel', clearCatLongPress);
+    convCategoriesListCard.addEventListener('mousemove', clearCatLongPress);
+    convCategoriesListCard.addEventListener('touchmove', clearCatLongPress);
+
+    // ==========================================================================
+    // Recycle Bin Screen More Options Dropdown ("Empty") Logic
+    // ==========================================================================
+    const recycleEmptyBtn = document.getElementById('recycle-empty-btn');
+    const recycleMoreCard = document.getElementById('recycle-more-card');
+    const recycleMoreBackdrop = document.getElementById('recycle-more-backdrop');
+    const recycleMoreEmptyBtn = document.getElementById('recycle-more-empty-btn');
+
+    // Slide open recycle bin dropdown menu
+    recycleEmptyBtn.addEventListener('click', () => {
+      recycleMoreCard.classList.add('active');
+      recycleMoreBackdrop.classList.add('active');
+    });
+
+    // Dismiss on backdrop click
+    recycleMoreBackdrop.addEventListener('click', () => {
+      recycleMoreCard.classList.remove('active');
+      recycleMoreBackdrop.classList.remove('active');
+    });
+
+    // "Empty" clicked
+    recycleMoreEmptyBtn.addEventListener('click', () => {
+      recycleMoreCard.classList.remove('active');
+      recycleMoreBackdrop.classList.remove('active');
+      
+      // Launch custom modal dialog
+      showConfirmDialog('Empty Recycle bin?', 'All messages in the Recycle bin will be permanently deleted.', () => {
+        recycleBinData = [];
+        renderRecycleBinScreen();
+        showToast('Recycle bin emptied');
+      });
+    });
+
+    // ==========================================================================
+    // One UI Collapsible Large Header Snapping & View Logic
+    // ==========================================================================
+    let isOneuiScrollingTimeout = null;
         "name": "Dfdkjgeeqwilt",
         "avatarColor": "#00796b",
         "isTextAvatar": true,
@@ -2936,11 +3124,30 @@
       }
     });
 
-    // Collapse Conversation categories view and reset edit state
+    // Collapse Conversation categories view or toggle Select All on header circle click
     convCategoriesBackBtn.addEventListener('click', () => {
-      convCategoriesView.classList.remove('active');
-      exitCategoryEditMode();
+      if (isCategoryEditMode) {
+        toggleAllCategorySelections();
+      } else {
+        convCategoriesView.classList.remove('active');
+        exitCategoryEditMode();
+      }
     });
+
+    function toggleAllCategorySelections() {
+      if (selectedEditCategories.size < categories.length) {
+        categories.forEach(cat => selectedEditCategories.add(cat));
+        // Morph circle to checked circle write mark
+        document.getElementById('conv-categories-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+      } else {
+        selectedEditCategories.clear();
+        document.getElementById('conv-categories-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+      }
+      const count = selectedEditCategories.size;
+      document.getElementById('conv-categories-title-text').textContent = `${count} selected`;
+      updateCategoryEditButtonsState();
+      renderConversationCategoriesScreen();
+    }
 
     // Edit / Cancel header button clicked
     convCategoriesEditBtn.addEventListener('click', () => {
@@ -2954,7 +3161,12 @@
     function enterCategoryEditMode() {
       isCategoryEditMode = true;
       selectedEditCategories.clear();
+
+      // Morph back arrow icon into Select All circle outline
+      document.getElementById('conv-categories-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+      document.getElementById('conv-categories-title-text').textContent = '0 selected';
       convCategoriesEditBtn.textContent = 'Cancel';
+      
       categoryEditBottomBar.style.display = 'flex';
       updateCategoryEditButtonsState();
       renderConversationCategoriesScreen();
@@ -2963,7 +3175,12 @@
     function exitCategoryEditMode() {
       isCategoryEditMode = false;
       selectedEditCategories.clear();
+
+      // Restore Back arrow icon
+      document.getElementById('conv-categories-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'><path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/></svg>";
+      document.getElementById('conv-categories-title-text').textContent = 'Conversation categories';
       convCategoriesEditBtn.textContent = 'Edit';
+      
       categoryEditBottomBar.style.display = 'none';
       renderConversationCategoriesScreen();
     }
@@ -3006,7 +3223,8 @@
     categoryDeleteBtn.addEventListener('click', () => {
       if (selectedEditCategories.size === 0) return;
 
-      if (confirm('Are you sure you want to delete selected categories?')) {
+      // Replaced browser based confirm() dialogue with premium Samsung Dialog modal
+      showConfirmDialog('Delete category?', 'Are you sure you want to delete selected categories?', () => {
         selectedEditCategories.forEach(cat => {
           // Remove from categories array
           const idx = categories.indexOf(cat);
@@ -3033,7 +3251,7 @@
         showToast('Selected categories deleted');
         exitCategoryEditMode();
         renderCategorySelectScreen();
-      }
+      });
     });
 
     function renderConversationCategoriesScreen() {
@@ -3088,6 +3306,16 @@
             } else {
               selectedEditCategories.add(cat);
             }
+            
+            // Sync header Select All check indicator circle and write mark
+            const convCategoriesBackIconContainer = document.getElementById('conv-categories-back-icon-container');
+            if (selectedEditCategories.size === categories.length) {
+              convCategoriesBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+            } else {
+              convCategoriesBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+            }
+
+            document.getElementById('conv-categories-title-text').textContent = `${selectedEditCategories.size} selected`;
             updateCategoryEditButtonsState();
             renderConversationCategoriesScreen();
           });
@@ -3246,11 +3474,30 @@
     let isRecycleEditMode = false;
     let selectedRecycleIds = new Set();
 
-    // Close Recycle Bin view overlay
+    // Close Recycle Bin view overlay or trigger dynamic Select All on header circle click
     recycleBackBtn.addEventListener('click', () => {
-      recycleBinView.classList.remove('active');
-      exitRecycleEditMode();
+      if (isRecycleEditMode) {
+        toggleAllRecycleSelections();
+      } else {
+        recycleBinView.classList.remove('active');
+        exitRecycleEditMode();
+      }
     });
+
+    function toggleAllRecycleSelections() {
+      if (selectedRecycleIds.size < recycleBinData.length) {
+        recycleBinData.forEach(item => selectedRecycleIds.add(item.id));
+        // Morph circle to checked circle write mark
+        document.getElementById('recycle-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+      } else {
+        selectedRecycleIds.clear();
+        document.getElementById('recycle-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+      }
+      const count = selectedRecycleIds.size;
+      document.getElementById('recycle-title-text').textContent = `${count} selected`;
+      updateRecycleEditButtonsState();
+      renderRecycleBinScreen();
+    }
 
     // Trigger edit selection state
     recycleEditBtn.addEventListener('click', () => {
@@ -3266,11 +3513,17 @@
       isRecycleEditMode = true;
       selectedRecycleIds.clear();
 
-      recycleHeaderStandard.style.display = 'none';
-      recycleHeaderSelection.style.display = 'flex';
-      recycleEditBottomBar.style.display = 'flex';
+      // Morph back arrow icon into Select All circle outline
+      document.getElementById('recycle-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
 
-      document.getElementById('recycle-select-title').textContent = '0 selected';
+      // Change Header standard title to counts
+      document.getElementById('recycle-title-text').textContent = '0 selected';
+      
+      // Hide standard vertical more options icon
+      document.getElementById('recycle-empty-btn').style.display = 'none';
+      recycleEditBtn.textContent = 'Cancel';
+      
+      recycleEditBottomBar.style.display = 'flex';
       updateRecycleEditButtonsState();
       renderRecycleBinScreen();
     }
@@ -3279,10 +3532,13 @@
       isRecycleEditMode = false;
       selectedRecycleIds.clear();
 
-      recycleHeaderStandard.style.display = 'flex';
-      recycleHeaderSelection.style.display = 'none';
-      recycleEditBottomBar.style.display = 'none';
+      // Restore Back arrow icon
+      document.getElementById('recycle-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'><path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/></svg>";
+      document.getElementById('recycle-title-text').textContent = 'Recycle bin';
+      document.getElementById('recycle-empty-btn').style.display = 'flex';
+      recycleEditBtn.textContent = 'Edit';
 
+      recycleEditBottomBar.style.display = 'none';
       renderRecycleBinScreen();
     }
 
@@ -3294,7 +3550,15 @@
       }
 
       const count = selectedRecycleIds.size;
-      document.getElementById('recycle-select-title').textContent = `${count} selected`;
+      document.getElementById('recycle-title-text').textContent = `${count} selected`;
+
+      // Sync header Select All checked indicator circle and write mark
+      const recycleBackIconContainer = document.getElementById('recycle-back-icon-container');
+      if (selectedRecycleIds.size === recycleBinData.length) {
+        recycleBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+      } else {
+        recycleBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+      }
 
       updateRecycleEditButtonsState();
       renderRecycleBinScreen();
@@ -3310,18 +3574,7 @@
       }
     }
 
-    // Select all / deselect all toggle
-    recycleToggleAllBtn.addEventListener('click', () => {
-      if (selectedRecycleIds.size < recycleBinData.length) {
-        recycleBinData.forEach(item => selectedRecycleIds.add(item.id));
-      } else {
-        selectedRecycleIds.clear();
-      }
-      const count = selectedRecycleIds.size;
-      document.getElementById('recycle-select-title').textContent = `${count} selected`;
-      updateRecycleEditButtonsState();
-      renderRecycleBinScreen();
-    });
+
 
     // Restore selected threads action click
     recycleRestoreActionBtn.addEventListener('click', () => {
@@ -3338,13 +3591,14 @@
     recycleDeleteActionBtn.addEventListener('click', () => {
       if (selectedRecycleIds.size === 0) return;
 
-      if (confirm('Permanently delete selected conversations? This cannot be undone.')) {
+      // Replaced standard confirm() with high-fidelity Samsung custom Dialog modal
+      showConfirmDialog('Delete permanently?', 'Permanently delete selected conversations? This cannot be undone.', () => {
         const deletedCount = selectedRecycleIds.size;
         recycleBinData = recycleBinData.filter(item => !selectedRecycleIds.has(item.id));
 
         showToast(`${deletedCount} conversations permanently deleted`);
         exitRecycleEditMode();
-      }
+      });
     });
 
     function renderRecycleBinScreen() {
