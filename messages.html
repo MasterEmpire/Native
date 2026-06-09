@@ -1079,6 +1079,60 @@
       background-color: rgba(255, 255, 255, 0.12);
     }
 
+    /* ==========================================================================
+       Category Selection Fullscreen View Overlay
+       ========================================================================== */
+    .category-select-view {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #000000;
+      z-index: 220;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .category-select-view.active {
+      transform: translateX(0);
+    }
+
+    .category-select-card {
+      background-color: #16171a;
+      border-radius: 28px;
+      margin: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .category-select-item {
+      display: flex;
+      align-items: center;
+      padding: 18px 20px;
+      cursor: pointer;
+      gap: 16px;
+      transition: background-color 0.15s;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .category-select-item:last-child {
+      border-bottom: none;
+    }
+
+    .category-select-item:active {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .category-item-text {
+      font-size: 16px;
+      color: #ffffff;
+      font-weight: 500;
+    }
+
     /* Bottom Conversation Bar */
     .chat-footer {
       position: fixed;
@@ -1692,7 +1746,7 @@
           <span class="sheet-option-subtitle">Set a custom notification sound.</span>
         </div>
       </div>
-      <div class="sheet-option">
+      <div class="sheet-option" id="drawer-option-category">
         <div class="sheet-option-icon">
           <svg viewBox="0 0 24 24" fill="#e3e3e3" width="24" height="24">
             <path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0 12c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/>
@@ -1700,7 +1754,7 @@
         </div>
         <div class="sheet-option-content">
           <span class="sheet-option-title">Category</span>
-          <span class="sheet-option-subtitle blue-text">Bs</span>
+          <span class="sheet-option-subtitle blue-text" id="drawer-category-subtitle">Bs</span>
         </div>
       </div>
       <div class="sheet-option">
@@ -1758,6 +1812,22 @@
         <div class='dialog-btn-divider'></div>
         <button class='dialog-btn disabled' id='category-done-btn'>Done</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Category Selection Fullscreen View -->
+  <div class='category-select-view' id='category-select-view'>
+    <header class='search-header'>
+      <button class='icon-btn' id='category-select-back-btn' aria-label='Go back'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+        </svg>
+      </button>
+      <span style='font-size: 20px; font-weight: 500; color: #ffffff;'>Select category</span>
+    </header>
+
+    <div class='category-select-card' id='category-select-list'>
+      <!-- Dynamic Category list populates here -->
     </div>
   </div>
 
@@ -1890,6 +1960,9 @@
       chatHeaderName.textContent = data.name;
       document.getElementById('chat-header-name-large').textContent = data.name;
       document.getElementById('chat-header-number-large').textContent = data.number || '994';
+      
+      // Dynamic update categories context elements
+      updateCategoryUI();
       
       const chatHeaderAvatarLarge = document.getElementById('chat-header-avatar-large');
 
@@ -2095,6 +2168,12 @@
       threadList.style.display = 'block';
       contactsListContainer.style.display = 'none';
       appHeaderTabs.style.display = 'flex';
+
+      // Restore thread filter status on Conversations toggle
+      const activeTab = appHeaderTabs.querySelector('.tab.active');
+      if (activeTab) {
+        filterThreadsByCategory(activeTab.textContent.trim());
+      }
     });
 
     navContacts.addEventListener('click', () => {
@@ -2144,6 +2223,11 @@
       const categoryName = categoryInputField.value.trim();
       if (categoryName.length === 0) return;
 
+      // Add to global state array
+      if (!categories.includes(categoryName)) {
+        categories.push(categoryName);
+      }
+
       const newTabWrapper = document.createElement('div');
       newTabWrapper.className = 'tab-wrapper';
       newTabWrapper.innerHTML = `<div class='tab'>${categoryName}</div>`;
@@ -2152,7 +2236,130 @@
       // Reset visual dialog state
       categoryDialogBackdrop.classList.remove('active');
       showToast(`Category '${categoryName}' added`);
+      
+      // Refresh Selection overlay automatically if currently active
+      renderCategorySelectScreen();
     });
+
+    // ==========================================================================
+    // Dynamic Category State Store and Directory Bindings Logic
+    // ==========================================================================
+    let categories = ['Bs'];
+    let threadCategories = { '1': 'Bs' };
+
+    const drawerOptionCategory = document.getElementById('drawer-option-category');
+    const categorySelectView = document.getElementById('category-select-view');
+    const categorySelectBackBtn = document.getElementById('category-select-back-btn');
+
+    // Open Select Category screen
+    drawerOptionCategory.addEventListener('click', () => {
+      // Slide closed options side-drawer and active background backdrop
+      sideDrawer.classList.remove('active');
+      sheetBackdrop.classList.remove('active');
+      
+      setTimeout(() => {
+        renderCategorySelectScreen();
+        categorySelectView.classList.add('active');
+      }, 150);
+    });
+
+    // Collapse Select Category screen
+    categorySelectBackBtn.addEventListener('click', () => {
+      categorySelectView.classList.remove('active');
+    });
+
+    function updateCategoryUI() {
+      const activeCat = threadCategories[activeThreadId] || '';
+      
+      // Update Expanded Header panel subtitle category indicator
+      const headerSub = document.querySelector('.expanded-category');
+      if (headerSub) {
+        headerSub.textContent = activeCat || 'None';
+      }
+
+      // Sync side-drawer category descriptor subtitle
+      const drawerSub = document.getElementById('drawer-category-subtitle');
+      if (drawerSub) {
+        drawerSub.textContent = activeCat || 'None';
+      }
+    }
+
+    function renderCategorySelectScreen() {
+      const listContainer = document.getElementById('category-select-list');
+      listContainer.innerHTML = '';
+
+      // Recalculate counts dynamically based on thread selection states
+      const counts = {};
+      categories.forEach(cat => counts[cat] = 0);
+      Object.values(threadCategories).forEach(cat => {
+        if (counts[cat] !== undefined) counts[cat]++;
+      });
+
+      const activeCat = threadCategories[activeThreadId] || '';
+
+      categories.forEach(cat => {
+        const item = document.createElement('div');
+        item.className = 'category-select-item';
+
+        const isSelected = (cat === activeCat);
+        const iconHTML = isSelected 
+          ? "<svg viewBox='0 0 24 24' fill='#1a73e8' width='24' height='24'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>"
+          : "<div style='width: 24px; height: 24px;'></div>";
+
+        item.innerHTML = `
+          ${iconHTML}
+          <span class='category-item-text'>${cat} (${counts[cat]})</span>
+        `;
+
+        // Assign or toggle category classification
+        item.addEventListener('click', () => {
+          if (isSelected) {
+            delete threadCategories[activeThreadId];
+          } else {
+            threadCategories[activeThreadId] = cat;
+          }
+          updateCategoryUI();
+          renderCategorySelectScreen();
+        });
+
+        listContainer.appendChild(item);
+      });
+
+      // Append green add row trigger
+      const addRow = document.createElement('div');
+      addRow.className = 'category-select-item';
+      addRow.innerHTML = `
+        <svg viewBox='0 0 24 24' fill='#34a853' width='24' height='24'>
+          <path d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/>
+        </svg>
+        <span class='category-item-text' style='color: #ffffff;'>Add category</span>
+      `;
+
+      addRow.addEventListener('click', () => {
+        categoryDialogBackdrop.classList.add('active');
+        categoryInputField.value = '';
+        categoryDoneBtn.classList.add('disabled');
+        setTimeout(() => {
+          categoryInputField.focus();
+        }, 100);
+      });
+
+      listContainer.appendChild(addRow);
+    }
+
+    // Operational thread view category filtration system
+    function filterThreadsByCategory(categoryName) {
+      const threads = document.querySelectorAll('.message-thread');
+      threads.forEach(thread => {
+        const id = thread.getAttribute('data-id');
+        const assignedCat = threadCategories[id] || '';
+        if (categoryName === 'All' || assignedCat === categoryName) {
+          thread.style.display = 'flex';
+        } else {
+          thread.style.display = 'none';
+        }
+      });
+    }
 
     // Global Tab Selection Event Delegator for dynamic additions
     appHeaderTabs.addEventListener('click', (e) => {
@@ -2160,6 +2367,7 @@
       if (tab) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
+        filterThreadsByCategory(tab.textContent.trim());
       }
     });
 
