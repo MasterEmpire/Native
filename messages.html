@@ -883,7 +883,9 @@
     }
 
     .chat-header.expanded {
-      height: 250px; /* Pushes height to match details panel */
+      height: auto; /* Pushes height to match details panel dynamically */
+      min-height: 250px;
+      padding-bottom: 12px;
     }
 
     .chat-header.expanded .chat-header-standard {
@@ -1643,6 +1645,36 @@
       font-weight: 500;
       cursor: pointer;
     }
+    /* Dynamic SIM footer pill above chat input field */
+    .sim-footer-pill {
+      position: absolute;
+      bottom: 76px;
+      right: 16px;
+      background-color: #1e1f22;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #ffffff;
+      font-weight: 500;
+      z-index: 95;
+      pointer-events: auto;
+    }
+    .sim-footer-indicator {
+      background-color: #1a73e8;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 700;
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -1998,6 +2030,12 @@
     <!-- Chat Messages Scrolling list -->
     <div class="chat-messages-container" id="chat-messages-list">
       <!-- Dynamic bubble items populate here via JS -->
+    </div>
+
+    <!-- Dynamic SIM footer pill above chat input field -->
+    <div class="sim-footer-pill" id="chat-sim-footer-pill">
+      <span class="sim-footer-indicator">1</span>
+      <span>SIM 1</span>
     </div>
 
     <!-- Immersive Footer Area containing camera/media tools -->
@@ -3277,44 +3315,390 @@
     });
 
     // Populate chat view dynamically and transition smooth active state
+    function renderSideDrawer(isGroup) {
+      const sideDrawer = document.getElementById('side-drawer');
+      if (!sideDrawer) return;
+
+      if (isGroup) {
+        sideDrawer.innerHTML = 
+          '<div class="sheet-options-list">' +
+            '<!-- Delete messages (Enabled) -->' +
+            '<div class="sheet-option">' +
+              '<div class="sheet-option-icon">' +
+                '<svg viewBox="0 0 24 24" fill="#e3e3e3" width="24" height="24">' +
+                  '<path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="sheet-option-content">' +
+                '<span class="sheet-option-title" style="color: #ffffff;">Delete messages</span>' +
+              '</div>' +
+            '</div>' +
+            '<!-- Notification sound (Disabled/Dimmed) -->' +
+            '<div class="sheet-option" style="opacity: 0.45; pointer-events: none;">' +
+              '<div class="sheet-option-icon">' +
+                '<svg viewBox="0 0 24 24" fill="#9aa0a6" width="24" height="24">' +
+                  '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="sheet-option-content">' +
+                '<span class="sheet-option-title" style="color: #9aa0a6;">Notification sound</span>' +
+                '<span class="sheet-option-subtitle" style="color: #9aa0a6;">Set a custom notification sound.</span>' +
+              '</div>' +
+            '</div>' +
+            '<!-- Customise chat room (Disabled/Dimmed) -->' +
+            '<div class="sheet-option" style="opacity: 0.45; pointer-events: none;">' +
+              '<div class="sheet-option-icon">' +
+                '<svg viewBox="0 0 24 24" fill="#9aa0a6" width="24" height="24">' +
+                  '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="sheet-option-content">' +
+                '<span class="sheet-option-title" style="color: #9aa0a6;">Customise chat room</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="sheet-divider" style="margin: 12px 0;"></div>' +
+            '<div style="display: flex; justify-content: flex-end; align-items: center; gap: 24px; padding: 0 4px 12px 4px;">' +
+              '<button class="icon-btn" style="width: 36px; height: 36px; color: #8ab4f8;" aria-label="Notifications active">' +
+                '<svg viewBox="0 0 24 24" fill="#8ab4f8" width="24" height="24">' +
+                  '<path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>' +
+                '</svg>' +
+              '</button>' +
+              '<button class="icon-btn" style="width: 36px; height: 36px; color: #9aa0a6;" aria-label="Pin conversation">' +
+                '<svg viewBox="0 0 24 24" fill="#9aa0a6" width="24" height="24">' +
+                  '<path d="M16 12V4h1v-2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>' +
+                '</svg>' +
+              '</button>' +
+            '</div>' +
+          '</div>';
+      } else {
+        sideDrawer.innerHTML = 
+          '<div class="sheet-options-list">' +
+            '<div class="sheet-option">' +
+              '<div class="sheet-option-icon">' +
+                '<svg viewBox="0 0 24 24" fill="#e3e3e3" width="24" height="24">' +
+                  '<path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="sheet-option-content">' +
+                '<span class="sheet-option-title">Delete messages</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="sheet-option" id="sheet-option-search">' +
+              '<div class="sheet-option-icon">' +
+                '<svg viewBox="0 0 24 24" fill="#e3e3e3" width="24" height="24">' +
+                  '<path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="sheet-option-content">' +
+                '<span class="sheet-option-title">Search messages</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="sheet-option" id="drawer-option-sound">' +
+              '<div class="sheet-option-icon">' +
+                '<svg viewBox="0 0 24 24" fill="#e3e3e3" width="24" height="24">' +
+                  '<path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="sheet-option-content">' +
+                '<span class="sheet-option-title">Notification sound</span>' +
+                '<span class="sheet-option-subtitle">Set a custom notification sound.</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="sheet-option" id="drawer-option-category">' +
+              '<div class="sheet-option-icon">' +
+                '<svg viewBox="0 0 24 24" fill="#e3e3e3" width="24" height="24">' +
+                  '<path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0 12c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="sheet-option-content">' +
+                '<span class="sheet-option-title">Category</span>' +
+                '<span class="sheet-option-subtitle blue-text" id="drawer-category-subtitle">Bs</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="sheet-option">' +
+              '<div class="sheet-option-icon">' +
+                '<svg viewBox="0 0 24 24" fill="#e3e3e3" width="24" height="24">' +
+                  '<path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/>' +
+                '</svg>' +
+              '</div>' +
+              '<div class="sheet-option-content">' +
+                '<span class="sheet-option-title">Customise chat room</span>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div>' +
+            '<div class="sheet-divider"></div>' +
+            '<div class="sheet-footer">' +
+              '<div class="sheet-sim-pill">' +
+                '<span class="sheet-sim-indicator">1</span>' +
+                '<span>SIM 1</span>' +
+              '</div>' +
+              '<div class="sheet-footer-right">' +
+                '<svg viewBox="0 0 24 24" fill="#1a73e8" width="24" height="24">' +
+                  '<path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>' +
+                '</svg>' +
+                '<svg viewBox="0 0 24 24" fill="#9aa0a6" width="24" height="24">' +
+                  '<path d="M16 12V4h1v-2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>' +
+                '</svg>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+
+        const sheetOptionSearch = document.getElementById('sheet-option-search');
+        if (sheetOptionSearch) {
+          sheetOptionSearch.addEventListener('click', () => {
+            sideDrawer.classList.remove('active');
+            sheetBackdrop.classList.remove('active');
+            setTimeout(() => {
+              searchView.classList.add('active');
+              searchInputField.focus();
+            }, 150);
+          });
+        }
+
+        const drawerOptionSound = document.getElementById('drawer-option-sound');
+        if (drawerOptionSound) {
+          drawerOptionSound.addEventListener('click', () => {
+            sideDrawer.classList.remove('active');
+            sheetBackdrop.classList.remove('active');
+            setTimeout(() => {
+              renderSoundOptionsScreen();
+              document.getElementById('notification-sound-view').classList.add('active');
+            }, 150);
+          });
+        }
+
+        const drawerOptionCategory = document.getElementById('drawer-option-category');
+        if (drawerOptionCategory) {
+          drawerOptionCategory.addEventListener('click', () => {
+            sideDrawer.classList.remove('active');
+            sheetBackdrop.classList.remove('active');
+            setTimeout(() => {
+              renderCategorySelectScreen();
+              categorySelectView.classList.add('active');
+            }, 150);
+          });
+        }
+      }
+    }
+
     // Populate chat view dynamically and transition smooth active state
     function openChat(data) {
-      chatHeaderName.textContent = data.name;
-      document.getElementById('chat-header-name-large').textContent = data.name;
-      document.getElementById('chat-header-number-large').textContent = data.number || '994';
-      
-      // Dynamic update categories context elements
       updateCategoryUI();
-      
+      renderSideDrawer(!!data.isGroup);
+
       const chatHeaderAvatarLarge = document.getElementById('chat-header-avatar-large');
+      const chatInfoBlock = document.querySelector('#chat-header-standard .chat-info-block');
 
-      // Configure avatar element based on contact properties
-      if (data.isTextAvatar) {
-        chatHeaderAvatar.textContent = data.name.charAt(0);
-        chatHeaderAvatar.style.backgroundColor = data.avatarColor;
+      let splitAvatarHTML = '';
+      if (data.isGroup) {
+        const rec1 = data.recipients[0] || { name: 'M', isText: true, textChar: 'M', bgColor: '#0288d1' };
+        const rec2 = data.recipients[1] || { name: 'Teju', isPhoto: true, photoUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80' };
+
+        function renderHalf(rec) {
+          if (rec.isPhoto) {
+            return '<div style="background-image: url(\'' + rec.photoUrl + '\'); width: 50%; height: 100%; background-size: cover; background-position: center;"></div>';
+          } else if (rec.isText) {
+            return '<div style="background-color: ' + rec.bgColor + '; width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: #fff;">' + rec.textChar + '</div>';
+          } else {
+            return '<div style="background-color: ' + rec.bgColor + '; width: 50%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; color: #fff;">' + rec.name.charAt(0) + '</div>';
+          }
+        }
+
+        splitAvatarHTML = 
+          '<div style="display: flex; width: 100%; height: 100%; border-radius: 50%; overflow: hidden;">' +
+            renderHalf(rec2) +
+            renderHalf(rec1) +
+          '</div>';
+
+        chatHeaderAvatar.innerHTML = splitAvatarHTML;
+        chatHeaderAvatar.style.backgroundColor = 'transparent';
         chatHeaderAvatar.classList.remove('default-avatar');
-
-        chatHeaderAvatarLarge.textContent = data.name.charAt(0);
-        chatHeaderAvatarLarge.style.backgroundColor = data.avatarColor;
-        chatHeaderAvatarLarge.classList.remove('default-avatar');
       } else {
-        chatHeaderAvatar.textContent = '';
-        chatHeaderAvatar.style.backgroundColor = data.avatarColor;
-        chatHeaderAvatar.classList.add('default-avatar');
-        chatHeaderAvatar.innerHTML = `
-          <svg viewBox='0 0 24 24' width='22' height='22'>
-            <path fill='#9aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/>
-          </svg>
-        `;
+        if (data.isTextAvatar) {
+          chatHeaderAvatar.innerHTML = data.name.charAt(0);
+          chatHeaderAvatar.style.backgroundColor = data.avatarColor;
+          chatHeaderAvatar.classList.remove('default-avatar');
+        } else {
+          chatHeaderAvatar.innerHTML = 
+            '<svg viewBox=\'0 0 24 24\' width=\'22\' height=\'22\'>' +
+              '<path fill=\'#9aa0a6\' d=\'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z\'/>' +
+            '</svg>';
+          chatHeaderAvatar.style.backgroundColor = data.avatarColor;
+          chatHeaderAvatar.classList.add('default-avatar');
+        }
+      }
 
-        chatHeaderAvatarLarge.textContent = '';
-        chatHeaderAvatarLarge.style.backgroundColor = data.avatarColor;
-        chatHeaderAvatarLarge.classList.add('default-avatar');
-        chatHeaderAvatarLarge.innerHTML = `
-          <svg viewBox='0 0 24 24' width='32' height='32'>
-            <path fill='#9aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/>
-          </svg>
-        `;
+      const expandedHeader = document.getElementById('chat-header-expanded');
+      if (data.isGroup) {
+        let recipientsListHTML = '';
+        data.recipients.forEach(rec => {
+          let recAvatarHTML = '';
+          if (rec.isPhoto) {
+            recAvatarHTML = '<div class="avatar photo-avatar" style="background-image: url(\'' + rec.photoUrl + '\'); background-size: cover; background-position: center; width: 44px; height: 44px; margin: 0 auto;"></div>';
+          } else if (rec.isText) {
+            recAvatarHTML = '<div class="avatar text-avatar" style="background-color: ' + rec.bgColor + '; width: 44px; height: 44px; font-size: 16px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #ffffff;">' + rec.textChar + '</div>';
+          } else {
+            recAvatarHTML = '<div class="avatar text-avatar" style="background-color: ' + (rec.bgColor || '#2b2c30') + '; width: 44px; height: 44px; font-size: 16px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #ffffff;">' + rec.name.charAt(0) + '</div>';
+          }
+
+          recipientsListHTML += 
+            '<div style="display: flex; flex-direction: column; align-items: center; width: 80px; text-align: center;">' +
+              recAvatarHTML +
+              '<span style="font-size: 12px; color: #e3e3e3; margin-top: 6px; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; width: 100%; display: block;">' + rec.name + '</span>' +
+            '</div>';
+        });
+
+        expandedHeader.innerHTML = 
+          '<!-- Action row -->' +
+          '<div class="expanded-top-row">' +
+            '<button class="icon-btn" id="chat-collapse-btn" aria-label="Collapse detailed header">' +
+              '<svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">' +
+                '<path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/>' +
+              '</svg>' +
+            '</button>' +
+            '<div></div>' +
+          '</div>' +
+          '<!-- Large Profile Area -->' +
+          '<div class="expanded-profile-area" style="padding-bottom: 0;">' +
+            '<div class="chat-avatar large-avatar" id="chat-header-avatar-large"></div>' +
+            '<div class="expanded-profile-details">' +
+              '<div class="expanded-name-row" style="align-items: center; gap: 8px;">' +
+                '<span class="expanded-name" style="font-size: 24px;">Mass text</span>' +
+                '<span style="background-color: #2b2c30; color: #e3e3e3; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 12px;">' + data.recipients.length + '</span>' +
+                '<div class="sim-badge-container">' +
+                  '<span class="sim-badge">1</span>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+          '<!-- Horizontal Dotted Line Divider -->' +
+          '<div style="border-top: 1px dotted rgba(255, 255, 255, 0.25); margin: 12px 12px 16px 12px; width: calc(100% - 24px);"></div>' +
+          '<!-- Recipients Grid Row -->' +
+          '<div style="display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 16px; padding: 0 20px; width: 100%; overflow-y: auto; max-height: 120px;">' +
+            recipientsListHTML +
+          '</div>' +
+          '<!-- Add/remove recipients pill shape button -->' +
+          '<div class="expanded-recipients-container" style="margin-top: 16px;">' +
+            '<button class="recipients-btn">Add/remove recipients</button>' +
+          '</div>';
+
+        const chatHeaderAvatarLarge = document.getElementById('chat-header-avatar-large');
+        if (chatHeaderAvatarLarge) {
+          chatHeaderAvatarLarge.innerHTML = splitAvatarHTML;
+          chatHeaderAvatarLarge.style.backgroundColor = 'transparent';
+          chatHeaderAvatarLarge.classList.remove('default-avatar');
+        }
+
+        const chatCollapseBtn = document.getElementById('chat-collapse-btn');
+        if (chatCollapseBtn) {
+          chatCollapseBtn.addEventListener('click', () => {
+            document.getElementById('chat-header').classList.remove('expanded');
+            document.getElementById('header-backdrop').classList.remove('active');
+          });
+        }
+
+        if (chatInfoBlock) {
+          chatInfoBlock.innerHTML = 
+            '<span class="chat-name" id="chat-header-name">Mass text</span>' +
+            '<span id="chat-header-group-badge" style="background-color: #2b2c30; color: #e3e3e3; font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 10px; margin-left: 6px;">' + data.recipients.length + '</span>' +
+            '<div class="sim-badge-container" style="margin-left: 6px;">' +
+              '<span class="sim-badge">1</span>' +
+              '<span class="dropdown-arrow">' +
+                '<svg viewBox="0 0 24 24" fill="#8ab4f8" width="16" height="16">' +
+                  '<path d="M7 10l5 5 5-5H7z"/>' +
+                '</svg>' +
+              '</span>' +
+            '</div>';
+        }
+      } else {
+        expandedHeader.innerHTML = 
+          '<!-- Action row -->' +
+          '<div class="expanded-top-row">' +
+            '<button class="icon-btn" id="chat-collapse-btn" aria-label="Collapse detailed header">' +
+              '<svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">' +
+                '<path d="M12 8l-6 6 1.41 1.41L12 10.83l4.59 4.58L18 14z"/>' +
+              '</svg>' +
+            '</button>' +
+            '<div class="expanded-top-actions">' +
+              '<button class="icon-btn" aria-label="Call contact">' +
+                '<svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">' +
+                  '<path d="M6.62 10.79c1.44 2.53 3.61 4.7 6.14 6.14l2.2-2.2c.27-.27.67-.36 1.02-.26 1.12.32 2.33.5 3.57.5.55 0 1-.45 1-1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.18 2.45.5 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>' +
+                '</svg>' +
+              '</button>' +
+              '<button class="icon-btn" aria-label="Contact info">' +
+                '<svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">' +
+                  '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>' +
+                '</svg>' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+          '<!-- Large Profile Area -->' +
+          '<div class="expanded-profile-area">' +
+            '<div class="chat-avatar large-avatar" id="chat-header-avatar-large"></div>' +
+            '<div class="expanded-profile-details">' +
+              '<span class="expanded-category">Bs</span>' +
+              '<div class="expanded-name-row">' +
+                '<span class="expanded-name" id="chat-header-name-large"></span>' +
+                '<div class="sim-badge-container" style="margin-left: 8px;">' +
+                  '<span class="sim-badge">1</span>' +
+                  '<span class="dropdown-arrow">' +
+                    '<svg viewBox="0 0 24 24" fill="#8ab4f8" width="16" height="16">' +
+                      '<path d="M7 10l5 5 5-5H7z"/>' +
+                    '</svg>' +
+                  '</span>' +
+                '</div>' +
+              '</div>' +
+              '<span class="expanded-number" id="chat-header-number-large"></span>' +
+            '</div>' +
+          '</div>' +
+          '<!-- Add/remove recipients pill shape button -->' +
+          '<div class="expanded-recipients-container">' +
+            '<button class="recipients-btn">Add/remove recipients</button>' +
+          '</div>';
+
+        const chatHeaderAvatarLarge = document.getElementById('chat-header-avatar-large');
+        if (chatHeaderAvatarLarge) {
+          if (data.isTextAvatar) {
+            chatHeaderAvatarLarge.textContent = data.name.charAt(0);
+            chatHeaderAvatarLarge.style.backgroundColor = data.avatarColor;
+            chatHeaderAvatarLarge.classList.remove('default-avatar');
+          } else {
+            chatHeaderAvatarLarge.textContent = '';
+            chatHeaderAvatarLarge.style.backgroundColor = data.avatarColor;
+            chatHeaderAvatarLarge.classList.add('default-avatar');
+            chatHeaderAvatarLarge.innerHTML = 
+              '<svg viewBox=\'0 0 24 24\' width=\'32\' height=\'32\'>' +
+                '<path fill=\'#9aa0a6\' d=\'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z\'/>' +
+              '</svg>';
+          }
+        }
+
+        const chatCollapseBtn = document.getElementById('chat-collapse-btn');
+        if (chatCollapseBtn) {
+          chatCollapseBtn.addEventListener('click', () => {
+            document.getElementById('chat-header').classList.remove('expanded');
+            document.getElementById('header-backdrop').classList.remove('active');
+          });
+        }
+
+        if (chatInfoBlock) {
+          chatInfoBlock.innerHTML = 
+            '<span class="chat-name" id="chat-header-name">' + data.name + '</span>' +
+            '<div class="sim-badge-container">' +
+              '<span class="sim-badge">1</span>' +
+              '<span class="dropdown-arrow">' +
+                '<svg viewBox="0 0 24 24" fill="#8ab4f8" width="16" height="16">' +
+                  '<path d="M7 10l5 5 5-5H7z"/>' +
+                '</svg>' +
+              '</span>' +
+            '</div>';
+        }
+
+        document.getElementById('chat-header-name-large').textContent = data.name;
+        document.getElementById('chat-header-number-large').textContent = data.number || '994';
       }
 
       // Generate bubbles based on mock dataset structures
@@ -5001,11 +5385,110 @@
       }
     });
 
+    function getSelectedContactsDetails() {
+      const selectedDetails = [];
+      const selectables = getSelectableContacts();
+      
+      selectedContactIndexes.forEach(index => {
+        const row = contactsThreadsContainer.children[index];
+        if (row && row.classList.contains('contact-row')) {
+          const nameEl = row.querySelector('.contact-name');
+          const name = nameEl ? nameEl.textContent.trim() : '';
+
+          const avatarEl = row.querySelector('.avatar');
+          let isPhoto = false;
+          let photoUrl = '';
+          let isText = false;
+          let textChar = '';
+          let bgColor = '';
+
+          if (avatarEl) {
+            if (avatarEl.classList.contains('photo-avatar')) {
+              isPhoto = true;
+              const bgImg = avatarEl.style.backgroundImage || '';
+              if (bgImg.includes('"')) {
+                photoUrl = bgImg.split('"')[1] || '';
+              } else if (bgImg.includes("'")) {
+                photoUrl = bgImg.split("'")[1] || '';
+              } else {
+                photoUrl = bgImg.replace('url(', '').replace(')', '').trim();
+              }
+            } else if (avatarEl.classList.contains('text-avatar')) {
+              isText = true;
+              textChar = avatarEl.textContent.trim();
+              bgColor = avatarEl.style.backgroundColor || '#5c6bc0';
+            } else {
+              const bgImg = avatarEl.style.backgroundImage || '';
+              if (bgImg && bgImg !== 'none') {
+                isPhoto = true;
+                if (bgImg.includes('"')) {
+                  photoUrl = bgImg.split('"')[1] || '';
+                } else if (bgImg.includes("'")) {
+                  photoUrl = bgImg.split("'")[1] || '';
+                } else {
+                  photoUrl = bgImg.replace('url(', '').replace(')', '').trim();
+                }
+              } else if (avatarEl.textContent.trim().length > 0) {
+                isText = true;
+                textChar = avatarEl.textContent.trim().charAt(0);
+                bgColor = avatarEl.style.backgroundColor || '#2b2c30';
+              } else {
+                bgColor = avatarEl.style.backgroundColor || '#2b2c30';
+              }
+            }
+          }
+          selectedDetails.push({ name, isPhoto, photoUrl, isText, textChar, bgColor });
+        }
+      });
+      return selectedDetails;
+    }
+
     // Start button handler
     const selectionStartBtn = document.getElementById('selection-start-btn');
     if (selectionStartBtn) {
       selectionStartBtn.addEventListener('click', () => {
-        showToast(`Started conversation with ${selectedContactIndexes.size} selected contacts`);
+        const selectedDetails = getSelectedContactsDetails();
+        if (selectedDetails.length === 0) return;
+
+        if (selectedDetails.length === 1) {
+          const contact = selectedDetails[0];
+          let existingId = null;
+          Object.keys(threadData).forEach(id => {
+            if (threadData[id] && threadData[id].name.toLowerCase() === contact.name.toLowerCase()) {
+              existingId = id;
+            }
+          });
+
+          if (existingId) {
+            activeThreadId = existingId;
+            openChat(threadData[existingId]);
+          } else {
+            const newId = 'single_' + Date.now();
+            threadData[newId] = {
+              name: contact.name,
+              avatarColor: contact.bgColor || '#5c6bc0',
+              isTextAvatar: contact.isText,
+              number: '994',
+              bubbles: []
+            };
+            activeThreadId = newId;
+            openChat(threadData[newId]);
+          }
+        } else {
+          // Multiple selected! Direct transition to mass text screen
+          const newId = 'group_' + Date.now();
+          threadData[newId] = {
+            name: 'Mass text',
+            isGroup: true,
+            recipients: selectedDetails,
+            avatarColor: '#1c1d20',
+            isTextAvatar: false,
+            bubbles: []
+          };
+          activeThreadId = newId;
+          openChat(threadData[newId]);
+        }
+
         exitContactsSelectionMode();
       });
     }
