@@ -3608,11 +3608,8 @@
     const recycleBinView = document.getElementById('recycle-bin-view');
     const recycleBackBtn = document.getElementById('recycle-back-btn');
     const recycleEditBtn = document.getElementById('recycle-edit-btn');
-    const recycleCancelBtn = document.getElementById('recycle-cancel-btn');
-    const recycleToggleAllBtn = document.getElementById('recycle-toggle-all-btn');
 
     const recycleHeaderStandard = document.getElementById('recycle-header-standard');
-    const recycleHeaderSelection = document.getElementById('recycle-header-selection');
     const recycleEditBottomBar = document.getElementById('recycle-edit-bottom-bar');
     const recycleRestoreActionBtn = document.getElementById('recycle-restore-action-btn');
     const recycleDeleteActionBtn = document.getElementById('recycle-delete-action-btn');
@@ -3645,14 +3642,13 @@
       renderRecycleBinScreen();
     }
 
-    // Trigger edit selection state
+    // Trigger edit selection state or exit it if active
     recycleEditBtn.addEventListener('click', () => {
-      enterRecycleEditMode();
-    });
-
-    // Cancel selection state
-    recycleCancelBtn.addEventListener('click', () => {
-      exitRecycleEditMode();
+      if (isRecycleEditMode) {
+        exitRecycleEditMode();
+      } else {
+        enterRecycleEditMode();
+      }
     });
 
     function enterRecycleEditMode() {
