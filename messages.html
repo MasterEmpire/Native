@@ -3100,6 +3100,9 @@
       navConversations.classList.add('active');
       navContacts.classList.remove('active');
       
+      // Assess the scroll state of the Contacts container before hiding it
+      const isContactsExpanded = (contactsListContainer.scrollTop <= 40);
+      
       threadList.style.display = 'block';
       contactsListContainer.style.display = 'none';
       appHeaderTabs.style.display = 'flex';
@@ -3111,19 +3114,38 @@
       }
 
       compactAppTitle.textContent = 'Messages';
-      updateHeader(threadList.scrollTop);
+
+      // Apply matching scroll position and update opacity state instantly
+      if (isContactsExpanded) {
+        threadList.scrollTop = 0;
+        updateHeader(0);
+      } else {
+        threadList.scrollTop = SNAP_THRESHOLD;
+        updateHeader(SNAP_THRESHOLD);
+      }
     });
 
     navContacts.addEventListener('click', () => {
       navContacts.classList.add('active');
       navConversations.classList.remove('active');
       
+      // Assess the scroll state of the Conversations container before hiding it
+      const isConversationsExpanded = (threadList.scrollTop <= 40);
+      
       threadList.style.display = 'none';
       contactsListContainer.style.display = 'block';
       appHeaderTabs.style.display = 'none';
 
       compactAppTitle.textContent = 'Messages';
-      updateContactsHeader(contactsListContainer.scrollTop);
+
+      // Apply matching scroll position and update opacity state instantly
+      if (isConversationsExpanded) {
+        contactsListContainer.scrollTop = 0;
+        updateContactsHeader(0);
+      } else {
+        contactsListContainer.scrollTop = SNAP_THRESHOLD_CONTACTS;
+        updateContactsHeader(SNAP_THRESHOLD_CONTACTS);
+      }
     });
 
     // ==========================================================================
