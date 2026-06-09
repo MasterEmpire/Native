@@ -2180,6 +2180,7 @@
   </div>
 
   <!-- More Settings Fullscreen view overlay -->
+  <!-- More Settings Fullscreen Screen -->
   <div class='category-select-view' id='more-settings-view'>
     <header class='search-header'>
       <button class='icon-btn' id='more-settings-back-btn' aria-label='Go back'>
@@ -2295,6 +2296,60 @@
           </label>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Conversation Categories settings view card overlay -->
+  <div class='category-select-view' id='conversation-categories-view'>
+    <header class='search-header'>
+      <button class='icon-btn' id='conv-categories-back-btn' aria-label='Go back'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+        </svg>
+      </button>
+      <span style='font-size: 20px; font-weight: 500; color: #ffffff; flex: 1;'>Conversation categories</span>
+      <button class='recipients-btn' id='conv-categories-edit-btn' style='border: none; padding: 4px 16px; font-size: 16px;'>Edit</button>
+    </header>
+
+    <div style='flex: 1; overflow-y: auto;'>
+      <!-- Status Card -->
+      <div class='settings-card'>
+        <div class='settings-item'>
+          <div class='settings-item-left'>
+            <span class='settings-item-title' style='color: #8ab4f8; font-weight: 500;'>On</span>
+          </div>
+          <label class='switch'>
+            <input type='checkbox' checked id='categories-status-switch'>
+            <span class='slider'></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Description Guidance -->
+      <p style='padding: 8px 24px; font-size: 14px; color: #9aa0a6; line-height: 1.4;'>Organise your conversations into categories so you can find them easily.</p>
+
+      <span class='settings-sim-label' style='padding-left: 24px; margin-top: 24px; display: block;'>Tabbed categories</span>
+      
+      <!-- List Card Container -->
+      <div class='settings-card' id='conv-categories-list-card' style='margin-top: 8px;'>
+        <!-- Populates dynamically via JS -->
+      </div>
+    </div>
+
+    <!-- Category Edit Bottom Action Bar -->
+    <div class='selection-bottom-bar' id='category-edit-bottom-bar' style='display: none;'>
+      <button class='selection-bottom-btn' id='category-rename-btn'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/>
+        </svg>
+        <span>Rename</span>
+      </button>
+      <button class='selection-bottom-btn' id='category-delete-btn'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/>
+        </svg>
+        <span id='category-delete-text'>Delete</span>
+      </button>
     </div>
   </div>
 
@@ -2699,26 +2754,58 @@
       }
     });
 
-    // Build category tabs rows dynamically on confirm
+    // Track rename targets state
+    let renameTargetCategory = null;
+
+    // Build or rename category tabs rows dynamically on confirm
     categoryDoneBtn.addEventListener('click', () => {
       const categoryName = categoryInputField.value.trim();
       if (categoryName.length === 0) return;
 
-      // Add to global state array
-      if (!categories.includes(categoryName)) {
-        categories.push(categoryName);
-      }
+      if (renameTargetCategory) {
+        // Rename logic execution
+        const oldName = renameTargetCategory;
+        const idx = categories.indexOf(oldName);
+        if (idx !== -1) {
+          categories[idx] = categoryName;
+        }
 
-      const newTabWrapper = document.createElement('div');
-      newTabWrapper.className = 'tab-wrapper';
-      newTabWrapper.innerHTML = `<div class='tab'>${categoryName}</div>`;
-      appHeaderTabs.insertBefore(newTabWrapper, tabAddBtn);
+        // Update thread categories mapping
+        Object.keys(threadCategories).forEach(threadId => {
+          if (threadCategories[threadId] === oldName) {
+            threadCategories[threadId] = categoryName;
+          }
+        });
+
+        // Update tab in header-tabs dynamically
+        document.querySelectorAll('.tab').forEach(tab => {
+          if (tab.textContent.trim() === oldName) {
+            tab.textContent = categoryName;
+          }
+        });
+
+        showToast(`Category renamed to '${categoryName}'`);
+        renameTargetCategory = null;
+        document.querySelector('#category-dialog-backdrop .dialog-title').textContent = 'Add category';
+        
+        exitCategoryEditMode();
+      } else {
+        // Add to global state array
+        if (!categories.includes(categoryName)) {
+          categories.push(categoryName);
+        }
+
+        const newTabWrapper = document.createElement('div');
+        newTabWrapper.className = 'tab-wrapper';
+        newTabWrapper.innerHTML = `<div class='tab'>${categoryName}</div>`;
+        appHeaderTabs.insertBefore(newTabWrapper, tabAddBtn);
+        showToast(`Category '${categoryName}' added`);
+      }
 
       // Reset visual dialog state
       categoryDialogBackdrop.classList.remove('active');
-      showToast(`Category '${categoryName}' added`);
       
-      // Refresh Selection overlay automatically if currently active
+      // Refresh selection overlay lists automatically
       renderCategorySelectScreen();
     });
 
@@ -2762,6 +2849,225 @@
       const drawerSub = document.getElementById('drawer-category-subtitle');
       if (drawerSub) {
         drawerSub.textContent = activeCat || 'None';
+      }
+    }
+
+    // ==========================================================================
+    // Conversation Categories Screen View Specific Edit/Rename/Delete Logic
+    // ==========================================================================
+    const convCategoriesView = document.getElementById('conversation-categories-view');
+    const convCategoriesBackBtn = document.getElementById('conv-categories-back-btn');
+    const convCategoriesEditBtn = document.getElementById('conv-categories-edit-btn');
+    const categoriesStatusSwitch = document.getElementById('categories-status-switch');
+
+    const categoryEditBottomBar = document.getElementById('category-edit-bottom-bar');
+    const categoryRenameBtn = document.getElementById('category-rename-btn');
+    const categoryDeleteBtn = document.getElementById('category-delete-btn');
+
+    let isCategoryEditMode = false;
+    let selectedEditCategories = new Set();
+
+    // Toggling Conversation categories status switch (synced with messages settings switch)
+    categoriesStatusSwitch.addEventListener('change', (e) => {
+      categoriesToggleSwitch.checked = e.target.checked;
+      if (e.target.checked) {
+        appHeaderTabs.style.display = 'flex';
+      } else {
+        appHeaderTabs.style.display = 'none';
+      }
+    });
+
+    // Collapse Conversation categories view and reset edit state
+    convCategoriesBackBtn.addEventListener('click', () => {
+      convCategoriesView.classList.remove('active');
+      exitCategoryEditMode();
+    });
+
+    // Edit / Cancel header button clicked
+    convCategoriesEditBtn.addEventListener('click', () => {
+      if (isCategoryEditMode) {
+        exitCategoryEditMode();
+      } else {
+        enterCategoryEditMode();
+      }
+    });
+
+    function enterCategoryEditMode() {
+      isCategoryEditMode = true;
+      selectedEditCategories.clear();
+      convCategoriesEditBtn.textContent = 'Cancel';
+      categoryEditBottomBar.style.display = 'flex';
+      updateCategoryEditButtonsState();
+      renderConversationCategoriesScreen();
+    }
+
+    function exitCategoryEditMode() {
+      isCategoryEditMode = false;
+      selectedEditCategories.clear();
+      convCategoriesEditBtn.textContent = 'Edit';
+      categoryEditBottomBar.style.display = 'none';
+      renderConversationCategoriesScreen();
+    }
+
+    function updateCategoryEditButtonsState() {
+      const deleteText = document.getElementById('category-delete-text');
+
+      if (selectedEditCategories.size === 1) {
+        categoryRenameBtn.classList.remove('disabled');
+      } else {
+        categoryRenameBtn.classList.add('disabled');
+      }
+
+      if (selectedEditCategories.size > 0) {
+        categoryDeleteBtn.classList.remove('disabled');
+        deleteText.textContent = selectedEditCategories.size === categories.length ? 'Delete all' : 'Delete';
+      } else {
+        categoryDeleteBtn.classList.add('disabled');
+        deleteText.textContent = 'Delete';
+      }
+    }
+
+    // Trigger Rename Dialogue on click
+    categoryRenameBtn.addEventListener('click', () => {
+      if (selectedEditCategories.size !== 1) return;
+      
+      const catToRename = Array.from(selectedEditCategories)[0];
+      renameTargetCategory = catToRename;
+
+      document.querySelector('#category-dialog-backdrop .dialog-title').textContent = 'Rename category';
+      categoryDialogBackdrop.classList.add('active');
+      categoryInputField.value = catToRename;
+      categoryDoneBtn.classList.remove('disabled');
+      setTimeout(() => {
+        categoryInputField.focus();
+      }, 100);
+    });
+
+    // Trigger delete operations on click
+    categoryDeleteBtn.addEventListener('click', () => {
+      if (selectedEditCategories.size === 0) return;
+
+      if (confirm('Are you sure you want to delete selected categories?')) {
+        selectedEditCategories.forEach(cat => {
+          // Remove from categories array
+          const idx = categories.indexOf(cat);
+          if (idx !== -1) {
+            categories.splice(idx, 1);
+          }
+
+          // Clear mappings
+          Object.keys(threadCategories).forEach(threadId => {
+            if (threadCategories[threadId] === cat) {
+              delete threadCategories[threadId];
+            }
+          });
+
+          // Unmount top tab from Conversation List view
+          document.querySelectorAll('.tab-wrapper').forEach(wrapper => {
+            const tab = wrapper.querySelector('.tab');
+            if (tab && tab.textContent.trim() === cat) {
+              wrapper.remove();
+            }
+          });
+        });
+
+        showToast('Selected categories deleted');
+        exitCategoryEditMode();
+        renderCategorySelectScreen();
+      }
+    });
+
+    function renderConversationCategoriesScreen() {
+      const cardContainer = document.getElementById('conv-categories-list-card');
+      cardContainer.innerHTML = '';
+
+      // Calculate dynamic counters
+      const counts = {};
+      categories.forEach(cat => counts[cat] = 0);
+      Object.values(threadCategories).forEach(cat => {
+        if (counts[cat] !== undefined) counts[cat]++;
+      });
+
+      // 1. All Row (Always visible, non-editable)
+      const allCount = document.querySelectorAll('.message-thread').length;
+      const allRow = document.createElement('div');
+      allRow.className = 'settings-item';
+      allRow.innerHTML = `
+        <div class='settings-item-left'>
+          <span class='settings-item-title'>All (${allCount})</span>
+        </div>
+      `;
+      cardContainer.appendChild(allRow);
+
+      // 2. Custom Categories loop
+      categories.forEach(cat => {
+        const divider = document.createElement('div');
+        divider.className = 'settings-card-divider';
+        cardContainer.appendChild(divider);
+
+        const row = document.createElement('div');
+        row.className = 'settings-item';
+
+        if (isCategoryEditMode) {
+          const isSelected = selectedEditCategories.has(cat);
+          const iconHTML = isSelected
+            ? "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22' style='margin-right: 12px;'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>"
+            : "<svg viewBox='0 0 24 24' fill='none' stroke='#9aa0a6' stroke-width='2' width='22' height='22' style='margin-right: 12px;'><circle cx='12' cy='12' r='10'/></svg>";
+
+          row.innerHTML = `
+            <div style='display: flex; align-items: center; width: 100%;'>
+              ${iconHTML}
+              <div class='settings-item-left'>
+                <span class='settings-item-title'>${cat} (${counts[cat]})</span>
+              </div>
+            </div>
+          `;
+
+          row.addEventListener('click', () => {
+            if (selectedEditCategories.has(cat)) {
+              selectedEditCategories.delete(cat);
+            } else {
+              selectedEditCategories.add(cat);
+            }
+            updateCategoryEditButtonsState();
+            renderConversationCategoriesScreen();
+          });
+        } else {
+          row.innerHTML = `
+            <div class='settings-item-left'>
+              <span class='settings-item-title'>${cat} (${counts[cat]})</span>
+            </div>
+          `;
+        }
+        cardContainer.appendChild(row);
+      });
+
+      // 3. Add Category row (only visible in normal view)
+      if (!isCategoryEditMode) {
+        const divider = document.createElement('div');
+        divider.className = 'settings-card-divider';
+        cardContainer.appendChild(divider);
+
+        const addRow = document.createElement('div');
+        addRow.className = 'settings-item';
+        addRow.innerHTML = `
+          <div style='display: flex; align-items: center; gap: 16px; cursor: pointer;'>
+            <svg viewBox='0 0 24 24' fill='#34a853' width='22' height='22'>
+              <path d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/>
+            </svg>
+            <span class='settings-item-title'>Add category</span>
+          </div>
+        `;
+
+        addRow.addEventListener('click', () => {
+          categoryDialogBackdrop.classList.add('active');
+          categoryInputField.value = '';
+          categoryDoneBtn.classList.add('disabled');
+          setTimeout(() => {
+            categoryInputField.focus();
+          }, 100);
+        });
+        cardContainer.appendChild(addRow);
       }
     }
 
@@ -3044,7 +3350,9 @@
       }
 
       if (action === 'edit-categories') {
-        showToast('Edit categories clicked');
+        // Slide open the fullscreen Conversation Categories screen
+        renderConversationCategoriesScreen();
+        document.getElementById('conversation-categories-view').classList.add('active');
       }
 
       if (action === 'starred') {
@@ -3090,6 +3398,10 @@
 
     // Operational link for Conversation categories toggle switch to dynamically show/hide tabs
     categoriesToggleSwitch.addEventListener('change', (e) => {
+      const convCategoriesStatusSwitch = document.getElementById('categories-status-switch');
+      if (convCategoriesStatusSwitch) {
+        convCategoriesStatusSwitch.checked = e.target.checked;
+      }
       if (e.target.checked) {
         appHeaderTabs.style.display = 'flex';
       } else {
