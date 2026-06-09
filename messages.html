@@ -4246,12 +4246,12 @@
     }
 
     // Stateful Bubble Context Menu (Long-Press) Logic
-    let longPressTimeout = null;
-    let selectedBubbleElement = null;
+    // ==========================================================================
+    // Stateful Bubble Context Menu (Long-Press) Logic
+    // ==========================================================================
+    // Reusing globally defined variables (longPressTimeout and selectedBubbleElement)
 
-    // ==========================================================================
-    // Conversation Categories Screen View Specific Edit/Rename/Delete Logic
-    // ==========================================================================
+    // Display a clean feedback toast overlay
     const convCategoriesView = document.getElementById('conversation-categories-view');
     const convCategoriesBackBtn = document.getElementById('conv-categories-back-btn');
     const convCategoriesEditBtn = document.getElementById('conv-categories-edit-btn');
@@ -5922,28 +5922,87 @@
     // ==========================================================================
     // Interactive Keyboard Focus Interaction for Footer Text Field
     // ==========================================================================
-    const chatInputField = document.getElementById('chat-input-field');
-    const chatFooter = document.getElementById('chat-footer');
-    const chatActionsCollapsed = document.getElementById('chat-actions-collapsed');
-    const micSendBtn = document.getElementById('mic-send-btn');
-
-    // Predefined single-quote embedded SVG markup structures for zero escaping complexity
     const soundwaveSVG = "<svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'><rect x='3' y='8' width='2' height='8' rx='1' /><rect x='7' y='5' width='2' height='14' rx='1' /><rect x='11' y='2' width='2' height='20' rx='1' /><rect x='15' y='6' width='2' height='12' rx='1' /><rect x='19' y='9' width='2' height='6' rx='1' /></svg>";
     const sendSVG = "<svg viewBox='0 0 24 24' fill='#8ab4f8' width='24' height='24'><path d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/></svg>";
 
-    chatInputField.addEventListener('focus', () => {
-      chatFooter.classList.add('keyboard-focused');
-      chatInputField.placeholder = 'Enter message';
-    });
+    function bindChatFooterListeners() { 
+      const chatInputField = document.getElementById('chat-input-field');
+      const chatFooter = document.getElementById('chat-footer');
+      const chatActionsCollapsed = document.getElementById('chat-actions-collapsed');
+      const micSendBtn = document.getElementById('mic-send-btn');
 
-    chatInputField.addEventListener('blur', () => {
-      chatFooter.classList.remove('keyboard-focused');
-      chatInputField.placeholder = 'Text message';
-    });
+      if (!chatInputField || !chatFooter) return;
 
-    chatActionsCollapsed.addEventListener('click', () => {
-      chatInputField.blur();
-    });
+      chatInputField.addEventListener('focus', () => {
+        chatFooter.classList.add('keyboard-focused');
+        chatInputField.placeholder = 'Enter message';
+      });
+
+      chatInputField.addEventListener('blur', () => {
+        chatFooter.classList.remove('keyboard-focused');
+        chatInputField.placeholder = 'Text message';
+      });
+
+      if (chatActionsCollapsed) {
+        chatActionsCollapsed.addEventListener('click', () => {
+          chatInputField.blur();
+        });
+      }
+
+      chatInputField.addEventListener('input', () => {
+        if (chatInputField.value.trim().length > 0) {
+          micSendBtn.innerHTML = sendSVG;
+          micSendBtn.setAttribute('aria-label', 'Send message');
+        } else {
+          micSendBtn.innerHTML = soundwaveSVG;
+          micSendBtn.setAttribute('aria-label', 'Record audio note');
+        }
+      });
+
+      if (micSendBtn) {
+        micSendBtn.addEventListener('click', () => {
+          const text = chatInputField.value.trim();
+          if (text.length === 0) return;
+
+          const bubbleWrapper = document.createElement('div');
+          bubbleWrapper.className = 'bubble-wrapper sent';
+
+          const now = new Date();
+          let hours = now.getHours();
+          const minutes = now.getMinutes().toString().padStart(2, '0');
+          const ampm = hours >= 12 ? 'pm' : 'am';
+          hours = hours % 12;
+          hours = hours ? hours : 12;
+          const timeString = `${hours}:${minutes} ${ampm}`;
+
+          bubbleWrapper.innerHTML = `
+            <div class="bubble-container">
+              <div class="bubble">
+                <div class="bubble-text-content">${text}</div>
+              </div>
+            </div>
+            <span class="bubble-timestamp">${timeString}</span>
+          `;
+
+          chatMessagesList.appendChild(bubbleWrapper);
+          chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
+
+          if (activeThreadId) {
+            const threadRow = document.querySelector(`.message-thread[data-id="${activeThreadId}"]`);
+            if (threadRow) {
+              const preview = threadRow.querySelector('.preview-text');
+              if (preview) preview.textContent = text;
+              const timestamp = threadRow.querySelector('.timestamp');
+              if (timestamp) timestamp.textContent = timeString;
+            }
+          }
+
+          chatInputField.value = '';
+          micSendBtn.innerHTML = soundwaveSVG;
+          micSendBtn.setAttribute('aria-label', 'Record audio note');
+        });
+      }
+    }
 
     // Keyboard Focus Interaction for New Conversation Footer
     const newConvFooter = document.getElementById('new-conv-footer');
@@ -5965,64 +6024,8 @@
       });
     }
 
-    // Listen to keystrokes inside the input text field
-    chatInputField.addEventListener('input', () => {
-      if (chatInputField.value.trim().length > 0) {
-        micSendBtn.innerHTML = sendSVG;
-        micSendBtn.setAttribute('aria-label', 'Send message');
-      } else {
-        micSendBtn.innerHTML = soundwaveSVG;
-        micSendBtn.setAttribute('aria-label', 'Record audio note');
-      }
-    });
-
-    // Immersive Sent trigger action to post new message bubbles to scroll window
-    micSendBtn.addEventListener('click', () => {
-      const text = chatInputField.value.trim();
-      if (text.length === 0) return;
-
-      // Create beautiful sent bubble wrapper element
-      const bubbleWrapper = document.createElement('div');
-      bubbleWrapper.className = 'bubble-wrapper sent';
-
-      // Formulate modern digital clock timestamps dynamically
-      const now = new Date();
-      let hours = now.getHours();
-      const minutes = now.getMinutes().toString().padStart(2, '0');
-      const ampm = hours >= 12 ? 'pm' : 'am';
-      hours = hours % 12;
-      hours = hours ? hours : 12;
-      const timeString = `${hours}:${minutes} ${ampm}`;
-
-      bubbleWrapper.innerHTML = `
-        <div class="bubble-container">
-          <div class="bubble">
-            <div class="bubble-text-content">${text}</div>
-          </div>
-        </div>
-        <span class="bubble-timestamp">${timeString}</span>
-      `;
-
-      // Append bubble and auto-scroll window
-      chatMessagesList.appendChild(bubbleWrapper);
-      chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
-
-      // Real-time update thread preview and timestamp on Main List view
-      if (activeThreadId) {
-        const threadRow = document.querySelector(`.message-thread[data-id="${activeThreadId}"]`);
-        if (threadRow) {
-          const preview = threadRow.querySelector('.preview-text');
-          if (preview) preview.textContent = text;
-          const timestamp = threadRow.querySelector('.timestamp');
-          if (timestamp) timestamp.textContent = timeString;
-        }
-      }
-
-      // Clear input text value and cycle back soundwave icon
-      chatInputField.value = '';
-      micSendBtn.innerHTML = soundwaveSVG;
-      micSendBtn.setAttribute('aria-label', 'Record audio note');
-    });
+    // Execute on initial DOM setup
+    bindChatFooterListeners();
 
     // ==========================================================================
     // Stateful Bubble Context Menu (Long-Press) Logic
