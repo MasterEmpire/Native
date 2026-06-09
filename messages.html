@@ -404,6 +404,42 @@
       z-index: 15;
     }
 
+    /* Overrides bottom selection action bar to show ONLY the Delete button */
+    .selection-bottom-bar.delete-only #selection-mute-btn,
+    .selection-bottom-bar.delete-only #selection-more-btn {
+      display: none !important;
+    }
+
+    .selection-bottom-bar.delete-only {
+      justify-content: center;
+    }
+
+    /* Main More Options Dropdown Overlay styling */
+    .main-more-card {
+      position: fixed;
+      top: 60px;
+      right: 16px;
+      width: 65%;
+      max-width: 240px;
+      background-color: #1e1f22;
+      border-radius: 28px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      z-index: 300;
+      padding: 16px 0;
+      display: flex;
+      flex-direction: column;
+      transform: scale(0.9) translateY(-10px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    }
+
+    .main-more-card.active {
+      transform: scale(1) translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .selection-bottom-btn {
       background: none;
       border: none;
@@ -1297,13 +1333,13 @@
               <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
           </button>
-          <!-- Menu/More Button with "N" Badge -->
-          <button class="icon-btn" aria-label="More options">
-            <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-            </svg>
-            <span class="more-badge">N</span>
-          </button>
+                  <!-- Menu/More Button with "N" Badge -->
+        <button class="icon-btn" aria-label="More options" id="main-more-btn">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+          <span class="more-badge">N</span>
+        </button>
         </div>
       </div>
       <!-- Tabs Row -->
@@ -1483,7 +1519,7 @@
   <nav class="bottom-nav">
     <div class="nav-item active" id="nav-conversations">
       Conversations
-      <span class="nav-badge">70</span>
+      <span class="nav-badge" id="conversations-badge">70</span>
     </div>
     <div class="nav-item" id="nav-contacts">
       Contacts
@@ -1940,6 +1976,20 @@
 
     <div class='category-select-card' id='category-select-list'>
       <!-- Dynamic Category list populates here -->
+    </div>
+  </div>
+
+  <!-- Main Screen More Options Dropdown Overlay -->
+  <div class='context-menu-backdrop' id='main-more-backdrop'></div>
+  <div class='main-more-card' id='main-more-card'>
+    <div class='context-menu-item' data-action='delete'>Delete</div>
+    <div class='context-menu-item' data-action='mark-read'>Mark all as read</div>
+    <div class='context-menu-item' data-action='edit-categories'>Edit categories</div>
+    <div class='context-menu-item' data-action='starred'>Starred messages</div>
+    <div class='context-menu-item' data-action='recycle'>Recycle bin</div>
+    <div class='context-menu-item' data-action='settings' style='display: flex; align-items: center; justify-content: space-between; width: 100%;'>
+      <span>Settings</span>
+      <span class='more-badge' style='position: relative; top: 0; right: 24px; display: inline-flex;'>N</span>
     </div>
   </div>
 
@@ -2559,7 +2609,10 @@
       document.getElementById('app-header-standard').style.display = 'block';
       document.getElementById('app-header-selection').style.display = 'none';
       document.getElementById('nav-conversations').closest('.bottom-nav').style.display = 'flex';
-      document.getElementById('selection-bottom-bar').style.display = 'none';
+      
+      const selectionBottomBar = document.getElementById('selection-bottom-bar');
+      selectionBottomBar.style.display = 'none';
+      selectionBottomBar.classList.remove('delete-only'); // Ensure delete-only state clears
 
       // Remove selections styling
       document.querySelectorAll('.message-thread').forEach(thread => {
@@ -2611,6 +2664,82 @@
     const selectionMuteBtn = document.getElementById('selection-mute-btn');
     const selectionDeleteBtn = document.getElementById('selection-delete-btn');
     const selectionMoreBtn = document.getElementById('selection-more-btn');
+
+    // ==========================================================================
+    // Main Screen Top-Right Three-Dots (More) Menu Dropdown Interaction
+    // ==========================================================================
+    const mainMoreBtn = document.getElementById('main-more-btn');
+    const mainMoreCard = document.getElementById('main-more-card');
+    const mainMoreBackdrop = document.getElementById('main-more-backdrop');
+
+    // Slide open main dropdown
+    mainMoreBtn.addEventListener('click', () => {
+      mainMoreCard.classList.add('active');
+      mainMoreBackdrop.classList.add('active');
+    });
+
+    // Close on backdrop click
+    mainMoreBackdrop.addEventListener('click', () => {
+      mainMoreCard.classList.remove('active');
+      mainMoreBackdrop.classList.remove('active');
+    });
+
+    // Dispatchers for distinct menu actions clicked
+    mainMoreCard.addEventListener('click', (e) => {
+      const item = e.target.closest('.context-menu-item');
+      if (!item) return;
+
+      const action = item.getAttribute('data-action');
+      mainMoreCard.classList.remove('active');
+      mainMoreBackdrop.classList.remove('active');
+
+      if (action === 'delete') {
+        // Enter delete-only selection mode
+        isSelectionMode = true;
+        selectedThreadIds.clear();
+
+        document.getElementById('app-header-standard').style.display = 'none';
+        document.getElementById('app-header-selection').style.display = 'block';
+        document.getElementById('nav-conversations').closest('.bottom-nav').style.display = 'none';
+        
+        const selectionBottomBar = document.getElementById('selection-bottom-bar');
+        selectionBottomBar.classList.add('delete-only');
+        selectionBottomBar.style.display = 'flex';
+
+        const countText = document.getElementById('selection-count-text');
+        countText.textContent = '0 selected';
+
+        if (navigator.vibrate) navigator.vibrate(50);
+      }
+
+      if (action === 'mark-read') {
+        // Query and remove all red unread indicators from rows
+        document.querySelectorAll('.unread-badge').forEach(badge => badge.remove());
+
+        // Mute/remove bottom conversations nav badge indicator
+        const convBadge = document.getElementById('conversations-badge');
+        if (convBadge) {
+          convBadge.style.display = 'none';
+        }
+        showToast('All conversations marked as read');
+      }
+
+      if (action === 'edit-categories') {
+        showToast('Edit categories clicked');
+      }
+
+      if (action === 'starred') {
+        showToast('Starred messages clicked');
+      }
+
+      if (action === 'recycle') {
+        showToast('Recycle bin clicked');
+      }
+
+      if (action === 'settings') {
+        showToast('Settings clicked');
+      }
+    });
 
     selectionMuteBtn.addEventListener('click', () => {
       showToast('Notifications muted for selected threads');
