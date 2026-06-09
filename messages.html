@@ -4596,8 +4596,17 @@
 
       // Sync One UI giant header title count
       const largeUnreadTitle = document.getElementById('large-unread-title');
+      const largeViewBtn = document.getElementById('large-view-btn');
       if (largeUnreadTitle) {
-        largeUnreadTitle.textContent = `${totalUnread} unread messages`;
+        if (isSelectionMode) {
+          largeUnreadTitle.textContent = `${selectedThreadIds.size} selected`;
+        } else if (totalUnread > 0) {
+          largeUnreadTitle.textContent = `${totalUnread} unread messages`;
+          if (largeViewBtn) largeViewBtn.style.display = 'inline-block';
+        } else {
+          largeUnreadTitle.textContent = 'Messages';
+          if (largeViewBtn) largeViewBtn.style.display = 'none';
+        }
       }
 
       // Sync Bottom Conversations badge count
@@ -4606,7 +4615,7 @@
         if (totalUnread > 0) {
           convBadge.style.display = 'inline-flex';
           convBadge.textContent = totalUnread;
-        } else {
+        } else { 
           convBadge.style.display = 'none';
         }
       }
