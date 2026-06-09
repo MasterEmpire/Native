@@ -3714,6 +3714,7 @@
 
     if (scrollableMoreBtn) {
       scrollableMoreBtn.addEventListener('click', () => {
+        syncMoreMenuOptions();
         const rect = scrollableMoreBtn.getBoundingClientRect();
         mainMoreCard.style.top = `${rect.bottom + 8}px`;
         mainMoreCard.style.right = `${window.innerWidth - rect.right}px`;
@@ -3786,6 +3787,7 @@
 
     if (contactsMoreBtn) {
       contactsMoreBtn.addEventListener('click', () => {
+        syncMoreMenuOptions();
         const rect = contactsMoreBtn.getBoundingClientRect();
         mainMoreCard.style.top = `${rect.bottom + 8}px`;
         mainMoreCard.style.right = `${window.innerWidth - rect.right}px`;
@@ -4251,8 +4253,29 @@
     const mainMoreCard = document.getElementById('main-more-card');
     const mainMoreBackdrop = document.getElementById('main-more-backdrop');
 
+    function syncMoreMenuOptions() {
+      const isContacts = navContacts.classList.contains('active');
+      const items = mainMoreCard.querySelectorAll('.context-menu-item');
+      items.forEach(item => {
+        if (isContacts) {
+          if (item.getAttribute('data-action') === 'settings') {
+            item.style.display = 'flex';
+          } else {
+            item.style.display = 'none';
+          }
+        } else {
+          if (item.getAttribute('data-action') === 'settings') {
+            item.style.display = 'flex';
+          } else {
+            item.style.display = 'block';
+          }
+        }
+      });
+    }
+
     // Slide open main dropdown positioned perfectly below the clicked button
     mainMoreBtn.addEventListener('click', () => {
+      syncMoreMenuOptions();
       const rect = mainMoreBtn.getBoundingClientRect();
       mainMoreCard.style.top = `${rect.bottom + 8}px`;
       mainMoreCard.style.right = `${window.innerWidth - rect.right}px`;
