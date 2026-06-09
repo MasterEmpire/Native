@@ -373,6 +373,72 @@
       border-top: 1px dotted rgba(255, 255, 255, 0.25);
     }
 
+    /* Disabled selection states to support long press gestures */
+    .message-thread {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    /* Selection Header styling */
+    .app-header-selection {
+      height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 20px;
+    }
+
+    /* Selection bottom bar layout matching bottom navigation precisely */
+    .selection-bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 72px;
+      background-color: #000000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 64px;
+      border-top: 1px solid #141414;
+      z-index: 15;
+    }
+
+    .selection-bottom-btn {
+      background: none;
+      border: none;
+      color: #ffffff;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    /* Stateful CSS transitions for active selected items */
+    .message-thread.selected .avatar {
+      background-color: #1a73e8 !important;
+      background-image: none !important;
+      color: transparent !important;
+      position: relative;
+    }
+
+    .message-thread.selected .avatar svg {
+      display: none !important;
+    }
+
+    .message-thread.selected .avatar::after {
+      content: '';
+      width: 24px;
+      height: 24px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ffffff'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+      background-size: contain;
+      background-repeat: no-repeat;
+      display: block;
+    }
+
     /* ==========================================================================
        Immersive Live Search Overlay Layout
        ========================================================================== */
@@ -1218,35 +1284,59 @@
 </head>
 <body>
 
-  <!-- Top App Bar (Main List View) -->
-  <header class="app-header">
-    <div class="header-main">
-      <h1 class="app-title">Messages</h1>
-      <div class="header-actions">
-        <!-- Search Button -->
-        <button class="icon-btn" aria-label="Search" id="search-btn">
-          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+  <!-- Top App Bar (Main List View with Selection states) -->
+  <header class="app-header" id="app-header">
+    <!-- STANDARD MAIN VIEW HEADER -->
+    <div class='app-header-standard' id='app-header-standard'>
+      <div class="header-main">
+        <h1 class="app-title">Messages</h1>
+        <div class="header-actions">
+          <!-- Search Button -->
+          <button class="icon-btn" aria-label="Search" id="search-btn">
+            <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+              <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+            </svg>
+          </button>
+          <!-- Menu/More Button with "N" Badge -->
+          <button class="icon-btn" aria-label="More options">
+            <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+            <span class="more-badge">N</span>
+          </button>
+        </div>
+      </div>
+      <!-- Tabs Row -->
+      <div class="header-tabs">
+        <div class="tab-wrapper">
+          <div class="tab active">All</div>
+        </div>
+        <div class="tab-add" id="tab-add-btn">
+          <svg viewBox="0 0 24 24" fill="#8ab4f8" width="22" height="22">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
           </svg>
-        </button>
-        <!-- Menu/More Button with "N" Badge -->
-        <button class="icon-btn" aria-label="More options">
-          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-          </svg>
-          <span class="more-badge">N</span>
-        </button>
+        </div>
       </div>
     </div>
-    <!-- Tabs Row -->
-    <div class="header-tabs">
-      <div class="tab-wrapper">
-        <div class="tab active">All</div>
-      </div>
-      <div class="tab-add" id="tab-add-btn">
-        <svg viewBox="0 0 24 24" fill="#8ab4f8" width="22" height="22">
-          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-        </svg>
+
+    <!-- MULTI-SELECTION ROW HEADER -->
+    <div class='app-header-selection' id='app-header-selection' style='display: none;'>
+      <div class='header-main'>
+        <div style='display: flex; align-items: center; gap: 16px;'>
+          <!-- All select check Circle -->
+          <div id='selection-toggle-all-btn' style='display: flex; flex-direction: column; align-items: center; cursor: pointer;'>
+            <svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'>
+              <circle cx='12' cy='12' r='10' />
+            </svg>
+            <span style='font-size: 11px; color: #ffffff; margin-top: 2px;'>All</span>
+          </div>
+          <span class='app-title' id='selection-count-text'>1 selected</span>
+        </div>
+        <button class='icon-btn' aria-label='Search messages'>
+          <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+            <path d='M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z'/>
+          </svg>
+        </button>
       </div>
     </div>
   </header>
@@ -1710,6 +1800,28 @@
     </div>
 
   </main>
+
+  <!-- Selection Bottom Action Bar (Hidden by Default) -->
+  <div class='selection-bottom-bar' id='selection-bottom-bar' style='display: none;'>
+    <button class='selection-bottom-btn' id='selection-mute-btn'>
+      <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+        <path d='M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-11V9c0-3.07-1.63-5.64-4.5-6.32V2c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 3.36 6 5.92 6 9v2l-2 2v1h16v-1l-2-2zm-2 1H8V9c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v3z'/>
+      </svg>
+      <span>Notifications</span>
+    </button>
+    <button class='selection-bottom-btn' id='selection-delete-btn'>
+      <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+        <path d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/>
+      </svg>
+      <span>Delete</span>
+    </button>
+    <button class='selection-bottom-btn' id='selection-more-btn'>
+      <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+        <path d='M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z'/>
+      </svg>
+      <span>More</span>
+    </button>
+  </div>
 
   <!-- Side Drawer Overlay -->
   <div class="sheet-backdrop" id="sheet-backdrop"></div>
@@ -2360,6 +2472,172 @@
         }
       });
     }
+
+    // ==========================================================================
+    // Multi-Selection Mode Thread Gestures Logic
+    // ==========================================================================
+    let isSelectionMode = false;
+    let selectedThreadIds = new Set();
+    let threadLongPressTimeout = null;
+
+    // Prevent standard native browser text context menu from interfering
+    window.addEventListener('contextmenu', e => e.preventDefault());
+
+    // Event delegation on the thread list
+    threadList.addEventListener('mousedown', (e) => {
+      const thread = e.target.closest('.message-thread');
+      if (!thread) return;
+      if (isSelectionMode) return;
+
+      threadLongPressTimeout = setTimeout(() => {
+        const id = thread.getAttribute('data-id');
+        enterSelectionMode(id);
+      }, 600);
+    });
+
+    threadList.addEventListener('touchstart', (e) => {
+      const thread = e.target.closest('.message-thread');
+      if (!thread) return;
+      if (isSelectionMode) return;
+
+      threadLongPressTimeout = setTimeout(() => {
+        const id = thread.getAttribute('data-id');
+        enterSelectionMode(id);
+      }, 600);
+    });
+
+    function clearThreadLongPress() {
+      if (threadLongPressTimeout) {
+        clearTimeout(threadLongPressTimeout);
+        threadLongPressTimeout = null;
+      }
+    }
+
+    threadList.addEventListener('mouseup', clearThreadLongPress);
+    threadList.addEventListener('mouseleave', clearThreadLongPress);
+    threadList.addEventListener('touchend', clearThreadLongPress);
+    threadList.addEventListener('touchcancel', clearThreadLongPress);
+    threadList.addEventListener('mousemove', clearThreadLongPress);
+    threadList.addEventListener('touchmove', clearThreadLongPress);
+
+    // Custom thread row click listener wrapping selective taps
+    threadList.addEventListener('click', (e) => {
+      const thread = e.target.closest('.message-thread');
+      if (!thread) return;
+
+      const id = thread.getAttribute('data-id');
+      if (isSelectionMode) {
+        e.stopPropagation();
+        e.preventDefault();
+        toggleThreadSelection(id);
+      }
+    });
+
+    function enterSelectionMode(firstThreadId) {
+      isSelectionMode = true;
+      selectedThreadIds.clear();
+
+      // Swap header layouts
+      document.getElementById('app-header-standard').style.display = 'none';
+      document.getElementById('app-header-selection').style.display = 'block';
+
+      // Swap bottom controls layout
+      document.getElementById('nav-conversations').closest('.bottom-nav').style.display = 'none';
+      document.getElementById('selection-bottom-bar').style.display = 'flex';
+
+      // Toggle first row
+      toggleThreadSelection(firstThreadId);
+
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+
+    function exitSelectionMode() {
+      isSelectionMode = false;
+      selectedThreadIds.clear();
+
+      // Restore standards
+      document.getElementById('app-header-standard').style.display = 'block';
+      document.getElementById('app-header-selection').style.display = 'none';
+      document.getElementById('nav-conversations').closest('.bottom-nav').style.display = 'flex';
+      document.getElementById('selection-bottom-bar').style.display = 'none';
+
+      // Remove selections styling
+      document.querySelectorAll('.message-thread').forEach(thread => {
+        thread.classList.remove('selected');
+      });
+    }
+
+    function toggleThreadSelection(id) {
+      const threadElement = document.querySelector(`.message-thread[data-id='${id}']`);
+      if (!threadElement) return;
+
+      if (selectedThreadIds.has(id)) {
+        selectedThreadIds.delete(id);
+        threadElement.classList.remove('selected');
+      } else {
+        selectedThreadIds.add(id);
+        threadElement.classList.add('selected');
+      }
+
+      const countText = document.getElementById('selection-count-text');
+      countText.textContent = `${selectedThreadIds.size} selected`;
+
+      // Collapse if selection goes down to empty
+      if (selectedThreadIds.size === 0) {
+        exitSelectionMode();
+      }
+    }
+
+    // All Toggle control clicked
+    document.getElementById('selection-toggle-all-btn').addEventListener('click', () => {
+      const allThreads = document.querySelectorAll('.message-thread');
+      if (selectedThreadIds.size < allThreads.length) {
+        allThreads.forEach(thread => {
+          const id = thread.getAttribute('data-id');
+          if (!selectedThreadIds.has(id)) {
+            selectedThreadIds.add(id);
+            thread.classList.add('selected');
+          }
+        });
+      } else {
+        exitSelectionMode();
+        return;
+      }
+      const countText = document.getElementById('selection-count-text');
+      countText.textContent = `${selectedThreadIds.size} selected`;
+    });
+
+    // Functional Bottom Select actions
+    const selectionMuteBtn = document.getElementById('selection-mute-btn');
+    const selectionDeleteBtn = document.getElementById('selection-delete-btn');
+    const selectionMoreBtn = document.getElementById('selection-more-btn');
+
+    selectionMuteBtn.addEventListener('click', () => {
+      showToast('Notifications muted for selected threads');
+      exitSelectionMode();
+    });
+
+    selectionDeleteBtn.addEventListener('click', () => {
+      selectedThreadIds.forEach(id => {
+        const threadElement = document.querySelector(`.message-thread[data-id='${id}']`);
+        if (threadElement) {
+          threadElement.style.transition = 'opacity 0.2s, transform 0.2s';
+          threadElement.style.opacity = '0';
+          threadElement.style.transform = 'scale(0.8)';
+          setTimeout(() => threadElement.remove(), 200);
+        }
+      });
+
+      setTimeout(() => {
+        showToast(`${selectedThreadIds.size} threads deleted`);
+        exitSelectionMode();
+      }, 250);
+    });
+
+    selectionMoreBtn.addEventListener('click', () => {
+      showToast('More selection options opened');
+      exitSelectionMode();
+    });
 
     // Global Tab Selection Event Delegator for dynamic additions
     appHeaderTabs.addEventListener('click', (e) => {
