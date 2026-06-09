@@ -422,7 +422,7 @@
     }
 
     /* ==========================================================================
-       Immersive Bottom Sheet Style Drawer Side-Menu Overlay
+       Immersive Options Side-Drawer style Overlay
        ========================================================================== */
     .sheet-backdrop {
       position: fixed;
@@ -442,33 +442,39 @@
       pointer-events: auto;
     }
 
-    .bottom-sheet {
+    .side-drawer {
       position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background-color: #1c1d20;
-      border-radius: 28px 28px 0 0;
+      top: 10px;
+      bottom: 10px;
+      right: 10px;
+      width: 82%;
+      max-width: 328px;
+      background-color: #16171a;
+      border-radius: 28px;
       z-index: 210;
-      transform: translateY(100%);
+      transform: translateX(105%);
       transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-      padding: 24px 20px 24px 20px;
+      padding: 32px 24px 24px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
 
-    .bottom-sheet.active {
-      transform: translateY(0);
+    .side-drawer.active {
+      transform: translateX(0);
     }
 
     .sheet-options-list {
-      display: flex; 
+      display: flex;
       flex-direction: column;
-      gap: 22px;
+      gap: 28px;
     }
 
     .sheet-option {
       display: flex;
       align-items: flex-start;
-      gap: 16px;
+      gap: 18px;
       cursor: pointer;
     }
 
@@ -517,21 +523,26 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.4);
       border-radius: 20px;
-      padding: 6px 14px;
+      padding: 4px 12px;
       font-size: 14px;
       color: #ffffff;
       font-weight: 500;
+      background: none;
     }
 
     .sheet-sim-indicator {
       background-color: #1a73e8;
       color: #ffffff;
-      font-size: 10px;
+      font-size: 11px;
       font-weight: 700;
-      padding: 1px 4px;
-      border-radius: 3px;
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .sheet-footer-right {
@@ -1109,9 +1120,9 @@
     </div>
   </div>
 
-  <!-- Bottom Sheet Overlay / Side Panel Drawer -->
+  <!-- Side Drawer Overlay -->
   <div class="sheet-backdrop" id="sheet-backdrop"></div>
-  <div class="bottom-sheet" id="bottom-sheet">
+  <div class="side-drawer" id="side-drawer">
     <div class="sheet-options-list">
       <div class="sheet-option">
         <div class="sheet-option-icon">
@@ -1167,20 +1178,22 @@
       </div>
     </div>
     
-    <div class="sheet-divider"></div>
-    
-    <div class="sheet-footer">
-      <div class="sheet-sim-pill">
-        <span class="sheet-sim-indicator">1</span>
-        <span>SIM 1</span>
-      </div>
-      <div class="sheet-footer-right">
-        <svg viewBox="0 0 24 24" fill="#1a73e8" width="24" height="24">
-          <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
-        </svg>
-        <svg viewBox="0 0 24 24" fill="#9aa0a6" width="24" height="24">
-          <path d="M16 12V4h1v-2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
-        </svg>
+    <div>
+      <div class="sheet-divider"></div>
+      
+      <div class="sheet-footer">
+        <div class="sheet-sim-pill">
+          <span class="sheet-sim-indicator">1</span>
+          <span>SIM 1</span>
+        </div>
+        <div class="sheet-footer-right">
+          <svg viewBox="0 0 24 24" fill="#1a73e8" width="24" height="24">
+            <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.89 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/>
+          </svg>
+          <svg viewBox="0 0 24 24" fill="#9aa0a6" width="24" height="24">
+            <path d="M16 12V4h1v-2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/>
+          </svg>
+        </div>
       </div>
     </div>
   </div>
@@ -1430,28 +1443,28 @@
     }
 
     // ==========================================================================
-    // Interactive Bottom Options Side-Sheet Drawer Logic
+    // Interactive Options Side-Drawer Logic
     // ==========================================================================
     const chatMoreBtn = document.getElementById('chat-more-btn');
-    const bottomSheet = document.getElementById('bottom-sheet');
+    const sideDrawer = document.getElementById('side-drawer');
     const sheetBackdrop = document.getElementById('sheet-backdrop');
     const sheetOptionSearch = document.getElementById('sheet-option-search');
 
-    // Slide up bottom drawer on more icon tap
+    // Slide in drawer on more icon tap
     chatMoreBtn.addEventListener('click', () => {
-      bottomSheet.classList.add('active');
+      sideDrawer.classList.add('active');
       sheetBackdrop.classList.add('active');
     });
 
-    // Close options bottom sheet on backdrop tap
+    // Close options drawer on backdrop tap
     sheetBackdrop.addEventListener('click', () => {
-      bottomSheet.classList.remove('active');
+      sideDrawer.classList.remove('active');
       sheetBackdrop.classList.remove('active');
     });
 
-    // Navigate to Search Screen directly from Bottom options list
+    // Navigate to Search Screen directly from options list
     sheetOptionSearch.addEventListener('click', () => {
-      bottomSheet.classList.remove('active');
+      sideDrawer.classList.remove('active');
       sheetBackdrop.classList.remove('active');
       setTimeout(() => {
         searchView.classList.add('active');
