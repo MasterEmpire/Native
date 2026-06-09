@@ -40,6 +40,8 @@
       background-color: #000000;
       z-index: 10;
       padding-top: 12px;
+      transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
     }
 
     .header-main {
@@ -145,6 +147,7 @@
       padding-top: 112px; /* Accounts for header height */
       padding-bottom: 100px; /* Accounts for FAB + bottom nav height */
       scrollbar-width: none; /* Hide scrollbar */
+      transition: padding-top 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .messages-list::-webkit-scrollbar {
@@ -371,6 +374,60 @@
     .section-dotted-line {
       flex: 1;
       border-top: 1px dotted rgba(255, 255, 255, 0.25);
+    }
+
+    /* ==========================================================================
+       One UI Large Collapsible Header CSS Rules
+       ========================================================================== */
+    .oneui-large-header {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 0 16px 0;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .oneui-large-title {
+      font-size: 34px;
+      font-weight: 400;
+      color: #ffffff;
+      text-align: center;
+    }
+
+    .view-btn {
+      background-color: #2b2c30;
+      color: #ffffff;
+      border: none;
+      padding: 8px 32px;
+      border-radius: 20px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+
+    .view-btn:active {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Collapsed vs Expanded transition shifts */
+    .app-header.oneui-expanded {
+      height: 220px;
+    }
+
+    .app-header.oneui-expanded #compact-app-title {
+      display: none !important;
+    }
+
+    .app-header.oneui-expanded .oneui-large-header {
+      display: flex;
+    }
+
+    /* Shift scrolling message list down smoothly when header expands */
+    .app-header.oneui-expanded ~ .messages-list {
+      padding-top: 220px !important;
     }
 
     /* Disabled selection states to support long press gestures */
@@ -1435,12 +1492,12 @@
 </head>
 <body>
 
-  <!-- Top App Bar (Main List View with Selection states) -->
+    <!-- Top App Bar (Main List View with Selection states) -->
   <header class="app-header" id="app-header">
     <!-- STANDARD MAIN VIEW HEADER -->
     <div class='app-header-standard' id='app-header-standard'>
       <div class="header-main">
-        <h1 class="app-title">Messages</h1>
+        <h1 class="app-title" id="compact-app-title">Messages</h1>
         <div class="header-actions">
           <!-- Search Button -->
           <button class="icon-btn" aria-label="Search" id="search-btn">
@@ -1448,15 +1505,22 @@
               <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
           </button>
-                  <!-- Menu/More Button with "N" Badge -->
-        <button class="icon-btn" aria-label="More options" id="main-more-btn">
-          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-          </svg>
-          <span class="more-badge">N</span>
-        </button>
+          <!-- Menu/More Button with "N" Badge -->
+          <button class="icon-btn" aria-label="More options" id="main-more-btn">
+            <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+              <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+            </svg>
+            <span class="more-badge">N</span>
+          </button>
         </div>
       </div>
+
+      <!-- One UI Large Collapsible Header components -->
+      <div class='oneui-large-header' id='oneui-large-header'>
+        <span class='oneui-large-title' id='large-unread-title'>52 unread messages</span>
+        <button class='view-btn'>View</button>
+      </div>
+
       <!-- Tabs Row -->
       <div class="header-tabs">
         <div class="tab-wrapper">
@@ -3437,6 +3501,87 @@
     }
 
     // ==========================================================================
+    // Dynamic Unread Counter Calculations (Main List & Header Sync)
+    // ==========================================================================
+    function updateUnreadCount() { 
+      let totalUnread = 0;
+      document.querySelectorAll('.unread-badge').forEach(badge => {
+        totalUnread += parseInt(badge.textContent.trim()) || 0;
+      });
+
+      // Sync One UI giant header title count
+      const largeUnreadTitle = document.getElementById('large-unread-title');
+      if (largeUnreadTitle) {
+        largeUnreadTitle.textContent = `${totalUnread} unread messages`;
+      }
+
+      // Sync Bottom Conversations badge count
+      const convBadge = document.getElementById('conversations-badge');
+      if (convBadge) {
+        if (totalUnread > 0) {
+          convBadge.style.display = 'inline-flex';
+          convBadge.textContent = totalUnread;
+        } else {
+          convBadge.style.display = 'none';
+        }
+      }
+    }
+
+    // Trigger initial counter computation on initialize
+    updateUnreadCount();
+
+    // ==========================================================================
+    // Samsung One UI Scroll Snapping & Collapsible Physics Logic
+    // ==========================================================================
+    let oneuiScrollTimeout = null;
+    let isOneuiSnapping = false;
+    const mainAppHeader = document.getElementById('app-header');
+
+    threadList.addEventListener('scroll', () => {
+      const scrollTop = threadList.scrollTop;
+
+      // 1. Dynamic scale fade transitions
+      if (scrollTop > 40) {
+        mainAppHeader.classList.remove('oneui-expanded');
+      } else if (scrollTop === 0) {
+        mainAppHeader.classList.add('oneui-expanded');
+      }
+
+      // 2. Continuous snapping check
+      clearTimeout(oneuiScrollTimeout);
+      oneuiScrollTimeout = setTimeout(snapOneuiHeader, 180);
+    });
+
+    function snapOneuiHeader() {
+      if (isOneuiSnapping) return;
+      const scrollTop = threadList.scrollTop;
+
+      // Limit snapping check boundaries to the header transition height (0 to 110px)
+      if (scrollTop > 0 && scrollTop < 110) {
+        isOneuiSnapping = true;
+        if (scrollTop < 55) {
+          // Snap smoothly to Expanded state
+          threadList.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          // Snap smoothly to Collapsed state
+          threadList.scrollTo({ top: 110, behavior: 'smooth' });
+        }
+        setTimeout(() => {
+          isOneuiSnapping = false;
+        }, 300);
+      }
+    }
+
+    // Bind snapping action triggers when touch gesture or click dragging is released
+    threadList.addEventListener('touchend', snapOneuiHeader);
+    threadList.addEventListener('mouseup', snapOneuiHeader);
+
+    // Initialize thread container scrolled to default collapsed layout
+    setTimeout(() => {
+      threadList.scrollTop = 110;
+    }, 150);
+
+    // ==========================================================================
     // Recycle Bin Fullscreen Screen State Managers & Operations Logic
     // ==========================================================================
     let recycleBinData = [
@@ -3868,12 +4013,9 @@
       if (action === 'mark-read') {
         // Query and remove all red unread indicators from rows
         document.querySelectorAll('.unread-badge').forEach(badge => badge.remove());
-
-        // Mute/remove bottom conversations nav badge indicator
-        const convBadge = document.getElementById('conversations-badge');
-        if (convBadge) {
-          convBadge.style.display = 'none';
-        }
+        
+        // Recalculate dynamic counters
+        updateUnreadCount();
         showToast('All conversations marked as read');
       }
 
@@ -3973,7 +4115,10 @@
           threadElement.style.transition = 'opacity 0.2s, transform 0.2s';
           threadElement.style.opacity = '0';
           threadElement.style.transform = 'scale(0.8)';
-          setTimeout(() => threadElement.remove(), 200);
+          setTimeout(() => {
+            threadElement.remove();
+            updateUnreadCount();
+          }, 200);
         }
       });
 
