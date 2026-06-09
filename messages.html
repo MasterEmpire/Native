@@ -729,6 +729,26 @@
       align-self: flex-end;
     }
 
+    /* Immersive Sent Message Styling matching Google Messages layout */
+    .bubble-wrapper.sent {
+      justify-content: flex-end;
+    }
+
+    .bubble-wrapper.sent .bubble {
+      background-color: #004b73;
+      border-radius: 18px 18px 4px 18px;
+    }
+
+    .bubble-wrapper.sent .bubble-text-content {
+      color: #ffffff;
+    }
+
+    .bubble-wrapper.sent .bubble-timestamp {
+      margin-left: 0;
+      margin-right: 8px;
+      order: -1;
+    }
+
     /* Bottom Conversation Bar */
     .chat-footer {
       position: fixed;
@@ -1079,17 +1099,14 @@
         </button>
       </div>
 
-      <!-- Microphone with stylized waveforms -->
-      <div class="mic-button-wrapper" aria-label="Record audio note">
-        <svg viewBox="0 0 36 36" width="36" height="36" fill="#ffffff">
-          <path d="M12 18c0-3.31 2.69-6 6-6s6 2.69 6 6v3c0 3.31-2.69 6-6 6s-6-2.69-6-6v-3z" />
-          <path d="M27 18h-2c0 3.86-3.14 7-7 7s-7-3.14-7-7H9c0 4.6 3.42 8.4 7.84 8.94V31h2.32v-4.06C23.58 26.4 27 22.6 27 18z" />
-          <!-- Left sound wave lines -->
-          <rect x="3" y="14" width="1.5" height="8" rx="0.75" opacity="0.8" />
-          <rect x="6" y="11" width="1.5" height="14" rx="0.75" opacity="0.8" />
-          <!-- Right sound wave lines -->
-          <rect x="31.5" y="14" width="1.5" height="8" rx="0.75" opacity="0.8" />
-          <rect x="28.5" y="11" width="1.5" height="14" rx="0.75" opacity="0.8" />
+      <!-- Soundwave Pure Wave representation wrapper -->
+      <div class="mic-button-wrapper" id="mic-send-btn" aria-label="Record audio note">
+        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+          <rect x="3" y="8" width="2" height="8" rx="1" />
+          <rect x="7" y="5" width="2" height="14" rx="1" />
+          <rect x="11" y="2" width="2" height="20" rx="1" />
+          <rect x="15" y="6" width="2" height="12" rx="1" />
+          <rect x="19" y="9" width="2" height="6" rx="1" />
         </svg>
       </div>
     </footer>
@@ -1335,6 +1352,7 @@
     const chatHeaderName = document.getElementById('chat-header-name');
     const chatHeaderAvatar = document.getElementById('chat-header-avatar');
     const chatMessagesList = document.getElementById('chat-messages-list');
+    let activeThreadId = null;
 
     // Attach click events on the main thread rows
     document.querySelectorAll('.message-thread').forEach(thread => {
@@ -1343,6 +1361,7 @@
         const data = threadData[id];
         
         if (data) {
+          activeThreadId = id;
           openChat(data);
         }
       });
@@ -1513,6 +1532,11 @@
     const chatInputField = document.getElementById('chat-input-field');
     const chatFooter = document.getElementById('chat-footer');
     const chatActionsCollapsed = document.getElementById('chat-actions-collapsed');
+    const micSendBtn = document.getElementById('mic-send-btn');
+
+    // Predefined single-quote embedded SVG markup structures for zero escaping complexity
+    const soundwaveSVG = "<svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'><rect x='3' y='8' width='2' height='8' rx='1' /><rect x='7' y='5' width='2' height='14' rx='1' /><rect x='11' y='2' width='2' height='20' rx='1' /><rect x='15' y='6' width='2' height='12' rx='1' /><rect x='19' y='9' width='2' height='6' rx='1' /></svg>";
+    const sendSVG = "<svg viewBox='0 0 24 24' fill='#8ab4f8' width='24' height='24'><path d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/></svg>";
 
     chatInputField.addEventListener('focus', () => {
       chatFooter.classList.add('keyboard-focused');
@@ -1526,6 +1550,65 @@
 
     chatActionsCollapsed.addEventListener('click', () => {
       chatInputField.blur();
+    });
+
+    // Listen to keystrokes inside the input text field
+    chatInputField.addEventListener('input', () => {
+      if (chatInputField.value.trim().length > 0) {
+        micSendBtn.innerHTML = sendSVG;
+        micSendBtn.setAttribute('aria-label', 'Send message');
+      } else {
+        micSendBtn.innerHTML = soundwaveSVG;
+        micSendBtn.setAttribute('aria-label', 'Record audio note');
+      }
+    });
+
+    // Immersive Sent trigger action to post new message bubbles to scroll window
+    micSendBtn.addEventListener('click', () => {
+      const text = chatInputField.value.trim();
+      if (text.length === 0) return;
+
+      // Create beautiful sent bubble wrapper element
+      const bubbleWrapper = document.createElement('div');
+      bubbleWrapper.className = 'bubble-wrapper sent';
+
+      // Formulate modern digital clock timestamps dynamically
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const timeString = `${hours}:${minutes} ${ampm}`;
+
+      bubbleWrapper.innerHTML = `
+        <div class="bubble-container">
+          <div class="bubble">
+            <div class="bubble-text-content">${text}</div>
+          </div>
+        </div>
+        <span class="bubble-timestamp">${timeString}</span>
+      `;
+
+      // Append bubble and auto-scroll window
+      chatMessagesList.appendChild(bubbleWrapper);
+      chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
+
+      // Real-time update thread preview and timestamp on Main List view
+      if (activeThreadId) {
+        const threadRow = document.querySelector(`.message-thread[data-id="${activeThreadId}"]`);
+        if (threadRow) {
+          const preview = threadRow.querySelector('.preview-text');
+          if (preview) preview.textContent = text;
+          const timestamp = threadRow.querySelector('.timestamp');
+          if (timestamp) timestamp.textContent = timeString;
+        }
+      }
+
+      // Clear input text value and cycle back soundwave icon
+      chatInputField.value = '';
+      micSendBtn.innerHTML = soundwaveSVG;
+      micSendBtn.setAttribute('aria-label', 'Record audio note');
     });
   </script>
 </body>
