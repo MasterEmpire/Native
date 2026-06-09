@@ -1958,8 +1958,33 @@
   <!-- Contacts List Screen Container (Hidden by Default) -->
   <main class='messages-list' id='contacts-list-container' style='display: none;'>
     
-    <!-- Monogram First Row Contact -->
-    <div class='contact-row'>
+    <!-- Large Header for Contacts -->
+    <div class='oneui-large-header' id='contacts-large-header'>
+      <span class='oneui-large-title' id='contacts-large-title'>Contacts</span>
+    </div>
+
+    <!-- Scrollable Actions Row for Contacts -->
+    <div class="scrollable-actions-row" id="contacts-scrollable-actions">
+      <!-- Scrollable Search Button for Contacts -->
+      <button class="icon-btn" aria-label="Search" id="contacts-search-btn">
+        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+      </button>
+      <!-- Scrollable Menu/More Button with "N" Badge -->
+      <button class="icon-btn" aria-label="More options" id="contacts-more-btn">
+        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+        </svg>
+        <span class="more-badge">N</span>
+      </button>
+    </div>
+
+    <!-- Scrollable container for contacts content -->
+    <div class="threads-container" id="contacts-threads-container">
+      
+      <!-- Monogram First Row Contact -->
+      <div class='contact-row'>
       <div class='avatar default-avatar' style='background-color: #1c1d20; border: 1px solid rgba(255,255,255,0.1);'>
         <svg viewBox='0 0 24 24' width='24' height='24' fill='#ffffff' style='transform: scale(1.1);'>
           <path d='M4 4l3 14 3-10 3 10 3-14m-10 0l3 11 3-8 3 11 3-11' stroke='#ffffff' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round' fill='none'/>
@@ -2053,6 +2078,7 @@
       <div class='avatar text-avatar' style='background-color: #1e88e5; margin-right: 16px;'>A</div>
       <div class='contact-name'>abat</div>
     </div>
+    </div> <!-- Close contacts-threads-container -->
 
   </main>
 
@@ -3062,6 +3088,9 @@
       if (activeTab) {
         filterThreadsByCategory(activeTab.textContent.trim());
       }
+
+      compactAppTitle.textContent = 'Messages';
+      updateHeader(threadList.scrollTop);
     });
 
     navContacts.addEventListener('click', () => {
@@ -3071,6 +3100,9 @@
       threadList.style.display = 'none';
       contactsListContainer.style.display = 'block';
       appHeaderTabs.style.display = 'none';
+
+      compactAppTitle.textContent = 'Contacts';
+      updateContactsHeader(contactsListContainer.scrollTop);
     });
 
     // ==========================================================================
@@ -3635,9 +3667,65 @@
     }
 
     // Start at collapsed position
+    const contactsLargeHeader = document.getElementById('contacts-large-header');
+    const contactsScrollableActions = document.getElementById('contacts-scrollable-actions');
+    const SNAP_THRESHOLD_CONTACTS = 288; // Visible contacts header (240px) + Actions Row (48px)
+
+    contactsListContainer.addEventListener('scroll', () => {
+      updateContactsHeader(contactsListContainer.scrollTop);
+    });
+
+    function updateContactsHeader(scrollTop) {
+      let progress = scrollTop / SNAP_THRESHOLD_CONTACTS;
+      if (progress < 0) progress = 0;
+      if (progress > 1) progress = 1;
+
+      // Smooth scale and fade transitions for Contacts Header content
+      if (contactsLargeHeader) {
+        contactsLargeHeader.style.opacity = 1 - (progress * 1.5);
+      }
+      if (contactsScrollableActions) {
+        contactsScrollableActions.style.opacity = 1 - (progress * 1.5);
+      }
+
+      // Smooth fade-in translation for the sticky Compact App Title and actions
+      if (progress > 0.8) {
+        let fadeProgress = (progress - 0.8) * 5;
+        compactAppTitle.style.opacity = fadeProgress;
+        if (compactHeaderActions) compactHeaderActions.style.opacity = fadeProgress;
+      } else {
+        compactAppTitle.style.opacity = 0;
+        if (compactHeaderActions) compactHeaderActions.style.opacity = 0;
+      }
+    }
+
+    // Bind contacts scrollable actions to same search/more event listeners
+    const contactsSearchBtn = document.getElementById('contacts-search-btn');
+    const contactsMoreBtn = document.getElementById('contacts-more-btn');
+
+    if (contactsSearchBtn) {
+      contactsSearchBtn.addEventListener('click', () => {
+        searchView.classList.add('active');
+        setTimeout(() => {
+          searchInputField.focus();
+        }, 100); 
+      });
+    }
+
+    if (contactsMoreBtn) {
+      contactsMoreBtn.addEventListener('click', () => {
+        mainMoreCard.classList.add('active');
+        mainMoreBackdrop.classList.add('active');
+      });
+    }
+
+    // Start both at collapsed position
     setTimeout(() => {
       threadList.scrollTop = SNAP_THRESHOLD;
       updateHeader(SNAP_THRESHOLD);
+
+      contactsListContainer.scrollTop = SNAP_THRESHOLD_CONTACTS;
+      updateContactsHeader(SNAP_THRESHOLD_CONTACTS);
     }, 150);
     // ==========================================================================
     // Recycle Bin Fullscreen Screen State Managers & Operations Logic
