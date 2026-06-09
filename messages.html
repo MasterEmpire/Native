@@ -55,6 +55,9 @@
       font-size: 26px;
       font-weight: 400;
       letter-spacing: -0.5px;
+    }
+
+    #compact-app-title, #compact-header-actions {
       opacity: 0;
       transition: opacity 0.1s ease;
     }
@@ -385,17 +388,29 @@
        One UI Large Collapsible Header CSS Rules
        ========================================================================== */
     .oneui-large-header {
-      height: 166px;
+      height: 296px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       padding-top: 56px; /* Aligns contents below the fixed 56px header */
       padding-bottom: 16px;
-      gap: 12px;
+      gap: 16px;
       width: 100%;
       background-color: #000000;
       scroll-snap-align: start;
+    }
+
+    .scrollable-actions-row {
+      height: 48px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      width: 100%;
+      background-color: #000000;
+      transition: opacity 0.1s ease;
     }
 
     .oneui-large-title {
@@ -1498,7 +1513,7 @@
     <div class='app-header-standard' id='app-header-standard'>
       <div class="header-main">
         <h1 class="app-title" id="compact-app-title">Messages</h1>
-        <div class="header-actions">
+        <div class="header-actions" id="compact-header-actions">
           <!-- Search Button -->
           <button class="icon-btn" aria-label="Search" id="search-btn">
             <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
@@ -1549,6 +1564,23 @@
     <div class='oneui-large-header' id='oneui-large-header'>
       <span class='oneui-large-title' id='large-unread-title'>52 unread messages</span>
       <button class='view-btn'>View</button>
+    </div>
+
+    <!-- Scrollable Actions Row inside Scroll Wrapper -->
+    <div class="scrollable-actions-row" id="scrollable-actions-row">
+      <!-- Scrollable Search Button -->
+      <button class="icon-btn" aria-label="Search" id="scrollable-search-btn">
+        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+      </button>
+      <!-- Scrollable Menu/More Button with "N" Badge -->
+      <button class="icon-btn" aria-label="More options" id="scrollable-more-btn">
+        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+        </svg>
+        <span class="more-badge">N</span>
+      </button>
     </div>
 
     <!-- Category Tabs Row inside Scroll Wrapper -->
@@ -3543,9 +3575,11 @@
     // ==========================================================================
     // Samsung One UI Scroll Snapping & Collapsible Physics Logic
     // ==========================================================================
-    const SNAP_THRESHOLD = 154; // Height of Large Header visible part (110px) + Category Tab Bar (44px)
+    const SNAP_THRESHOLD = 332; // Visible Large Header (240px) + Actions Row (48px) + Categories Tab (44px)
     const largeHeader = document.getElementById('oneui-large-header');
+    const scrollableActions = document.getElementById('scrollable-actions-row');
     const compactAppTitle = document.getElementById('compact-app-title');
+    const compactHeaderActions = document.getElementById('compact-header-actions');
 
     threadList.addEventListener('scroll', () => {
       updateHeader(threadList.scrollTop);
@@ -3558,13 +3592,39 @@
 
       // Smooth scale and fade transitions for Large Header content
       largeHeader.style.opacity = 1 - (progress * 1.5);
+      if (scrollableActions) {
+        scrollableActions.style.opacity = 1 - (progress * 1.5);
+      }
 
-      // Smooth fade-in translation for the sticky Compact App Title
+      // Smooth fade-in translation for the sticky Compact App Title and actions
       if (progress > 0.8) {
-        compactAppTitle.style.opacity = (progress - 0.8) * 5;
+        let fadeProgress = (progress - 0.8) * 5;
+        compactAppTitle.style.opacity = fadeProgress;
+        if (compactHeaderActions) compactHeaderActions.style.opacity = fadeProgress;
       } else {
         compactAppTitle.style.opacity = 0;
+        if (compactHeaderActions) compactHeaderActions.style.opacity = 0;
       }
+    }
+
+    // Bind scrollable action buttons to exact same listeners
+    const scrollableSearchBtn = document.getElementById('scrollable-search-btn');
+    const scrollableMoreBtn = document.getElementById('scrollable-more-btn');
+
+    if (scrollableSearchBtn) {
+      scrollableSearchBtn.addEventListener('click', () => {
+        searchView.classList.add('active');
+        setTimeout(() => {
+          searchInputField.focus();
+        }, 100); 
+      });
+    }
+
+    if (scrollableMoreBtn) {
+      scrollableMoreBtn.addEventListener('click', () => {
+        mainMoreCard.classList.add('active');
+        mainMoreBackdrop.classList.add('active');
+      });
     }
 
     // Start at collapsed position
