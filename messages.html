@@ -3507,8 +3507,6 @@
       } else {
         selectedEditCategories.clear();
         document.getElementById('conv-categories-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
-        exitCategoryEditMode();
-        return;
       }
       const count = selectedEditCategories.size;
       document.getElementById('conv-categories-title-text').textContent = `${count} selected`;
@@ -4455,8 +4453,6 @@
       } else {
         selectedRecycleIds.clear();
         document.getElementById('recycle-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
-        exitRecycleEditMode();
-        return;
       }
       const count = selectedRecycleIds.size;
       document.getElementById('recycle-title-text').textContent = `${count} selected`;
@@ -4848,20 +4844,20 @@
           selectables.forEach(row => {
             row.classList.remove('selected');
           });
-          exitContactsSelectionMode();
-          return;
         }
         const countText = `${selectedContactIndexes.size} selected`;
         document.getElementById('selection-count-text').textContent = countText;
         const contactsLargeTitle = document.getElementById('contacts-large-title');
         if (contactsLargeTitle) contactsLargeTitle.textContent = countText;
+        const largeUnreadTitle = document.getElementById('large-unread-title');
+        if (largeUnreadTitle) largeUnreadTitle.textContent = countText;
         updateContactsSelectAllIndicator();
       } else {
         const allThreads = document.querySelectorAll('.message-thread');
         if (selectedThreadIds.size < allThreads.length) {
           allThreads.forEach(thread => {
             const id = thread.getAttribute('data-id');
-            selectedThreadIds.add(id);
+            selectedThreadIds.add(id); 
             thread.classList.add('selected');
           });
         } else {
@@ -4869,12 +4865,11 @@
           allThreads.forEach(thread => {
             thread.classList.remove('selected');
           });
-          exitSelectionMode();
-          return;
         }
         const countText = `${selectedThreadIds.size} selected`;
         document.getElementById('selection-count-text').textContent = countText;
-        document.getElementById('large-unread-title').textContent = countText;
+        const largeUnreadTitle = document.getElementById('large-unread-title');
+        if (largeUnreadTitle) largeUnreadTitle.textContent = countText;
         updateMainSelectAllIndicator();
       }
     });
