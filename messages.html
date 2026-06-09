@@ -993,6 +993,92 @@
       background-color: rgba(255, 255, 255, 0.08);
     }
 
+    /* ==========================================================================
+       Add Category Custom Dialog Overlay
+       ========================================================================== */
+    .dialog-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.6);
+      z-index: 350;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .dialog-backdrop.active {
+      display: flex;
+    }
+
+    .dialog-card {
+      width: 100%;
+      max-width: 320px;
+      background-color: #1e1f22;
+      border-radius: 28px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+    }
+
+    .dialog-title {
+      font-size: 22px;
+      font-weight: 500;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+
+    .dialog-input {
+      width: 100%;
+      background: none;
+      border: none;
+      border-bottom: 2px solid #ffffff;
+      color: #ffffff;
+      font-size: 18px;
+      outline: none;
+      padding: 8px 0;
+      margin-top: 16px;
+    }
+
+    .dialog-input::placeholder {
+      color: #55565a;
+    }
+
+    .dialog-actions {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      margin-top: 24px;
+    }
+
+    .dialog-btn {
+      flex: 1;
+      background: none;
+      border: none;
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: 500;
+      padding: 12px 0;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .dialog-btn.disabled {
+      color: #55565a;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .dialog-btn-divider {
+      width: 1px;
+      height: 24px;
+      background-color: rgba(255, 255, 255, 0.12);
+    }
+
     /* Bottom Conversation Bar */
     .chat-footer {
       position: fixed;
@@ -1103,7 +1189,7 @@
       <div class="tab-wrapper">
         <div class="tab active">All</div>
       </div>
-      <div class="tab-add">
+      <div class="tab-add" id="tab-add-btn">
         <svg viewBox="0 0 24 24" fill="#8ab4f8" width="22" height="22">
           <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
         </svg>
@@ -1662,6 +1748,19 @@
     <div class='context-menu-item' data-action='details'>View details</div>
   </div>
 
+  <!-- Add Category Dialogue Modal -->
+  <div class='dialog-backdrop' id='category-dialog-backdrop'>
+    <div class='dialog-card'>
+      <span class='dialog-title'>Add category</span>
+      <input type='text' class='dialog-input' id='category-input-field' placeholder='Category name' autocomplete='off'>
+      <div class='dialog-actions'>
+        <button class='dialog-btn' id='category-cancel-btn'>Cancel</button>
+        <div class='dialog-btn-divider'></div>
+        <button class='dialog-btn disabled' id='category-done-btn'>Done</button>
+      </div>
+    </div>
+  </div>
+
   <!-- JavaScript Interaction Layer -->
   <script>
     // Parsable JSON Thread Bubble Data matching screenshot content and formatting
@@ -2006,6 +2105,63 @@
       threadList.style.display = 'none';
       contactsListContainer.style.display = 'block';
       appHeaderTabs.style.display = 'none';
+    });
+
+    // ==========================================================================
+    // Custom Category Overlay Dialogue Interaction Logic
+    // ==========================================================================
+    const tabAddBtn = document.getElementById('tab-add-btn');
+    const categoryDialogBackdrop = document.getElementById('category-dialog-backdrop');
+    const categoryInputField = document.getElementById('category-input-field');
+    const categoryCancelBtn = document.getElementById('category-cancel-btn');
+    const categoryDoneBtn = document.getElementById('category-done-btn');
+
+    // Open popup category overlay on plus tap
+    tabAddBtn.addEventListener('click', () => {
+      categoryDialogBackdrop.classList.add('active');
+      categoryInputField.value = '';
+      categoryDoneBtn.classList.add('disabled');
+      setTimeout(() => {
+        categoryInputField.focus();
+      }, 100);
+    });
+
+    // Dismiss dialgoue on Cancel tap
+    categoryCancelBtn.addEventListener('click', () => {
+      categoryDialogBackdrop.classList.remove('active');
+    });
+
+    // Monitor keyboard input stream to enable "Done" action dynamically
+    categoryInputField.addEventListener('input', () => {
+      if (categoryInputField.value.trim().length > 0) {
+        categoryDoneBtn.classList.remove('disabled');
+      } else {
+        categoryDoneBtn.classList.add('disabled');
+      }
+    });
+
+    // Build category tabs rows dynamically on confirm
+    categoryDoneBtn.addEventListener('click', () => {
+      const categoryName = categoryInputField.value.trim();
+      if (categoryName.length === 0) return;
+
+      const newTabWrapper = document.createElement('div');
+      newTabWrapper.className = 'tab-wrapper';
+      newTabWrapper.innerHTML = `<div class='tab'>${categoryName}</div>`;
+      appHeaderTabs.insertBefore(newTabWrapper, tabAddBtn);
+
+      // Reset visual dialog state
+      categoryDialogBackdrop.classList.remove('active');
+      showToast(`Category '${categoryName}' added`);
+    });
+
+    // Global Tab Selection Event Delegator for dynamic additions
+    appHeaderTabs.addEventListener('click', (e) => {
+      const tab = e.target.closest('.tab');
+      if (tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+      }
     });
 
     // Dismiss expanded profile layout by tapping on the dimmed backdrop
