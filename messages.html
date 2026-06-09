@@ -2105,19 +2105,39 @@
 
     <!-- Scrollable Actions Row for Contacts -->
     <div class="scrollable-actions-row" id="contacts-scrollable-actions">
-      <!-- Scrollable Search Button for Contacts -->
-      <button class="icon-btn" aria-label="Search" id="contacts-search-btn">
-        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-        </svg>
-      </button>
-      <!-- Scrollable Menu/More Button with "N" Badge -->
-      <button class="icon-btn" aria-label="More options" id="contacts-more-btn">
-        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
-          <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
-        </svg>
-        <span class="more-badge">N</span>
-      </button>
+      <!-- Contacts Standard Scrollable actions -->
+      <div id="contacts-standard-scrollable-actions" style="display: flex; justify-content: flex-end; align-items: center; gap: 16px; width: 100%;">
+        <!-- Scrollable Search Button for Contacts -->
+        <button class="icon-btn" aria-label="Search" id="contacts-search-btn">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+        </button>
+        <!-- Scrollable Menu/More Button with \"N\" Badge -->
+        <button class="icon-btn" aria-label="More options" id="contacts-more-btn">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+          <span class="more-badge">N</span>
+        </button>
+      </div>
+
+      <!-- Contacts Selection Scrollable actions -->
+      <div id="contacts-selection-scrollable-actions" style="display: none; justify-content: space-between; align-items: center; width: 100%;">
+        <!-- Contacts Scrollable All select check Circle -->
+        <div id='contacts-scrollable-selection-toggle-all-btn' style='display: flex; flex-direction: column; align-items: center; cursor: pointer;'>
+          <svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'>
+            <circle cx='12' cy='12' r='10' />
+          </svg>
+          <span style='font-size: 11px; color: #ffffff; margin-top: 2px;'>All</span>
+        </div>
+        <!-- Contacts Scrollable Selection Search Button -->
+        <button class="icon-btn" aria-label="Search" id="contacts-selection-search-btn">
+          <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+            <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Scrollable container for contacts content -->
@@ -2244,9 +2264,6 @@
           </button>
           <!-- Start button for Contacts selection -->
           <button class='selection-bottom-btn' id='selection-start-btn' style='display: none;'>
-            <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
-              <path d='M8 5v14l11-7z'/>
-            </svg>
             <span>Start</span>
           </button>
         </div>
@@ -3058,7 +3075,8 @@
 
     // Attach click events on the main thread rows
     document.querySelectorAll('.message-thread').forEach(thread => {
-      thread.addEventListener('click', () => {
+      thread.addEventListener('click', (e) => {
+        if (isSelectionMode) return;
         const id = thread.getAttribute('data-id');
         const data = threadData[id];
         
@@ -3881,6 +3899,10 @@
     const scrollableSelectionToggleAllBtn = document.getElementById('scrollable-selection-toggle-all-btn');
     const scrollableSelectionSearchBtn = document.getElementById('scrollable-selection-search-btn');
 
+    // Contacts scrollable action buttons
+    const contactsScrollableSelectionToggleAllBtn = document.getElementById('contacts-scrollable-selection-toggle-all-btn');
+    const contactsSelectionSearchBtn = document.getElementById('contacts-selection-search-btn');
+
     if (scrollableSearchBtn) {
       scrollableSearchBtn.addEventListener('click', () => {
         searchView.classList.add('active');
@@ -3917,6 +3939,22 @@
       });
     }
 
+    if (contactsScrollableSelectionToggleAllBtn) {
+      contactsScrollableSelectionToggleAllBtn.addEventListener('click', () => {
+        const toggleAllBtn = document.getElementById('selection-toggle-all-btn');
+        if (toggleAllBtn) toggleAllBtn.click();
+      });
+    }
+
+    if (contactsSelectionSearchBtn) {
+      contactsSelectionSearchBtn.addEventListener('click', () => {
+        searchView.classList.add('active');
+        setTimeout(() => {
+          searchInputField.focus();
+        }, 100); 
+      });
+    }
+
     // Start at collapsed position
     const contactsLargeHeader = document.getElementById('contacts-large-header');
     const contactsScrollableActions = document.getElementById('contacts-scrollable-actions');
@@ -3942,11 +3980,19 @@
       // Smooth fade-in translation for the sticky Compact App Title and actions
       if (progress > 0.8) {
         let fadeProgress = (progress - 0.8) * 5;
-        compactAppTitle.style.opacity = fadeProgress;
-        if (compactHeaderActions) compactHeaderActions.style.opacity = fadeProgress;
+        if (isContactsSelectionMode) {
+          document.getElementById('app-header-selection').style.opacity = fadeProgress;
+          compactAppTitle.style.opacity = 0;
+          if (compactHeaderActions) compactHeaderActions.style.opacity = 0;
+        } else {
+          compactAppTitle.style.opacity = fadeProgress;
+          if (compactHeaderActions) compactHeaderActions.style.opacity = fadeProgress;
+          document.getElementById('app-header-selection').style.opacity = 0;
+        }
       } else {
         compactAppTitle.style.opacity = 0;
         if (compactHeaderActions) compactHeaderActions.style.opacity = 0;
+        document.getElementById('app-header-selection').style.opacity = 0;
       }
     }
 
@@ -4002,10 +4048,10 @@
       const largeViewBtn = document.getElementById('large-view-btn');
       if (largeViewBtn) largeViewBtn.style.display = 'none';
 
-      const stdScrollActions = document.getElementById('standard-scrollable-actions');
-      const selScrollActions = document.getElementById('selection-scrollable-actions');
-      if (stdScrollActions) stdScrollActions.style.display = 'none';
-      if (selScrollActions) selScrollActions.style.display = 'flex';
+      const contactsStdScrollActions = document.getElementById('contacts-standard-scrollable-actions');
+      const contactsSelScrollActions = document.getElementById('contacts-selection-scrollable-actions');
+      if (contactsStdScrollActions) contactsStdScrollActions.style.display = 'none';
+      if (contactsSelScrollActions) contactsSelScrollActions.style.display = 'flex';
 
       document.getElementById('app-header-standard').style.display = 'none';
       document.getElementById('app-header-selection').style.display = 'block';
@@ -4037,10 +4083,10 @@
       const largeViewBtn = document.getElementById('large-view-btn');
       if (largeViewBtn) largeViewBtn.style.display = 'inline-block';
 
-      const stdScrollActions = document.getElementById('standard-scrollable-actions');
-      const selScrollActions = document.getElementById('selection-scrollable-actions');
-      if (stdScrollActions) stdScrollActions.style.display = 'flex';
-      if (selScrollActions) selScrollActions.style.display = 'none';
+      const contactsStdScrollActions = document.getElementById('contacts-standard-scrollable-actions');
+      const contactsSelScrollActions = document.getElementById('contacts-selection-scrollable-actions');
+      if (contactsStdScrollActions) contactsStdScrollActions.style.display = 'flex';
+      if (contactsSelScrollActions) contactsSelScrollActions.style.display = 'none';
 
       document.getElementById('app-header-standard').style.display = 'block';
       document.getElementById('app-header-selection').style.display = 'none';
@@ -4083,7 +4129,7 @@
 
     function updateContactsSelectAllIndicator() {
       const toggleAllBtn = document.getElementById('selection-toggle-all-btn');
-      const scrollableToggleAllBtn = document.getElementById('scrollable-selection-toggle-all-btn');
+      const scrollableToggleAllBtn = document.getElementById('contacts-scrollable-selection-toggle-all-btn');
       const selectables = getSelectableContacts();
       const isAllSelected = (selectedContactIndexes.size === selectables.length && selectables.length > 0);
       
