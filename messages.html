@@ -3588,11 +3588,6 @@
             } else {
               selectedEditCategories.add(cat);
             }
-            
-            if (selectedEditCategories.size === 0) {
-              exitCategoryEditMode();
-              return;
-            }
 
             // Sync header Select All check indicator circle and write mark
             const convCategoriesBackIconContainer = document.getElementById('conv-categories-back-icon-container');
@@ -3913,9 +3908,12 @@
       });
     }
 
-    function enterContactsSelectionMode(firstIndex) {
+        function enterContactsSelectionMode(firstIndex) { 
       isContactsSelectionMode = true;
       selectedContactIndexes.clear();
+
+      const fabBtn = document.querySelector('.fab-btn');
+      if (fabBtn) fabBtn.style.display = 'none';
 
       document.getElementById('large-unread-title').textContent = '0 selected';
       const largeViewBtn = document.getElementById('large-view-btn');
@@ -3945,6 +3943,9 @@
     function exitContactsSelectionMode() {
       isContactsSelectionMode = false;
       selectedContactIndexes.clear();
+
+      const fabBtn = document.querySelector('.fab-btn');
+      if (fabBtn) fabBtn.style.display = 'flex';
 
       const contactsCount = getSelectableContacts().length;
       const contactsLargeTitle = document.getElementById('contacts-large-title');
@@ -3983,14 +3984,9 @@
       if (selectedContactIndexes.has(index)) {
         selectedContactIndexes.delete(index);
         row.classList.remove('selected');
-      } else {
+      } else { 
         selectedContactIndexes.add(index);
         row.classList.add('selected');
-      }
-
-      if (selectedContactIndexes.size === 0) {
-        exitContactsSelectionMode();
-        return;
       }
 
       const countText = `${selectedContactIndexes.size} selected`;
@@ -4405,11 +4401,6 @@
         selectedRecycleIds.add(id);
       }
 
-      if (selectedRecycleIds.size === 0) {
-        exitRecycleEditMode();
-        return;
-      }
-
       const count = selectedRecycleIds.size;
       document.getElementById('recycle-title-text').textContent = `${count} selected`;
 
@@ -4600,6 +4591,9 @@
       isSelectionMode = true;
       selectedThreadIds.clear();
 
+      const fabBtn = document.querySelector('.fab-btn');
+      if (fabBtn) fabBtn.style.display = 'none';
+
       // Toggle expanded header components to selection mode
       document.getElementById('large-unread-title').textContent = '0 selected';
       const largeViewBtn = document.getElementById('large-view-btn');
@@ -4628,6 +4622,9 @@
     function exitSelectionMode() {
       isSelectionMode = false;
       selectedThreadIds.clear();
+
+      const fabBtn = document.querySelector('.fab-btn');
+      if (fabBtn) fabBtn.style.display = 'flex';
 
       // Restore expanded header components to standard
       document.getElementById('large-unread-title').textContent = '52 unread messages';
@@ -4687,11 +4684,6 @@
       } else {
         selectedThreadIds.add(id);
         threadElement.classList.add('selected');
-      }
-
-      if (selectedThreadIds.size === 0) {
-        exitSelectionMode();
-        return;
       }
 
       const countText = `${selectedThreadIds.size} selected`;
@@ -4809,6 +4801,9 @@
         // Enter delete-only selection mode
         isSelectionMode = true;
         selectedThreadIds.clear();
+
+        const fabBtn = document.querySelector('.fab-btn');
+        if (fabBtn) fabBtn.style.display = 'none';
 
         // Toggle expanded header components to selection mode
         document.getElementById('large-unread-title').textContent = '0 selected';
