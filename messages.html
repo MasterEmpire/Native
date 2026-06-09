@@ -3247,6 +3247,8 @@
       } else {
         selectedEditCategories.clear();
         document.getElementById('conv-categories-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+        exitCategoryEditMode();
+        return;
       }
       const count = selectedEditCategories.size;
       document.getElementById('conv-categories-title-text').textContent = `${count} selected`;
@@ -3412,11 +3414,16 @@
               selectedEditCategories.add(cat);
             }
             
+            if (selectedEditCategories.size === 0) {
+              exitCategoryEditMode();
+              return;
+            }
+
             // Sync header Select All check indicator circle and write mark
             const convCategoriesBackIconContainer = document.getElementById('conv-categories-back-icon-container');
             if (selectedEditCategories.size === categories.length) {
               convCategoriesBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
-            } else {
+            } else { 
               convCategoriesBackIconContainer.innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
             }
 
@@ -3686,6 +3693,8 @@
       } else {
         selectedRecycleIds.clear();
         document.getElementById('recycle-back-icon-container').innerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+        exitRecycleEditMode();
+        return;
       }
       const count = selectedRecycleIds.size;
       document.getElementById('recycle-title-text').textContent = `${count} selected`;
@@ -3740,6 +3749,11 @@
         selectedRecycleIds.delete(id);
       } else {
         selectedRecycleIds.add(id);
+      }
+
+      if (selectedRecycleIds.size === 0) {
+        exitRecycleEditMode();
+        return;
       }
 
       const count = selectedRecycleIds.size;
@@ -3963,6 +3977,24 @@
       document.querySelectorAll('.message-thread').forEach(thread => {
         thread.classList.remove('selected');
       });
+
+      updateMainSelectAllIndicator();
+    }
+
+    function updateMainSelectAllIndicator() {
+      const toggleAllBtn = document.getElementById('selection-toggle-all-btn');
+      if (!toggleAllBtn) return;
+      const allThreads = document.querySelectorAll('.message-thread');
+      const isAllSelected = (selectedThreadIds.size === allThreads.length && allThreads.length > 0);
+      
+      const svgContainer = toggleAllBtn.querySelector('svg');
+      if (svgContainer) {
+        if (isAllSelected) {
+          svgContainer.outerHTML = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+        } else {
+          svgContainer.outerHTML = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+        }
+      }
     }
 
     function toggleThreadSelection(id) {
@@ -3977,13 +4009,15 @@
         threadElement.classList.add('selected');
       }
 
+      if (selectedThreadIds.size === 0) {
+        exitSelectionMode();
+        return;
+      }
+
       const countText = document.getElementById('selection-count-text');
       countText.textContent = `${selectedThreadIds.size} selected`;
 
-      // Collapse if selection goes down to empty
-      if (selectedThreadIds.size === 0) {
-        exitSelectionMode();
-      }
+      updateMainSelectAllIndicator();
     }
 
     // All Toggle control clicked
@@ -3992,17 +4026,20 @@
       if (selectedThreadIds.size < allThreads.length) {
         allThreads.forEach(thread => {
           const id = thread.getAttribute('data-id');
-          if (!selectedThreadIds.has(id)) {
-            selectedThreadIds.add(id);
-            thread.classList.add('selected');
-          }
+          selectedThreadIds.add(id);
+          thread.classList.add('selected');
         });
       } else {
+        selectedThreadIds.clear();
+        allThreads.forEach(thread => {
+          thread.classList.remove('selected');
+        });
         exitSelectionMode();
         return;
       }
       const countText = document.getElementById('selection-count-text');
       countText.textContent = `${selectedThreadIds.size} selected`;
+      updateMainSelectAllIndicator();
     });
 
     // Functional Bottom Select actions
