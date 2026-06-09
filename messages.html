@@ -739,15 +739,25 @@
       background-color: #000000;
       display: flex;
       align-items: center;
-      padding: 0 12px;
-      gap: 12px;
+      padding: 0 8px;
+      gap: 8px;
       z-index: 110;
+      transition: padding 0.2s, gap 0.2s;
     }
 
     .chat-footer-actions {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 4px;
+      transition: opacity 0.2s ease;
+    }
+
+    #chat-actions-collapsed {
+      display: none;
+      width: 40px;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
     }
 
     .chat-input-pill {
@@ -757,8 +767,9 @@
       height: 44px;
       display: flex;
       align-items: center;
-      padding: 0 16px;
-      gap: 12px;
+      padding: 0 14px;
+      gap: 8px;
+      min-width: 0; /* Prevents text bar from causing screen distortion and overflow */
     }
 
     .chat-input-field {
@@ -768,6 +779,7 @@
       color: #ffffff;
       font-size: 16px;
       outline: none;
+      min-width: 0;
     }
 
     .chat-input-field::placeholder {
@@ -779,9 +791,24 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 44px;
-      height: 44px;
+      width: 40px;
+      height: 40px;
       cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Responsive state switches matching screen images */
+    .chat-footer.keyboard-focused .chat-footer-actions {
+      display: none !important;
+    }
+
+    .chat-footer.keyboard-focused #chat-actions-collapsed {
+      display: flex !important;
+    }
+
+    .chat-footer.keyboard-focused {
+      padding: 0 10px;
+      gap: 10px;
     }
   </style>
 </head>
@@ -1011,8 +1038,9 @@
     </div>
 
     <!-- Immersive Footer Area containing camera/media tools -->
-    <footer class="chat-footer">
-      <div class="chat-footer-actions">
+    <footer class="chat-footer" id="chat-footer">
+      <!-- Expanded Left Actions (Standard View) -->
+      <div class="chat-footer-actions" id="chat-actions-expanded">
         <!-- Image icon -->
         <button class="icon-btn" aria-label="Add image">
           <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
@@ -1033,9 +1061,16 @@
         </button>
       </div>
 
+      <!-- Collapsed Chevron Button (Focused View) -->
+      <button class="icon-btn" id="chat-actions-collapsed" aria-label="Expand actions">
+        <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+          <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+        </svg>
+      </button>
+
       <!-- Text Field Pill -->
       <div class="chat-input-pill">
-        <input type="text" class="chat-input-field" placeholder="Text message" aria-label="Type a message">
+        <input type="text" class="chat-input-field" id="chat-input-field" placeholder="Text message" aria-label="Type a message">
         <!-- Emoji button -->
         <button class="icon-btn" style="width: 32px; height: 32px;" aria-label="Add emoji">
           <svg viewBox="0 0 24 24" fill="#9aa0a6" width="24" height="24">
@@ -1470,6 +1505,27 @@
         searchView.classList.add('active');
         searchInputField.focus();
       }, 150);
+    });
+
+    // ==========================================================================
+    // Interactive Keyboard Focus Interaction for Footer Text Field
+    // ==========================================================================
+    const chatInputField = document.getElementById('chat-input-field');
+    const chatFooter = document.getElementById('chat-footer');
+    const chatActionsCollapsed = document.getElementById('chat-actions-collapsed');
+
+    chatInputField.addEventListener('focus', () => {
+      chatFooter.classList.add('keyboard-focused');
+      chatInputField.placeholder = 'Enter message';
+    });
+
+    chatInputField.addEventListener('blur', () => {
+      chatFooter.classList.remove('keyboard-focused');
+      chatInputField.placeholder = 'Text message';
+    });
+
+    chatActionsCollapsed.addEventListener('click', () => {
+      chatInputField.blur();
     });
   </script>
 </body>
