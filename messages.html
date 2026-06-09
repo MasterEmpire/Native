@@ -3714,6 +3714,9 @@
 
     if (scrollableMoreBtn) {
       scrollableMoreBtn.addEventListener('click', () => {
+        const rect = scrollableMoreBtn.getBoundingClientRect();
+        mainMoreCard.style.top = `${rect.bottom + 8}px`;
+        mainMoreCard.style.right = `${window.innerWidth - rect.right}px`;
         mainMoreCard.classList.add('active');
         mainMoreBackdrop.classList.add('active');
       });
@@ -3783,6 +3786,9 @@
 
     if (contactsMoreBtn) {
       contactsMoreBtn.addEventListener('click', () => {
+        const rect = contactsMoreBtn.getBoundingClientRect();
+        mainMoreCard.style.top = `${rect.bottom + 8}px`;
+        mainMoreCard.style.right = `${window.innerWidth - rect.right}px`;
         mainMoreCard.classList.add('active');
         mainMoreBackdrop.classList.add('active');
       });
@@ -4245,8 +4251,11 @@
     const mainMoreCard = document.getElementById('main-more-card');
     const mainMoreBackdrop = document.getElementById('main-more-backdrop');
 
-    // Slide open main dropdown
+    // Slide open main dropdown positioned perfectly below the clicked button
     mainMoreBtn.addEventListener('click', () => {
+      const rect = mainMoreBtn.getBoundingClientRect();
+      mainMoreCard.style.top = `${rect.bottom + 8}px`;
+      mainMoreCard.style.right = `${window.innerWidth - rect.right}px`;
       mainMoreCard.classList.add('active');
       mainMoreBackdrop.classList.add('active');
     });
