@@ -2127,15 +2127,15 @@
             <span class='slider'></span>
           </label>
         </div>
-        <div class='settings-card-divider'></div>
-        <div class='settings-item'>
-          <div class='settings-item-left'>
-            <span class='settings-item-title'>Recycle bin</span>
-            <span class='settings-item-subtitle'>Keep deleted messages for 30 days.</span>
+                <div class="settings-card-divider"></div>
+        <div class="settings-item" id="settings-item-recycle-btn">
+          <div class="settings-item-left">
+            <span class="settings-item-title">Recycle bin</span>
+            <span class="settings-item-subtitle">Keep deleted messages for 30 days.</span>
           </div>
-          <label class='switch'>
-            <input type='checkbox' checked>
-            <span class='slider'></span>
+          <label class="switch">
+            <input type="checkbox" checked>
+            <span class="slider"></span>
           </label>
         </div>
       </div>
@@ -2296,6 +2296,65 @@
           </label>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Recycle Bin Fullscreen View Overlay -->
+  <div class='category-select-view' id='recycle-bin-view'>
+    <!-- STANDARD RECYCLE BIN HEADER -->
+    <header class='search-header' id='recycle-header-standard'>
+      <button class='icon-btn' id='recycle-back-btn' aria-label='Go back'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+        </svg>
+      </button>
+      <span style='font-size: 20px; font-weight: 500; color: #ffffff; flex: 1;'>Recycle bin</span>
+      <button class='recipients-btn' id='recycle-edit-btn' style='border: none; padding: 4px 12px; font-size: 16px;'>Edit</button>
+      <button class='icon-btn' id='recycle-empty-btn' aria-label='Empty recycle bin'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z'/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- SELECTION RECYCLE BIN HEADER -->
+    <header class='search-header' id='recycle-header-selection' style='display: none;'>
+      <div style='display: flex; align-items: center; gap: 16px; flex: 1;'>
+        <div id='recycle-toggle-all-btn' style='display: flex; flex-direction: column; align-items: center; cursor: pointer;'>
+          <svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'>
+            <circle cx='12' cy='12' r='10' />
+          </svg>
+          <span style='font-size: 11px; color: #ffffff; margin-top: 2px;'>All</span>
+        </div>
+        <span style='font-size: 20px; font-weight: 500; color: #ffffff;' id='recycle-select-title'>Select conversations</span>
+      </div>
+      <button class='recipients-btn' id='recycle-cancel-btn' style='border: none; padding: 4px 12px; font-size: 16px;'>Cancel</button>
+    </header>
+
+    <div style='flex: 1; overflow-y: auto;'>
+      <!-- Description Guidance -->
+      <p style='padding: 16px 20px; font-size: 14px; color: #9aa0a6; line-height: 1.4;'>Messages in the Recycle bin will be permanently deleted after 30 days.</p>
+
+      <!-- Recycle bin list container -->
+      <div id='recycle-bin-list-container'>
+        <!-- Populated dynamically via JS -->
+      </div>
+    </div>
+
+    <!-- Bottom selection action bar -->
+    <div class='selection-bottom-bar' id='recycle-edit-bottom-bar' style='display: none;'>
+      <button class='selection-bottom-btn' id='recycle-restore-action-btn'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9z'/>
+        </svg>
+          <span>Restore</span>
+      </button>
+      <button class='selection-bottom-btn' id='recycle-delete-action-btn'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z'/>
+        </svg>
+        <span>Delete</span>
+      </button>
     </div>
   </div>
 
@@ -3149,6 +3208,220 @@
     }
 
     // ==========================================================================
+    // Recycle Bin Fullscreen Screen State Managers & Operations Logic
+    // ==========================================================================
+    let recycleBinData = [
+      {
+        id: 'rec_1',
+        name: 'Dfdkjgeeqwilt',
+        avatarColor: '#00796b',
+        isTextAvatar: true,
+        time: '11:12 am',
+        text: 'MG98+2X9, Debre Birhan, Ethiopia https://ma...',
+        hasImage: true
+      },
+      {
+        id: 'rec_2',
+        name: 'ethio tel',
+        avatarColor: '#2b2c30',
+        isTextAvatar: false,
+        time: '25 May',
+        text: 'ውድ ደንበኛችን፤ በ3 ብር ብቻ በቀረብንልዎ 210 ሜ.ባ የምሽት ዳታ ጥቅል ይደሰቱ፤ አገልግሎቱን በቴሌኮም *99...',
+        hasImage: false
+      }
+    ];
+
+    const recycleBinView = document.getElementById('recycle-bin-view');
+    const recycleBackBtn = document.getElementById('recycle-back-btn');
+    const recycleEditBtn = document.getElementById('recycle-edit-btn');
+    const recycleCancelBtn = document.getElementById('recycle-cancel-btn');
+    const recycleToggleAllBtn = document.getElementById('recycle-toggle-all-btn');
+
+    const recycleHeaderStandard = document.getElementById('recycle-header-standard');
+    const recycleHeaderSelection = document.getElementById('recycle-header-selection');
+    const recycleEditBottomBar = document.getElementById('recycle-edit-bottom-bar');
+    const recycleRestoreActionBtn = document.getElementById('recycle-restore-action-btn');
+    const recycleDeleteActionBtn = document.getElementById('recycle-delete-action-btn');
+
+    let isRecycleEditMode = false;
+    let selectedRecycleIds = new Set();
+
+    // Close Recycle Bin view overlay
+    recycleBackBtn.addEventListener('click', () => {
+      recycleBinView.classList.remove('active');
+      exitRecycleEditMode();
+    });
+
+    // Trigger edit selection state
+    recycleEditBtn.addEventListener('click', () => {
+      enterRecycleEditMode();
+    });
+
+    // Cancel selection state
+    recycleCancelBtn.addEventListener('click', () => {
+      exitRecycleEditMode();
+    });
+
+    function enterRecycleEditMode() {
+      isRecycleEditMode = true;
+      selectedRecycleIds.clear();
+
+      recycleHeaderStandard.style.display = 'none';
+      recycleHeaderSelection.style.display = 'flex';
+      recycleEditBottomBar.style.display = 'flex';
+
+      document.getElementById('recycle-select-title').textContent = '0 selected';
+      updateRecycleEditButtonsState();
+      renderRecycleBinScreen();
+    }
+
+    function exitRecycleEditMode() {
+      isRecycleEditMode = false;
+      selectedRecycleIds.clear();
+
+      recycleHeaderStandard.style.display = 'flex';
+      recycleHeaderSelection.style.display = 'none';
+      recycleEditBottomBar.style.display = 'none';
+
+      renderRecycleBinScreen();
+    }
+
+    function toggleRecycleSelection(id) {
+      if (selectedRecycleIds.has(id)) {
+        selectedRecycleIds.delete(id);
+      } else {
+        selectedRecycleIds.add(id);
+      }
+
+      const count = selectedRecycleIds.size;
+      document.getElementById('recycle-select-title').textContent = `${count} selected`;
+
+      updateRecycleEditButtonsState();
+      renderRecycleBinScreen();
+    }
+
+    function updateRecycleEditButtonsState() {
+      if (selectedRecycleIds.size > 0) {
+        recycleRestoreActionBtn.classList.remove('disabled');
+        recycleDeleteActionBtn.classList.remove('disabled');
+      } else {
+        recycleRestoreActionBtn.classList.add('disabled');
+        recycleDeleteActionBtn.classList.add('disabled');
+      }
+    }
+
+    // Select all / deselect all toggle
+    recycleToggleAllBtn.addEventListener('click', () => {
+      if (selectedRecycleIds.size < recycleBinData.length) {
+        recycleBinData.forEach(item => selectedRecycleIds.add(item.id));
+      } else {
+        selectedRecycleIds.clear();
+      }
+      const count = selectedRecycleIds.size;
+      document.getElementById('recycle-select-title').textContent = `${count} selected`;
+      updateRecycleEditButtonsState();
+      renderRecycleBinScreen();
+    });
+
+    // Restore selected threads action click
+    recycleRestoreActionBtn.addEventListener('click', () => {
+      if (selectedRecycleIds.size === 0) return;
+      
+      const restoredCount = selectedRecycleIds.size;
+      recycleBinData = recycleBinData.filter(item => !selectedRecycleIds.has(item.id));
+
+      showToast(`${restoredCount} conversations restored`);
+      exitRecycleEditMode();
+    });
+
+    // Delete permanently selected threads action click
+    recycleDeleteActionBtn.addEventListener('click', () => {
+      if (selectedRecycleIds.size === 0) return;
+
+      if (confirm('Permanently delete selected conversations? This cannot be undone.')) {
+        const deletedCount = selectedRecycleIds.size;
+        recycleBinData = recycleBinData.filter(item => !selectedRecycleIds.has(item.id));
+
+        showToast(`${deletedCount} conversations permanently deleted`);
+        exitRecycleEditMode();
+      }
+    });
+
+    function renderRecycleBinScreen() {
+      const listContainer = document.getElementById('recycle-bin-list-container');
+      listContainer.innerHTML = '';
+
+      if (recycleBinData.length === 0) {
+        listContainer.innerHTML = "<p style='padding: 40px; text-align: center; color: #9aa0a6;'>No conversations in Recycle bin.</p>";
+        return;
+      }
+
+      recycleBinData.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'message-thread';
+        if (isRecycleEditMode && selectedRecycleIds.has(item.id)) {
+          row.classList.add('selected');
+        }
+
+        let avatarHTML = '';
+        if (isRecycleEditMode) {
+          const isSelected = selectedRecycleIds.has(item.id);
+          const iconHTML = isSelected
+            ? "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>"
+            : "<svg viewBox='0 0 24 24' fill='none' stroke='#9aa0a6' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10'/></svg>";
+          avatarHTML = `<div class='avatar' style='background: none; margin-right: 16px;'>${iconHTML}</div>`;
+        } else {
+          if (item.isTextAvatar) {
+            avatarHTML = `<div class='avatar text-avatar' style='background-color: ${item.avatarColor}; margin-right: 16px;'>${item.name.charAt(0)}</div>`;
+          } else {
+            avatarHTML = `
+              <div class='avatar default-avatar' style='margin-right: 16px;'>
+                <svg viewBox='0 0 24 24'>
+                  <path fill='#9aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/>
+                </svg>
+              </div>
+            `;
+          }
+        }
+
+        let imageIndicatorHTML = '';
+        if (item.hasImage) {
+          imageIndicatorHTML = `
+            <div style='display: flex; align-items: center; gap: 4px; color: #9aa0a6; margin-top: 4px;'>
+              <svg viewBox='0 0 24 24' fill='#9aa0a6' width='16' height='16'>
+                <path d='M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z'/>
+              </svg>
+              <span style='font-size: 13px;'>Image</span>
+            </div>
+          `;
+        }
+
+        row.innerHTML = `
+          ${avatarHTML}
+          <div class='thread-content'>
+            <div class='thread-header'>
+              <span class='sender-name'>${item.name}</span>
+              <span class='timestamp'>${item.time}</span>
+            </div>
+            <div class='thread-body' style='flex-direction: column; align-items: flex-start;'>
+              <span class='preview-text' style='width: 100%;'>${item.text}</span>
+              ${imageIndicatorHTML}
+            </div>
+          </div>
+        `;
+
+        row.addEventListener('click', (e) => {
+          if (isRecycleEditMode) {
+            e.stopPropagation();
+            toggleRecycleSelection(item.id);
+          }
+        });
+
+        listContainer.appendChild(row);
+      });
+    }
+
+    // ==========================================================================
     // Multi-Selection Mode Thread Gestures Logic
     // ==========================================================================
     let isSelectionMode = false;
@@ -3360,7 +3633,9 @@
       }
 
       if (action === 'recycle') {
-        showToast('Recycle bin clicked');
+        // Slide open the fullscreen Recycle Bin panel overlay
+        renderRecycleBinScreen();
+        document.getElementById('recycle-bin-view').classList.add('active');
       }
 
       if (action === 'settings') {
@@ -3457,6 +3732,16 @@
       showToast('More selection options opened');
       exitSelectionMode();
     });
+
+    // Dynamic navigation listener for Settings Recycle Bin button row
+    const settingsItemRecycleBtn = document.getElementById('settings-item-recycle-btn');
+    if (settingsItemRecycleBtn) {
+      settingsItemRecycleBtn.addEventListener('click', (e) => {
+        if (e.target.closest('.switch')) return; // Ignore toggling native switches
+        renderRecycleBinScreen();
+        document.getElementById('recycle-bin-view').classList.add('active');
+      });
+    }
 
     // Global Tab Selection Event Delegator for dynamic additions
     appHeaderTabs.addEventListener('click', (e) => {
