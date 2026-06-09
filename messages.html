@@ -486,6 +486,19 @@
       justify-content: center;
     }
 
+    /* Overrides bottom selection action bar to show ONLY the Start button */
+    .selection-bottom-bar.start-only #selection-mute-btn,
+    .selection-bottom-bar.start-only #selection-delete-btn,
+    .selection-bottom-bar.start-only #selection-more-btn {
+      display: none !important;
+    }
+    .selection-bottom-bar.start-only #selection-start-btn {
+      display: flex !important;
+    }
+    .selection-bottom-bar.start-only {
+      justify-content: center;
+    }
+
     /* Main More Options Dropdown Overlay styling */
     .main-more-card {
       position: fixed;
@@ -526,18 +539,18 @@
     }
 
     /* Stateful CSS transitions for active selected items */
-    .message-thread.selected .avatar {
+    .message-thread.selected .avatar, .contact-row.selected .avatar {
       background-color: #1a73e8 !important;
       background-image: none !important;
       color: transparent !important;
       position: relative;
     }
 
-    .message-thread.selected .avatar svg {
+    .message-thread.selected .avatar svg, .contact-row.selected .avatar svg {
       display: none !important;
     }
 
-    .message-thread.selected .avatar::after {
+    .message-thread.selected .avatar::after, .contact-row.selected .avatar::after {
       content: '';
       width: 24px;
       height: 24px;
@@ -2117,13 +2130,20 @@
       </svg>
       <span>Delete</span>
     </button>
-    <button class='selection-bottom-btn' id='selection-more-btn'>
-      <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
-        <path d='M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z'/>
-      </svg>
-      <span>More</span>
-    </button>
-  </div>
+              <button class='selection-bottom-btn' id='selection-more-btn'>
+            <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+              <path d='M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z'/>
+            </svg>
+            <span>More</span>
+          </button>
+          <!-- Start button for Contacts selection -->
+          <button class='selection-bottom-btn' id='selection-start-btn' style='display: none;'>
+            <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+              <path d='M8 5v14l11-7z'/>
+            </svg>
+            <span>Start</span>
+          </button>
+        </div>
 
   <!-- Side Drawer Overlay -->
   <div class="sheet-backdrop" id="sheet-backdrop"></div>
@@ -3100,6 +3120,9 @@
       navConversations.classList.add('active');
       navContacts.classList.remove('active');
       
+      // Reset any active Contacts Selection states upon tab switch
+      if (isContactsSelectionMode) exitContactsSelectionMode();
+
       // Assess the scroll state of the Contacts container before hiding it
       const isContactsExpanded = (contactsListContainer.scrollTop <= 40);
       
@@ -3129,6 +3152,9 @@
       navContacts.classList.add('active');
       navConversations.classList.remove('active');
       
+      // Reset any active Message Selection states upon tab switch
+      if (isSelectionMode) exitSelectionMode();
+
       // Assess the scroll state of the Conversations container before hiding it
       const isConversationsExpanded = (threadList.scrollTop <= 40);
       
@@ -3797,12 +3823,206 @@
     }
 
     // Start both at collapsed position
-    setTimeout(() => {
+    let isContactsSelectionMode = false;
+    let selectedContactIndexes = new Set();
+    let contactsLongPressTimeout = null;
+    const contactsThreadsContainer = document.getElementById('contacts-threads-container');
+
+    function getSelectableContacts() {
+      const allRows = Array.from(contactsThreadsContainer.children);
+      return allRows.filter(row => {
+        if (!row.classList.contains('contact-row')) return false;
+        const avatar = row.querySelector('.avatar');
+        const name = row.querySelector('.contact-name');
+        if (avatar && avatar.classList.contains('default-avatar') && name && name.textContent === 'Groups') return false;
+        return true;
+      });
+    }
+
+    function enterContactsSelectionMode(firstIndex) {
+      isContactsSelectionMode = true;
+      selectedContactIndexes.clear();
+
+      document.getElementById('large-unread-title').textContent = '0 selected';
+      const largeViewBtn = document.getElementById('large-view-btn');
+      if (largeViewBtn) largeViewBtn.style.display = 'none';
+
+      const stdScrollActions = document.getElementById('standard-scrollable-actions');
+      const selScrollActions = document.getElementById('selection-scrollable-actions');
+      if (stdScrollActions) stdScrollActions.style.display = 'none';
+      if (selScrollActions) selScrollActions.style.display = 'flex';
+
+      document.getElementById('app-header-standard').style.display = 'none';
+      document.getElementById('app-header-selection').style.display = 'block';
+
+      document.getElementById('nav-conversations').closest('.bottom-nav').style.display = 'none';
+      const selectionBottomBar = document.getElementById('selection-bottom-bar');
+      if (selectionBottomBar) {
+        selectionBottomBar.classList.add('start-only');
+        selectionBottomBar.style.display = 'flex';
+      }
+
+      toggleContactSelection(firstIndex);
+      updateContactsHeader(contactsListContainer.scrollTop);
+
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+
+    function exitContactsSelectionMode() {
+      isContactsSelectionMode = false;
+      selectedContactIndexes.clear();
+
+      const contactsCount = getSelectableContacts().length;
+      const contactsLargeTitle = document.getElementById('contacts-large-title');
+      if (contactsLargeTitle) contactsLargeTitle.textContent = 'Messages';
+
+      const largeViewBtn = document.getElementById('large-view-btn');
+      if (largeViewBtn) largeViewBtn.style.display = 'inline-block';
+
+      const stdScrollActions = document.getElementById('standard-scrollable-actions');
+      const selScrollActions = document.getElementById('selection-scrollable-actions');
+      if (stdScrollActions) stdScrollActions.style.display = 'flex';
+      if (selScrollActions) selScrollActions.style.display = 'none';
+
+      document.getElementById('app-header-standard').style.display = 'block';
+      document.getElementById('app-header-selection').style.display = 'none';
+      document.getElementById('nav-conversations').closest('.bottom-nav').style.display = 'flex';
+
+      const selectionBottomBar = document.getElementById('selection-bottom-bar');
+      if (selectionBottomBar) {
+        selectionBottomBar.style.display = 'none';
+        selectionBottomBar.classList.remove('start-only');
+      }
+
+      document.querySelectorAll('#contacts-threads-container .contact-row').forEach(row => {
+        row.classList.remove('selected');
+      });
+
+      updateContactsSelectAllIndicator();
+      updateContactsHeader(contactsListContainer.scrollTop);
+    }
+
+    function toggleContactSelection(index) {
+      const row = contactsThreadsContainer.children[index];
+      if (!row) return;
+
+      if (selectedContactIndexes.has(index)) {
+        selectedContactIndexes.delete(index);
+        row.classList.remove('selected');
+      } else {
+        selectedContactIndexes.add(index);
+        row.classList.add('selected');
+      }
+
+      if (selectedContactIndexes.size === 0) {
+        exitContactsSelectionMode();
+        return;
+      }
+
+      const countText = `${selectedContactIndexes.size} selected`;
+      document.getElementById('selection-count-text').textContent = countText;
+      const contactsLargeTitle = document.getElementById('contacts-large-title');
+      if (contactsLargeTitle) contactsLargeTitle.textContent = countText;
+      document.getElementById('large-unread-title').textContent = countText;
+
+      updateContactsSelectAllIndicator();
+    }
+
+    function updateContactsSelectAllIndicator() {
+      const toggleAllBtn = document.getElementById('selection-toggle-all-btn');
+      const scrollableToggleAllBtn = document.getElementById('scrollable-selection-toggle-all-btn');
+      const selectables = getSelectableContacts();
+      const isAllSelected = (selectedContactIndexes.size === selectables.length && selectables.length > 0);
+      
+      const checkSVG = "<svg viewBox='0 0 24 24' fill='#1a73e8' width='22' height='22'><circle cx='12' cy='12' r='10' fill='#1a73e8'/><path d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z' fill='#ffffff'/></svg>";
+      const circleSVG = "<svg viewBox='0 0 24 24' fill='none' stroke='#ffffff' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10' /></svg>";
+
+      if (toggleAllBtn) {
+        const svg = toggleAllBtn.querySelector('svg');
+        if (svg) svg.outerHTML = isAllSelected ? checkSVG : circleSVG;
+      }
+      if (scrollableToggleAllBtn) {
+        const svg = scrollableToggleAllBtn.querySelector('svg');
+        if (svg) svg.outerHTML = isAllSelected ? checkSVG : circleSVG;
+      }
+    }
+
+    // Add long-press listeners to contacts list
+    contactsThreadsContainer.addEventListener('mousedown', (e) => {
+      const row = e.target.closest('.contact-row');
+      if (!row || isContactsSelectionMode) return;
+      
+      // Ignore 'Groups' row
+      const avatar = row.querySelector('.avatar');
+      const name = row.querySelector('.contact-name');
+      if (avatar && avatar.classList.contains('default-avatar') && name && name.textContent === 'Groups') return;
+
+      const index = Array.from(contactsThreadsContainer.children).indexOf(row);
+      contactsLongPressTimeout = setTimeout(() => {
+        enterContactsSelectionMode(index);
+      }, 600);
+    });
+
+    contactsThreadsContainer.addEventListener('touchstart', (e) => {
+      const row = e.target.closest('.contact-row');
+      if (!row || isContactsSelectionMode) return;
+      
+      const avatar = row.querySelector('.avatar');
+      const name = row.querySelector('.contact-name');
+      if (avatar && avatar.classList.contains('default-avatar') && name && name.textContent === 'Groups') return;
+
+      const index = Array.from(contactsThreadsContainer.children).indexOf(row);
+      contactsLongPressTimeout = setTimeout(() => {
+        enterContactsSelectionMode(index);
+      }, 600);
+    });
+
+    function clearContactsLongPress() {
+      if (contactsLongPressTimeout) {
+        clearTimeout(contactsLongPressTimeout);
+        contactsLongPressTimeout = null;
+      }
+    }
+
+    contactsThreadsContainer.addEventListener('mouseup', clearContactsLongPress);
+    contactsThreadsContainer.addEventListener('mouseleave', clearContactsLongPress);
+    contactsThreadsContainer.addEventListener('touchend', clearContactsLongPress);
+    contactsThreadsContainer.addEventListener('touchcancel', clearContactsLongPress);
+    contactsThreadsContainer.addEventListener('mousemove', clearContactsLongPress);
+    contactsThreadsContainer.addEventListener('touchmove', clearContactsLongPress);
+
+    // Click listener to toggle selection
+    contactsThreadsContainer.addEventListener('click', (e) => {
+      const row = e.target.closest('.contact-row');
+      if (!row) return;
+
+      const avatar = row.querySelector('.avatar');
+      const name = row.querySelector('.contact-name');
+      if (avatar && avatar.classList.contains('default-avatar') && name && name.textContent === 'Groups') return;
+
+      const index = Array.from(contactsThreadsContainer.children).indexOf(row);
+      if (isContactsSelectionMode) {
+        e.stopPropagation();
+        e.preventDefault();
+        toggleContactSelection(index);
+      }
+    });
+
+    // Start button handler
+    const selectionStartBtn = document.getElementById('selection-start-btn');
+    if (selectionStartBtn) {
+      selectionStartBtn.addEventListener('click', () => {
+        showToast(`Started conversation with ${selectedContactIndexes.size} selected contacts`);
+        exitContactsSelectionMode();
+      });
+    }
+
+    setTimeout(() => { 
       threadList.scrollTop = SNAP_THRESHOLD;
       updateHeader(SNAP_THRESHOLD);
 
       // Compute dynamic contacts count and set subtitle
-      const contactsCount = document.querySelectorAll('#contacts-threads-container .contact-row').length;
+      const contactsCount = getSelectableContacts().length;
       const contactsLargeSubtitle = document.getElementById('contacts-large-subtitle');
       if (contactsLargeSubtitle) {
         contactsLargeSubtitle.textContent = `${contactsCount} contacts`;
@@ -4220,25 +4440,50 @@
     }
 
     // All Toggle control clicked
+    // All Toggle control clicked
     document.getElementById('selection-toggle-all-btn').addEventListener('click', () => {
-      const allThreads = document.querySelectorAll('.message-thread');
-      if (selectedThreadIds.size < allThreads.length) {
-        allThreads.forEach(thread => {
-          const id = thread.getAttribute('data-id');
-          selectedThreadIds.add(id);
-          thread.classList.add('selected');
-        });
+      if (isContactsSelectionMode) {
+        const selectables = getSelectableContacts();
+        if (selectedContactIndexes.size < selectables.length) {
+          selectables.forEach(row => {
+            const index = Array.from(contactsThreadsContainer.children).indexOf(row);
+            selectedContactIndexes.add(index);
+            row.classList.add('selected');
+          });
+        } else {
+          selectedContactIndexes.clear();
+          selectables.forEach(row => {
+            row.classList.remove('selected');
+          });
+          exitContactsSelectionMode();
+          return;
+        }
+        const countText = `${selectedContactIndexes.size} selected`;
+        document.getElementById('selection-count-text').textContent = countText;
+        const contactsLargeTitle = document.getElementById('contacts-large-title');
+        if (contactsLargeTitle) contactsLargeTitle.textContent = countText;
+        updateContactsSelectAllIndicator();
       } else {
-        selectedThreadIds.clear();
-        allThreads.forEach(thread => {
-          thread.classList.remove('selected');
-        });
-        exitSelectionMode();
-        return;
+        const allThreads = document.querySelectorAll('.message-thread');
+        if (selectedThreadIds.size < allThreads.length) {
+          allThreads.forEach(thread => {
+            const id = thread.getAttribute('data-id');
+            selectedThreadIds.add(id);
+            thread.classList.add('selected');
+          });
+        } else {
+          selectedThreadIds.clear();
+          allThreads.forEach(thread => {
+            thread.classList.remove('selected');
+          });
+          exitSelectionMode();
+          return;
+        }
+        const countText = `${selectedThreadIds.size} selected`;
+        document.getElementById('selection-count-text').textContent = countText;
+        document.getElementById('large-unread-title').textContent = countText;
+        updateMainSelectAllIndicator();
       }
-      const countText = document.getElementById('selection-count-text');
-      countText.textContent = `${selectedThreadIds.size} selected`;
-      updateMainSelectAllIndicator();
     });
 
     // Functional Bottom Select actions
