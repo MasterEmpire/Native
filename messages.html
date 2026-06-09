@@ -1928,7 +1928,7 @@
     </footer>
   </div>
 
-  <!-- Search Overlay Screen -->
+    <!-- Search Overlay Screen -->
   <div class="search-view" id="search-view">
     <header class="search-header">
       <button class="icon-btn" id="search-back-btn" aria-label="Go back">
@@ -1986,6 +1986,80 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- New Conversation Overlay Screen -->
+  <div class='category-select-view' id='new-conversation-view'>
+    <header class='search-header'>
+      <button class='icon-btn' id='new-conv-back-btn' aria-label='Go back'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+        </svg>
+      </button>
+      <div class='chat-avatar default-avatar' style='background-color: #2b2c30; width: 34px; height: 34px;'>
+        <svg viewBox='0 0 24 24' width='20' height='20'>
+          <path fill='#9aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/>
+        </svg>
+      </div>
+      <span style='font-size: 20px; font-weight: 500; color: #ffffff;'>New conversation</span>
+    </header>
+
+    <div style='flex: 1; overflow-y: auto;'>
+      <!-- Recipient Input Line -->
+      <div class='recipient-container'>
+        <input type='text' class='recipient-input' id='new-conv-recipient-input' placeholder='Recipient' autocomplete='off'>
+        <!-- Recipient Action button -->
+        <button class='icon-btn' id='new-conv-plus-btn' style='width: 32px; height: 32px; display: inline-flex;'>
+          <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+            <path d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/>
+          </svg>
+        </button>
+        <button class='icon-btn' id='new-conv-clear-btn' style='width: 32px; height: 32px; display: none;'>
+          <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+            <path d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Suggestions dropdown card container -->
+      <div class='contacts-dropdown-card' id='new-conv-suggestions-card' style='display: none;'></div>
+    </div>
+
+    <!-- Message Footer inside New Conversation -->
+    <footer class='chat-footer' id='new-conv-footer'>
+      <div class='chat-footer-actions'>
+        <button class='icon-btn' aria-label='Add image'>
+          <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+            <path d='M19 3H5c-1.1 0-2 .9-2 2 v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z'/>
+          </svg>
+        </button>
+        <button class='icon-btn' aria-label='Open camera'>
+          <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+            <path d='M9 2L7.17 4H4c-1.1 0-2 .9-2 2 v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z'/>
+          </svg>
+        </button>
+        <button class='icon-btn' aria-label='More attachments'>
+          <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+            <path d='M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z'/>
+          </svg>
+        </button>
+      </div>
+
+      <div class='chat-input-pill'>
+        <input type='text' class='chat-input-field' id='new-conv-input-field' placeholder='Text message' aria-label='Type a message'>
+        <button class='icon-btn' style='width: 32px; height: 32px;' aria-label='Add emoji'>
+          <svg viewBox='0 0 24 24' fill='#9aa0a6' width='24' height='24'>
+            <path d='M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z'/>
+          </svg>
+        </button>
+      </div>
+
+      <div class='mic-button-wrapper' id='new-conv-send-btn' aria-label='Send message' style='opacity: 0.5; pointer-events: none;'>
+        <svg viewBox='0 0 24 24' fill='#00bfa5' width='24' height='24'>
+          <path d='M2.01 21L23 12 2.01 3 2 10l15 2-15 2z'/>
+        </svg>
+      </div>
+    </footer>
   </div>
 
   <!-- Contacts List Screen Container (Hidden by Default) -->
@@ -4031,6 +4105,194 @@
       contactsListContainer.scrollTop = SNAP_THRESHOLD_CONTACTS;
       updateContactsHeader(SNAP_THRESHOLD_CONTACTS);
     }, 150);
+
+    // Search Contacts Database
+    const searchContactsDb = [
+      { name: 'Getye Tekilu, Riddle Boy', number: '0910203040', isTextAvatar: false, avatarColor: '#1c1d20' },
+      { name: 'Etye', number: '0911223344', isTextAvatar: true, avatarColor: '#fbc02d' },
+      { name: 'My Safari No 2', number: '0922334455', isTextAvatar: true, avatarColor: '#0288d1' },
+      { name: 'Teju', number: '0933445566', isTextAvatar: false, isPhotoAvatar: true, photoUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80' },
+      { name: 'Abiti', number: '0908192742 Mobile', isTextAvatar: false, isPhotoAvatar: true, photoUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80' },
+      { name: 'abit', number: '2248', isTextAvatar: true, avatarColor: '#2b2c30' },
+      { name: 'A B', number: '0944556677', isTextAvatar: true, avatarColor: '#5c6bc0' },
+      { name: 'Ab', number: '0955667788', isTextAvatar: true, avatarColor: '#29b6f6' },
+      { name: 'aba', number: '0966778899', isTextAvatar: true, avatarColor: '#1e88e5' },
+      { name: 'abat', number: '0977889900', isTextAvatar: true, avatarColor: '#1e88e5' }
+    ];
+
+    const fabBtn = document.querySelector('.fab-btn');
+    const newConversationView = document.getElementById('new-conversation-view');
+    const newConvBackBtn = document.getElementById('new-conv-back-btn');
+    const newConvRecipientInput = document.getElementById('new-conv-recipient-input');
+    const newConvSuggestionsCard = document.getElementById('new-conv-suggestions-card');
+    const newConvPlusBtn = document.getElementById('new-conv-plus-btn');
+    const newConvClearBtn = document.getElementById('new-conv-clear-btn');
+    const newConvInputField = document.getElementById('new-conv-input-field');
+    const newConvSendBtn = document.getElementById('new-conv-send-btn');
+
+    if (fabBtn && newConversationView) {
+      fabBtn.addEventListener('click', () => {
+        newConversationView.classList.add('active');
+        newConvRecipientInput.value = '';
+        newConvInputField.value = '';
+        newConvPlusBtn.style.display = 'inline-flex';
+        newConvClearBtn.style.display = 'none';
+        newConvSuggestionsCard.style.display = 'none';
+        newConvSendBtn.style.opacity = '0.5';
+        newConvSendBtn.style.pointerEvents = 'none';
+      });
+    }
+
+    if (newConvBackBtn) {
+      newConvBackBtn.addEventListener('click', () => {
+        newConversationView.classList.remove('active');
+      });
+    }
+
+    newConvRecipientInput.addEventListener('input', () => {
+      const query = newConvRecipientInput.value.trim().toLowerCase();
+      if (query.length === 0) {
+        newConvSuggestionsCard.style.display = 'none';
+        newConvPlusBtn.style.display = 'inline-flex';
+        newConvClearBtn.style.display = 'none';
+        return;
+      }
+
+      newConvPlusBtn.style.display = 'none';
+      newConvClearBtn.style.display = 'inline-flex';
+
+      const matches = searchContactsDb.filter(c => 
+        c.name.toLowerCase().includes(query) || c.number.includes(query)
+      );
+
+      if (matches.length > 0) {
+        newConvSuggestionsCard.innerHTML = '';
+        matches.forEach(c => {
+          const row = document.createElement('div');
+          row.className = 'contact-row';
+          row.style.padding = '10px 20px';
+
+          let avatarHTML = '';
+          if (c.isPhotoAvatar) {
+            avatarHTML = '<div class=\'avatar photo-avatar\' style=\'background-image: url("' + c.photoUrl + '"); background-size: cover; background-position: center; margin-right: 16px; width: 40px; height: 40px;\'></div>';
+          } else if (c.isTextAvatar) {
+            avatarHTML = '<div class=\'avatar text-avatar\' style=\'background-color: ' + c.avatarColor + '; margin-right: 16px; width: 40px; height: 40px; font-size: 16px;\'>' + c.name.charAt(0).toUpperCase() + '</div>';
+          } else {
+            avatarHTML = '<div class=\'avatar default-avatar\' style=\'background-color: ' + (c.avatarColor || '#2b2c30') + '; margin-right: 16px; width: 40px; height: 40px;\'><svg viewBox=\'0 0 24 24\' width=\'20\' height=\'20\'><path fill=\'#9aa0a6\' d=\'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z\'/></svg></div>';
+          }
+
+          const idx = c.name.toLowerCase().indexOf(query);
+          let nameHTML = c.name;
+          if (idx !== -1) {
+            const prefix = c.name.substring(0, idx);
+            const matchText = c.name.substring(idx, idx + query.length);
+            const suffix = c.name.substring(idx + query.length);
+            nameHTML = prefix + '<span style=\'color: #8ab4f8;\'>' + matchText + '</span>' + suffix;
+          } else {
+            const numIdx = c.number.indexOf(query);
+            if (numIdx !== -1) {
+              nameHTML = '<span style=\'color: #8ab4f8;\'>' + c.name + '</span>';
+            }
+          }
+
+          row.innerHTML = avatarHTML + '<div style=\'display: flex; flex-direction: column;\'><span class=\'contact-name\' style=\'font-size: 16px; font-weight: 500; color: #ffffff;\'>' + nameHTML + '</span><span style=\'font-size: 13px; color: #9aa0a6; margin-top: 2px;\'>' + c.number + '</span></div>';
+
+          row.addEventListener('click', () => {
+            newConvRecipientInput.value = c.name;
+            newConvSuggestionsCard.style.display = 'none';
+            newConvPlusBtn.style.display = 'none';
+            newConvClearBtn.style.display = 'inline-flex';
+          });
+
+          newConvSuggestionsCard.appendChild(row); 
+        });
+        newConvSuggestionsCard.style.display = 'flex';
+      } else {
+        newConvSuggestionsCard.style.display = 'none';
+      }
+    });
+
+    newConvClearBtn.addEventListener('click', () => {
+      newConvRecipientInput.value = '';
+      newConvSuggestionsCard.style.display = 'none';
+      newConvPlusBtn.style.display = 'inline-flex';
+      newConvClearBtn.style.display = 'none';
+      newConvRecipientInput.focus();
+    });
+
+    newConvInputField.addEventListener('input', () => {
+      if (newConvInputField.value.trim().length > 0) {
+        newConvSendBtn.style.opacity = '1.0';
+        newConvSendBtn.style.pointerEvents = 'auto';
+      } else {
+        newConvSendBtn.style.opacity = '0.5';
+        newConvSendBtn.style.pointerEvents = 'none';
+      }
+    });
+
+    newConvSendBtn.addEventListener('click', () => {
+      const recipientName = newConvRecipientInput.value.trim();
+      const messageText = newConvInputField.value.trim();
+      if (!recipientName || !messageText) return;
+
+      let existingId = null;
+      Object.keys(threadData).forEach(id => {
+        if (threadData[id].name.toLowerCase() === recipientName.toLowerCase()) {
+          existingId = id;
+        }
+      });
+
+      const now = new Date();
+      let hours = now.getHours();
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const timeString = hours + ':' + minutes + ' ' + ampm;
+
+      if (existingId) {
+        threadData[existingId].bubbles.push({
+          text: messageText,
+          time: timeString
+        });
+        activeThreadId = existingId;
+        openChat(threadData[existingId]);
+      } else {
+        const newId = (Object.keys(threadData).length + 1).toString();
+        threadData[newId] = {
+          name: recipientName,
+          avatarColor: '#5c6bc0',
+          isTextAvatar: true,
+          number: '994',
+          bubbles: [
+            {
+              text: messageText,
+              time: timeString
+            }
+          ]
+        };
+
+        const newRow = document.createElement('div');
+        newRow.className = 'message-thread';
+        newRow.setAttribute('data-id', newId);
+        newRow.innerHTML = '<div class=\'avatar text-avatar\' style=\'background-color: #5c6bc0;\'>' + recipientName.charAt(0).toUpperCase() + '</div><div class=\'thread-content\'><div class=\'thread-header\'><span class=\'sender-name\'>' + recipientName + '</span><span class=\'timestamp\'>' + timeString + '</span></div><div class=\'thread-body\'><span class=\'preview-text\'>' + messageText + '</span></div></div>';
+
+        newRow.addEventListener('click', () => {
+          activeThreadId = newId;
+          openChat(threadData[newId]);
+        });
+
+        const threadsContainer = document.getElementById('threads-container');
+        if (threadsContainer) {
+          threadsContainer.insertBefore(newRow, threadsContainer.firstChild);
+        }
+
+        activeThreadId = newId;
+        openChat(threadData[newId]);
+      }
+
+      newConversationView.classList.remove('active');
+    });
     // ==========================================================================
     // Recycle Bin Fullscreen Screen State Managers & Operations Logic
     // ==========================================================================
