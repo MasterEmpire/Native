@@ -37,7 +37,7 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 100px;
+      height: 56px;
       background-color: #000000;
       z-index: 10;
       overflow: hidden;
@@ -385,12 +385,12 @@
        One UI Large Collapsible Header CSS Rules
        ========================================================================== */
     .oneui-large-header {
-      height: 210px;
+      height: 166px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding-top: 100px; /* Aligns contents below the fixed 100px header */
+      padding-top: 56px; /* Aligns contents below the fixed 56px header */
       padding-bottom: 16px;
       gap: 12px;
       width: 100%;
@@ -426,8 +426,8 @@
     .threads-container {
       background-color: #000000;
       scroll-snap-align: start;
-      scroll-margin-top: 100px; /* Snaps against fixed header */
-      min-height: calc(100vh - 100px);
+      scroll-margin-top: 56px; /* Snaps against fixed header */
+      min-height: calc(100vh - 56px);
     }
 
     /* Disabled selection states to support long press gestures */
@@ -438,7 +438,7 @@
 
     /* Selection Header styling */
     .app-header-selection {
-      height: 100px;
+      height: 56px;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -1517,17 +1517,7 @@
 
 
 
-      <!-- Tabs Row -->
-      <div class="header-tabs">
-        <div class="tab-wrapper">
-          <div class="tab active">All</div>
-        </div>
-        <div class="tab-add" id="tab-add-btn">
-          <svg viewBox="0 0 24 24" fill="#8ab4f8" width="22" height="22">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-          </svg>
-        </div>
-      </div>
+
     </div>
 
     <!-- MULTI-SELECTION ROW HEADER -->
@@ -1559,6 +1549,18 @@
     <div class='oneui-large-header' id='oneui-large-header'>
       <span class='oneui-large-title' id='large-unread-title'>52 unread messages</span>
       <button class='view-btn'>View</button>
+    </div>
+
+    <!-- Category Tabs Row inside Scroll Wrapper -->
+    <div class="header-tabs" style="background-color: #000000;">
+      <div class="tab-wrapper">
+        <div class="tab active">All</div>
+      </div>
+      <div class="tab-add" id="tab-add-btn">
+        <svg viewBox="0 0 24 24" fill="#8ab4f8" width="22" height="22">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+        </svg>
+      </div>
     </div>
 
     <!-- Scrollable container for threads -->
@@ -3541,7 +3543,7 @@
     // ==========================================================================
     // Samsung One UI Scroll Snapping & Collapsible Physics Logic
     // ==========================================================================
-    const SNAP_THRESHOLD = 110;
+    const SNAP_THRESHOLD = 154; // Height of Large Header visible part (110px) + Category Tab Bar (44px)
     const largeHeader = document.getElementById('oneui-large-header');
     const compactAppTitle = document.getElementById('compact-app-title');
 
