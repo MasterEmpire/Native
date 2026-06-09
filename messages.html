@@ -1541,6 +1541,73 @@
       padding: 0 10px;
       gap: 10px;
     }
+
+    /* Expanded Fullscreen Message View Overlay styling */
+    .expanded-msg-header-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .expanded-msg-sender {
+      font-size: 20px;
+      font-weight: 500;
+      color: #ffffff;
+    }
+
+    .expanded-msg-time {
+      font-size: 13px;
+      color: #9aa0a6;
+    }
+
+    .expanded-msg-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 20px;
+      font-size: 16px;
+      line-height: 1.6;
+      color: #e3e3e3;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .expanded-msg-body .underlined-link {
+      color: #8ab4f8;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .expanded-msg-footer {
+      height: 80px;
+      background-color: #000000;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .expanded-msg-footer-btn {
+      background: none;
+      border: none;
+      color: #9aa0a6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      flex: 1;
+      transition: color 0.15s;
+    }
+
+    .expanded-msg-footer-btn:active {
+      color: #ffffff;
+    }
+
+    .expanded-msg-footer-btn svg {
+      fill: #ffffff;
+    }
   </style>
 </head>
 <body>
@@ -2612,6 +2679,46 @@
     </div>
   </div>
 
+  <!-- Expanded Fullscreen Message View Overlay -->
+  <div class='category-select-view' id='expanded-msg-view' style='z-index: 250;'>
+    <header class='search-header' style='border-bottom: 1px solid rgba(255, 255, 255, 0.05);'>
+      <button class='icon-btn' id='expanded-msg-back-btn' aria-label='Go back'>
+        <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
+          <path d='M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z'/>
+        </svg>
+      </button>
+      <div class='expanded-msg-header-text'>
+        <span class='expanded-msg-sender' id='expanded-msg-sender'>251994</span>
+        <span class='expanded-msg-time' id='expanded-msg-time'>8:32 am, 9 Jun</span>
+      </div>
+    </header>
+
+    <div class='expanded-msg-body' id='expanded-msg-body'>
+      <!-- Message content goes here -->
+    </div>
+
+    <footer class='expanded-msg-footer'>
+      <button class='expanded-msg-footer-btn' id='expanded-msg-copy-btn'>
+        <svg viewBox='0 0 24 24' width='24' height='24'>
+          <path d='M16 1H4c-1.1 0-2 .9-2 2 v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2 v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z'/>
+        </svg>
+        <span>Copy text</span>
+      </button>
+      <button class='expanded-msg-footer-btn' id='expanded-msg-share-btn'>
+        <svg viewBox='0 0 24 24' width='24' height='24'>
+          <path d='M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.8 2.04.8 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z'/>
+        </svg>
+        <span>Share</span>
+      </button>
+      <button class='expanded-msg-footer-btn' id='expanded-msg-more-btn'>
+        <svg viewBox='0 0 24 24' width='24' height='24'>
+          <path d='M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z'/>
+        </svg>
+        <span>More</span>
+      </button>
+    </footer>
+  </div>
+
   <!-- Recycle Bin Fullscreen View Overlay -->
   <div class='category-select-view' id='recycle-bin-view'>
     <!-- CONSOLIDATED RECYCLE BIN HEADER -->
@@ -3468,10 +3575,75 @@
 
     function updateCategoryUI() {
       const activeCat = threadCategories[activeThreadId] || '';
-      
-      // Update Expanded Header panel subtitle category indicator
-      const headerSub = document.querySelector('.expanded-category');
-      if (headerSub) {
+    // Expanded Message View Logic & Event Delegation
+    const expandedMsgView = document.getElementById('expanded-msg-view');
+    const expandedMsgBackBtn = document.getElementById('expanded-msg-back-btn');
+    const expandedMsgSender = document.getElementById('expanded-msg-sender');
+    const expandedMsgTime = document.getElementById('expanded-msg-time');
+    const expandedMsgBody = document.getElementById('expanded-msg-body');
+
+    function openExpandedMessage(sender, time, bodyHTML) {
+      expandedMsgSender.textContent = sender;
+      expandedMsgTime.textContent = time;
+      expandedMsgBody.innerHTML = bodyHTML;
+      expandedMsgView.classList.add('active');
+    }
+
+    expandedMsgBackBtn.addEventListener('click', () => {
+      expandedMsgView.classList.remove('active');
+    });
+
+    document.getElementById('expanded-msg-copy-btn').addEventListener('click', () => {
+      const text = expandedMsgBody.innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Text copied to clipboard');
+      }).catch(() => {
+        showToast('Failed to copy text');
+      });
+    });
+
+    document.getElementById('expanded-msg-share-btn').addEventListener('click', () => {
+      const text = expandedMsgBody.innerText;
+      if (navigator.share) {
+        navigator.share({ text: text }).catch(() => {});
+      } else {
+        showToast('Sharing message text...');
+      }
+    });
+
+    document.getElementById('expanded-msg-more-btn').addEventListener('click', () => {
+      showToast('More options clicked');
+    });
+
+    // Handle bubble view-all action click using event delegation (avoiding double-quote parsing issues)
+    chatMessagesList.addEventListener('click', (e) => {
+      const actionBar = e.target.closest('.bubble-action-bar');
+      if (!actionBar) return;
+
+      const bubbleWrapper = actionBar.closest('.bubble-wrapper');
+      if (!bubbleWrapper) return;
+
+      const timeEl = bubbleWrapper.querySelector('.bubble-timestamp');
+      const time = timeEl ? timeEl.textContent : '8:32 am, 9 Jun';
+
+      // Fetch active thread details
+      const activeData = threadData[activeThreadId];
+      if (!activeData) return;
+
+      let fullTextToShow = '';
+      if (activeThreadId === '2') {
+        fullTextToShow = 'ውድ ደንበኛችን፤ ካለዎት Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 120 መልዕክት ሲሆን አገልግሎቱ የሚያበቃው በ<span class=\'underlined-link\'>2026-07-07 11:02:52</span>፤Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 233 ደቂቃ እና 42 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ<span class=\'underlined-link\'>2026-07-07 11:02:52</span>፤ Monthly voice 228 Min from telebirr to be expired after 30 days with 114 Min night package bonus valid for 30 days ውስጥ የቀሩት 128 ደቂቃ እና 0 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ<span class=\'underlined-link\'>2026-07-09 08:30:20</span>፤ ቴ';
+      } else {
+        const textEl = bubbleWrapper.querySelector('.bubble-text-content');
+        fullTextToShow = textEl ? textEl.innerHTML : '';
+      }
+
+      openExpandedMessage(activeData.name, time, fullTextToShow);
+    });
+
+    // Stateful Bubble Context Menu (Long-Press) Logic
+    let longPressTimeout = null;
+    let selectedBubbleElement = null;
         headerSub.textContent = activeCat || 'None';
       }
 
