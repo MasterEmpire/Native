@@ -2715,6 +2715,8 @@
 
   <!-- JavaScript Interaction Layer -->
   <script>
+    const TOUCH_SLOP = 8; // Pixel distance threshold to allow micro-jitter without canceling long-press
+
     // ==========================================================================
     // Custom Reusable Confirmation Dialogue Modal Logic
     // ==========================================================================
@@ -2749,25 +2751,33 @@
     let recycleLongPressTimeout = null;
     const recycleBinListContainer = document.getElementById('recycle-bin-list-container');
 
+    let recycleStartX = 0;
+    let recycleStartY = 0;
+
     // Long-press detection inside Recycle Bin list
     recycleBinListContainer.addEventListener('mousedown', (e) => {
       const row = e.target.closest('.message-thread');
       if (!row || isRecycleEditMode) return;
+      recycleStartX = e.clientX;
+      recycleStartY = e.clientY;
       recycleLongPressTimeout = setTimeout(() => {
         enterRecycleEditMode();
         const index = Array.from(recycleBinListContainer.children).indexOf(row);
         if (recycleBinData[index]) toggleRecycleSelection(recycleBinData[index].id);
-      }, 600);
+      }, 450);
     });
 
     recycleBinListContainer.addEventListener('touchstart', (e) => {
       const row = e.target.closest('.message-thread');
       if (!row || isRecycleEditMode) return;
+      const touch = e.touches[0];
+      recycleStartX = touch.clientX;
+      recycleStartY = touch.clientY;
       recycleLongPressTimeout = setTimeout(() => {
         enterRecycleEditMode();
         const index = Array.from(recycleBinListContainer.children).indexOf(row);
         if (recycleBinData[index]) toggleRecycleSelection(recycleBinData[index].id);
-      }, 600);
+      }, 450);
     });
 
     function clearRecycleLongPress() {
@@ -2781,10 +2791,29 @@
     recycleBinListContainer.addEventListener('mouseleave', clearRecycleLongPress);
     recycleBinListContainer.addEventListener('touchend', clearRecycleLongPress);
     recycleBinListContainer.addEventListener('touchcancel', clearRecycleLongPress);
-    recycleBinListContainer.addEventListener('mousemove', clearRecycleLongPress);
-    recycleBinListContainer.addEventListener('touchmove', clearRecycleLongPress);
+    
+    recycleBinListContainer.addEventListener('mousemove', (e) => {
+      if (!recycleLongPressTimeout) return;
+      const deltaX = e.clientX - recycleStartX;
+      const deltaY = e.clientY - recycleStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearRecycleLongPress();
+      }
+    });
+
+    recycleBinListContainer.addEventListener('touchmove', (e) => {
+      if (!recycleLongPressTimeout) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - recycleStartX;
+      const deltaY = touch.clientY - recycleStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearRecycleLongPress();
+      }
+    });
 
     let catLongPressTimeout = null;
+    let catStartX = 0;
+    let catStartY = 0;
     const convCategoriesListCard = document.getElementById('conv-categories-list-card');
 
     // Long-press detection inside Category list card
@@ -2793,6 +2822,9 @@
       if (!row || isCategoryEditMode) return;
       const index = Array.from(convCategoriesListCard.children).indexOf(row);
       if (index === 0) return; // Ignore 'All (X)'
+
+      catStartX = e.clientX;
+      catStartY = e.clientY;
 
       catLongPressTimeout = setTimeout(() => {
         enterCategoryEditMode();
@@ -2814,7 +2846,7 @@
             renderConversationCategoriesScreen();
           }
         }
-      }, 600);
+      }, 450);
     });
 
     convCategoriesListCard.addEventListener('touchstart', (e) => {
@@ -2822,6 +2854,10 @@
       if (!row || isCategoryEditMode) return;
       const index = Array.from(convCategoriesListCard.children).indexOf(row);
       if (index === 0) return;
+
+      const touch = e.touches[0];
+      catStartX = touch.clientX;
+      catStartY = touch.clientY;
 
       catLongPressTimeout = setTimeout(() => {
         enterCategoryEditMode();
@@ -2842,7 +2878,7 @@
             renderConversationCategoriesScreen();
           }
         }
-      }, 600);
+      }, 450);
     });
 
     function clearCatLongPress() {
@@ -2856,8 +2892,25 @@
     convCategoriesListCard.addEventListener('mouseleave', clearCatLongPress);
     convCategoriesListCard.addEventListener('touchend', clearCatLongPress);
     convCategoriesListCard.addEventListener('touchcancel', clearCatLongPress);
-    convCategoriesListCard.addEventListener('mousemove', clearCatLongPress);
-    convCategoriesListCard.addEventListener('touchmove', clearCatLongPress);
+
+    convCategoriesListCard.addEventListener('mousemove', (e) => {
+      if (!catLongPressTimeout) return;
+      const deltaX = e.clientX - catStartX;
+      const deltaY = e.clientY - catStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearCatLongPress();
+      }
+    });
+
+    convCategoriesListCard.addEventListener('touchmove', (e) => {
+      if (!catLongPressTimeout) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - catStartX;
+      const deltaY = touch.clientY - catStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearCatLongPress();
+      }
+    });
 
     // ==========================================================================
     // Recycle Bin Screen More Options Dropdown ("Empty") Logic
@@ -4049,6 +4102,9 @@
       }
     }
 
+    let contactsStartX = 0;
+    let contactsStartY = 0;
+
     // Add long-press listeners to contacts list
     contactsThreadsContainer.addEventListener('mousedown', (e) => {
       const row = e.target.closest('.contact-row');
@@ -4059,10 +4115,13 @@
       const name = row.querySelector('.contact-name');
       if (avatar && avatar.classList.contains('default-avatar') && name && name.textContent === 'Groups') return;
 
-      const index = Array.from(contactsThreadsContainer.children).indexOf(row);
+      contactsStartX = e.clientX;
+      contactsStartY = e.clientY;
+
       contactsLongPressTimeout = setTimeout(() => {
+        const index = Array.from(contactsThreadsContainer.children).indexOf(row);
         enterContactsSelectionMode(index);
-      }, 600);
+      }, 450);
     });
 
     contactsThreadsContainer.addEventListener('touchstart', (e) => {
@@ -4073,10 +4132,14 @@
       const name = row.querySelector('.contact-name');
       if (avatar && avatar.classList.contains('default-avatar') && name && name.textContent === 'Groups') return;
 
-      const index = Array.from(contactsThreadsContainer.children).indexOf(row);
+      const touch = e.touches[0];
+      contactsStartX = touch.clientX;
+      contactsStartY = touch.clientY;
+
       contactsLongPressTimeout = setTimeout(() => {
+        const index = Array.from(contactsThreadsContainer.children).indexOf(row);
         enterContactsSelectionMode(index);
-      }, 600);
+      }, 450);
     });
 
     function clearContactsLongPress() {
@@ -4090,8 +4153,25 @@
     contactsThreadsContainer.addEventListener('mouseleave', clearContactsLongPress);
     contactsThreadsContainer.addEventListener('touchend', clearContactsLongPress);
     contactsThreadsContainer.addEventListener('touchcancel', clearContactsLongPress);
-    contactsThreadsContainer.addEventListener('mousemove', clearContactsLongPress);
-    contactsThreadsContainer.addEventListener('touchmove', clearContactsLongPress);
+
+    contactsThreadsContainer.addEventListener('mousemove', (e) => {
+      if (!contactsLongPressTimeout) return;
+      const deltaX = e.clientX - contactsStartX;
+      const deltaY = e.clientY - contactsStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearContactsLongPress();
+      }
+    });
+
+    contactsThreadsContainer.addEventListener('touchmove', (e) => {
+      if (!contactsLongPressTimeout) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - contactsStartX;
+      const deltaY = touch.clientY - contactsStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearContactsLongPress();
+      }
+    });
 
     // Click listener to toggle selection
     contactsThreadsContainer.addEventListener('click', (e) => {
@@ -4569,16 +4649,22 @@
     // Prevent standard native browser text context menu from interfering
     window.addEventListener('contextmenu', e => e.preventDefault());
 
+    let threadStartX = 0;
+    let threadStartY = 0;
+
     // Event delegation on the thread list
     threadList.addEventListener('mousedown', (e) => {
       const thread = e.target.closest('.message-thread');
       if (!thread) return;
       if (isSelectionMode) return;
 
+      threadStartX = e.clientX;
+      threadStartY = e.clientY;
+
       threadLongPressTimeout = setTimeout(() => {
         const id = thread.getAttribute('data-id');
         enterSelectionMode(id);
-      }, 600);
+      }, 450);
     });
 
     threadList.addEventListener('touchstart', (e) => {
@@ -4586,10 +4672,14 @@
       if (!thread) return;
       if (isSelectionMode) return;
 
+      const touch = e.touches[0];
+      threadStartX = touch.clientX;
+      threadStartY = touch.clientY;
+
       threadLongPressTimeout = setTimeout(() => {
         const id = thread.getAttribute('data-id');
         enterSelectionMode(id);
-      }, 600);
+      }, 450);
     });
 
     function clearThreadLongPress() {
@@ -4603,8 +4693,25 @@
     threadList.addEventListener('mouseleave', clearThreadLongPress);
     threadList.addEventListener('touchend', clearThreadLongPress);
     threadList.addEventListener('touchcancel', clearThreadLongPress);
-    threadList.addEventListener('mousemove', clearThreadLongPress);
-    threadList.addEventListener('touchmove', clearThreadLongPress);
+
+    threadList.addEventListener('mousemove', (e) => {
+      if (!threadLongPressTimeout) return;
+      const deltaX = e.clientX - threadStartX;
+      const deltaY = e.clientY - threadStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearThreadLongPress();
+      }
+    });
+
+    threadList.addEventListener('touchmove', (e) => {
+      if (!threadLongPressTimeout) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - threadStartX;
+      const deltaY = touch.clientY - threadStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearThreadLongPress();
+      }
+    });
 
     // Custom thread row click listener wrapping selective taps
     threadList.addEventListener('click', (e) => {
