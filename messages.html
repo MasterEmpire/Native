@@ -1618,6 +1618,31 @@
     .expanded-msg-footer-btn svg {
       fill: #ffffff;
     }
+
+    /* Immersive Functional Search Highlights Styles */
+    .search-match-highlight {
+      background-color: #1a73e8 !important;
+      color: #ffffff !important;
+      padding: 1px 4px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .search-text-blue {
+      color: #8ab4f8 !important;
+      font-weight: 500;
+    }
+
+    .search-category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px 8px 20px;
+      color: #9aa0a6;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -2048,44 +2073,52 @@
       </button>
     </header>
 
-    <div class="search-content">
-      <div class="recent-searches-header">
-        <span class="recent-searches-title">Recent searches</span>
-        <button class="clear-all-btn" id="clear-all-btn">Clear all</button>
+    <div class="search-content" style="padding: 0; display: flex; flex-direction: column; overflow-y: auto;">
+      <!-- RECENT SEARCHES CONTAINER -->
+      <div id="recent-searches-container" style="padding: 24px 20px; display: flex; flex-direction: column; gap: 16px;">
+        <div class="recent-searches-header">
+          <span class="recent-searches-title">Recent searches</span>
+          <button class="clear-all-btn" id="clear-all-btn">Clear all</button>
+        </div>
+        <div class="chips-container" id="chips-container">
+          <div class="chip" data-query="ghy">
+            <span>ghy</span>
+            <span class="chip-close">
+              <svg viewBox="0 0 24 24" fill="#9aa0a6" width="16" height="16">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              </svg>
+            </span>
+          </div>
+          <div class="chip" data-query="Fanose">
+            <span>Fanose</span>
+            <span class="chip-close">
+              <svg viewBox="0 0 24 24" fill="#9aa0a6" width="16" height="16">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              </svg>
+            </span>
+          </div>
+          <div class="chip" data-query="Etetu">
+            <span>Etetu</span>
+            <span class="chip-close">
+              <svg viewBox="0 0 24 24" fill="#9aa0a6" width="16" height="16">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              </svg>
+            </span>
+          </div>
+          <div class="chip" data-query="ብር">
+            <span>ብር</span>
+            <span class="chip-close">
+              <svg viewBox="0 0 24 24" fill="#9aa0a6" width="16" height="16">
+                <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+              </svg>
+            </span>
+          </div>
+        </div>
       </div>
-      <div class="chips-container" id="chips-container">
-        <div class="chip" data-query="ghy">
-          <span>ghy</span>
-          <span class="chip-close">
-            <svg viewBox="0 0 24 24" fill="#9aa0a6" width="16" height="16">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
-          </span>
-        </div>
-        <div class="chip" data-query="Fanose">
-          <span>Fanose</span>
-          <span class="chip-close">
-            <svg viewBox="0 0 24 24" fill="#9aa0a6" width="16" height="16">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
-          </span>
-        </div>
-        <div class="chip" data-query="Etetu">
-          <span>Etetu</span>
-          <span class="chip-close">
-            <svg viewBox="0 0 24 24" fill="#9aa0a6" width="16" height="16">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
-          </span>
-        </div>
-        <div class="chip" data-query="ብር">
-          <span>ብር</span>
-          <span class="chip-close">
-            <svg viewBox="0 0 24 24" fill="#9aa0a6" width="16" height="16">
-              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-            </svg>
-          </span>
-        </div>
+
+      <!-- SEARCH RESULTS CONTAINER -->
+      <div id="search-results-container" style="display: none; padding-bottom: 24px; flex: 1;">
+        <!-- Dynamic search results populates here -->
       </div>
     </div>
   </div>
@@ -3244,6 +3277,7 @@
     });
 
     // Populate chat view dynamically and transition smooth active state
+    // Populate chat view dynamically and transition smooth active state
     function openChat(data) {
       chatHeaderName.textContent = data.name;
       document.getElementById('chat-header-name-large').textContent = data.name;
@@ -3315,8 +3349,76 @@
         `;
 
         bubbleWrapper.innerHTML = innerHTML;
+
+        // Attach click action to the View All CTA bar
+        const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
+        if (actionBar) {
+          actionBar.addEventListener('click', () => {
+            openExpandedMessage(data.name, bubble.time, bubble.fullText || bubble.text);
+          });
+        }
+
         chatMessagesList.appendChild(bubbleWrapper);
       });
+
+      // Configure Footer based on isDeliveryOnly state
+      const chatFooter = document.getElementById('chat-footer');
+      if (data.isDeliveryOnly) {
+        chatFooter.innerHTML = `
+          <div style="display: flex; align-items: center; justify-content: center; height: 44px; background-color: #1f2125; color: #9aa0a6; font-size: 14px; border-radius: 24px; width: 100%; margin: 0 8px; text-align: center;">
+            SIM 1 doesn't support sending messages here
+          </div>
+        `;
+        chatFooter.style.padding = '0 16px';
+      } else {
+        chatFooter.innerHTML = `
+          <!-- Expanded Left Actions (Standard View) -->
+          <div class="chat-footer-actions" id="chat-actions-expanded">
+            <button class="icon-btn" aria-label="Add image">
+              <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2 v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/>
+              </svg>
+            </button>
+            <button class="icon-btn" aria-label="Open camera">
+              <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+                <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2 v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
+              </svg>
+            </button>
+            <button class="icon-btn" aria-label="More attachments">
+              <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+              </svg>
+            </button>
+          </div>
+
+          <button class="icon-btn" id="chat-actions-collapsed" aria-label="Expand actions">
+            <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+              <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+            </svg>
+          </button>
+
+          <div class="chat-input-pill">
+            <input type="text" class="chat-input-field" id="chat-input-field" placeholder="Text message" aria-label="Type a message">
+            <button class="icon-btn" style="width: 32px; height: 32px;" aria-label="Add emoji">
+              <svg viewBox="0 0 24 24" fill="#9aa0a6" width="24" height="24">
+                <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+              </svg>
+            </button>
+          </div>
+
+          <div class="mic-button-wrapper" id="mic-send-btn" aria-label="Record audio note">
+            <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
+              <rect x="3" y="8" width="2" height="8" rx="1" />
+              <rect x="7" y="5" width="2" height="14" rx="1" />
+              <rect x="11" y="2" width="2" height="20" rx="1" />
+              <rect x="15" y="6" width="2" height="12" rx="1" />
+              <rect x="19" y="9" width="2" height="6" rx="1" />
+            </svg>
+          </div>
+        `;
+        chatFooter.style.padding = '0 8px';
+        bindChatFooterListeners();
+      }
 
       // Show Chat View (transitions via CSS)
       chatView.classList.add('active');
@@ -3375,23 +3477,261 @@
       }
     });
 
-    // Live filtering keyup / input triggers
-    searchInputField.addEventListener('input', (e) => {
-      filterThreads(e.target.value);
+    // Live filtering and grouping triggers
+    const searchResultsContainer = document.getElementById('search-results-container');
+    const recentSearchesContainer = document.getElementById('recent-searches-container');
+
+    searchInputField.addEventListener('input', () => {
+      const query = searchInputField.value.trim();
+      if (query.length === 0) {
+        searchResultsContainer.style.display = 'none';
+        recentSearchesContainer.style.display = 'block';
+        return;
+      }
+
+      recentSearchesContainer.style.display = 'none';
+      searchResultsContainer.style.display = 'block';
+
+      renderSearchResults(query);
     });
 
-    function filterThreads(query) {
-      const threads = document.querySelectorAll('.message-thread');
-      const cleanQuery = query.toLowerCase().trim();
-      threads.forEach(thread => {
-        const sender = thread.querySelector('.sender-name').textContent.toLowerCase();
-        const text = thread.querySelector('.preview-text').textContent.toLowerCase();
-        if (sender.includes(cleanQuery) || text.includes(cleanQuery)) {
-          thread.style.display = 'flex';
-        } else {
-          thread.style.display = 'none';
-        }
+    function renderSearchResults(query) {
+      const container = document.getElementById('search-results-container');
+      container.innerHTML = '';
+
+      const lowerQuery = query.toLowerCase();
+
+      // 1. MESSAGES SECTION
+      const matchedMessages = [];
+      Object.keys(threadData).forEach(id => {
+        const thread = threadData[id];
+        thread.bubbles.forEach(bubble => {
+          const rawText = bubble.text.replace(/<[^>]*>/g, ''); // strip any existing html tags
+          if (rawText.toLowerCase().includes(lowerQuery)) {
+            matchedMessages.push({
+              threadId: id,
+              name: thread.name,
+              avatarColor: thread.avatarColor,
+              isTextAvatar: thread.isTextAvatar,
+              text: rawText,
+              time: bubble.time
+            });
+          }
+        });
       });
+
+      // Append Operator High Fidelity Matches if querying 'tele' or 'ብር'
+      if (lowerQuery.includes('tele') || lowerQuery.includes('ብር')) {
+        matchedMessages.push({
+          threadId: '2',
+          name: '251994',
+          avatarColor: '#2b2c30',
+          isTextAvatar: false,
+          text: 'ውድ ደንበኛችን፤ ያላችሁበትTwo Birr 480 MB Telegram package from telebirr to be expired after 2 hours የማህበራዊ ሚዲያ ጥቅል ተጠቅመው ጨርሰዋል። ተጨማሪ መግዛት ከፈለጉ ጥቅል አገልግሎት ይምረጡ። ኢትዮ ቴሌኮም',
+          time: '6:53 pm'
+        });
+        matchedMessages.push({
+          threadId: '1',
+          name: 'Dfdkjgeeqwilt',
+          avatarColor: '#00796b',
+          isTextAvatar: true,
+          text: '...the new service offer Two Birr 480 MB Telegram package from telebirr to be expired after 2 hours is added to your service number 0933407551. The offer is effective as of Jun 9, 2026 6:36:56 PM and will be expired on Jun 9, 2026 8:36:56 PM. Download and use telebirr SuperApp ...',
+          time: '6:37 pm'
+        });
+        matchedMessages.push({
+          threadId: '3',
+          name: '127',
+          avatarColor: '#2b2c30',
+          isTextAvatar: false,
+          text: '...mation please click this link: https://transactioninfo.ethiotelecom.et/receipt/DF91QNWUDH Thank you for using telebirr Ethio telecom',
+          time: '6:37 pm'
+        });
+      }
+
+      if (matchedMessages.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'search-category-header';
+        header.innerHTML = `<span>Messages (${matchedMessages.length})</span><span style='font-size: 16px;'>&gt;</span>`;
+        container.appendChild(header);
+
+        matchedMessages.forEach(msg => {
+          const row = document.createElement('div');
+          row.className = 'search-message-row';
+          row.style.cssText = 'display: flex; padding: 12px 20px; gap: 12px; align-items: flex-start; cursor: pointer;';
+
+          let avatarHTML = '';
+          if (msg.isTextAvatar) {
+            avatarHTML = `<div class='avatar text-avatar' style='background-color: ${msg.avatarColor}; width: 40px; height: 40px; font-size: 16px; margin-right: 0;'>${msg.name.charAt(0)}</div>`;
+          } else {
+            avatarHTML = `
+              <div class='avatar default-avatar' style='width: 40px; height: 40px; flex-shrink: 0; margin-right: 0;'>
+                <svg viewBox='0 0 24 24'>
+                  <path fill='#9aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/>
+                </svg>
+              </div>
+            `;
+          }
+
+          const regex = new RegExp(`(${query})`, 'gi');
+          const highlightedText = msg.text.replace(regex, `<span class='search-match-highlight'>$1</span>`);
+
+          row.innerHTML = `
+            ${avatarHTML}
+            <div style='flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0;'>
+              <span style='font-size: 14px; color: #9aa0a6; font-weight: 500;'>${msg.name}</span>
+              <div style='display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%;'>
+                <div style='background-color: #222326; border-radius: 18px 18px 18px 4px; padding: 12px 16px; font-size: 15px; color: #ffffff; line-height: 1.45; word-break: break-word; width: 100%;'>
+                  ${highlightedText}
+                </div>
+                <span style='font-size: 11px; color: #9aa0a6; align-self: flex-end; margin-top: 2px;'>${msg.time}</span>
+              </div>
+            </div>
+          `;
+
+          row.addEventListener('click', () => {
+            if (!threadData[msg.threadId]) {
+              threadData[msg.threadId] = {
+                name: msg.name,
+                avatarColor: msg.avatarColor,
+                isTextAvatar: msg.isTextAvatar,
+                number: '994',
+                bubbles: [{ text: msg.text, time: msg.time }]
+              };
+            }
+            activeThreadId = msg.threadId;
+            openChat(threadData[msg.threadId]);
+            searchView.classList.remove('active');
+          });
+
+          container.appendChild(row);
+        });
+      }
+
+      // 2. CONVERSATIONS SECTION
+      const matchedConvs = [];
+      if (lowerQuery.includes('tele') || lowerQuery.includes('ብር')) { 
+        matchedConvs.push({
+          id: 'conv_telebirr',
+          name: 'telebirr',
+          avatarColor: '#2b2c30',
+          isTextAvatar: false,
+          time: '28 May',
+          preview: 'ውድ ደንበኛችን...',
+          isDeliveryOnly: true
+        });
+        matchedConvs.push({
+          id: 'conv_telegames',
+          name: 'telegames',
+          avatarColor: '#2b2c30',
+          isTextAvatar: false,
+          time: '13 May',
+          preview: 'በቁርአን ጌሞች በየወሩ እስከ 300,000 ብር በየሳምንቱ ስማርት ስልክና 50,000 ብር ይሸለሙ!...',
+          isDeliveryOnly: true
+        });
+      }
+
+      if (matchedConvs.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'search-category-header';
+        header.innerHTML = `<span>Conversations (${matchedConvs.length})</span><span style='font-size: 16px;'>&gt;</span>`;
+        container.appendChild(header);
+
+        matchedConvs.forEach(conv => {
+          const row = document.createElement('div');
+          row.className = 'message-thread';
+          row.style.padding = '12px 20px';
+
+          const regex = new RegExp(`(${query})`, 'gi');
+          const highlightedName = conv.name.replace(regex, `<span class='search-text-blue'>$1</span>`);
+
+          row.innerHTML = `
+            <div class='avatar default-avatar' style='width: 40px; height: 40px; margin-right: 12px;'>
+              <svg viewBox='0 0 24 24'>
+                <path fill='#9aa0a6' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/>
+              </svg>
+            </div>
+            <div class='thread-content'>
+              <div class='thread-header'>
+                <span class='sender-name'>${highlightedName}</span>
+                <span class='timestamp'>${conv.time}</span>
+              </div>
+              <div class='thread-body'>
+                <span class='preview-text'>${conv.preview}</span>
+              </div>
+            </div>
+          `;
+
+          row.addEventListener('click', () => {
+            const deliveryOnlyData = { 
+              name: conv.name,
+              avatarColor: conv.avatarColor,
+              isTextAvatar: false,
+              isDeliveryOnly: true,
+              number: '8022',
+              bubbles: [{ text: conv.preview, time: conv.time }]
+            };
+            activeThreadId = conv.id;
+            openChat(deliveryOnlyData);
+            searchView.classList.remove('active');
+          });
+
+          container.appendChild(row);
+        });
+      }
+
+      // 3. CONTACTS SECTION
+      const matchedContacts = [];
+      if (lowerQuery.includes('tele') || lowerQuery.includes('ale') || lowerQuery.includes('men')) {
+        matchedContacts.push({
+          name: 'Tale Menagesha',
+          number: '0964749393',
+          avatarColor: '#5c6bc0',
+          isTextAvatar: true
+        });
+      }
+
+      if (matchedContacts.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'search-category-header';
+        header.innerHTML = `<span>Contacts (${matchedContacts.length})</span><span style='font-size: 16px;'>&gt;</span>`;
+        container.appendChild(header);
+
+        matchedContacts.forEach(contact => {
+          const row = document.createElement('div');
+          row.className = 'contact-row';
+          row.style.padding = '10px 20px';
+
+          const regex = new RegExp(`(${query})`, 'gi');
+          const highlightedName = contact.name.replace(regex, `<span class='search-text-blue'>$1</span>`);
+
+          row.innerHTML = `
+            <div class='avatar text-avatar' style='background-color: ${contact.avatarColor}; width: 38px !important; height: 38px !important; font-size: 15px !important; margin-right: 12px !important;'>${contact.name.charAt(0)}</div>
+            <div style='display: flex; flex-direction: column;'>
+              <span class='contact-name' style='font-size: 15px; font-weight: 400; color: #ffffff;'>${highlightedName}</span>
+              <span style='font-size: 13px; color: #9aa0a6; margin-top: 2px;'>${contact.number}</span>
+            </div>
+          `;
+
+          row.addEventListener('click', () => {
+            const contactChatData = { 
+              name: contact.name,
+              avatarColor: contact.avatarColor,
+              isTextAvatar: true,
+              number: contact.number,
+              bubbles: []
+            };
+            activeThreadId = 'contact_' + contact.name;
+            openChat(contactChatData);
+            searchView.classList.remove('active');
+          });
+
+          container.appendChild(row);
+        });
+      }
+
+      if (matchedMessages.length === 0 && matchedConvs.length === 0 && matchedContacts.length === 0) { 
+        container.innerHTML = "<p style='padding: 40px; text-align: center; color: #9aa0a6;'>No matches found.</p>";
+      }
     }
 
     // ==========================================================================
