@@ -37,10 +37,9 @@
       top: 0;
       left: 0;
       right: 0;
+      height: 100px;
       background-color: #000000;
       z-index: 10;
-      padding-top: 12px;
-      transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       overflow: hidden;
     }
 
@@ -56,6 +55,8 @@
       font-size: 26px;
       font-weight: 400;
       letter-spacing: -0.5px;
+      opacity: 0;
+      transition: opacity 0.1s ease;
     }
 
     .header-actions {
@@ -142,12 +143,16 @@
 
     /* Scrollable Chat Threads List */
     .messages-list {
-      flex: 1;
-      overflow-y: auto;
-      padding-top: 112px; /* Accounts for header height */
-      padding-bottom: 100px; /* Accounts for FAB + bottom nav height */
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
       scrollbar-width: none; /* Hide scrollbar */
-      transition: padding-top 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      padding-bottom: 100px; /* Accounts for FAB + bottom nav height */
     }
 
     .messages-list::-webkit-scrollbar {
@@ -380,13 +385,17 @@
        One UI Large Collapsible Header CSS Rules
        ========================================================================== */
     .oneui-large-header {
-      display: none;
+      height: 210px;
+      display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 10px 0 16px 0;
+      padding-top: 100px; /* Aligns contents below the fixed 100px header */
+      padding-bottom: 16px;
       gap: 12px;
       width: 100%;
+      background-color: #000000;
+      scroll-snap-align: start;
     }
 
     .oneui-large-title {
@@ -394,6 +403,7 @@
       font-weight: 400;
       color: #ffffff;
       text-align: center;
+      transition: opacity 0.1s ease;
     }
 
     .view-btn {
@@ -412,22 +422,12 @@
       background-color: rgba(255, 255, 255, 0.1);
     }
 
-    /* Collapsed vs Expanded transition shifts */
-    .app-header.oneui-expanded {
-      height: 220px;
-    }
-
-    .app-header.oneui-expanded #compact-app-title {
-      display: none !important;
-    }
-
-    .app-header.oneui-expanded .oneui-large-header {
-      display: flex;
-    }
-
-    /* Shift scrolling message list down smoothly when header expands */
-    .app-header.oneui-expanded ~ .messages-list {
-      padding-top: 220px !important;
+    /* Threads container matching bottom margin rules */
+    .threads-container {
+      background-color: #000000;
+      scroll-snap-align: start;
+      scroll-margin-top: 100px; /* Snaps against fixed header */
+      min-height: calc(100vh - 100px);
     }
 
     /* Disabled selection states to support long press gestures */
@@ -1515,11 +1515,7 @@
         </div>
       </div>
 
-      <!-- One UI Large Collapsible Header components -->
-      <div class='oneui-large-header' id='oneui-large-header'>
-        <span class='oneui-large-title' id='large-unread-title'>52 unread messages</span>
-        <button class='view-btn'>View</button>
-      </div>
+
 
       <!-- Tabs Row -->
       <div class="header-tabs">
@@ -1558,6 +1554,15 @@
 
   <!-- Message Thread List -->
   <main class="messages-list" id="thread-list">
+    
+    <!-- Large Header inside Scroll Wrapper -->
+    <div class='oneui-large-header' id='oneui-large-header'>
+      <span class='oneui-large-title' id='large-unread-title'>52 unread messages</span>
+      <button class='view-btn'>View</button>
+    </div>
+
+    <!-- Scrollable container for threads -->
+    <div class="threads-container" id="threads-container">
     
     <!-- Thread 1 -->
     <div class="message-thread" data-id="1">
@@ -1683,6 +1688,7 @@
           <span class="preview-text">ውድ ደንበኛችን፤ በትንሽ ክፍያ በM-PESA ይላኩ፤ ይቀበሉ። እንዲሁም የአየር ሰዓት ሲገዙ ተጨማሪ በነ...</span>
         </div>
       </div>
+    </div>
     </div>
 
   </main>
@@ -3533,54 +3539,37 @@
     // ==========================================================================
     // Samsung One UI Scroll Snapping & Collapsible Physics Logic
     // ==========================================================================
-    let oneuiScrollTimeout = null;
-    let isOneuiSnapping = false;
-    const mainAppHeader = document.getElementById('app-header');
+    // Samsung One UI Scroll Snapping & Collapsible Physics Logic
+    // ==========================================================================
+    const SNAP_THRESHOLD = 110;
+    const largeHeader = document.getElementById('oneui-large-header');
+    const compactAppTitle = document.getElementById('compact-app-title');
 
     threadList.addEventListener('scroll', () => {
-      const scrollTop = threadList.scrollTop;
-
-      // 1. Dynamic scale fade transitions
-      if (scrollTop > 40) {
-        mainAppHeader.classList.remove('oneui-expanded');
-      } else if (scrollTop === 0) {
-        mainAppHeader.classList.add('oneui-expanded');
-      }
-
-      // 2. Continuous snapping check
-      clearTimeout(oneuiScrollTimeout);
-      oneuiScrollTimeout = setTimeout(snapOneuiHeader, 180);
+      updateHeader(threadList.scrollTop);
     });
 
-    function snapOneuiHeader() {
-      if (isOneuiSnapping) return;
-      const scrollTop = threadList.scrollTop;
+    function updateHeader(scrollTop) {
+      let progress = scrollTop / SNAP_THRESHOLD;
+      if (progress < 0) progress = 0;
+      if (progress > 1) progress = 1;
 
-      // Limit snapping check boundaries to the header transition height (0 to 110px)
-      if (scrollTop > 0 && scrollTop < 110) {
-        isOneuiSnapping = true;
-        if (scrollTop < 55) {
-          // Snap smoothly to Expanded state
-          threadList.scrollTo({ top: 0, behavior: 'smooth' });
-        } else {
-          // Snap smoothly to Collapsed state
-          threadList.scrollTo({ top: 110, behavior: 'smooth' });
-        }
-        setTimeout(() => {
-          isOneuiSnapping = false;
-        }, 300);
+      // Smooth scale and fade transitions for Large Header content
+      largeHeader.style.opacity = 1 - (progress * 1.5);
+
+      // Smooth fade-in translation for the sticky Compact App Title
+      if (progress > 0.8) {
+        compactAppTitle.style.opacity = (progress - 0.8) * 5;
+      } else {
+        compactAppTitle.style.opacity = 0;
       }
     }
 
-    // Bind snapping action triggers when touch gesture or click dragging is released
-    threadList.addEventListener('touchend', snapOneuiHeader);
-    threadList.addEventListener('mouseup', snapOneuiHeader);
-
-    // Initialize thread container scrolled to default collapsed layout
+    // Start at collapsed position
     setTimeout(() => {
-      threadList.scrollTop = 110;
+      threadList.scrollTop = SNAP_THRESHOLD;
+      updateHeader(SNAP_THRESHOLD);
     }, 150);
-
     // ==========================================================================
     // Recycle Bin Fullscreen Screen State Managers & Operations Logic
     // ==========================================================================
