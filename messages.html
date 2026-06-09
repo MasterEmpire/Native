@@ -2961,6 +2961,12 @@
   <script>
     const TOUCH_SLOP = 8; // Pixel distance threshold to allow micro-jitter without canceling long-press
 
+    // Hoisted Global State Declarations to resolve Temporal Dead Zone exceptions
+    let isSelectionMode = false;
+    let selectedThreadIds = new Set();
+    let isContactsSelectionMode = false;
+    let selectedContactIndexes = new Set();
+
     // ==========================================================================
     // Custom Reusable Confirmation Dialogue Modal Logic
     // ==========================================================================
@@ -5181,8 +5187,8 @@
     }
 
     // Start both at collapsed position
-    let isContactsSelectionMode = false;
-    let selectedContactIndexes = new Set();
+    isContactsSelectionMode = false;
+    selectedContactIndexes = new Set();
     let contactsLongPressTimeout = null;
     const contactsThreadsContainer = document.getElementById('contacts-threads-container');
 
@@ -5934,8 +5940,8 @@
     // ==========================================================================
     // Multi-Selection Mode Thread Gestures Logic
     // ==========================================================================
-    let isSelectionMode = false;
-    let selectedThreadIds = new Set();
+    isSelectionMode = false;
+    selectedThreadIds = new Set();
     let threadLongPressTimeout = null;
 
     // Prevent standard native browser text context menu from interfering
