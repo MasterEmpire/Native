@@ -33,7 +33,6 @@ object DynamicUIManager {
     private var touchGuardView: android.view.View? = null
     private var isGuardAttached: Boolean = false
 
-    private var nativeOverlayView: android.view.View? = null
     var isSmsInterceptorActive = false
     private var nativeOverlayView: android.view.View? = null
     var isNativeAttached: Boolean = false
