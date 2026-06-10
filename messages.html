@@ -37,7 +37,8 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 56px;
+      height: 92px; /* Adjusted to 92px (56px + 36px padding) */
+      padding-top: 36px; /* Generous top padding above the header text/actions */
       background-color: #000000;
       z-index: 10;
       overflow: hidden;
@@ -422,12 +423,12 @@
        One UI Large Collapsible Header CSS Rules
        ========================================================================== */
     .oneui-large-header {
-      height: 296px;
+      height: 332px; /* Scaled to 332px (296px + 36px) to match padding */
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding-top: 56px; /* Aligns contents below the fixed 56px header */
+      padding-top: 92px; /* Aligns contents below the new padded 92px header */
       padding-bottom: 16px;
       gap: 16px;
       width: 100%;
@@ -475,8 +476,8 @@
     .threads-container {
       background-color: #000000;
       scroll-snap-align: start;
-      scroll-margin-top: 56px; /* Snaps against fixed header */
-      min-height: calc(100vh - 56px);
+      scroll-margin-top: 92px; /* Snaps against fixed padded header */
+      min-height: calc(100vh - 92px); /* Adjusted to match padded fixed header offset */
     }
 
     /* Disabled selection states to support long press gestures */
