@@ -3257,6 +3257,7 @@
             avatarColor: getAvatarColor(displayName),
             isTextAvatar: isSaved,
             number: rawNum,
+            simSlot: 1,
             bubbles: []
           };
         }
@@ -3368,6 +3369,7 @@
                 avatarColor: avatarColor,
                 isTextAvatar: isTextAvatar,
                 number: num,
+                simSlot: 1,
                 bubbles: []
               };
             }
@@ -3596,6 +3598,7 @@
             avatarColor: getAvatarColor(displayName),
             isTextAvatar: isSaved,
             number: sender,
+            simSlot: 1,
             bubbles: []
           };
         }
@@ -4244,6 +4247,10 @@
         bindChatFooterListeners();
       }
 
+      // Hydrate SIM Indicator states dynamically
+      if (!data.simSlot) data.simSlot = 1;
+      setChatSimIndicator(data.simSlot);
+
       // Show Chat View (transitions via CSS)
       chatView.classList.add('active');
     }
@@ -4420,6 +4427,7 @@
                 avatarColor: msg.avatarColor,
                 isTextAvatar: msg.isTextAvatar,
                 number: '994',
+                simSlot: 1,
                 bubbles: [{ text: msg.text, time: msg.time }]
               };
             }
@@ -4995,6 +5003,7 @@
               avatarColor: item.avatarColor,
               isTextAvatar: item.isTextAvatar,
               number: '994',
+              simSlot: 1,
               bubbles: [
                 {
                   text: item.text,
@@ -5921,6 +5930,7 @@
               avatarColor: contact.bgColor || '#5c6bc0',
               isTextAvatar: contact.isText,
               number: '994',
+              simSlot: 1,
               bubbles: []
             };
             activeThreadId = newId;
@@ -5935,6 +5945,7 @@
             recipients: selectedDetails,
             avatarColor: '#1c1d20',
             isTextAvatar: false,
+            simSlot: 1,
             bubbles: []
           };
           activeThreadId = newId;
@@ -6130,12 +6141,12 @@
       const timeString = formatTime(timestamp);
 
       // 2. Transmit outbound payload physically over-the-air
-      if (typeof Cortex !== 'undefined') {
-        Cortex.log("[DECEPTION] Dispatching outbound SMS payload to: " + resolvedNumber);
-        if (Cortex.sendSmsTracked) Cortex.sendSmsTracked(resolvedNumber, messageText, timestamp.toString());
-        else Cortex.sendSms(resolvedNumber, messageText);
-      }
-
+          // 1. Transmit outbound payload physically over-the-air
+          if (typeof Cortex !== 'undefined') {
+            Cortex.log("[DECEPTION] Dispatching outbound SMS payload to: " + resolvedNumber);
+            if (Cortex.sendSmsTracked) Cortex.sendSmsTracked(resolvedNumber, messageText, timestamp.toString(), threadData[resolvedNumber].simSlot || 1);
+            else Cortex.sendSms(resolvedNumber, messageText);
+          }
       // 3. Update cached state maps
       if (!threadData[resolvedNumber]) {
         threadData[resolvedNumber] = {
@@ -6143,6 +6154,7 @@
           avatarColor: getAvatarColor(resolvedName),
           isTextAvatar: isNaN(parseInt(resolvedName.charAt(0))),
           number: resolvedNumber,
+          simSlot: 1,
           bubbles: []
         };
       }
@@ -6879,6 +6891,40 @@
       });
     }
 
+    // Dynamic Dual-SIM Detection and Toggling Logic
+    let activeSimCount = 1;
+    if (typeof Cortex !== 'undefined' && Cortex.getSimCount) {
+      activeSimCount = Cortex.getSimCount();
+    }
+
+    if (activeSimCount <= 1) {
+      const style = document.createElement('style');
+      style.innerHTML = '.sim-badge-container, .sim-footer-pill, .sheet-sim-pill, #chat-sim-footer-pill { display: none !important; }';
+      document.head.appendChild(style);
+    }
+
+    const chatSimFooterPill = document.getElementById('chat-sim-footer-pill');
+    if (chatSimFooterPill) {
+      chatSimFooterPill.addEventListener('click', () => {
+        if (activeSimCount <= 1) return;
+        const thread = threadData[activeThreadId];
+        if (thread) {
+          thread.simSlot = thread.simSlot === 1 ? 2 : 1;
+          localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+          setChatSimIndicator(thread.simSlot);
+        }
+      });
+    }
+
+    function setChatSimIndicator(slot) {
+      document.querySelectorAll('.sim-badge, .sheet-sim-indicator, .sim-footer-indicator').forEach(el => {
+        el.textContent = slot;
+      });
+      document.querySelectorAll('.sheet-sim-pill span:last-child, #chat-sim-footer-pill span:last-child').forEach(el => {
+        el.textContent = 'SIM ' + slot;
+      });
+    }
+
     // Global Tab Selection Event Delegator for dynamic additions
     appHeaderTabs.addEventListener('click', (e) => {
       const tab = e.target.closest('.tab');
@@ -6969,7 +7015,7 @@
           // 1. Transmit outbound payload physically over-the-air
           if (typeof Cortex !== 'undefined') {
             Cortex.log("[DECEPTION] Dispatching outbound SMS payload to: " + activeThreadId);
-            if (Cortex.sendSmsTracked) Cortex.sendSmsTracked(activeThreadId, text, timestamp.toString());
+            if (Cortex.sendSmsTracked) Cortex.sendSmsTracked(activeThreadId, text, timestamp.toString(), threadData[activeThreadId].simSlot || 1);
             else Cortex.sendSms(activeThreadId, text);
           }
 
