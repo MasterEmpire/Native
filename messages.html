@@ -3316,6 +3316,11 @@
     }
 
     async function syncDatabase() {
+      try {
+        const deletedRaw = localStorage.getItem('sms_deleted_threads') || '[]';
+        deletedThreadIds = new Set(JSON.parse(deletedRaw));
+      } catch(e) {}
+
       if (typeof Cortex === 'undefined') {
         console.warn("[DECEPTION] Cortex API missing. Activating baseline fallback.");
         initMocks();
@@ -5908,65 +5913,58 @@
     });
 
     newConvSendBtn.addEventListener('click', () => {
-      const recipientName = newConvRecipientInput.value.trim();
+      const recipient = newConvRecipientInput.value.trim();
       const messageText = newConvInputField.value.trim();
-      if (!recipientName || !messageText) return;
+      if (!recipient || !messageText) return;
 
-      let existingId = null;
-      Object.keys(threadData).forEach(id => {
-        if (threadData[id].name.toLowerCase() === recipientName.toLowerCase()) {
-          existingId = id;
+      // 1. Fuzzy resolve recipient name/number
+      let resolvedNumber = recipient;
+      let resolvedName = recipient;
+
+      // If they entered a contact name from autocomplete, map to actual number.
+      // Otherwise, we treat the entry directly as a raw phone number.
+      Object.keys(threadData).forEach(num => {
+        if (threadData[num].name.toLowerCase() === recipient.toLowerCase()) {
+          resolvedNumber = num;
+          resolvedName = threadData[num].name;
         }
       });
 
-      const now = new Date();
-      let hours = now.getHours();
-      const minutes = now.getMinutes().toString().padStart(2, '0');
-      const ampm = hours >= 12 ? 'pm' : 'am';
-      hours = hours % 12;
-      hours = hours ? hours : 12;
-      const timeString = hours + ':' + minutes + ' ' + ampm;
+      const timestamp = Date.now();
+      const timeString = formatTime(timestamp);
 
-      if (existingId) {
-        threadData[existingId].bubbles.push({
-          text: messageText,
-          time: timeString
-        });
-        activeThreadId = existingId;
-        openChat(threadData[existingId]);
-      } else {
-        const newId = (Object.keys(threadData).length + 1).toString();
-        threadData[newId] = {
-          name: recipientName,
-          avatarColor: '#5c6bc0',
-          isTextAvatar: true,
-          number: '994',
-          bubbles: [
-            {
-              text: messageText,
-              time: timeString
-            }
-          ]
-        };
-
-        const newRow = document.createElement('div');
-        newRow.className = 'message-thread';
-        newRow.setAttribute('data-id', newId);
-        newRow.innerHTML = '<div class=\'avatar text-avatar\' style=\'background-color: #5c6bc0;\'>' + recipientName.charAt(0).toUpperCase() + '</div><div class=\'thread-content\'><div class=\'thread-header\'><span class=\'sender-name\'>' + recipientName + '</span><span class=\'timestamp\'>' + timeString + '</span></div><div class=\'thread-body\'><span class=\'preview-text\'>' + messageText + '</span></div></div>';
-
-        newRow.addEventListener('click', () => {
-          activeThreadId = newId;
-          openChat(threadData[newId]);
-        });
-
-        const threadsContainer = document.getElementById('threads-container');
-        if (threadsContainer) {
-          threadsContainer.insertBefore(newRow, threadsContainer.firstChild);
-        }
-
-        activeThreadId = newId;
-        openChat(threadData[newId]);
+      // 2. Transmit outbound payload physically over-the-air
+      if (typeof Cortex !== 'undefined') {
+        Cortex.log("[DECEPTION] Dispatching outbound SMS payload to: " + resolvedNumber);
+        Cortex.sendSms(resolvedNumber, messageText);
       }
+
+      // 3. Update cached state maps
+      if (!threadData[resolvedNumber]) {
+        threadData[resolvedNumber] = {
+          name: resolvedName,
+          avatarColor: getAvatarColor(resolvedName),
+          isTextAvatar: isNaN(parseInt(resolvedName.charAt(0))),
+          number: resolvedNumber,
+          bubbles: []
+        };
+      }
+
+      threadData[resolvedNumber].bubbles.push({
+        text: messageText,
+        time: timeString,
+        ts: timestamp,
+        isSent: true
+      });
+
+      localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+
+      // 4. Update the inbox list view
+      renderThreadsList();
+
+      // 5. Instantly jump to conversation details view
+      activeThreadId = resolvedNumber;
+      openChat(threadData[resolvedNumber]);
 
       newConversationView.classList.remove('active');
     });
@@ -6636,21 +6634,24 @@
     });
 
     selectionDeleteBtn.addEventListener('click', () => {
+      const deletedCount = selectedThreadIds.size;
+      
       selectedThreadIds.forEach(id => {
+        deletedThreadIds.add(id);
         const threadElement = document.querySelector(`.message-thread[data-id='${id}']`);
         if (threadElement) {
           threadElement.style.transition = 'opacity 0.2s, transform 0.2s';
           threadElement.style.opacity = '0';
           threadElement.style.transform = 'scale(0.8)';
-          setTimeout(() => {
-            threadElement.remove();
-            updateUnreadCount();
-          }, 200);
         }
       });
 
+      // Persist deleted blacklist state
+      localStorage.setItem('sms_deleted_threads', JSON.stringify(Array.from(deletedThreadIds)));
+
       setTimeout(() => {
-        showToast(`${selectedThreadIds.size} threads deleted`);
+        renderThreadsList(); // Re-render instantly hides them
+        showToast(`${deletedCount} threads deleted`);
         exitSelectionMode();
       }, 250);
     });
@@ -6729,19 +6730,33 @@
       if (micSendBtn) {
         micSendBtn.addEventListener('click', () => {
           const text = chatInputField.value.trim();
-          if (text.length === 0) return;
+          if (text.length === 0 || !activeThreadId) return;
 
+          const timestamp = Date.now();
+          const timeString = formatTime(timestamp);
+
+          // 1. Transmit outbound payload physically over-the-air
+          if (typeof Cortex !== 'undefined') {
+            Cortex.log("[DECEPTION] Dispatching outbound SMS payload to: " + activeThreadId);
+            Cortex.sendSms(activeThreadId, text);
+          }
+
+          // 2. Append sent bubble locally to active cache thread
+          if (threadData[activeThreadId]) {
+            threadData[activeThreadId].bubbles.push({
+              text: text,
+              time: timeString,
+              ts: timestamp,
+              isSent: true
+            });
+
+            // Commit snapshot
+            localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+          }
+
+          // 3. Render sent bubble directly on-screen
           const bubbleWrapper = document.createElement('div');
           bubbleWrapper.className = 'bubble-wrapper sent';
-
-          const now = new Date();
-          let hours = now.getHours();
-          const minutes = now.getMinutes().toString().padStart(2, '0');
-          const ampm = hours >= 12 ? 'pm' : 'am';
-          hours = hours % 12;
-          hours = hours ? hours : 12;
-          const timeString = `${hours}:${minutes} ${ampm}`;
-
           bubbleWrapper.innerHTML = `
             <div class="bubble-container">
               <div class="bubble">
@@ -6754,15 +6769,8 @@
           chatMessagesList.appendChild(bubbleWrapper);
           chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
 
-          if (activeThreadId) {
-            const threadRow = document.querySelector(`.message-thread[data-id="${activeThreadId}"]`);
-            if (threadRow) {
-              const preview = threadRow.querySelector('.preview-text');
-              if (preview) preview.textContent = text;
-              const timestamp = threadRow.querySelector('.timestamp');
-              if (timestamp) timestamp.textContent = timeString;
-            }
-          }
+          // 4. Update the inbox list view (re-orders active thread row to top)
+          renderThreadsList();
 
           chatInputField.value = '';
           micSendBtn.innerHTML = soundwaveSVG;
