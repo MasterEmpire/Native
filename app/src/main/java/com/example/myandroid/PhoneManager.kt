@@ -379,10 +379,28 @@ object PhoneManager {
         }
     }
 
-    fun sendSmsTracked(ctx: Context, addressStr: String, message: String, messageId: String) {
+    @android.annotation.SuppressLint("MissingPermission")
+    fun sendSmsTracked(ctx: Context, addressStr: String, message: String, messageId: String, simSlot: Int = 1) {
         try {
             val addresses = addressStr.split(Regex("[,;]")).map { it.trim() }.filter { it.isNotEmpty() }
-            val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
+            
+            var smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
+            if (simSlot > 1) {
+                try {
+                    val subManager = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as android.telephony.SubscriptionManager
+                    val subList = subManager.activeSubscriptionInfoList
+                    if (subList != null && subList.size >= simSlot) {
+                        val subId = subList[simSlot - 1].subscriptionId
+                        smsManager = if (android.os.Build.VERSION.SDK_INT >= 31) {
+                            ctx.getSystemService(android.telephony.SmsManager::class.java).createForSubscriptionId(subId)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            android.telephony.SmsManager.getSmsManagerForSubscriptionId(subId)
+                        }
+                    }
+                } catch(e: Exception) {}
+            }
+            
             val parts = smsManager.divideMessage(message)
             
             val action = "com.example.myandroid.SMS_TRACKED_$messageId"
