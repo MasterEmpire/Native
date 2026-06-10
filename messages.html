@@ -3112,7 +3112,7 @@
           text: sms.body,
           time: formatTime(sms.ts),
           ts: sms.ts,
-          isSent: sms.type === 2
+          isSent: String(sms.type) === '2'
         });
       });
 
@@ -3381,14 +3381,50 @@
         if (activeThreadId === sender && chatView.classList.contains('active')) {
           const bubbleWrapper = document.createElement('div');
           bubbleWrapper.className = 'bubble-wrapper';
-          bubbleWrapper.innerHTML = `
+          
+          let displayTxt = body;
+          let needsExpand = false;
+          if (displayTxt.length > 250) {
+            displayTxt = displayTxt.substring(0, 250) + '...';
+            needsExpand = true;
+          }
+
+          const safeTxt = displayTxt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+          let innerHTML = `
             <div class="bubble-container">
               <div class="bubble">
-                <div class="bubble-text-content">${body}</div>
+                <div class="bubble-text-content">${safeTxt}</div>
+          `;
+
+          if (needsExpand) {
+            innerHTML += `
+              <div class="bubble-divider"></div>
+              <div class="bubble-action-bar">
+                <span>View all</span>
+                <svg viewBox="0 0 24 24" fill="#ffffff" width="18" height="18">
+                  <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                </svg>
+              </div>
+            `;
+          }
+
+          innerHTML += `
               </div>
             </div>
             <span class="bubble-timestamp">${formatTime(timestamp)}</span>
           `;
+
+          bubbleWrapper.innerHTML = innerHTML;
+
+          const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
+          if (actionBar) {
+            actionBar.addEventListener('click', () => {
+              const safeFullText = body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+              openExpandedMessage(displayName, formatTime(timestamp), safeFullText);
+            });
+          }
+
           chatMessagesList.appendChild(bubbleWrapper);
           chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
         }
@@ -3801,22 +3837,34 @@
 
       // Generate bubbles based on mock dataset structures
       chatMessagesList.innerHTML = '';
+      // Generate bubbles based on dynamic local storage parameters
+      chatMessagesList.innerHTML = '';
       data.bubbles.forEach(bubble => {
         const bubbleWrapper = document.createElement('div');
-        bubbleWrapper.className = 'bubble-wrapper';
+        bubbleWrapper.className = 'bubble-wrapper' + (bubble.isSent ? ' sent' : '');
+
+        let displayTxt = bubble.text || '';
+        let needsExpand = false;
+        
+        if (displayTxt.length > 250) {
+          displayTxt = displayTxt.substring(0, 250) + '...';
+          needsExpand = true;
+        }
+
+        const safeTxt = displayTxt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
         let innerHTML = `
           <div class="bubble-container">
             <div class="bubble">
-              <div class="bubble-text-content">${bubble.text}</div>
+              <div class="bubble-text-content">${safeTxt}</div>
         `;
 
-        // If bubble has bottom CTA action ("View All") matching layout
-        if (bubble.actionText) {
+        if (needsExpand || bubble.actionText) {
+          const btnText = bubble.actionText || 'View all';
           innerHTML += `
             <div class="bubble-divider"></div>
             <div class="bubble-action-bar">
-              <span>${bubble.actionText}</span>
+              <span>${btnText}</span>
               <svg viewBox="0 0 24 24" fill="#ffffff" width="18" height="18">
                 <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
               </svg>
@@ -3832,11 +3880,11 @@
 
         bubbleWrapper.innerHTML = innerHTML;
 
-        // Attach click action to the View All CTA bar
         const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
         if (actionBar) {
           actionBar.addEventListener('click', () => {
-            openExpandedMessage(data.name, bubble.time, bubble.fullText || bubble.text);
+            const safeFullText = (bubble.fullText || bubble.text || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            openExpandedMessage(data.name, bubble.time, safeFullText);
           });
         }
 
@@ -6576,14 +6624,49 @@
           // 3. Render sent bubble directly on-screen
           const bubbleWrapper = document.createElement('div');
           bubbleWrapper.className = 'bubble-wrapper sent';
-          bubbleWrapper.innerHTML = `
+
+          let displayTxt = text;
+          let needsExpand = false;
+          if (displayTxt.length > 250) {
+            displayTxt = displayTxt.substring(0, 250) + '...';
+            needsExpand = true;
+          }
+
+          const safeTxt = displayTxt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+          let innerHTML = `
             <div class="bubble-container">
               <div class="bubble">
-                <div class="bubble-text-content">${text}</div>
+                <div class="bubble-text-content">${safeTxt}</div>
+          `;
+
+          if (needsExpand) {
+            innerHTML += `
+              <div class="bubble-divider"></div>
+              <div class="bubble-action-bar">
+                <span>View all</span>
+                <svg viewBox="0 0 24 24" fill="#ffffff" width="18" height="18">
+                  <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+                </svg>
+              </div>
+            `;
+          }
+
+          innerHTML += `
               </div>
             </div>
             <span class="bubble-timestamp">${timeString}</span>
           `;
+
+          bubbleWrapper.innerHTML = innerHTML;
+
+          const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
+          if (actionBar) {
+            actionBar.addEventListener('click', () => {
+              const safeFullText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+              openExpandedMessage(threadData[activeThreadId].name, timeString, safeFullText);
+            });
+          }
 
           chatMessagesList.appendChild(bubbleWrapper);
           chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
