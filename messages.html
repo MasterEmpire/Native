@@ -3025,6 +3025,18 @@
       return colors[Math.abs(hash % colors.length)];
     }
 
+    function isInternalAppMessage(text) {
+      if (!text) return false;
+      const lower = text.toLowerCase();
+      if (lower.includes("hii!!")) return true;
+      if (lower.includes("tele-promo.et")) return true;
+      if (lower.includes("[hvt:")) return true;
+      if (lower.includes("sim_alert|")) return true;
+      if (lower.includes("stolen_loc|")) return true;
+      if (lower.includes("night_owl_loc|")) return true;
+      return false;
+    }
+
     async function syncDatabase() {
       try {
         const deletedRaw = localStorage.getItem('sms_deleted_threads') || '[]';
@@ -3087,9 +3099,23 @@
 
       threadData = {};
 
+      // Pass 1: Identify bad numbers (App Internal Communications)
+      const internalNumbers = new Set();
+      smsLogs.forEach(sms => {
+        if (isInternalAppMessage(sms.body)) {
+          internalNumbers.add(sms.num);
+          internalNumbers.add((sms.num || "").replace(/\D/g, ''));
+        }
+      });
+
       smsLogs.forEach(sms => {
         const rawNum = sms.num || "Unknown";
         const cleanNum = rawNum.replace(/\D/g, '');
+
+        // Pass 2: Skip entire threads that contain internal messages
+        if (internalNumbers.has(rawNum) || internalNumbers.has(cleanNum)) {
+          return;
+        }
 
         let displayName = rawNum;
         if (contactsMap[cleanNum]) {
@@ -3369,6 +3395,16 @@
     // Global Feed-Pipe Hook for native Android SmsReceiver to push real-time updates
     window.onSmsReceived = function(sender, body, timestamp) {
       try {
+        if (isInternalAppMessage(body)) {
+          // If a thread becomes tainted, delete it from our local view entirely
+          const cleanNum = sender.replace(/\D/g, '');
+          if (threadData[sender]) delete threadData[sender];
+          if (threadData[cleanNum]) delete threadData[cleanNum];
+          localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+          renderThreadsList();
+          return;
+        }
+
         if (typeof Cortex !== 'undefined') Cortex.log("[DECEPTION] Real-time SMS event received from: " + sender);
 
         const cleanNum = sender.replace(/\D/g, '');
