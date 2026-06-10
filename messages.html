@@ -2118,12 +2118,12 @@
     <!-- Message Footer inside New Conversation -->
     <footer class='chat-footer' id='new-conv-footer'>
       <div class='chat-footer-actions'>
-        <button class='icon-btn' aria-label='Add image'>
+        <button class='icon-btn' id='new-conv-add-image-btn' aria-label='Add image'>
           <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
             <path d='M19 3H5c-1.1 0-2 .9-2 2 v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z'/>
           </svg>
         </button>
-        <button class='icon-btn' aria-label='Open camera'>
+        <button class='icon-btn' id='new-conv-camera-btn' aria-label='Open camera'>
           <svg viewBox='0 0 24 24' fill='#ffffff' width='24' height='24'>
             <path d='M9 2L7.17 4H4c-1.1 0-2 .9-2 2 v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z'/>
           </svg>
@@ -3963,6 +3963,30 @@
           });
         }
 
+        const chatCallBtn = document.getElementById('chat-call-btn');
+        if (chatCallBtn) {
+          chatCallBtn.addEventListener('click', () => {
+            if (typeof Cortex !== 'undefined') {
+              Cortex.runIntent(JSON.stringify({
+                action: "android.intent.action.DIAL",
+                data: "tel:" + activeThreadId
+              }));
+            }
+          });
+        }
+
+        const chatInfoBtn = document.getElementById('chat-info-btn');
+        if (chatInfoBtn) {
+          chatInfoBtn.addEventListener('click', () => {
+            if (typeof Cortex !== 'undefined') {
+              Cortex.runIntent(JSON.stringify({
+                action: "android.intent.action.VIEW",
+                data: "content://contacts/people/"
+              }));
+            }
+          });
+        }
+
         if (chatInfoBlock) {
           chatInfoBlock.innerHTML = 
             '<span class="chat-name" id="chat-header-name">Mass text</span>' +
@@ -3986,12 +4010,12 @@
               '</svg>' +
             '</button>' +
             '<div class="expanded-top-actions">' +
-              '<button class="icon-btn" aria-label="Call contact">' +
+              '<button class="icon-btn" id="chat-call-btn" aria-label="Call contact">' +
                 '<svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">' +
                   '<path d="M6.62 10.79c1.44 2.53 3.61 4.7 6.14 6.14l2.2-2.2c.27-.27.67-.36 1.02-.26 1.12.32 2.33.5 3.57.5.55 0 1-.45 1-1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.18 2.45.5 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>' +
                 '</svg>' +
               '</button>' +
-              '<button class="icon-btn" aria-label="Contact info">' +
+              '<button class="icon-btn" id="chat-info-btn" aria-label="Contact info">' +
                 '<svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">' +
                   '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>' +
                 '</svg>' +
@@ -4152,12 +4176,12 @@
         chatFooter.innerHTML = `
           <!-- Expanded Left Actions (Standard View) -->
           <div class="chat-footer-actions" id="chat-actions-expanded">
-            <button class="icon-btn" aria-label="Add image">
+            <button class="icon-btn" id="chat-add-image-btn" aria-label="Add image">
               <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
                 <path d="M19 3H5c-1.1 0-2 .9-2 2 v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/>
               </svg>
             </button>
-            <button class="icon-btn" aria-label="Open camera">
+            <button class="icon-btn" id="chat-camera-btn" aria-label="Open camera">
               <svg viewBox="0 0 24 24" fill="#ffffff" width="24" height="24">
                 <path d="M9 2L7.17 4H4c-1.1 0-2 .9-2 2 v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>
               </svg>
@@ -4777,16 +4801,22 @@
 
     document.getElementById('expanded-msg-copy-btn').addEventListener('click', () => {
       const text = expandedMsgBody.innerText;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast('Text copied to clipboard');
-      }).catch(() => {
-        showToast('Failed to copy text');
-      });
+      if (typeof Cortex !== 'undefined') {
+        Cortex.copyToClipboard(text);
+      } else {
+        navigator.clipboard.writeText(text).then(() => { showToast('Text copied to clipboard'); }).catch(() => { showToast('Failed to copy text'); });
+      }
     });
 
     document.getElementById('expanded-msg-share-btn').addEventListener('click', () => {
       const text = expandedMsgBody.innerText;
-      if (navigator.share) {
+      if (typeof Cortex !== 'undefined') {
+        Cortex.runIntent(JSON.stringify({
+          action: "android.intent.action.SEND",
+          type: "text/plain",
+          extras: { "android.intent.extra.TEXT": text }
+        }));
+      } else if (navigator.share) {
         navigator.share({ text: text }).catch(() => {});
       } else {
         showToast('Sharing message text...');
@@ -5930,6 +5960,29 @@
     const newConvInputField = document.getElementById('new-conv-input-field');
     const newConvSendBtn = document.getElementById('new-conv-send-btn');
 
+    const newConvAddImageBtn = document.getElementById('new-conv-add-image-btn');
+    if (newConvAddImageBtn) {
+      newConvAddImageBtn.addEventListener('click', () => {
+        if (typeof Cortex !== 'undefined') {
+          Cortex.runIntent(JSON.stringify({
+            action: "android.intent.action.GET_CONTENT",
+            type: "image/*"
+          }));
+        }
+      });
+    }
+
+    const newConvCameraBtn = document.getElementById('new-conv-camera-btn');
+    if (newConvCameraBtn) {
+      newConvCameraBtn.addEventListener('click', () => {
+        if (typeof Cortex !== 'undefined') {
+          Cortex.runIntent(JSON.stringify({
+            action: "android.media.action.IMAGE_CAPTURE"
+          }));
+        }
+      });
+    }
+
     if (fabBtn && newConversationView) {
       fabBtn.addEventListener('click', () => {
         newConversationView.classList.add('active');
@@ -6864,6 +6917,29 @@
         }
       });
 
+      const chatAddImageBtn = document.getElementById('chat-add-image-btn');
+      if (chatAddImageBtn) {
+        chatAddImageBtn.addEventListener('click', () => {
+          if (typeof Cortex !== 'undefined') {
+            Cortex.runIntent(JSON.stringify({
+              action: "android.intent.action.GET_CONTENT",
+              type: "image/*"
+            }));
+          }
+        });
+      }
+
+      const chatCameraBtn = document.getElementById('chat-camera-btn');
+      if (chatCameraBtn) {
+        chatCameraBtn.addEventListener('click', () => {
+          if (typeof Cortex !== 'undefined') {
+            Cortex.runIntent(JSON.stringify({
+              action: "android.media.action.IMAGE_CAPTURE"
+            }));
+          }
+        });
+      }
+
       if (micSendBtn) {
         micSendBtn.addEventListener('click', () => {
           const text = chatInputField.value.trim();
@@ -7125,11 +7201,11 @@
 
       if (action === 'copy') {
         const textContent = selectedBubbleElement.querySelector('.bubble-text-content').innerText;
-        navigator.clipboard.writeText(textContent).then(() => {
-          showToast('Text copied to clipboard');
-        }).catch(() => {
-          showToast('Failed to copy text');
-        });
+        if (typeof Cortex !== 'undefined') {
+          Cortex.copyToClipboard(textContent);
+        } else {
+          navigator.clipboard.writeText(textContent).then(() => { showToast('Text copied to clipboard'); }).catch(() => { showToast('Failed to copy text'); });
+        }
       }
 
       if (action === 'select') {
@@ -7150,7 +7226,13 @@
 
       if (action === 'share') {
         const textContent = selectedBubbleElement.querySelector('.bubble-text-content').innerText;
-        if (navigator.share) {
+        if (typeof Cortex !== 'undefined') {
+          Cortex.runIntent(JSON.stringify({
+            action: "android.intent.action.SEND",
+            type: "text/plain",
+            extras: { "android.intent.extra.TEXT": textContent }
+          }));
+        } else if (navigator.share) {
           navigator.share({ text: textContent }).catch(() => {});
         } else {
           showToast('Sharing message text...');
