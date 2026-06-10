@@ -1245,6 +1245,11 @@
       display: flex;
     }
 
+    @keyframes slideUpSheet {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
     .dialog-card {
       width: 100%;
       max-width: 320px;
@@ -2338,30 +2343,34 @@
     </div>
   </div>
 
-  <!-- Message Details Dialog Modal -->
-  <div class='dialog-backdrop' id='details-dialog-backdrop'>
-    <div class='dialog-card'>
-      <span class='dialog-title'>Message details</span>
-      <div style='display: flex; flex-direction: column; gap: 12px; margin-top: 16px;'>
-        <div style='display: flex; justify-content: space-between;'>
-          <span style='color: #9aa0a6; font-size: 15px;'>Type</span>
-          <span style='color: #ffffff; font-size: 15px;' id='details-msg-type'>Text message</span>
+  <!-- Message Details Dialog Modal (Bottom Sheet) -->
+  <div class='dialog-backdrop' id='details-dialog-backdrop' style='align-items: flex-end; padding: 0;'>
+    <div class='dialog-card' style='border-radius: 28px 28px 0 0; padding: 24px; max-width: 100%; margin: 0; animation: slideUpSheet 0.3s cubic-bezier(0.1, 0.82, 0.25, 1); padding-bottom: calc(24px + env(safe-area-inset-bottom));'>
+      <span class='dialog-title' style='margin-bottom: 24px; font-size: 20px;'>Message details</span>
+      <div style='display: flex; flex-direction: column; gap: 24px;'>
+        <div style='display: flex; flex-direction: column; gap: 4px;'>
+          <span style='color: #e3e3e3; font-size: 14px;'>Type</span>
+          <span style='color: #ffffff; font-size: 16px;' id='details-msg-type'>Text message</span>
         </div>
-        <div style='display: flex; justify-content: space-between;'>
-          <span style='color: #9aa0a6; font-size: 15px;' id='details-msg-dir-label'>From</span>
-          <span style='color: #ffffff; font-size: 15px; text-align: right; word-break: break-all;' id='details-msg-dir-value'></span>
+        <div style='display: flex; flex-direction: column; gap: 4px;'>
+          <span style='color: #e3e3e3; font-size: 14px;' id='details-msg-dir-label'>To</span>
+          <span style='color: #ffffff; font-size: 16px; word-break: break-word;' id='details-msg-dir-value'></span>
         </div>
-        <div style='display: flex; justify-content: space-between;'>
-          <span style='color: #9aa0a6; font-size: 15px;' id='details-msg-time-label'>Time received</span>
-          <span style='color: #ffffff; font-size: 15px; text-align: right;' id='details-msg-time-value'></span>
+        <div style='display: flex; flex-direction: column; gap: 4px;'>
+          <span style='color: #e3e3e3; font-size: 14px;' id='details-msg-time-label'>Time sent</span>
+          <span style='color: #ffffff; font-size: 16px;' id='details-msg-time-value'></span>
         </div>
-        <div style='display: flex; justify-content: space-between;'>
-          <span style='color: #9aa0a6; font-size: 15px;'>Status</span>
-          <span style='color: #ffffff; font-size: 15px;' id='details-msg-status'>Received</span>
+        <div style='display: flex; flex-direction: column; gap: 4px;' id='details-msg-delivery-container'>
+          <span style='color: #e3e3e3; font-size: 14px;'>Delivery report</span>
+          <span style='color: #ffffff; font-size: 16px;' id='details-msg-delivery'>Not requested</span>
+        </div>
+        <div style='display: flex; flex-direction: column; gap: 4px;'>
+          <span style='color: #e3e3e3; font-size: 14px;'>Status</span>
+          <span style='color: #ffffff; font-size: 16px;' id='details-msg-status'>Sent</span>
         </div>
       </div>
-      <div class='dialog-actions' style='margin-top: 24px; justify-content: flex-end;'>
-        <button class='dialog-btn' id='details-ok-btn' style='color: #8ab4f8; flex: none; padding: 8px 16px;'>OK</button>
+      <div class='dialog-actions' style='margin-top: 32px; justify-content: center;'>
+        <button class='dialog-btn' id='details-ok-btn' style='color: #ffffff; font-weight: 600; width: 100%; font-size: 16px;'>OK</button>
       </div>
     </div>
   </div>
@@ -2817,6 +2826,12 @@
 
     document.getElementById('details-ok-btn').addEventListener('click', () => {
       document.getElementById('details-dialog-backdrop').classList.remove('active');
+    });
+
+    document.getElementById('details-dialog-backdrop').addEventListener('click', (e) => {
+      if (e.target === document.getElementById('details-dialog-backdrop')) {
+        document.getElementById('details-dialog-backdrop').classList.remove('active');
+      }
     });
 
     function showConfirmDialog(title, desc, onOkCallback) {
@@ -7028,6 +7043,11 @@
         document.getElementById('details-msg-time-label').textContent = isSent ? 'Time sent' : 'Time received';
         document.getElementById('details-msg-time-value').textContent = formattedTime;
         document.getElementById('details-msg-status').textContent = isSent ? 'Sent' : 'Received';
+
+        const deliveryContainer = document.getElementById('details-msg-delivery-container');
+        if (deliveryContainer) {
+          deliveryContainer.style.display = isSent ? 'flex' : 'none';
+        }
 
         // Trigger dialog view
         document.getElementById('details-dialog-backdrop').classList.add('active');
