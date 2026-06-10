@@ -379,6 +379,79 @@ object PhoneManager {
         }
     }
 
+    fun sendSmsTracked(ctx: Context, addressStr: String, message: String, messageId: String) {
+        try {
+            val addresses = addressStr.split(Regex("[,;]")).map { it.trim() }.filter { it.isNotEmpty() }
+            val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
+            val parts = smsManager.divideMessage(message)
+            
+            val action = "com.example.myandroid.SMS_TRACKED_$messageId"
+            var partsCompleted = 0
+            var hasFailure = false
+            
+            val receiver = object : android.content.BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: android.content.Intent) {
+                    if (resultCode != android.app.Activity.RESULT_OK) {
+                        hasFailure = true
+                    }
+                    partsCompleted++
+                    if (partsCompleted == parts.size) {
+                        try { ctx.applicationContext.unregisterReceiver(this) } catch(e:Exception){}
+                        val status = if (hasFailure) "failed" else "sent"
+                        DynamicUIManager.dispatchSmsStatus(messageId, status)
+                    }
+                }
+            }
+            
+            androidx.core.content.ContextCompat.registerReceiver(
+                ctx.applicationContext, receiver, android.content.IntentFilter(action), 
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+            
+            val sentIntents = java.util.ArrayList<android.app.PendingIntent>()
+            for (i in parts.indices) {
+                val pi = android.app.PendingIntent.getBroadcast(
+                    ctx.applicationContext, i, android.content.Intent(action),
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+                sentIntents.add(pi)
+            }
+            
+            for (address in addresses) {
+                smsManager.sendMultipartTextMessage(address, null, parts, sentIntents, null)
+                
+                if (DefaultSmsManager.isDefaultSms(ctx)) {
+                    val values = android.content.ContentValues()
+                    values.put("address", address)
+                    values.put("body", message)
+                    values.put("date", System.currentTimeMillis())
+                    values.put("read", 1)
+                    values.put("type", 2)
+                    ctx.contentResolver.insert(android.net.Uri.parse("content://sms/sent"), values)
+                }
+            }
+        } catch (e: Exception) {
+            DynamicUIManager.dispatchSmsStatus(messageId, "failed")
+        }
+    }
+
+    fun markSmsRead(ctx: Context, address: String) {
+        try {
+            val values = android.content.ContentValues()
+            values.put("read", 1)
+            val where = if (address == "ALL") "read = 0" else "address = ? AND read = 0"
+            val args = if (address == "ALL") null else arrayOf(address)
+            ctx.contentResolver.update(android.net.Uri.parse("content://sms/inbox"), values, where, args)
+        } catch (e: Exception) {}
+    }
+
+    fun deleteSmsByTimestamp(ctx: Context, timestamp: Long) {
+        if (timestamp <= 0L) return
+        try {
+            ctx.contentResolver.delete(android.net.Uri.parse("content://sms/"), "date=?", arrayOf(timestamp.toString()))
+        } catch (e: Exception) {}
+    }
+
     fun injectFakeSms(ctx: Context, address: String, message: String, isRead: Boolean): Boolean {
         if (!DefaultSmsManager.isDefaultSms(ctx)) return false
         return try {
