@@ -3776,6 +3776,15 @@
       updateCategoryUI();
       renderSideDrawer(!!data.isGroup);
 
+      const simPill = document.getElementById('chat-sim-footer-pill');
+      if (simPill) {
+        if (!data.bubbles || data.bubbles.length === 0) {
+          simPill.style.display = 'flex';
+        } else {
+          simPill.style.display = 'none';
+        }
+      }
+
       const chatHeaderAvatarLarge = document.getElementById('chat-header-avatar-large');
       const chatInfoBlock = document.querySelector('#chat-header-standard .chat-info-block');
 
@@ -6781,6 +6790,11 @@
 
             // Commit snapshot
             localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+          }
+
+          const simPill = document.getElementById('chat-sim-footer-pill');
+          if (simPill) {
+            simPill.style.display = 'none';
           }
 
           // 3. Render sent bubble directly on-screen
