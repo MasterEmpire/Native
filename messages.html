@@ -1118,6 +1118,14 @@
       cursor: pointer;
     }
 
+    .bubble-text-content a.green-link, .expanded-msg-body a.green-link {
+      color: #4cd964 !important; /* Vibrant Material/iOS green */
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 2px;
+      cursor: pointer;
+    }
+
     /* Inner divider line */
     .bubble-divider {
       border-top: 1px solid rgba(255, 255, 255, 0.12);
@@ -3453,6 +3461,22 @@
       }
     };
 
+    // High-Fidelity URL and Phone Number Entity Linkification
+    function linkify(text) {
+      const combinedRegex = /(https?:\/\/[^\s<]+)|(\*\d{3,}(?:\*\d+)*#)|((?:\+?251|0)[79]\d{8}\b)/ig;
+      return text.replace(combinedRegex, (match, url, ussd, phone) => {
+        if (url) {
+          return `<a href="${url}" class="green-link" target="_blank" onclick="event.stopPropagation()">${url}</a>`;
+        } else if (ussd) {
+          const encodedUssd = ussd.replace('#', '%23');
+          return `<a href="tel:${encodedUssd}" class="green-link" onclick="event.stopPropagation()">${ussd}</a>`;
+        } else if (phone) {
+          return `<a href="tel:${phone}" class="green-link" onclick="event.stopPropagation()">${phone}</a>`;
+        }
+        return match;
+      });
+    }
+
     // Global Feed-Pipe Hook for native Android SmsReceiver to push real-time updates
     window.onSmsReceived = function(sender, body, timestamp) {
       try {
@@ -3508,6 +3532,8 @@
           bubbleWrapper.className = 'bubble-wrapper';
           
           let displayTxt = body;
+          displayTxt = displayTxt.replace(/<[^>]*>/g, '');
+          
           let needsExpand = false;
           if (displayTxt.length > 250) {
             displayTxt = displayTxt.substring(0, 250) + '...';
@@ -3515,11 +3541,12 @@
           }
 
           const safeTxt = displayTxt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const linkedTxt = linkify(safeTxt);
 
           let innerHTML = `
             <div class="bubble-container">
               <div class="bubble">
-                <div class="bubble-text-content">${safeTxt}</div>
+                <div class="bubble-text-content">${linkedTxt}</div>
           `;
 
           if (needsExpand) {
@@ -3545,8 +3572,9 @@
           const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
           if (actionBar) {
             actionBar.addEventListener('click', () => {
-              const safeFullText = body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-              openExpandedMessage(displayName, formatTime(timestamp), safeFullText);
+              let rawFullText = body.replace(/<[^>]*>/g, '');
+              const safeFullText = rawFullText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+              openExpandedMessage(displayName, formatTime(timestamp), linkify(safeFullText));
             });
           }
 
@@ -3971,19 +3999,21 @@
         bubbleWrapper.className = 'bubble-wrapper' + (bubble.isSent ? ' sent' : '');
 
         let displayTxt = bubble.text || '';
-        let needsExpand = false;
+        displayTxt = displayTxt.replace(/<[^>]*>/g, ''); 
         
+        let needsExpand = false;
         if (displayTxt.length > 250) {
           displayTxt = displayTxt.substring(0, 250) + '...';
           needsExpand = true;
         }
 
         const safeTxt = displayTxt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const linkedTxt = linkify(safeTxt);
 
         let innerHTML = `
           <div class="bubble-container">
             <div class="bubble">
-              <div class="bubble-text-content">${safeTxt}</div>
+              <div class="bubble-text-content">${linkedTxt}</div>
         `;
 
         if (needsExpand || bubble.actionText) {
@@ -4010,8 +4040,9 @@
         const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
         if (actionBar) {
           actionBar.addEventListener('click', () => {
-            const safeFullText = (bubble.fullText || bubble.text || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            openExpandedMessage(data.name, bubble.time, safeFullText);
+            let rawFullText = (bubble.fullText || bubble.text || '').replace(/<[^>]*>/g, '');
+            const safeFullText = rawFullText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            openExpandedMessage(data.name, bubble.time, linkify(safeFullText));
           });
         }
 
@@ -4693,9 +4724,10 @@
 
       let fullTextToShow = '';
       if (activeThreadId === '2') {
-        fullTextToShow = 'ውድ ደንበኛችን፤ ካለዎት Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 120 መልዕክት ሲሆን አገልግሎቱ የሚያበቃው በ<span class=\'underlined-link\'>2026-07-07 11:02:52</span>፤Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 233 ደቂቃ እና 42 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ<span class=\'underlined-link\'>2026-07-07 11:02:52</span>፤ Monthly voice 228 Min from telebirr to be expired after 30 days with 114 Min night package bonus valid for 30 days ውስጥ የቀሩት 128 ደቂቃ እና 0 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ<span class=\'underlined-link\'>2026-07-09 08:30:20</span>፤ ቴ';
+        fullTextToShow = 'ውድ ደንበኛችን፤ ካለዎት Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 120 መልዕክት ሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-07 11:02:52 ፤ Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 233 ደቂቃ እና 42 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-07 11:02:52 ፤ Monthly voice 228 Min from telebirr to be expired after 30 days with 114 Min night package bonus valid for 30 days ውስጥ የቀሩት 128 ደቂቃ እና 0 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-09 08:30:20 ፤ ቴ';
       } else {
         const textEl = bubbleWrapper.querySelector('.bubble-text-content');
+        // Retrieve directly mapped HTML logic containing active a href links
         fullTextToShow = textEl ? textEl.innerHTML : '';
       }
 
@@ -6756,6 +6788,8 @@
           bubbleWrapper.className = 'bubble-wrapper sent';
 
           let displayTxt = text;
+          displayTxt = displayTxt.replace(/<[^>]*>/g, '');
+          
           let needsExpand = false;
           if (displayTxt.length > 250) {
             displayTxt = displayTxt.substring(0, 250) + '...';
@@ -6763,11 +6797,12 @@
           }
 
           const safeTxt = displayTxt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const linkedTxt = linkify(safeTxt);
 
           let innerHTML = `
             <div class="bubble-container">
               <div class="bubble">
-                <div class="bubble-text-content">${safeTxt}</div>
+                <div class="bubble-text-content">${linkedTxt}</div>
           `;
 
           if (needsExpand) {
@@ -6793,8 +6828,9 @@
           const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
           if (actionBar) {
             actionBar.addEventListener('click', () => {
-              const safeFullText = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-              openExpandedMessage(threadData[activeThreadId].name, timeString, safeFullText);
+              let rawFullText = text.replace(/<[^>]*>/g, '');
+              const safeFullText = rawFullText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+              openExpandedMessage(threadData[activeThreadId].name, timeString, linkify(safeFullText));
             });
           }
 
