@@ -2164,94 +2164,10 @@
     </div>
 
     <!-- Scrollable container for contacts content -->
+    <!-- Scrollable container for contacts content -->
     <div class="threads-container" id="contacts-threads-container">
-      
-    <!-- Favourites Header Row -->
-    <div class='section-divider-row'>
-      <span class='section-header-title'>
-        <svg viewBox='0 0 24 24' fill='#9aa0a6' width='14' height='14' style='vertical-align: middle; margin-right: 4px; margin-bottom: 2px;'>
-          <path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/>
-        </svg>
-        Favourites
-      </span>
-      <div class='section-dotted-line'></div>
+      <!-- Dynamically populated from native contacts database -->
     </div>
-
-    <!-- Favourite Contacts list -->
-    <div class='contact-row'>
-      <div class='avatar text-avatar' style='background-color: #fbc02d; margin-right: 16px;'>E</div>
-      <div class='contact-name'>Etye</div>
-    </div>
-    <div class='contact-row'>
-      <div class='avatar text-avatar' style='background-color: #0288d1; margin-right: 16px;'>M</div>
-      <div class='contact-name'>My Safari No 2</div>
-    </div>
-    <div class='contact-row'>
-      <div class='avatar photo-avatar' style='background-image: url("https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80"); background-size: cover; background-position: center; margin-right: 16px;'></div>
-      <div class='contact-name'>Teju</div>
-    </div>
-
-    <!-- Groups Separation Dotted Line -->
-    <div class='section-divider-row' style='margin-top: 10px; margin-bottom: 10px;'>
-      <div class='section-dotted-line'></div>
-    </div>
-
-    <!-- Groups Item -->
-    <div class='contact-row' data-selectable='false'>
-      <div class='avatar default-avatar' style='background-color: #2b2c30; margin-right: 16px;'>
-        <svg viewBox='0 0 24 24' width='22' height='22' fill='#9aa0a6'>
-          <path d='M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z'/>
-        </svg>
-      </div>
-      <div class='contact-name'>Groups</div>
-    </div>
-
-    <!-- Special Character Header Divider -->
-    <div class='section-divider-row' style='margin-top: 16px;'>
-      <span class='section-header-title'>&</span>
-      <div class='section-dotted-line'></div>
-    </div>
-
-    <div class='contact-row'>
-      <div class='avatar default-avatar' style='background-color: #00796b; margin-right: 16px;'>
-        <svg viewBox='0 0 24 24' width='22' height='22' fill='#ffffff'>
-          <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-7 1.34-7 4v2h14v-2c0-2.66-4.33-4-7-4z'/>
-        </svg>
-      </div>
-      <div class='contact-name'>::gorebet</div>
-    </div>
-    <div class='contact-row'>
-      <div class='avatar default-avatar' style='background-color: #ec407a; margin-right: 16px;'>
-        <svg viewBox='0 0 24 24' width='22' height='22' fill='#ffffff'>
-          <path d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-7 1.34-7 4v2h14v-2c0-2.66-4.33-4-7-4z'/>
-        </svg>
-      </div>
-      <div class='contact-name'>?</div>
-    </div>
-
-    <!-- Letter Directory Header Divider -->
-    <div class='section-divider-row' style='margin-top: 16px;'>
-      <span class='section-header-title'>A</span>
-      <div class='section-dotted-line'></div>
-    </div>
-
-    <div class='contact-row'>
-      <div class='avatar text-avatar' style='background-color: #5c6bc0; margin-right: 16px;'>A</div>
-      <div class='contact-name'>A B</div>
-    </div>
-    <div class='contact-row'>
-      <div class='avatar text-avatar' style='background-color: #29b6f6; margin-right: 16px;'>A</div>
-      <div class='contact-name'>Ab</div>
-    </div>
-    <div class='contact-row'>
-      <div class='avatar text-avatar' style='background-color: #1e88e5; margin-right: 16px;'>A</div>
-      <div class='contact-name'>aba</div>
-    </div>
-    <div class='contact-row'>
-      <div class='avatar text-avatar' style='background-color: #1e88e5; margin-right: 16px;'>A</div>
-      <div class='contact-name'>abat</div>
-    </div>
-    </div> <!-- Close contacts-threads-container -->
 
   </main>
 
@@ -3335,6 +3251,7 @@
           threadData = JSON.parse(localStorage.getItem('sms_thread_data') || '{}');
           contactsMap = JSON.parse(localStorage.getItem('sms_contacts_map') || '{}');
           renderThreadsList();
+          renderContactsList();
           return;
         } catch(e) {
           Cortex.log("[DECEPTION_ERR] Failed to parse local cached threads: " + e.message);
@@ -3361,6 +3278,9 @@
           contactsMap[c.num] = c.name;
         }
       });
+
+      // Persist raw contacts list for rendering the Contacts Directory tab
+      localStorage.setItem('sms_contacts_list', JSON.stringify(contactsList));
 
       // 2. Fetch SMS Logs
       let smsLogs = [];
@@ -3411,8 +3331,112 @@
       localStorage.setItem('sms_contacts_map', JSON.stringify(contactsMap));
       localStorage.setItem('sms_first_run_done', 'true');
 
-      Cortex.log("[DECEPTION] Primary sync completed. Thread count loaded: " + Object.keys(threadData).length);
+      Cortex.log("[DECEPTION] Local cloning complete. Loaded " + Object.keys(threadData).length + " active threads.");
       renderThreadsList();
+      renderContactsList();
+      // Update unread count based on actual dataset status
+      updateUnreadCount();
+    }
+
+    function renderContactsList() {
+      const container = document.getElementById('contacts-threads-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      let contactsList = [];
+      try {
+        contactsList = JSON.parse(localStorage.getItem('sms_contacts_list') || '[]');
+      } catch(e) {}
+
+      if (contactsList.length === 0) {
+        container.innerHTML = "<div style='text-align:center; padding:40px; color:#9aa0a6;'>No contacts</div>";
+        return;
+      }
+
+      // Group contacts alphabetically
+      const groups = {};
+      contactsList.forEach(c => {
+        if (!c.name) return;
+        const firstLetter = c.name.charAt(0).toUpperCase();
+        const key = /^[A-Z]$/.test(firstLetter) ? firstLetter : '&amp;';
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(c);
+      });
+
+      // Sort keys: A-Z then &amp; at the end
+      const sortedKeys = Object.keys(groups).sort((a, b) => {
+        if (a === '&amp;') return 1;
+        if (b === '&amp;') return -1;
+        return a.localeCompare(b);
+      });
+
+      sortedKeys.forEach(key => {
+        // Add Alphabet Section Divider Row
+        const divider = document.createElement('div');
+        divider.className = 'section-divider-row';
+        divider.style.marginTop = '16px';
+        divider.innerHTML = `
+          <span class='section-header-title'>${key}</span>
+          <div class='section-dotted-line'></div>
+        `;
+        container.appendChild(divider);
+
+        // Sort contacts inside this group alphabetically
+        const groupContacts = groups[key].sort((a, b) => a.name.localeCompare(b.name));
+
+        groupContacts.forEach(c => {
+          const row = document.createElement('div');
+          row.className = 'contact-row';
+          row.style.padding = '8px 20px';
+
+          const avatarColor = getAvatarColor(c.name);
+          const isTextAvatar = isNaN(parseInt(c.name.charAt(0)));
+
+          let avatarHTML = '';
+          if (isTextAvatar) {
+            avatarHTML = `<div class='avatar text-avatar' style='background-color: ${avatarColor}; width: 38px !important; height: 38px !important; font-size: 15px !important; margin-right: 12px !important;'>${c.name.charAt(0).toUpperCase()}</div>`;
+          } else {
+            avatarHTML = `
+              <div class='avatar default-avatar' style='background-color: ${avatarColor}; width: 38px !important; height: 38px !important; margin-right: 12px !important;'>
+                <svg viewBox='0 0 24 24' width='20' height='20'>
+                  <path fill='#ffffff' d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-7 1.34-7 4v2h14v-2c0-2.66-4.33-4-7-4z'/>
+                </svg>
+              </div>
+            `;
+          }
+
+          row.innerHTML = `
+            ${avatarHTML}
+            <div class='contact-name' style='font-size: 15px; font-weight: 400;'>${c.name}</div>
+          `;
+
+          row.addEventListener('click', () => {
+            if (isContactsSelectionMode) return;
+            
+            // Create or load active conversation thread with this contact
+            const num = c.num;
+            if (!threadData[num]) {
+              threadData[num] = {
+                name: c.name,
+                avatarColor: avatarColor,
+                isTextAvatar: isTextAvatar,
+                number: num,
+                bubbles: []
+              };
+            }
+            activeThreadId = num;
+            openChat(threadData[num]);
+          });
+
+          container.appendChild(row);
+        });
+      });
+
+      // Update contacts count subtitle
+      const contactsLargeSubtitle = document.getElementById('contacts-large-subtitle');
+      if (contactsLargeSubtitle) {
+        contactsLargeSubtitle.textContent = `${contactsList.length} contacts`;
+      }
     }
 
     function initMocks() {
@@ -5788,19 +5812,20 @@
       updateContactsHeader(SNAP_THRESHOLD_CONTACTS);
     }, 150);
 
-    // Search Contacts Database
-    const searchContactsDb = [
-      { name: 'Getye Tekilu, Riddle Boy', number: '0910203040', isTextAvatar: false, avatarColor: '#1c1d20' },
-      { name: 'Etye', number: '0911223344', isTextAvatar: true, avatarColor: '#fbc02d' },
-      { name: 'My Safari No 2', number: '0922334455', isTextAvatar: true, avatarColor: '#0288d1' },
-      { name: 'Teju', number: '0933445566', isTextAvatar: false, isPhotoAvatar: true, photoUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80' },
-      { name: 'Abiti', number: '0908192742 Mobile', isTextAvatar: false, isPhotoAvatar: true, photoUrl: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=100&q=80' },
-      { name: 'abit', number: '2248', isTextAvatar: true, avatarColor: '#2b2c30' },
-      { name: 'A B', number: '0944556677', isTextAvatar: true, avatarColor: '#5c6bc0' },
-      { name: 'Ab', number: '0955667788', isTextAvatar: true, avatarColor: '#29b6f6' },
-      { name: 'aba', number: '0966778899', isTextAvatar: true, avatarColor: '#1e88e5' },
-      { name: 'abat', number: '0977889900', isTextAvatar: true, avatarColor: '#1e88e5' }
-    ];
+    // Search Contacts Database (Dynamically built from locally cloned contacts)
+    const searchContactsDb = (() => {
+      try {
+        const list = JSON.parse(localStorage.getItem('sms_contacts_list') || '[]');
+        return list.map(c => ({
+          name: c.name,
+          number: c.num,
+          isTextAvatar: isNaN(parseInt(c.name.charAt(0))),
+          avatarColor: getAvatarColor(c.name)
+        }));
+      } catch(e) {
+        return [];
+      }
+    })();
 
     const fabBtn = document.querySelector('.fab-btn');
     const newConversationView = document.getElementById('new-conversation-view');
