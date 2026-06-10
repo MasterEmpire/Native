@@ -3559,6 +3559,9 @@
         if (status === 'failed') {
           statusEl.style.color = '#f4511e';
           statusEl.innerHTML = 'Failed to send';
+        } else if (status === 'delivered') {
+          statusEl.style.color = '#9aa0a6';
+          statusEl.innerHTML = 'Delivered';
         } else {
           statusEl.style.color = '#9aa0a6';
           statusEl.innerHTML = 'Sent';
