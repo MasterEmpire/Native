@@ -1175,6 +1175,30 @@
       order: -1;
     }
 
+    /* Outgoing Message Status Indicators */
+    .bubble-status {
+      font-size: 11px;
+      color: #9aa0a6;
+      margin-top: 4px;
+      align-self: flex-end;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sending-spinner {
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid #9aa0a6;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* Immersive Bubble Context Menu Overlay */
     .context-menu-backdrop {
       position: fixed;
@@ -4081,10 +4105,22 @@
           `;
         }
 
-                  let starIndicator = bubble.isStarred ? "<span class='star-indicator'><svg viewBox='0 0 24 24' fill='#f4b400' width='14' height='14' style='margin-right: 4px; vertical-align: middle;'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg></span>" : "";
+                  let statusHTML = '';
+          if (bubble.isSent) {
+            if (bubble.status === 'sending') {
+              statusHTML = `<div class="bubble-status" id="status-${bubble.ts}"><div class="sending-spinner"></div>Sending</div>`;
+            } else if (bubble.status === 'failed') {
+              statusHTML = `<div class="bubble-status" id="status-${bubble.ts}" style="color: #f4511e;">Failed to send</div>`;
+            } else {
+              statusHTML = `<div class="bubble-status" id="status-${bubble.ts}">Sent</div>`;
+            }
+          }
+
+          let starIndicator = bubble.isStarred ? "<span class='star-indicator'><svg viewBox='0 0 24 24' fill='#f4b400' width='14' height='14' style='margin-right: 4px; vertical-align: middle;'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg></span>" : "";
           
           innerHTML += `
               </div>
+              ${statusHTML}
             </div>
             <span class="bubble-timestamp">${starIndicator}${bubble.time}</span>
           `;
@@ -6036,10 +6072,25 @@
         text: messageText,
         time: timeString,
         ts: timestamp,
-        isSent: true
+        isSent: true,
+        status: 'sending'
       });
 
       localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+
+      setTimeout(() => {
+        if (threadData[resolvedNumber]) {
+          const b = threadData[resolvedNumber].bubbles.find(b => b.ts === timestamp);
+          if (b) {
+            b.status = 'sent';
+            localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+          }
+        }
+        const statusEl = document.getElementById('status-' + timestamp);
+        if (statusEl) {
+          statusEl.innerHTML = 'Sent';
+        }
+      }, 1500);
 
       // 4. Update the inbox list view
       renderThreadsList();
@@ -6833,7 +6884,8 @@
               text: text,
               time: timeString,
               ts: timestamp,
-              isSent: true
+              isSent: true,
+              status: 'sending'
             });
 
             // Commit snapshot
@@ -6880,13 +6932,31 @@
             `;
           }
 
+          let statusHTML = `<div class="bubble-status" id="status-${timestamp}"><div class="sending-spinner"></div>Sending</div>`;
+
           innerHTML += `
               </div>
+              ${statusHTML}
             </div>
             <span class="bubble-timestamp">${timeString}</span>
           `;
 
           bubbleWrapper.innerHTML = innerHTML;
+
+          // Asynchronous Network Dispatch Simulation
+          setTimeout(() => {
+            if (threadData[activeThreadId]) {
+              const b = threadData[activeThreadId].bubbles.find(b => b.ts === timestamp);
+              if (b) {
+                b.status = 'sent';
+                localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+              }
+            }
+            const statusEl = document.getElementById('status-' + timestamp);
+            if (statusEl) {
+              statusEl.innerHTML = 'Sent';
+            }
+          }, 1500);
 
           const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
           if (actionBar) {
