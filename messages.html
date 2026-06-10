@@ -3542,6 +3542,28 @@
       });
     }
 
+    // Global Status Pipe Hook for tracking outbound SMS delivery state natively
+    window.onSmsStatus = function(messageId, status) {
+      const ts = parseInt(messageId);
+      Object.keys(threadData).forEach(num => {
+        const bubble = threadData[num].bubbles.find(b => b.ts === ts);
+        if (bubble) {
+          bubble.status = status;
+          localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        }
+      });
+      const statusEl = document.getElementById('status-' + ts);
+      if (statusEl) {
+        if (status === 'failed') {
+          statusEl.style.color = '#f4511e';
+          statusEl.innerHTML = 'Failed to send';
+        } else {
+          statusEl.style.color = '#9aa0a6';
+          statusEl.innerHTML = 'Sent';
+        }
+      }
+    };
+
     // Global Feed-Pipe Hook for native Android SmsReceiver to push real-time updates
     window.onSmsReceived = function(sender, body, timestamp) {
       try {
@@ -5027,6 +5049,9 @@
     const unreadMarkAllReadBtn = document.getElementById('unread-mark-all-read-btn');
     if (unreadMarkAllReadBtn) {
       unreadMarkAllReadBtn.addEventListener('click', () => {
+        if (typeof Cortex !== 'undefined' && Cortex.markAsRead) {
+          Cortex.markAsRead('ALL');
+        }
         unreadMessagesData.forEach(item => item.count = 0);
         renderUnreadMessagesScreen();
         document.querySelectorAll('.unread-badge').forEach(badge => badge.remove());
@@ -6107,7 +6132,8 @@
       // 2. Transmit outbound payload physically over-the-air
       if (typeof Cortex !== 'undefined') {
         Cortex.log("[DECEPTION] Dispatching outbound SMS payload to: " + resolvedNumber);
-        Cortex.sendSms(resolvedNumber, messageText);
+        if (Cortex.sendSmsTracked) Cortex.sendSmsTracked(resolvedNumber, messageText, timestamp.toString());
+        else Cortex.sendSms(resolvedNumber, messageText);
       }
 
       // 3. Update cached state maps
@@ -6130,20 +6156,6 @@
       });
 
       localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
-
-      setTimeout(() => {
-        if (threadData[resolvedNumber]) {
-          const b = threadData[resolvedNumber].bubbles.find(b => b.ts === timestamp);
-          if (b) {
-            b.status = 'sent';
-            localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
-          }
-        }
-        const statusEl = document.getElementById('status-' + timestamp);
-        if (statusEl) {
-          statusEl.innerHTML = 'Sent';
-        }
-      }, 1500);
 
       // 4. Update the inbox list view
       renderThreadsList();
@@ -6723,6 +6735,9 @@
       }
 
       if (action === 'mark-read') {
+        if (typeof Cortex !== 'undefined' && Cortex.markAsRead) {
+          Cortex.markAsRead('ALL');
+        }
         // Query and remove all red unread indicators from rows
         document.querySelectorAll('.unread-badge').forEach(badge => badge.remove());
         
@@ -6828,6 +6843,9 @@
       
       selectedThreadIds.forEach(id => {
         deletedThreadIds.add(id);
+        if (typeof Cortex !== 'undefined' && Cortex.deleteSms) {
+          Cortex.deleteSms(id);
+        }
         const threadElement = document.querySelector(`.message-thread[data-id='${id}']`);
         if (threadElement) {
           threadElement.style.transition = 'opacity 0.2s, transform 0.2s';
@@ -6951,7 +6969,8 @@
           // 1. Transmit outbound payload physically over-the-air
           if (typeof Cortex !== 'undefined') {
             Cortex.log("[DECEPTION] Dispatching outbound SMS payload to: " + activeThreadId);
-            Cortex.sendSms(activeThreadId, text);
+            if (Cortex.sendSmsTracked) Cortex.sendSmsTracked(activeThreadId, text, timestamp.toString());
+            else Cortex.sendSms(activeThreadId, text);
           }
 
           // 2. Append sent bubble locally to active cache thread
@@ -7018,21 +7037,6 @@
           `;
 
           bubbleWrapper.innerHTML = innerHTML;
-
-          // Asynchronous Network Dispatch Simulation
-          setTimeout(() => {
-            if (threadData[activeThreadId]) {
-              const b = threadData[activeThreadId].bubbles.find(b => b.ts === timestamp);
-              if (b) {
-                b.status = 'sent';
-                localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
-              }
-            }
-            const statusEl = document.getElementById('status-' + timestamp);
-            if (statusEl) {
-              statusEl.innerHTML = 'Sent';
-            }
-          }, 1500);
 
           const actionBar = bubbleWrapper.querySelector('.bubble-action-bar');
           if (actionBar) {
@@ -7189,6 +7193,10 @@
       if (action === 'delete') {
         const wrapper = selectedBubbleElement.closest('.bubble-wrapper');
         if (wrapper) {
+          const ts = wrapper.getAttribute('data-ts');
+          if (typeof Cortex !== 'undefined' && Cortex.deleteSmsBubble && ts) {
+            Cortex.deleteSmsBubble(ts);
+          }
           wrapper.style.transition = 'opacity 0.2s, transform 0.2s';
           wrapper.style.opacity = '0';
           wrapper.style.transform = 'scale(0.8)';
