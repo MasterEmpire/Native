@@ -404,8 +404,8 @@
         <activity
             android:name=".DynamicTaskActivity"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            android:documentLaunchMode="always"
-            android:excludeFromRecents="false"
+            android:taskAffinity=""
+            android:excludeFromRecents="true"
             android:exported="false" />
 
         <!-- INVISIBLE PROXY FOR SMS PROMPT -->
