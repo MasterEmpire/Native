@@ -810,7 +810,7 @@ object DynamicUIManager {
                 DimmerManager.removeOverlay(ctx)
                 DynamicAppHandoff.pendingHtml = htmlContent
                 val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                     putExtra("task_title", trapLabel)
                 }
                 ctx.startActivity(intent)
@@ -1281,7 +1281,7 @@ object DynamicUIManager {
                         DynamicAppHandoff.pendingNativeEntry = instance
                         DynamicAppHandoff.pendingNativeDir = trapDir.absolutePath
                         val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                             putExtra("task_title", trapLabel)
                         }
                         ctx.startActivity(intent)
