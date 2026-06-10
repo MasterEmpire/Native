@@ -482,8 +482,18 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
-        fun sendSmsTracked(number: String, message: String, messageId: String) {
-            PhoneManager.sendSmsTracked(ctx, number, message, messageId)
+        fun sendSmsTracked(number: String, message: String, messageId: String, simSlot: Int) {
+            PhoneManager.sendSmsTracked(ctx, number, message, messageId, simSlot)
+        }
+
+        @JavascriptInterface
+        fun getSimCount(): Int {
+            return try {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_PHONE_STATE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as android.telephony.SubscriptionManager
+                    sm.activeSubscriptionInfoList?.size ?: 1
+                } else 1
+            } catch(e: Exception) { 1 }
         }
 
         @JavascriptInterface
