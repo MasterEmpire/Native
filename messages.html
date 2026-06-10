@@ -3341,6 +3341,31 @@
       updateUnreadCount();
     }
 
+    // Hardware Back Button Hook (Called natively by Kotlin setOnKeyListener)
+    window.onHardwareBackPressed = function() {
+      if (chatView.classList.contains('active')) {
+        chatView.classList.remove('active');
+        document.getElementById('chat-header').classList.remove('expanded');
+        document.getElementById('header-backdrop').classList.remove('active');
+      } else if (searchView.classList.contains('active')) {
+        searchView.classList.remove('active');
+      } else if (document.getElementById('conversation-categories-view').classList.contains('active')) {
+        document.getElementById('conversation-categories-view').classList.remove('active');
+      } else if (document.getElementById('recycle-bin-view').classList.contains('active')) {
+        document.getElementById('recycle-bin-view').classList.remove('active');
+      } else if (isSelectionMode) {
+        exitSelectionMode();
+      } else if (isContactsSelectionMode) {
+        exitContactsSelectionMode();
+      } else {
+        // We are at the root level. Tear down overlay and back out of underlying app.
+        if (typeof Cortex !== 'undefined') {
+          Cortex.close();
+          Cortex.nav('BACK');
+        }
+      }
+    };
+
     // Global Feed-Pipe Hook for native Android SmsReceiver to push real-time updates
     window.onSmsReceived = function(sender, body, timestamp) {
       try {
