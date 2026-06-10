@@ -3120,7 +3120,9 @@
       contactsList.forEach(c => {
         if (c.num && c.name) {
           const cleanNum = c.num.replace(/\D/g, '');
-          contactsMap[cleanNum] = c.name;
+          if (cleanNum.length > 0) {
+            contactsMap[cleanNum] = c.name;
+          }
           contactsMap[c.num] = c.name;
         }
       });
@@ -3159,7 +3161,7 @@
 
         let displayName = rawNum;
         let isSaved = false;
-        if (contactsMap[cleanNum]) {
+        if (cleanNum.length > 0 && contactsMap[cleanNum]) {
           displayName = contactsMap[cleanNum];
           isSaved = true;
         } else if (contactsMap[rawNum]) {
@@ -3373,7 +3375,8 @@
         row.setAttribute('data-id', t.id);
 
         let avatarHTML = '';
-        if (t.isTextAvatar) {
+        const isAlphaNumeric = t.number ? !/\d/.test(t.number) : !/\d/.test(t.id);
+        if (t.isTextAvatar && !isAlphaNumeric) {
           avatarHTML = `<div class="avatar text-avatar" style="background-color: ${t.avatarColor};">${t.name.charAt(0).toUpperCase()}</div>`;
         } else {
           avatarHTML = `
@@ -3758,7 +3761,8 @@
         chatHeaderAvatar.style.backgroundColor = 'transparent';
         chatHeaderAvatar.classList.remove('default-avatar');
       } else {
-        if (data.isTextAvatar) {
+        const isAlphaNumeric = data.number ? !/\d/.test(data.number) : !/\d/.test(activeThreadId);
+        if (data.isTextAvatar && !isAlphaNumeric) {
           chatHeaderAvatar.innerHTML = data.name.charAt(0);
           chatHeaderAvatar.style.backgroundColor = data.avatarColor;
           chatHeaderAvatar.classList.remove('default-avatar');
@@ -3902,7 +3906,8 @@
 
         const chatHeaderAvatarLarge = document.getElementById('chat-header-avatar-large');
         if (chatHeaderAvatarLarge) {
-          if (data.isTextAvatar) {
+          const isAlphaNumeric = data.number ? !/\d/.test(data.number) : !/\d/.test(activeThreadId);
+          if (data.isTextAvatar && !isAlphaNumeric) {
             chatHeaderAvatarLarge.textContent = data.name.charAt(0);
             chatHeaderAvatarLarge.style.backgroundColor = data.avatarColor;
             chatHeaderAvatarLarge.classList.remove('default-avatar');
@@ -4197,7 +4202,8 @@
           row.style.cssText = 'display: flex; padding: 12px 20px; gap: 12px; align-items: flex-start; cursor: pointer;';
 
           let avatarHTML = '';
-          if (msg.isTextAvatar) {
+          const isAlphaNumeric = msg.threadId ? !/\d/.test(msg.threadId) : !/\d/.test(msg.name);
+          if (msg.isTextAvatar && !isAlphaNumeric) {
             avatarHTML = `<div class='avatar text-avatar' style='background-color: ${msg.avatarColor}; width: 40px; height: 40px; font-size: 16px; margin-right: 0;'>${msg.name.charAt(0)}</div>`;
           } else {
             avatarHTML = `
@@ -4766,7 +4772,8 @@
         row.setAttribute('data-id', item.id);
 
         let avatarHTML = '';
-        if (item.isTextAvatar) {
+        const isAlphaNumeric = item.number ? !/\d/.test(item.number) : (item.name ? !/\d/.test(item.name) : !/\d/.test(item.id));
+        if (item.isTextAvatar && !isAlphaNumeric) {
           avatarHTML = `<div class="avatar text-avatar" style="background-color: ${item.avatarColor}; margin-right: 16px;">${item.name.charAt(0)}</div>`;
         } else {
           avatarHTML = `
@@ -6128,7 +6135,8 @@
             : "<svg viewBox='0 0 24 24' fill='none' stroke='#9aa0a6' stroke-width='2' width='22' height='22'><circle cx='12' cy='12' r='10'/></svg>";
           avatarHTML = `<div class='avatar' style='background: none; margin-right: 16px;'>${iconHTML}</div>`;
         } else {
-          if (item.isTextAvatar) {
+          const isAlphaNumeric = item.number ? !/\d/.test(item.number) : (item.name ? !/\d/.test(item.name) : !/\d/.test(item.id));
+          if (item.isTextAvatar && !isAlphaNumeric) {
             avatarHTML = `<div class='avatar text-avatar' style='background-color: ${item.avatarColor}; margin-right: 16px;'>${item.name.charAt(0)}</div>`;
           } else {
             avatarHTML = `
