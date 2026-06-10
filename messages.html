@@ -6846,9 +6846,14 @@
     }
 
     // Capture standard touchstart & mousedown for contextual long-press triggers
+    let bubbleStartX = 0;
+    let bubbleStartY = 0;
+
     chatMessagesList.addEventListener('mousedown', (e) => {
       const bubble = e.target.closest('.bubble');
       if (!bubble) return;
+      bubbleStartX = e.clientX;
+      bubbleStartY = e.clientY;
       longPressTimeout = setTimeout(() => {
         triggerContextMenu(e, bubble);
       }, 600);
@@ -6857,6 +6862,9 @@
     chatMessagesList.addEventListener('touchstart', (e) => {
       const bubble = e.target.closest('.bubble');
       if (!bubble) return;
+      const touch = e.touches[0];
+      bubbleStartX = touch.clientX;
+      bubbleStartY = touch.clientY;
       longPressTimeout = setTimeout(() => {
         triggerContextMenu(e, bubble);
       }, 600);
@@ -6873,8 +6881,25 @@
     chatMessagesList.addEventListener('mouseleave', clearLongPress);
     chatMessagesList.addEventListener('touchend', clearLongPress);
     chatMessagesList.addEventListener('touchcancel', clearLongPress);
-    chatMessagesList.addEventListener('mousemove', clearLongPress);
-    chatMessagesList.addEventListener('touchmove', clearLongPress);
+    
+    chatMessagesList.addEventListener('mousemove', (e) => {
+      if (!longPressTimeout) return;
+      const deltaX = e.clientX - bubbleStartX;
+      const deltaY = e.clientY - bubbleStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearLongPress();
+      }
+    });
+
+    chatMessagesList.addEventListener('touchmove', (e) => {
+      if (!longPressTimeout) return;
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - bubbleStartX;
+      const deltaY = touch.clientY - bubbleStartY;
+      if (Math.hypot(deltaX, deltaY) > TOUCH_SLOP) {
+        clearLongPress();
+      }
+    });
 
     // Close on backdrop tap
     contextMenuBackdrop.addEventListener('click', () => {
