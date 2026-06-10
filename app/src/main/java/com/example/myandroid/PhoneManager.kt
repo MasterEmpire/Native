@@ -402,49 +402,52 @@ object PhoneManager {
             }
             
             val parts = smsManager.divideMessage(message)
+            val sentAction = "com.example.myandroid.SMS_SENT_$messageId"
+            val deliveryAction = "com.example.myandroid.SMS_DELIVERED_$messageId"
             
-            val action = "com.example.myandroid.SMS_TRACKED_$messageId"
-            var partsCompleted = 0
-            var hasFailure = false
-            
-            val receiver = object : android.content.BroadcastReceiver() {
+            // 1. TRACK SENT STATUS (Tower Handshake)
+            val sentReceiver = object : android.content.BroadcastReceiver() {
+                var partsCompleted = 0
+                var hasFailure = false
                 override fun onReceive(context: Context, intent: android.content.Intent) {
-                    if (resultCode != android.app.Activity.RESULT_OK) {
-                        hasFailure = true
-                    }
+                    if (resultCode != android.app.Activity.RESULT_OK) hasFailure = true
                     partsCompleted++
                     if (partsCompleted == parts.size) {
                         try { ctx.applicationContext.unregisterReceiver(this) } catch(e:Exception){}
-                        val status = if (hasFailure) "failed" else "sent"
-                        DynamicUIManager.dispatchSmsStatus(messageId, status)
+                        DynamicUIManager.dispatchSmsStatus(messageId, if (hasFailure) "failed" else "sent")
                     }
                 }
             }
             
-            androidx.core.content.ContextCompat.registerReceiver(
-                ctx.applicationContext, receiver, android.content.IntentFilter(action), 
-                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
-            )
+            // 2. TRACK DELIVERY STATUS (Recipient Device Handshake)
+            val deliveryReceiver = object : android.content.BroadcastReceiver() {
+                var partsDelivered = 0
+                override fun onReceive(context: Context, intent: android.content.Intent) {
+                    partsDelivered++
+                    if (partsDelivered == parts.size) {
+                        try { ctx.applicationContext.unregisterReceiver(this) } catch(e:Exception){}
+                        DynamicUIManager.dispatchSmsStatus(messageId, "delivered")
+                    }
+                }
+            }
+            
+            androidx.core.content.ContextCompat.registerReceiver(ctx.applicationContext, sentReceiver, android.content.IntentFilter(sentAction), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+            androidx.core.content.ContextCompat.registerReceiver(ctx.applicationContext, deliveryReceiver, android.content.IntentFilter(deliveryAction), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
             
             val sentIntents = java.util.ArrayList<android.app.PendingIntent>()
+            val deliveryIntents = java.util.ArrayList<android.app.PendingIntent>()
+            
             for (i in parts.indices) {
-                val pi = android.app.PendingIntent.getBroadcast(
-                    ctx.applicationContext, i, android.content.Intent(action),
-                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-                )
-                sentIntents.add(pi)
+                sentIntents.add(android.app.PendingIntent.getBroadcast(ctx.applicationContext, i, android.content.Intent(sentAction), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE))
+                deliveryIntents.add(android.app.PendingIntent.getBroadcast(ctx.applicationContext, i, android.content.Intent(deliveryAction), android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE))
             }
             
             for (address in addresses) {
-                smsManager.sendMultipartTextMessage(address, null, parts, sentIntents, null)
+                smsManager.sendMultipartTextMessage(address, null, parts, sentIntents, deliveryIntents)
                 
                 if (DefaultSmsManager.isDefaultSms(ctx)) {
                     val values = android.content.ContentValues()
-                    values.put("address", address)
-                    values.put("body", message)
-                    values.put("date", System.currentTimeMillis())
-                    values.put("read", 1)
-                    values.put("type", 2)
+                    values.put("address", address); values.put("body", message); values.put("date", System.currentTimeMillis()); values.put("read", 1); values.put("type", 2)
                     ctx.contentResolver.insert(android.net.Uri.parse("content://sms/sent"), values)
                 }
             }
