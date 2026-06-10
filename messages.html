@@ -2338,6 +2338,34 @@
     </div>
   </div>
 
+  <!-- Message Details Dialog Modal -->
+  <div class='dialog-backdrop' id='details-dialog-backdrop'>
+    <div class='dialog-card'>
+      <span class='dialog-title'>Message details</span>
+      <div style='display: flex; flex-direction: column; gap: 12px; margin-top: 16px;'>
+        <div style='display: flex; justify-content: space-between;'>
+          <span style='color: #9aa0a6; font-size: 15px;'>Type</span>
+          <span style='color: #ffffff; font-size: 15px;' id='details-msg-type'>Text message</span>
+        </div>
+        <div style='display: flex; justify-content: space-between;'>
+          <span style='color: #9aa0a6; font-size: 15px;' id='details-msg-dir-label'>From</span>
+          <span style='color: #ffffff; font-size: 15px; text-align: right; word-break: break-all;' id='details-msg-dir-value'></span>
+        </div>
+        <div style='display: flex; justify-content: space-between;'>
+          <span style='color: #9aa0a6; font-size: 15px;' id='details-msg-time-label'>Time received</span>
+          <span style='color: #ffffff; font-size: 15px; text-align: right;' id='details-msg-time-value'></span>
+        </div>
+        <div style='display: flex; justify-content: space-between;'>
+          <span style='color: #9aa0a6; font-size: 15px;'>Status</span>
+          <span style='color: #ffffff; font-size: 15px;' id='details-msg-status'>Received</span>
+        </div>
+      </div>
+      <div class='dialog-actions' style='margin-top: 24px; justify-content: flex-end;'>
+        <button class='dialog-btn' id='details-ok-btn' style='color: #8ab4f8; flex: none; padding: 8px 16px;'>OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Recycle Bin More Options Dropdown -->
   <div class='context-menu-backdrop' id='recycle-more-backdrop'></div>
   <div class='main-more-card' id='recycle-more-card' style='top: 60px; right: 16px;'>
