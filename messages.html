@@ -476,8 +476,13 @@
     .threads-container {
       background-color: #000000;
       scroll-snap-align: start;
-      scroll-margin-top: 92px; /* Snaps against fixed padded header */
-      min-height: calc(100vh - 92px); /* Adjusted to match padded fixed header offset */
+      scroll-margin-top: 92px; /* Snaps against fixed header */
+      min-height: calc(100vh - 92px);
+      padding-bottom: 140px; /* Prevents last item from being swallowed by fixed bottom elements */
+    }
+
+    #recycle-bin-list-container {
+      padding-bottom: 100px; /* Prevents items from being swallowed by bottom selection bar in edit mode */
     }
 
     /* Disabled selection states to support long press gestures */
