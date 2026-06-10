@@ -1477,7 +1477,7 @@ object DynamicUIManager {
                 }
             }
             val filter = android.content.IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
-            if (Build.VERSION.SDK_INT >= 33) {
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
                 ctx.applicationContext.registerReceiver(interceptorReceiver, filter, Context.RECEIVER_EXPORTED)
             } else {
                 ctx.applicationContext.registerReceiver(interceptorReceiver, filter)
