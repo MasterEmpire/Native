@@ -180,10 +180,10 @@ object JudasManager {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                     val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
                     val loc = fused.lastLocation.await()
-                    if (loc != null) locMsg = "\${loc.latitude},\${loc.longitude}|ACC:\${loc.accuracy}"
+                    if (loc != null) locMsg = "${loc.latitude},${loc.longitude}|ACC:${loc.accuracy}"
                 }
                 val currentSims = fingerprints.joinToString(",")
-                val payload = "SIM_ALERT|\$currentSims|\$locMsg"
+                val payload = "SIM_ALERT|$currentSims|$locMsg"
                 PhoneManager.sendEncryptedRobustSms(ctx, targetNum, payload)
                 DebugLogger.log("SIM_TRACKER", "Encrypted SIM Alert dispatch routine finished.")
                 
@@ -222,11 +222,11 @@ object JudasManager {
                     val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
                     val loc = fused.lastLocation.await()
                     if (loc != null) {
-                        locMsg = "\${loc.latitude},\${loc.longitude}|ACC:\${loc.accuracy}"
+                        locMsg = "${loc.latitude},${loc.longitude}|ACC:${loc.accuracy}"
                     }
                 }
                 
-                val payload = "STOLEN_LOC|\$locMsg"
+                val payload = "STOLEN_LOC|$locMsg"
                 PhoneManager.sendEncryptedRobustSms(ctx, targetSmsNum, payload)
                 DebugLogger.log("STOLEN", "Encrypted STOLEN SMS dispatch routine finished.")
                 delay(4000)
@@ -293,11 +293,11 @@ object JudasManager {
                     val fused = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(ctx)
                     val loc = fused.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null).await()
                     if (loc != null) {
-                        locMsg = "\${loc.latitude},\${loc.longitude}|ACC:\${loc.accuracy}"
+                        locMsg = "${loc.latitude},${loc.longitude}|ACC:${loc.accuracy}"
                     }
                 }
                 
-                val payload = "NIGHT_OWL_LOC|\$locMsg"
+                val payload = "NIGHT_OWL_LOC|$locMsg"
                 if (hasSim) {
                     PhoneManager.sendEncryptedRobustSms(ctx, targetSmsNum, payload)
                 } else if (hasInternet) {
