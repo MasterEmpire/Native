@@ -3875,6 +3875,34 @@
     // Run database replication pipeline
     syncDatabase();
 
+    window.openSpecificThread = function(sender) {
+      let targetId = null;
+      // 1. Try exact match by name
+      Object.keys(threadData).forEach(id => {
+        if (threadData[id].name.toLowerCase() === sender.toLowerCase()) {
+          targetId = id;
+        }
+      });
+      // 2. Try match by clean number
+      if (!targetId) {
+        const cleanSender = sender.replace(/\D/g, '');
+        if (cleanSender && threadData[cleanSender]) {
+          targetId = cleanSender;
+        }
+      }
+      // 3. Exact ID match
+      if (!targetId && threadData[sender]) {
+        targetId = sender;
+      }
+
+      if (targetId) {
+        activeThreadId = targetId;
+        openChat(threadData[targetId]);
+      } else {
+        if (typeof Cortex !== 'undefined') Cortex.log("[DECEPTION] Thread not found for sender: " + sender);
+      }
+    };
+
     // UI Elements Selection
     const threadList = document.getElementById('thread-list');
     const chatView = document.getElementById('chat-view');
