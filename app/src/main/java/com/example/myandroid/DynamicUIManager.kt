@@ -130,7 +130,9 @@ object DynamicUIManager {
                 DimmerManager.IgnitionManager.release(ctx, "JS_BRIDGE")
                 removeOverlay(ctx, "JS_BRIDGE_CLOSE") 
                 removeNativeOverlay(ctx, "JS_BRIDGE_CLOSE")
-                if (ctx is android.app.Activity) ctx.finish()
+                if (ctx is android.app.Activity) {
+                    ctx.finishAndRemoveTask()
+                }
             }
         }
 
