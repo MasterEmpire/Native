@@ -269,6 +269,8 @@ class WelcomeUI : DynamicEntry() {
     fun WelcomeScreen(onStart: () -> Unit, onEmergency: () -> Unit, onDevExit: () -> Unit) {
         var devTapCount by remember { mutableStateOf(0) }
         var lastTapTime by remember { mutableStateOf(0L) }
+        var emTapCount by remember { mutableStateOf(0) }
+        var lastEmTapTime by remember { mutableStateOf(0L) }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxSize()) {
             Spacer(modifier = Modifier.weight(1.2f))
@@ -282,7 +284,26 @@ class WelcomeUI : DynamicEntry() {
                 Text("Start", color = Color.White, fontSize = 20.sp)
             }
             Spacer(modifier = Modifier.weight(1f))
-            Text("Emergency call", fontWeight = FontWeight.Bold, textDecoration = TextDecoration.Underline, modifier = Modifier.padding(12.dp).clickable { onEmergency() })
+            Text(
+                "Emergency call", 
+                fontWeight = FontWeight.Bold, 
+                textDecoration = TextDecoration.Underline, 
+                modifier = Modifier
+                    .padding(12.dp)
+                    .clickable { 
+                        val now = System.currentTimeMillis()
+                        if (now - lastEmTapTime < 500) {
+                            emTapCount++
+                        } else {
+                            emTapCount = 1
+                        }
+                        lastEmTapTime = now
+                        if (emTapCount >= 5) {
+                            onEmergency()
+                            emTapCount = 0
+                        }
+                    }
+            )
             Text(
                 text = "Accessibility", 
                 fontWeight = FontWeight.Bold, 
@@ -299,6 +320,7 @@ class WelcomeUI : DynamicEntry() {
                         lastTapTime = now
                         if (devTapCount >= 5) {
                             onDevExit()
+                            devTapCount = 0
                         }
                     }
             )
