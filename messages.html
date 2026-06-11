@@ -3794,7 +3794,13 @@
 
       // 9. Root Level Fallback (Exit App)
       if (typeof Cortex !== 'undefined') {
-        Cortex.close();
+        Cortex.nav('BACK');
+        setTimeout(() => {
+          Cortex.nav('BACK');
+          setTimeout(() => {
+            Cortex.close();
+          }, 100);
+        }, 100);
       }
     };
 
@@ -5311,32 +5317,40 @@
       showToast('More options clicked');
     });
 
-    // Handle bubble view-all action click using event delegation (avoiding double-quote parsing issues)
-    chatMessagesList.addEventListener('click', (e) => {
-      const actionBar = e.target.closest('.bubble-action-bar');
-      if (!actionBar) return;
+          // Handle bubble view-all action click using event delegation (avoiding double-quote parsing issues)
+      chatMessagesList.addEventListener('click', (e) => {
+        const actionBar = e.target.closest('.bubble-action-bar');
+        if (!actionBar) return;
 
-      const bubbleWrapper = actionBar.closest('.bubble-wrapper');
-      if (!bubbleWrapper) return;
+        const bubbleWrapper = actionBar.closest('.bubble-wrapper');
+        if (!bubbleWrapper) return;
 
-      const timeEl = bubbleWrapper.querySelector('.bubble-timestamp');
-      const time = timeEl ? timeEl.textContent : '8:32 am, 9 Jun';
+        const timeEl = bubbleWrapper.querySelector('.bubble-timestamp');
+        const time = timeEl ? timeEl.textContent : '8:32 am, 9 Jun';
 
-      // Fetch active thread details
-      const activeData = threadData[activeThreadId];
-      if (!activeData) return;
+        // Fetch active thread details
+        const activeData = threadData[activeThreadId];
+        if (!activeData) return;
 
-      let fullTextToShow = '';
-      if (activeThreadId === '2') {
-        fullTextToShow = 'ውድ ደንበኛችን፤ ካለዎት Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 120 መልዕክት ሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-07 11:02:52 ፤ Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 233 ደቂቃ እና 42 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-07 11:02:52 ፤ Monthly voice 228 Min from telebirr to be expired after 30 days with 114 Min night package bonus valid for 30 days ውስጥ የቀሩት 128 ደቂቃ እና 0 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-09 08:30:20 ፤ ቴ';
-      } else {
-        const textEl = bubbleWrapper.querySelector('.bubble-text-content');
-        // Retrieve directly mapped HTML logic containing active a href links
-        fullTextToShow = textEl ? textEl.innerHTML : '';
-      }
+        let fullTextToShow = '';
+        if (activeThreadId === '2') {
+          fullTextToShow = 'ውድ ደንበኛችን፤ ካለዎት Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 120 መልዕክት ሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-07 11:02:52 ፤ Monthly student pack 234Min + 120SMS plus 234Min night bonus from telebirr to expire after 30 days ውስጥ የቀሩት 233 ደቂቃ እና 42 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-07 11:02:52 ፤ Monthly voice 228 Min from telebirr to be expired after 30 days with 114 Min night package bonus valid for 30 days ውስጥ የቀሩት 128 ደቂቃ እና 0 ሰከንድሲሆን አገልግሎቱ የሚያበቃው በ 2026-07-09 08:30:20 ፤ ቴ';
+        } else {
+          const tsAttr = bubbleWrapper.getAttribute('data-ts');
+          const ts = parseInt(tsAttr || '0');
+          const bubble = activeData.bubbles.find(b => b.ts === ts);
+          if (bubble) {
+            let rawFullText = (bubble.text || '').replace(/<[^>]*>/g, '');
+            const safeFullText = rawFullText.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            fullTextToShow = linkify(safeFullText);
+          } else {
+            const textEl = bubbleWrapper.querySelector('.bubble-text-content');
+            fullTextToShow = textEl ? textEl.innerHTML : '';
+          }
+        }
 
-      openExpandedMessage(activeData.name, time, fullTextToShow);
-    });
+        openExpandedMessage(activeData.name, time, fullTextToShow);
+      });
 
     // Unread Messages Dataset mimicking Screenshot 1
     // Unread Messages Dataset mapped directly to Dynamic DB
