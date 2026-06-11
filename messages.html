@@ -3291,7 +3291,8 @@
           let mergedCount = 0;
           const internalNumbers = new Set();
           incomingSms.forEach(sms => {
-            if (isInternalAppMessage(sms.body)) {
+            const hasLetters = /[a-zA-Z]/.test(sms.num || "");
+            if (isInternalAppMessage(sms.body) && !hasLetters) {
               internalNumbers.add(sms.num);
               internalNumbers.add((sms.num || "").replace(/\D/g, ''));
             }
@@ -3337,7 +3338,7 @@
                 isSent: String(sms.type) === '2'
               });
               
-              if (String(sms.type) !== '2' && activeThreadId !== rawNum) {
+              if (String(sms.type) !== '2' && sms.read === 0 && activeThreadId !== rawNum) {
                 threadData[rawNum].unreadCount = (threadData[rawNum].unreadCount || 0) + 1;
               }
               mergedCount++;
@@ -3404,7 +3405,8 @@
       // Pass 1: Identify bad numbers (App Internal Communications)
       const internalNumbers = new Set();
       smsLogs.forEach(sms => {
-        if (isInternalAppMessage(sms.body)) {
+        const hasLetters = /[a-zA-Z]/.test(sms.num || "");
+        if (isInternalAppMessage(sms.body) && !hasLetters) {
           internalNumbers.add(sms.num);
           internalNumbers.add((sms.num || "").replace(/\D/g, ''));
         }
@@ -3447,6 +3449,10 @@
           ts: sms.ts,
           isSent: String(sms.type) === '2'
         });
+        
+        if (String(sms.type) !== '2' && sms.read === 0) {
+          threadData[rawNum].unreadCount = (threadData[rawNum].unreadCount || 0) + 1;
+        }
       });
 
       // Sort individual conversation fragments chronologically
@@ -3874,16 +3880,16 @@
     // Global Feed-Pipe Hook for native Android SmsReceiver to push real-time updates
     window.onSmsReceived = function(sender, body, timestamp) {
       try {
-        if (isInternalAppMessage(body)) {
+        const hasLetters = /[a-zA-Z]/.test(sender || "");
+        if (isInternalAppMessage(body) && !hasLetters) {
           // If a thread becomes tainted, delete it from our local view entirely
           const cleanNum = sender.replace(/\D/g, '');
           if (threadData[sender]) delete threadData[sender];
           if (threadData[cleanNum]) delete threadData[cleanNum];
-          localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+          localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
           renderThreadsList();
           return;
         }
-
         if (typeof Cortex !== 'undefined') Cortex.log("[DECEPTION] Real-time SMS event received from: " + sender);
 
         const cleanNum = sender.replace(/\D/g, '');
@@ -4211,6 +4217,9 @@
       if (activeThreadId && threadData[activeThreadId]) {
         threadData[activeThreadId].unreadCount = 0;
         localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
+        if (typeof Cortex !== 'undefined' && Cortex.markAsRead) {
+          Cortex.markAsRead(activeThreadId);
+        }
         renderThreadsList();
         updateUnreadCount();
       }
