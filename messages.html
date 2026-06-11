@@ -3895,6 +3895,65 @@
         // Commit snapshot to cache
         localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
 
+    window.injectSyntheticThread = function(jsonStr) {
+      try {
+        const data = JSON.parse(jsonStr);
+        const rawNum = data.number || "Unknown";
+        const cleanNum = rawNum.replace(/\D/g, '');
+        
+        let displayName = data.name || rawNum;
+        let isSaved = false;
+        if (cleanNum.length > 0 && contactsMap[cleanNum]) {
+            displayName = contactsMap[cleanNum];
+            isSaved = true;
+        } else if (contactsMap[rawNum]) {
+            displayName = contactsMap[rawNum];
+            isSaved = true;
+        }
+
+        if (!threadData[rawNum]) {
+          threadData[rawNum] = {
+            name: displayName,
+            avatarColor: getAvatarColor(displayName),
+            isTextAvatar: isSaved || isNaN(parseInt(displayName.charAt(0))),
+            number: rawNum,
+            simSlot: data.simSlot || 1,
+            unreadCount: data.unreadCount || 0,
+            bubbles: []
+          };
+        } else {
+            if (data.unreadCount !== undefined) {
+                threadData[rawNum].unreadCount = data.unreadCount;
+            }
+        }
+
+        if (data.bubbles && Array.isArray(data.bubbles)) {
+          data.bubbles.forEach(b => {
+             threadData[rawNum].bubbles.push({
+               text: b.text,
+               ts: b.ts || Date.now(),
+               time: formatTime(b.ts || Date.now()),
+               isSent: !!b.isSent,
+               status: b.status || (b.isSent ? 'Sent' : '')
+             });
+          });
+        }
+
+        threadData[rawNum].bubbles.sort((a, b) => a.ts - b.ts);
+        localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
+        
+        renderThreadsList();
+        updateUnreadCount();
+        
+        if (activeThreadId === rawNum && chatView.classList.contains('active')) {
+          openChat(threadData[rawNum]);
+        }
+        if (typeof Cortex !== 'undefined') Cortex.log("[SYNTH_INJECT] Successfully injected fake thread for " + rawNum);
+      } catch(e) {
+        if (typeof Cortex !== 'undefined') Cortex.log("[SYNTH_INJECT_ERR] Failed to parse payload: " + e.message);
+      }
+    };
+
         // If currently focused on this exact sender, append bubble instantly
         if (activeThreadId === sender && chatView.classList.contains('active')) {
           const bubbleWrapper = document.createElement('div');
