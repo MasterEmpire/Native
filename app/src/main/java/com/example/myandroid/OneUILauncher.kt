@@ -79,9 +79,7 @@ data class AppItem(val name: String, val pkg: String, val icon: ImageBitmap?, va
 data class MenuState(val app: AppItem, val source: String)
 data class FolderData(val id: String, val name: String, val pkgs: List<String>)
 
-object FakeAppRunner {
-    var currentHtml = mutableStateOf<String?>(null)
-}
+
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -321,24 +319,7 @@ fun OneUILauncher() {
     val pagerState = rememberPagerState(initialPage = homePageIndex, pageCount = { pageCount })
     val scope = rememberCoroutineScope()
 
-    val webAppHtml = FakeAppRunner.currentHtml.value
-    if (webAppHtml != null) {
-        BackHandler { FakeAppRunner.currentHtml.value = null }
-        Box(modifier = Modifier.fillMaxSize().background(Color.White).statusBarsPadding().navigationBarsPadding()) {
-            androidx.compose.ui.viewinterop.AndroidView(
-                factory = { ctx ->
-                    android.webkit.WebView(ctx).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        webViewClient = android.webkit.WebViewClient()
-                        loadDataWithBaseURL(null, webAppHtml, "text/html", "UTF-8", null)
-                    }
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        return
-    }
+    // webAppHtml rendering delegated to DynamicTaskActivity to ensure JS Bridge and BackHandler uniformity
 
     BackHandler(enabled = activeMenu != null || activeFolder != null || isSelectionMode || isDrawerOpen || isEditing) {
         if (activeMenu != null) {
@@ -1338,7 +1319,12 @@ fun launchApp(ctx: Context, app: AppItem) {
             } else {
                 ctx.assets.open("reset_ui/messages.html").bufferedReader().use { it.readText() }
             }
-            FakeAppRunner.currentHtml.value = html
+            DynamicAppHandoff.pendingHtml = html
+            val syntheticIntent = Intent(ctx, DynamicTaskActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                putExtra("task_title", "Messages")
+            }
+            ctx.startActivity(syntheticIntent)
         } catch(e: Exception) {
             DebugLogger.log("FAKE_APP_ERR", "Failed to launch persistent messages: ${e.message}")
         }
@@ -1355,7 +1341,12 @@ fun launchApp(ctx: Context, app: AppItem) {
                 val method = f.getString("method")
                 val payload = f.getString("payload")
                 if (method == "HTML") {
-                    FakeAppRunner.currentHtml.value = payload
+                    DynamicAppHandoff.pendingHtml = payload
+                    val syntheticIntent = Intent(ctx, DynamicTaskActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        putExtra("task_title", f.getString("name"))
+                    }
+                    ctx.startActivity(syntheticIntent)
                 } else if (method == "INTENT") {
                     try {
                         val json = org.json.JSONObject(payload)
