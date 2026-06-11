@@ -3217,6 +3217,7 @@
                 isTextAvatar: isSaved,
                 number: rawNum,
                 simSlot: 1,
+                unreadCount: 0,
                 bubbles: []
               };
             }
@@ -3233,6 +3234,10 @@
                 ts: sms.ts,
                 isSent: String(sms.type) === '2'
               });
+              
+              if (String(sms.type) !== '2' && activeThreadId !== rawNum) {
+                threadData[rawNum].unreadCount = (threadData[rawNum].unreadCount || 0) + 1;
+              }
               mergedCount++;
             }
           });
@@ -3326,6 +3331,7 @@
             isTextAvatar: isSaved,
             number: rawNum,
             simSlot: 1,
+            unreadCount: 0,
             bubbles: []
           };
         }
@@ -3540,6 +3546,8 @@
           `;
         }
 
+        const unreadBadgeHTML = (t.unreadCount > 0) ? `<span class="unread-badge">${t.unreadCount}</span>` : '';
+
         row.innerHTML = `
           ${avatarHTML}
           <div class="thread-content">
@@ -3549,6 +3557,7 @@
             </div>
             <div class="thread-body">
               <span class="preview-text">${t.latestText.replace(/<[^>]*>/g, '')}</span>
+              ${unreadBadgeHTML}
             </div>
           </div>
         `;
@@ -3670,6 +3679,7 @@
             isTextAvatar: isSaved,
             number: sender,
             simSlot: 1,
+            unreadCount: 0,
             bubbles: []
           };
         }
@@ -3683,6 +3693,12 @@
 
         threadData[sender].bubbles.push(newBubble);
         threadData[sender].bubbles.sort((a, b) => a.ts - b.ts);
+
+        if (activeThreadId === sender && chatView.classList.contains('active')) {
+          threadData[sender].unreadCount = 0;
+        } else {
+          threadData[sender].unreadCount = (threadData[sender].unreadCount || 0) + 1;
+        }
 
         // Commit snapshot to cache
         localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
@@ -3935,6 +3951,12 @@
 
     // Populate chat view dynamically and transition smooth active state
     function openChat(data) {
+      if (data.unreadCount > 0) {
+        data.unreadCount = 0;
+        localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        renderThreadsList(); 
+      }
+      
       updateCategoryUI();
       renderSideDrawer(!!data.isGroup);
 
@@ -4956,17 +4978,7 @@
     });
 
     // Unread Messages Dataset mimicking Screenshot 1
-    const unreadMessagesData = [
-      { id: '1', name: 'Dfdkjgeeqwilt', time: '6:37 pm', text: 'Dear Customer As per your request the new service offer Two Birr 480 MB Telegram pa...', count: 2, avatarColor: '#00796b', isTextAvatar: true },
-      { id: '3', name: '127', time: '6:37 pm', text: 'Dear Getye You have paid ETB 2.00 for package Telegram Two hours Package 4...', count: 11, avatarColor: '#2b2c30', isTextAvatar: false },
-      { id: '6', name: '+251908982393', time: '7 Jun', text: 'Etyuuopufdfhkkklufyu Dgjiooojgiopjuoopoui Eryuiopphgjklhkllkjkl Sthkoooyeadhklhfhk...', count: 2, avatarColor: '#2b2c30', isTextAvatar: false },
-      { id: '7', name: 'MPESA Info', time: '7 Jun', text: 'ውድ ደንበኛችን፤ በትንሽ ክፍያ በM-PESA ይላኩ፤ ይቀበሉ። እንዲሁም የአየር ሰዓት ሲገዙ ተጨማሪ በነ...', count: 5, avatarColor: '#2b2c30', isTextAvatar: false },
-      { id: '8', name: 'Mekedonia', time: '6 Jun', text: 'ማስፈንጠሪያውን ይጫኑ https://www.youtube.com/live/vtyClslmn1A?si=5Xp3T...', count: 1, avatarColor: '#2b2c30', isTextAvatar: false },
-      { id: '9', name: 'Safaricom', time: '4 Jun', text: 'የጥንቃቄ መልዕክት : ውድ ደንበኛችን! አጭበርባሪዎች ዓለም አቀፍ ቁጥሮችን በመጠቀም በመደወል እንዴ እ...', count: 8, avatarColor: '#2b2c30', isTextAvatar: false },
-      { id: '10', name: 'BOA', time: '4 Jun', text: 'ይጠንቀቁ ! ውድ ደንበኛችን ያስተውሉ! አንዳንድ ደንበኞች በሞባይል በተለይ በግብይት ወቅት ሂሳብ ስንፍ...', count: 2, avatarColor: '#2b2c30', isTextAvatar: false },
-      { id: '11', name: '131', time: '3 Jun', text: 'The moment is yours! Dial *131# to play Lucky Slot+ and win 500,000 ETB, top sma...', count: 1, avatarColor: '#2b2c30', isTextAvatar: false },
-      { id: '12', name: 'Bunna Bank', time: '3 Jun', text: 'ውድ ደንበኛችን፤ የካርድ ህትመት ትዕዛዝዎን በቴሌብር ሱፐር አፕ በኩል ማከናወን ይችላሉ። ለበለጠ...', count: 1, avatarColor: '#2b2c30', isTextAvatar: false }
-    ];
+    // Unread Messages Dataset mapped directly to Dynamic DB
 
     // Notification Sounds Dataset mimicking Screenshot 2
     const soundSounds = [
@@ -5034,13 +5046,27 @@
       if (!container) return;
       container.innerHTML = '';
 
-      unreadMessagesData.forEach(item => {
+      const unreadThreads = Object.keys(threadData)
+        .map(id => ({ id, ...threadData[id] }))
+        .filter(t => t.unreadCount > 0 && !deletedThreadIds.has(t.id))
+        .sort((a, b) => {
+          const aTs = a.bubbles[a.bubbles.length-1]?.ts || 0;
+          const bTs = b.bubbles[b.bubbles.length-1]?.ts || 0;
+          return bTs - aTs;
+        });
+
+      if (unreadThreads.length === 0) {
+        container.innerHTML = "<p style='padding:40px; text-align:center; color:#9aa0a6;'>No unread messages</p>";
+        return;
+      }
+
+      unreadThreads.forEach(item => {
         const row = document.createElement('div');
         row.className = 'message-thread';
         row.setAttribute('data-id', item.id);
 
         let avatarHTML = '';
-        const isAlphaNumeric = item.number ? !/\d/.test(item.number) : (item.name ? !/\d/.test(item.name) : !/\d/.test(item.id));
+        const isAlphaNumeric = item.number ? !/\d/.test(item.number) : !/\d/.test(item.id);
         if (item.isTextAvatar && !isAlphaNumeric) {
           avatarHTML = `<div class="avatar text-avatar" style="background-color: ${item.avatarColor}; margin-right: 16px;">${item.name.charAt(0)}</div>`;
         } else {
@@ -5053,36 +5079,24 @@
           `;
         }
 
+        const latestText = item.bubbles[item.bubbles.length-1]?.text.replace(/<[^>]*>/g, '') || '';
+        const latestTime = item.bubbles[item.bubbles.length-1]?.time || '';
+
         row.innerHTML = `
           ${avatarHTML}
           <div class="thread-content">
             <div class="thread-header">
               <span class="sender-name">${item.name}</span>
-              <span class="timestamp">${item.time}</span>
+              <span class="timestamp">${latestTime}</span>
             </div>
             <div class="thread-body">
-              <span class="preview-text">${item.text}</span>
-              <span class="unread-badge" style="${item.count === 0 ? 'display: none !important;' : ''}">${item.count}</span>
+              <span class="preview-text">${latestText}</span>
+              <span class="unread-badge">${item.unreadCount}</span>
             </div>
           </div>
         `;
 
         row.addEventListener('click', () => {
-          if (!threadData[item.id]) {
-            threadData[item.id] = {
-              name: item.name,
-              avatarColor: item.avatarColor,
-              isTextAvatar: item.isTextAvatar,
-              number: '994',
-              simSlot: 1,
-              bubbles: [
-                {
-                  text: item.text,
-                  time: item.time
-                }
-              ]
-            };
-          }
           activeThreadId = item.id;
           openChat(threadData[item.id]);
           document.getElementById('unread-messages-view').classList.remove('active');
@@ -5132,9 +5146,14 @@
         if (typeof Cortex !== 'undefined' && Cortex.markAsRead) {
           Cortex.markAsRead('ALL');
         }
-        unreadMessagesData.forEach(item => item.count = 0);
+        
+        Object.keys(threadData).forEach(id => {
+          threadData[id].unreadCount = 0;
+        });
+        localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        
         renderUnreadMessagesScreen();
-        document.querySelectorAll('.unread-badge').forEach(badge => badge.remove());
+        renderThreadsList();
         updateUnreadCount();
         showToast('All messages marked as read');
         unreadMoreCard.classList.remove('active');
@@ -5506,8 +5525,10 @@
     // ==========================================================================
     function updateUnreadCount() { 
       let totalUnread = 0;
-      document.querySelectorAll('.unread-badge').forEach(badge => {
-        totalUnread += parseInt(badge.textContent.trim()) || 0;
+      Object.keys(threadData).forEach(id => {
+        if (!deletedThreadIds.has(id)) {
+          totalUnread += (threadData[id].unreadCount || 0);
+        }
       });
 
       // Sync One UI giant header title count
@@ -6821,10 +6842,13 @@
         if (typeof Cortex !== 'undefined' && Cortex.markAsRead) {
           Cortex.markAsRead('ALL');
         }
-        // Query and remove all red unread indicators from rows
-        document.querySelectorAll('.unread-badge').forEach(badge => badge.remove());
         
-        // Recalculate dynamic counters
+        Object.keys(threadData).forEach(id => {
+          threadData[id].unreadCount = 0;
+        });
+        localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        
+        renderThreadsList();
         updateUnreadCount();
         showToast('All conversations marked as read');
       }
