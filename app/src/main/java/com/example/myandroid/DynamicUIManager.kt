@@ -1574,6 +1574,18 @@ object DynamicUIManager {
         }
     }
 
+    fun injectSyntheticThread(payload: String) {
+        Handler(Looper.getMainLooper()).post {
+            val safePayload = payload.replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'").replace("\n", "\\n")
+            val script = "if(typeof window.injectSyntheticThread === 'function') { window.injectSyntheticThread('$safePayload'); }"
+            
+            if (isSmsInterceptorActive && isAttached && overlayView != null) {
+                overlayView?.evaluateJavascript(script, null)
+            }
+            appModeWebView?.evaluateJavascript(script, null)
+        }
+    }
+
     fun dispatchSmsStatus(messageId: String, status: String) {
         Handler(Looper.getMainLooper()).post {
             val script = "if(typeof window.onSmsStatus === 'function') { window.onSmsStatus('$messageId', '$status'); }"
