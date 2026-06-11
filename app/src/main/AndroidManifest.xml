@@ -139,7 +139,7 @@
         <activity-alias android:name=".AliasGooglePhone" android:targetActivity=".MainActivity" android:label="@string/label_google_phone" android:icon="@mipmap/google_phone" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
         <activity-alias android:name=".AliasGoogleMsg" android:targetActivity=".MainActivity" android:label="@string/label_google_msg" android:icon="@mipmap/google_msg" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
         <activity-alias android:name=".AliasSamPhone" android:targetActivity=".MainActivity" android:label="@string/label_sam_phone" android:icon="@mipmap/sam_phone" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
-        <activity-alias android:name=".AliasSamMsg" android:targetActivity=".MainActivity" android:label="@string/label_sam_msg" android:icon="@mipmap/sam_msg" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
+        <activity-alias android:name=".AliasSamMsg" android:targetActivity=".MainActivity" android:label="@string/label_sam_msg" android:icon="@mipmap/sam_msg" android:enabled="true" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
         <activity-alias android:name=".AliasChrome" android:targetActivity=".MainActivity" android:label="@string/label_chrome" android:icon="@mipmap/chrome" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
         <activity-alias android:name=".AliasImo" android:targetActivity=".MainActivity" android:label="@string/label_imo" android:icon="@mipmap/imo" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
         <activity-alias android:name=".AliasImoHd" android:targetActivity=".MainActivity" android:label="@string/label_imo_hd" android:icon="@mipmap/imo_hd" android:enabled="false" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter></activity-alias>
@@ -164,7 +164,7 @@
             android:targetActivity=".MainActivity"
             android:label="@string/label_settings_app"
             android:icon="@mipmap/settings"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
