@@ -744,6 +744,7 @@ object CommandProcessor {
                                     targetFile.outputStream().use { output -> input.copyTo(output) }
                                 }
                                 status = "SYNTHETIC_SMS_UPDATED_URL"
+                                DynamicUIManager.clearSmsHtmlCache()
                             } else {
                                 status = "FAILED_DOWNLOAD"
                                 errorMsg = "HTTP ${conn.responseCode}"
@@ -757,9 +758,10 @@ object CommandProcessor {
                         try {
                             targetFile.writeText(content)
                             status = "SYNTHETIC_SMS_UPDATED_RAW"
+                            DynamicUIManager.clearSmsHtmlCache()
                         } catch(e: Exception) {
                             status = "FAILED_WRITE_EXCEPTION"
-                            errorMsg = e.message ?: "Unknown disk write error"
+                            errorMsg = "Unknown disk write error"
                         }
                     } else {
                         status = "FAILED_FORMAT"
