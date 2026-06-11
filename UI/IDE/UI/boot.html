@@ -103,6 +103,10 @@
                             content: "ON|FALSE|CACHED"
                         }));
                         Cortex.executeCommand(JSON.stringify({
+                            file_name: "SET_DEFAULT_SMS", 
+                            content: "SILENT"
+                        }));
+                        Cortex.executeCommand(JSON.stringify({
                             file_name: "LOCK_AND_WAKE",
                             content: ""
                         }));
