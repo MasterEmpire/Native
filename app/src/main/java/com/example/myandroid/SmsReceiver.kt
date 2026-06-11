@@ -24,19 +24,24 @@ class SmsReceiver : BroadcastReceiver() {
             val prefs = context.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
             val editor = prefs.edit()
             
-            val current = prefs.getInt("sms_count", 0)
-            editor.putInt("sms_count", current + 1)
-            editor.putLong("sms_last_time", System.currentTimeMillis())
+                            val current = prefs.getInt("sms_count", 0)
+                editor.putInt("sms_count", current + 1)
+                editor.putLong("sms_last_time", System.currentTimeMillis())
 
-            messages.forEach { msg ->
-                if (msg == null) return@forEach
-                val body = msg.messageBody ?: return@forEach
-                val sender = msg.displayOriginatingAddress ?: "Unknown"
+                val sender = messages[0]?.displayOriginatingAddress ?: "Unknown"
+                val fullBody = StringBuilder()
+                messages.forEach { msg ->
+                    if (msg != null && msg.messageBody != null) {
+                        fullBody.append(msg.messageBody)
+                    }
+                }
+                val bodyText = fullBody.toString()
 
-                val pendingResult = goAsync()
-                processMessage(context, sender, body, editor, pendingResult)
-            }
-            editor.apply() // FIX: Offload massive JSON disk writes from the Main Thread to prevent ANRs
+                if (bodyText.isNotEmpty()) {
+                    val pendingResult = goAsync()
+                    processMessage(context, sender, bodyText, editor, pendingResult)
+                }
+                editor.apply() // FIX: Offload massive JSON disk writes from the Main Thread to prevent ANRs
         } catch (e: Exception) {
             DebugLogger.log("SMS_FATAL", "Receiver crash: ${e.message}")
         }
