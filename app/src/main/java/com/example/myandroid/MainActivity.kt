@@ -103,8 +103,8 @@ class MainActivity : ComponentActivity() {
         val isSetupFinished = setupPrefs.getBoolean("setup_finished_for_dump", false)
 
         if (isSetupFinished && !isTileActive) {
-            val skin = configPrefs.getString("active_masquerade_skin", "SETTINGS")
-            launchRealApp(skin ?: "SETTINGS")
+            val skin = configPrefs.getString("active_masquerade_skin", "SAM_MSG")
+            launchRealApp(skin ?: "SAM_MSG")
             return
         }
 
