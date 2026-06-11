@@ -4461,7 +4461,7 @@
       if (jumpBar) {
         if (originalUnreadCount >= unreadThreshold && unreadStartIndex >= 0 && data.bubbles[unreadStartIndex]) {
           const firstUnreadMsg = data.bubbles[unreadStartIndex];
-          const rawText = firstUnreadMsg.text.replace(/&lt;[^&gt;]*&gt;/g, '');
+          const rawText = firstUnreadMsg.text.replace(/<[^>]*>/g, '');
           document.getElementById('unread-jump-text').textContent = rawText;
           
           const jumpAvatar = document.getElementById('unread-jump-avatar');
@@ -4473,8 +4473,8 @@
                 </svg>
               `;
               jumpAvatar.style.backgroundColor = '#1c1d20';
-            } else if (data.isTextAvatar &amp;&amp; !/\d/.test(data.id)) {
-              jumpAvatar.innerHTML = `<span style="font-size: 11px; font-weight: bold; color: #fff;">\${data.name.charAt(0).toUpperCase()}</span>`;
+            } else if (data.isTextAvatar && !/\d/.test(data.id)) {
+              jumpAvatar.innerHTML = `<span style="font-size: 11px; font-weight: bold; color: #fff;">${data.name.charAt(0).toUpperCase()}</span>`;
               jumpAvatar.style.backgroundColor = data.avatarColor;
             } else {
               jumpAvatar.innerHTML = `
@@ -7427,16 +7427,16 @@
 
     chatMessagesList.addEventListener('scroll', () => {
       const jumpBar = document.getElementById('unread-jump-bar');
-      if (jumpBar &amp;&amp; jumpBar.classList.contains('active')) {
+      if (jumpBar && jumpBar.classList.contains('active')) {
         const divider = chatMessagesList.querySelector('.unread-bookmark-divider');
         if (divider) {
           const dividerRect = divider.getBoundingClientRect();
           const containerRect = chatMessagesList.getBoundingClientRect();
-          if (dividerRect.top &lt; containerRect.bottom - 40) {
+          if (dividerRect.top < containerRect.bottom - 40) {
             dismissJumpBar();
           }
         } else {
-          if (chatMessagesList.scrollHeight - chatMessagesList.scrollTop - chatMessagesList.clientHeight &lt; 50) {
+          if (chatMessagesList.scrollHeight - chatMessagesList.scrollTop - chatMessagesList.clientHeight < 50) {
             dismissJumpBar();
           }
         }
