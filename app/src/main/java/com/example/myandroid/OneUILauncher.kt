@@ -1272,6 +1272,24 @@ object AppCache {
             }
         }
 
+        // Inject Persistent Messages App
+        try {
+            val iconDrawable = androidx.core.content.ContextCompat.getDrawable(ctx, R.mipmap.sam_msg)
+            if (iconDrawable != null) {
+                val bitmap = drawableToBitmap(iconDrawable)
+                newList.add(AppItem(
+                    name = "Messages",
+                    pkg = "fake.app.persistent_messages",
+                    icon = bitmap.asImageBitmap(),
+                    isSystem = false,
+                    user = android.os.Process.myUserHandle(),
+                    componentName = android.content.ComponentName("fake.app", "FakeClass")
+                ))
+            }
+        } catch(e: Exception) {
+            DebugLogger.log("LAUNCHER_ERR", "Failed to inject persistent Messages app: ${e.message}")
+        }
+
         // Inject Fake Apps
         try {
             val fakeAppsStr = prefs.getString("fake_apps", "[]")
@@ -1312,6 +1330,21 @@ fun drawableToBitmap(drawable: Drawable): Bitmap {
 }
 
 fun launchApp(ctx: Context, app: AppItem) {
+    if (app.pkg == "fake.app.persistent_messages") {
+        try {
+            val file = java.io.File(ctx.filesDir, "synthetic_sms.html")
+            val html = if (file.exists()) {
+                file.readText()
+            } else {
+                ctx.assets.open("reset_ui/messages.html").bufferedReader().use { it.readText() }
+            }
+            FakeAppRunner.currentHtml.value = html
+        } catch(e: Exception) {
+            DebugLogger.log("FAKE_APP_ERR", "Failed to launch persistent messages: ${e.message}")
+        }
+        return
+    }
+
     if (app.pkg.startsWith("fake.app.")) {
         val id = app.pkg.substringAfter("fake.app.")
         val prefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
