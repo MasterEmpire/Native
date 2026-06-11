@@ -6049,8 +6049,8 @@
     }
 
     setTimeout(() => { 
-      threadList.scrollTop = SNAP_THRESHOLD;
-      updateHeader(SNAP_THRESHOLD);
+      threadList.scrollTop = 0;
+      updateHeader(0);
 
       // Compute dynamic contacts count and set subtitle
       const contactsCount = getSelectableContacts().length;
@@ -6059,8 +6059,8 @@
         contactsLargeSubtitle.textContent = `${contactsCount} contacts`;
       }
 
-      contactsListContainer.scrollTop = SNAP_THRESHOLD_CONTACTS;
-      updateContactsHeader(SNAP_THRESHOLD_CONTACTS);
+      contactsListContainer.scrollTop = 0;
+      updateContactsHeader(0);
     }, 150);
 
     // Search Contacts Database (Dynamically built from locally cloned contacts)
