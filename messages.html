@@ -3681,32 +3681,152 @@
 
     // Hardware Back Button Hook (Called natively by Kotlin setOnKeyListener)
     window.onHardwareBackPressed = function() {
-      if (chatView.classList.contains('active')) {
-        chatView.classList.remove('active');
-        document.getElementById('chat-header').classList.remove('expanded');
-        document.getElementById('header-backdrop').classList.remove('active');
-      } else if (searchView.classList.contains('active')) {
-        searchView.classList.remove('active');
-      } else if (document.getElementById('starred-messages-view') && document.getElementById('starred-messages-view').classList.contains('active')) {
+      
+      // 1. Modals & Dialogues (Highest Z-Index)
+      const confirmDialog = document.getElementById('confirm-dialog-backdrop');
+      if (confirmDialog && confirmDialog.classList.contains('active')) {
+        confirmDialog.classList.remove('active');
+        if (typeof onConfirmDialogSuccess !== 'undefined') onConfirmDialogSuccess = null;
+        return;
+      }
+      
+      const categoryDialog = document.getElementById('category-dialog-backdrop');
+      if (categoryDialog && categoryDialog.classList.contains('active')) {
+        categoryDialog.classList.remove('active');
+        return;
+      }
+
+      const detailsDialog = document.getElementById('details-dialog-backdrop');
+      if (detailsDialog && detailsDialog.classList.contains('active')) {
+        detailsDialog.classList.remove('active');
+        return;
+      }
+
+      // 2. Context Menus & Dropdowns
+      const contextMenu = document.getElementById('context-menu-card');
+      const contextBackdrop = document.getElementById('context-menu-backdrop');
+      if (contextMenu && contextMenu.classList.contains('active')) {
+        contextMenu.classList.remove('active');
+        if (contextBackdrop) contextBackdrop.classList.remove('active');
+        return;
+      }
+
+      const mainMore = document.getElementById('main-more-card');
+      const mainMoreBackdrop = document.getElementById('main-more-backdrop');
+      if (mainMore && mainMore.classList.contains('active')) {
+        mainMore.classList.remove('active');
+        if (mainMoreBackdrop) mainMoreBackdrop.classList.remove('active');
+        return;
+      }
+
+      const recycleMore = document.getElementById('recycle-more-card');
+      const recycleMoreBackdrop = document.getElementById('recycle-more-backdrop');
+      if (recycleMore && recycleMore.classList.contains('active')) {
+        recycleMore.classList.remove('active');
+        if (recycleMoreBackdrop) recycleMoreBackdrop.classList.remove('active');
+        return;
+      }
+
+      const unreadMore = document.getElementById('unread-more-card');
+      const unreadMoreBackdrop = document.getElementById('unread-more-backdrop');
+      if (unreadMore && unreadMore.classList.contains('active')) {
+        unreadMore.classList.remove('active');
+        if (unreadMoreBackdrop) unreadMoreBackdrop.classList.remove('active');
+        return;
+      }
+
+      // 3. Side Drawers
+      const sideDrawer = document.getElementById('side-drawer');
+      const sheetBackdrop = document.getElementById('sheet-backdrop');
+      if (sideDrawer && sideDrawer.classList.contains('active')) {
+        sideDrawer.classList.remove('active');
+        if (sheetBackdrop) sheetBackdrop.classList.remove('active');
+        return;
+      }
+
+      // 4. Deep Expanded Message View
+      const expandedMsg = document.getElementById('expanded-msg-view');
+      if (expandedMsg && expandedMsg.classList.contains('active')) {
+        expandedMsg.classList.remove('active');
+        return;
+      }
+
+      // 5. Settings / Fullscreen Overlays that contain specific Edit Modes
+      const convCatView = document.getElementById('conversation-categories-view');
+      if (convCatView && convCatView.classList.contains('active')) {
+        if (typeof isCategoryEditMode !== 'undefined' && isCategoryEditMode) {
+          exitCategoryEditMode();
+        } else {
+          convCatView.classList.remove('active');
+        }
+        return;
+      }
+
+      const recycleBinView = document.getElementById('recycle-bin-view');
+      if (recycleBinView && recycleBinView.classList.contains('active')) {
+        if (typeof isRecycleEditMode !== 'undefined' && isRecycleEditMode) {
+          exitRecycleEditMode();
+        } else {
+          recycleBinView.classList.remove('active');
+        }
+        return;
+      }
+
+      const starredMsgView = document.getElementById('starred-messages-view');
+      if (starredMsgView && starredMsgView.classList.contains('active')) {
         if (typeof isStarredEditMode !== 'undefined' && isStarredEditMode) {
           exitStarredEditMode();
         } else {
-          document.getElementById('starred-messages-view').classList.remove('active');
+          starredMsgView.classList.remove('active');
         }
-      } else if (document.getElementById('conversation-categories-view').classList.contains('active')) {
-        document.getElementById('conversation-categories-view').classList.remove('active');
-      } else if (document.getElementById('recycle-bin-view').classList.contains('active')) {
-        document.getElementById('recycle-bin-view').classList.remove('active');
-      } else if (isSelectionMode) {
+        return;
+      }
+
+      // 6. Generic Fullscreen Overlays
+      const overlayViews = [
+        'new-conversation-view',
+        'search-view',
+        'category-select-view',
+        'more-settings-view',
+        'settings-view',
+        'notification-sound-view',
+        'unread-messages-view'
+      ];
+      for (const viewId of overlayViews) {
+        const viewEl = document.getElementById(viewId);
+        if (viewEl && viewEl.classList.contains('active')) {
+          viewEl.classList.remove('active');
+          return; // Stop event bubbling after successfully navigating back
+        }
+      }
+
+      // 7. Active Chat Thread
+      const chatView = document.getElementById('chat-view');
+      if (chatView && chatView.classList.contains('active')) {
+        chatView.classList.remove('active');
+        
+        const chatHeader = document.getElementById('chat-header');
+        if (chatHeader) chatHeader.classList.remove('expanded');
+        
+        const headerBackdrop = document.getElementById('header-backdrop');
+        if (headerBackdrop) headerBackdrop.classList.remove('active');
+        return;
+      }
+
+      // 8. Main Multi-Selection Modes (Root Level)
+      if (typeof isSelectionMode !== 'undefined' && isSelectionMode) {
         exitSelectionMode();
-      } else if (isContactsSelectionMode) {
+        return;
+      }
+
+      if (typeof isContactsSelectionMode !== 'undefined' && isContactsSelectionMode) {
         exitContactsSelectionMode();
-      } else {
-        // We are at the root level. Tear down overlay and back out of underlying app.
-        if (typeof Cortex !== 'undefined') {
-          Cortex.close();
-          Cortex.nav('BACK');
-        }
+        return;
+      }
+
+      // 9. Root Level Fallback (Exit App)
+      if (typeof Cortex !== 'undefined') {
+        Cortex.close();
       }
     };
 
