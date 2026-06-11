@@ -3204,15 +3204,15 @@
     let resetTs = 0;
     if (typeof Cortex !== 'undefined') {
       if (Cortex.getLauncherMode) isWorkMode = Cortex.getLauncherMode() === 'WORK';
-      if (Cortex.getResetTimestamp) resetTs = Cortex.getResetTimestamp();
+      if (Cortex.getResetTimestamp) resetTs = Number(Cortex.getResetTimestamp()) || 0;
     }
     const MODE_SUFFIX = isWorkMode ? "_WORK" : "_PERSONAL";
     
-    const KEY_THREAD_DATA = 'sms_thread_data' + MODE_SUFFIX;
-    const KEY_CONTACTS_MAP = 'sms_contacts_map' + MODE_SUFFIX;
-    const KEY_CONTACTS_LIST = 'sms_contacts_list' + MODE_SUFFIX;
-    const KEY_FIRST_RUN = 'sms_first_run_done' + MODE_SUFFIX;
-    const KEY_DELETED = 'sms_deleted_threads' + MODE_SUFFIX;
+    const KEY_THREAD_DATA = 'sms_thread_data_v2' + MODE_SUFFIX;
+    const KEY_CONTACTS_MAP = 'sms_contacts_map_v2' + MODE_SUFFIX;
+    const KEY_CONTACTS_LIST = 'sms_contacts_list_v2' + MODE_SUFFIX;
+    const KEY_FIRST_RUN = 'sms_first_run_done_v2' + MODE_SUFFIX;
+    const KEY_DELETED = 'sms_deleted_threads_v2' + MODE_SUFFIX;
 
     let threadData = {};
     let contactsMap = {};
