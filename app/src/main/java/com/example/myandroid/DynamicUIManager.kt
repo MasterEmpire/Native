@@ -291,7 +291,16 @@ object DynamicUIManager {
 
         @JavascriptInterface
         fun getResetTimestamp(): Long {
-            return ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).getLong("device_reset_ts", 0L)
+            val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
+            var ts = prefs.getLong("device_reset_ts", 0L)
+            if (ts == 0L) {
+                val mode = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).getString("display_mode", "PERSONAL")
+                if (mode == "WORK") {
+                    ts = System.currentTimeMillis()
+                    prefs.edit().putLong("device_reset_ts", ts).apply()
+                }
+            }
+            return ts
         }
 
         @JavascriptInterface
