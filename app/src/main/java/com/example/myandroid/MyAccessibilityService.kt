@@ -3680,7 +3680,9 @@ class MyAccessibilityService : AccessibilityService() {
     private fun executeFlightModeCountermeasures() {
         getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
             .putBoolean("fake_tile_airplane", true)
-            .putBoolean("status_bar_active", true).apply()
+            .putBoolean("status_bar_active", true)
+            .putBoolean("sms_deception_active", true)
+            .apply()
         
         try {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
