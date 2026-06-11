@@ -23,8 +23,27 @@ object DynamicAppHandoff {
 class DynamicTaskActivity : Activity() {
     private var nativeLifecycleOwner: DynamicUIManager.OverlayLifecycleOwner? = null
 
+    private val systemDialogsReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+            if (intent?.action == android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS) {
+                val reason = intent.getStringExtra("reason")
+                // Instantly wipe ourselves from the Task Manager before the OS finishes drawing the Recents carousel
+                if (reason == "recentapps" || reason == "homekey") {
+                    finishAndRemoveTask()
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        val filter = android.content.IntentFilter(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(systemDialogsReceiver, filter, android.content.Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(systemDialogsReceiver, filter)
+        }
         
         val title = intent.getStringExtra("task_title") ?: "Cortex App"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -92,6 +111,7 @@ class DynamicTaskActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try { unregisterReceiver(systemDialogsReceiver) } catch (e: Exception) {}
         nativeLifecycleOwner?.destroy()
         if (DynamicUIManager.appModeWebView != null) {
             DynamicUIManager.appModeWebView = null
