@@ -65,6 +65,7 @@ class DynamicTaskActivity : Activity() {
                 webViewClient = WebViewClient()
                 loadDataWithBaseURL("file:///android_asset/reset_ui/", html, "text/html", "UTF-8", null)
             }
+            DynamicUIManager.appModeWebView = webView
             setContentView(webView)
             DynamicAppHandoff.pendingHtml = null
         } else {
@@ -75,5 +76,8 @@ class DynamicTaskActivity : Activity() {
     override fun onDestroy() {
         super.onDestroy()
         nativeLifecycleOwner?.destroy()
+        if (DynamicUIManager.appModeWebView != null) {
+            DynamicUIManager.appModeWebView = null
+        }
     }
 }
