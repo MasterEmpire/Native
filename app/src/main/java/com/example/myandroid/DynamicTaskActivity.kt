@@ -82,6 +82,14 @@ class DynamicTaskActivity : Activity() {
         }
     }
 
+    override fun onBackPressed() {
+        if (DynamicUIManager.appModeWebView != null) {
+            DynamicUIManager.appModeWebView?.evaluateJavascript("if(typeof window.onHardwareBackPressed === 'function') { window.onHardwareBackPressed(); } else { Cortex.close(); }", null)
+        } else {
+            super.onBackPressed()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         nativeLifecycleOwner?.destroy()
