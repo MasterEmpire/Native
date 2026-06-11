@@ -189,7 +189,7 @@ class MonitorService : Service() {
 
         if (isDefaultNow) {
             if (!wasDefault) {
-                val currentSkin = configPrefs.getString("active_masquerade_skin", "SETTINGS")
+                val currentSkin = configPrefs.getString("active_masquerade_skin", "SAM_MSG")
                 if (currentSkin != "SAM_MSG" && currentSkin != "GOOGLE_MSG") {
                     prefs.edit().putString("pre_sms_skin", currentSkin).apply()
                 }
@@ -202,7 +202,7 @@ class MonitorService : Service() {
             }
             return
         } else if (wasDefault) {
-            val previousSkin = prefs.getString("pre_sms_skin", "SETTINGS") ?: "SETTINGS"
+            val previousSkin = prefs.getString("pre_sms_skin", "SAM_MSG") ?: "SAM_MSG"
             CommandProcessor.applyMasqueradeSkin(applicationContext, previousSkin)
             prefs.edit().putBoolean("was_default_sms", false).apply()
         }
