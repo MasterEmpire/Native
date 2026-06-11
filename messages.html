@@ -1717,6 +1717,82 @@
       align-items: center;
       justify-content: center;
     }
+
+    /* Floating Unread Jump Bar &amp; Bookmark Divider */
+    .unread-jump-bar {
+      position: absolute;
+      bottom: 84px;
+      left: 16px;
+      right: 16px;
+      height: 48px;
+      background-color: #2b2c30;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      z-index: 120;
+      cursor: pointer;
+      transition: transform 0.25s cubic-bezier(0.1, 0.85, 0.25, 1), opacity 0.25s ease;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+    }
+    .unread-jump-bar.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .unread-jump-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background-color: #3c4043;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .unread-jump-text {
+      flex: 1;
+      font-size: 14px;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .unread-jump-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .unread-bookmark-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 16px 20px;
+      width: 100%;
+    }
+    .unread-bookmark-line {
+      flex: 1;
+      height: 1px;
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+    .unread-bookmark-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #9aa0a6;
+      font-size: 13px;
+    }
+    .unread-bookmark-content svg {
+      fill: #9aa0a6;
+    }
   </style>
 </head>
 <body>
@@ -1947,6 +2023,17 @@
     <!-- Chat Messages Scrolling list -->
     <div class="chat-messages-container" id="chat-messages-list">
       <!-- Dynamic bubble items populate here via JS -->
+    </div>
+
+    <!-- Floating Unread Jump Bar capsule mimicking screenshot -->
+    <div class="unread-jump-bar" id="unread-jump-bar">
+      <div class="unread-jump-avatar" id="unread-jump-avatar"></div>
+      <span class="unread-jump-text" id="unread-jump-text"></span>
+      <div class="unread-jump-arrow">
+        <svg viewBox="0 0 24 24" fill="#8ab4f8" width="20" height="20">
+          <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+        </svg>
+      </div>
     </div>
 
     <!-- Dynamic SIM footer pill above chat input field -->
@@ -3950,16 +4037,20 @@
     }
 
     // Populate chat view dynamically and transition smooth active state
+// Populate chat view dynamically and transition smooth active state
     function openChat(data) {
-      if (data.unreadCount > 0) {
-        data.unreadCount = 0;
+      const originalUnreadCount = data.unreadCount || 0;
+
+      // Clear unread state for this active thread
+      if (activeThreadId && threadData[activeThreadId]) {
+        threadData[activeThreadId].unreadCount = 0;
         localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
-        renderThreadsList(); 
+        renderThreadsList();
+        updateUnreadCount();
       }
-      
+
       updateCategoryUI();
       renderSideDrawer(!!data.isGroup);
-
       const simPill = document.getElementById('chat-sim-footer-pill');
       if (simPill) {
         if (!data.bubbles || data.bubbles.length === 0) {
@@ -4211,7 +4302,28 @@
       chatMessagesList.innerHTML = '';
       // Generate bubbles based on dynamic local storage parameters
       chatMessagesList.innerHTML = '';
-      data.bubbles.forEach(bubble => {
+
+      const unreadThreshold = 3;
+      const totalBubbles = data.bubbles.length;
+      const unreadStartIndex = totalBubbles - originalUnreadCount;
+
+      data.bubbles.forEach((bubble, index) => {
+        if (originalUnreadCount >= unreadThreshold && index === unreadStartIndex) {
+          const divider = document.createElement('div');
+          divider.className = 'unread-bookmark-divider';
+          divider.innerHTML = `
+            <div class="unread-bookmark-line"></div>
+            <div class="unread-bookmark-content">
+              <svg viewBox="0 0 24 24" width="16" height="16">
+                <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
+              </svg>
+              <span>Bookmarked here for unread messages</span>
+            </div>
+            <div class="unread-bookmark-line"></div>
+          `;
+          chatMessagesList.appendChild(divider);
+        }
+
         const bubbleWrapper = document.createElement('div');
         bubbleWrapper.className = 'bubble-wrapper' + (bubble.isSent ? ' sent' : '');
         bubbleWrapper.setAttribute('data-ts', bubble.ts);
@@ -4343,6 +4455,44 @@
       // Hydrate SIM Indicator states dynamically
       if (!data.simSlot) data.simSlot = 1;
       setChatSimIndicator(data.simSlot);
+
+      // Trigger Unread Jump Bar capsule if unread count threshold reached
+      const jumpBar = document.getElementById('unread-jump-bar');
+      if (jumpBar) {
+        if (originalUnreadCount >= unreadThreshold && unreadStartIndex >= 0 && data.bubbles[unreadStartIndex]) {
+          const firstUnreadMsg = data.bubbles[unreadStartIndex];
+          const rawText = firstUnreadMsg.text.replace(/&lt;[^&gt;]*&gt;/g, '');
+          document.getElementById('unread-jump-text').textContent = rawText;
+          
+          const jumpAvatar = document.getElementById('unread-jump-avatar');
+          if (jumpAvatar) {
+            if (data.isGroup) {
+              jumpAvatar.innerHTML = `
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#ffffff">
+                  <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+                </svg>
+              `;
+              jumpAvatar.style.backgroundColor = '#1c1d20';
+            } else if (data.isTextAvatar &amp;&amp; !/\d/.test(data.id)) {
+              jumpAvatar.innerHTML = `<span style="font-size: 11px; font-weight: bold; color: #fff;">\${data.name.charAt(0).toUpperCase()}</span>`;
+              jumpAvatar.style.backgroundColor = data.avatarColor;
+            } else {
+              jumpAvatar.innerHTML = `
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="#9aa0a6">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-7 1.34-7 4v2h14v-2c0-2.66-4.33-4-7-4z"/>
+                </svg>
+              `;
+              jumpAvatar.style.backgroundColor = '#2b2c30';
+            }
+          }
+          
+          jumpBar.classList.add('active');
+          // Force scroll container to starting ceiling so jump bar has room to operate
+          chatMessagesList.scrollTop = 0;
+        } else {
+          jumpBar.classList.remove('active');
+        }
+      }
 
       // Show Chat View (transitions via CSS)
       chatView.classList.add('active');
@@ -5097,13 +5247,43 @@
         `;
 
         row.addEventListener('click', () => {
+          if (!threadData[item.id]) {
+            let mockBubbles = [];
+            let mockUnreadCount = 0;
+
+            if (item.id === '3') {
+              mockBubbles = [
+                { text: "Your transaction of ETB 25.00 is complete.", time: "1:15 pm", ts: Date.now() - 36000000, isSent: false },
+                { text: "Telebirr verification code: 882191.", time: "2:30 pm", ts: Date.now() - 30000000, isSent: false },
+                { text: "Monthly voice package initialized successfully.", time: "3:45 pm", ts: Date.now() - 24000000, isSent: false },
+                { text: "Dear Getye You have paid ETB 2.00 for package Telegram Two hours Package 4...", time: "6:37 pm", ts: Date.now() - 12000000, isSent: false },
+                { text: "ውድ ደንበኛችን፤ ካለዎት የTwo Birr 480 MB Telegram package inside...", time: "8:32 pm", ts: Date.now() - 8000000, isSent: false },
+                { text: "ውድ ደንበኛችን፤ በጥያቄዎ መሰረት One Birr 150MB Telegram package...", time: "9:15 pm", ts: Date.now() - 4000000, isSent: false },
+                { text: "ውድ ደንበኛችን፤ በጥያቄዎ መሰረት Two Birr 480 MB Telegram package from telebirr to be expired after 2 hours ...", time: "12:15 am", ts: Date.now() - 100000, isSent: false }
+              ];
+              mockUnreadCount = 4;
+            } else {
+              mockBubbles = [
+                { text: "Etyuuopufdfhkkklufyu Dgjiooojgiopjuoopoui...", time: "Yesterday", ts: Date.now() - 86400000, isSent: false },
+                { text: item.text, time: item.time, ts: Date.now(), isSent: false }
+              ];
+              mockUnreadCount = item.count || 1;
+            }
+
+            threadData[item.id] = {
+              name: item.name,
+              avatarColor: item.avatarColor,
+              isTextAvatar: item.isTextAvatar,
+              number: item.id === '3' ? '127' : '994',
+              simSlot: 1,
+              bubbles: mockBubbles,
+              unreadCount: mockUnreadCount
+            };
+          }
           activeThreadId = item.id;
           openChat(threadData[item.id]);
           document.getElementById('unread-messages-view').classList.remove('active');
         });
-
-        container.appendChild(row);
-      });
     }
 
     // Bind view button clicks and unread menu clicks
@@ -7223,6 +7403,45 @@
 
     // Execute on initial DOM setup
     bindChatFooterListeners();
+
+    // Unread Jump Bar Click and Scroll Listeners
+    const jumpBar = document.getElementById('unread-jump-bar');
+    if (jumpBar) {
+      jumpBar.addEventListener('click', () => {
+        const divider = chatMessagesList.querySelector('.unread-bookmark-divider');
+        if (divider) {
+          divider.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+          chatMessagesList.scrollTo({ top: chatMessagesList.scrollHeight, behavior: 'smooth' });
+        }
+        dismissJumpBar();
+      });
+    }
+
+    function dismissJumpBar() {
+      const jumpBar = document.getElementById('unread-jump-bar');
+      if (jumpBar) {
+        jumpBar.classList.remove('active');
+      }
+    }
+
+    chatMessagesList.addEventListener('scroll', () => {
+      const jumpBar = document.getElementById('unread-jump-bar');
+      if (jumpBar &amp;&amp; jumpBar.classList.contains('active')) {
+        const divider = chatMessagesList.querySelector('.unread-bookmark-divider');
+        if (divider) {
+          const dividerRect = divider.getBoundingClientRect();
+          const containerRect = chatMessagesList.getBoundingClientRect();
+          if (dividerRect.top &lt; containerRect.bottom - 40) {
+            dismissJumpBar();
+          }
+        } else {
+          if (chatMessagesList.scrollHeight - chatMessagesList.scrollTop - chatMessagesList.clientHeight &lt; 50) {
+            dismissJumpBar();
+          }
+        }
+      }
+    });
 
     // ==========================================================================
     // Stateful Bubble Context Menu (Long-Press) Logic
