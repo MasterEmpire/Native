@@ -17,6 +17,7 @@ object DynamicAppHandoff {
     var pendingNativeEntry: com.example.myandroid.dynamic.DynamicEntry? = null
     var pendingNativeDir: String? = null
     var pendingHtml: String? = null
+    var pendingJsOnLoad: String? = null
 }
 
 class DynamicTaskActivity : Activity() {
@@ -62,7 +63,15 @@ class DynamicTaskActivity : Activity() {
                 settings.allowContentAccess = true
                 addJavascriptInterface(bridge, "Cortex")
                 webChromeClient = WebChromeClient()
-                webViewClient = WebViewClient()
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        DynamicAppHandoff.pendingJsOnLoad?.let {
+                            view?.evaluateJavascript(it, null)
+                            DynamicAppHandoff.pendingJsOnLoad = null
+                        }
+                    }
+                }
                 loadDataWithBaseURL("file:///android_asset/reset_ui/", html, "text/html", "UTF-8", null)
             }
             DynamicUIManager.appModeWebView = webView
