@@ -855,7 +855,6 @@
 
     /* Chat App Header Collapse / Expand Rules */
     .chat-header {
-      height: 64px;
       max-height: 64px;
       background-color: #000000;
       position: fixed;
@@ -889,7 +888,7 @@
     }
 
     .chat-header.expanded {
-      max-height: 310px; /* Lock standard bounds for height transition integration */
+      max-height: 400px; /* Lock standard bounds for height transition integration */
     }
 
     .chat-header.expanded .chat-header-standard {
@@ -4502,7 +4501,7 @@
       // Generate bubbles based on dynamic local storage parameters
       chatMessagesList.innerHTML = '';
 
-      const unreadThreshold = 3;
+      const unreadThreshold = 1;
       const totalBubbles = data.bubbles.length;
       const unreadStartIndex = totalBubbles - originalUnreadCount;
 
@@ -4686,11 +4685,26 @@
           }
           
           jumpBar.classList.add('active');
-          // Force scroll container to starting ceiling so jump bar has room to operate
-          chatMessagesList.scrollTop = 0;
+          // Scroll to the unread delimiter so user sees where unreads start
+          setTimeout(() => {
+            const divider = chatMessagesList.querySelector('.unread-bookmark-divider');
+            if (divider) {
+              chatMessagesList.scrollTop = Math.max(0, divider.offsetTop - 80);
+            } else {
+              chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
+            }
+          }, 10);
         } else {
           jumpBar.classList.remove('active');
+          // Fully read chat, jump to bottom
+          setTimeout(() => {
+            chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
+          }, 10);
         }
+      } else {
+        setTimeout(() => {
+          chatMessagesList.scrollTop = chatMessagesList.scrollHeight;
+        }, 10);
       }
 
       // Show Chat View (transitions via CSS)
@@ -7569,12 +7583,7 @@
     const jumpBar = document.getElementById('unread-jump-bar');
     if (jumpBar) {
       jumpBar.addEventListener('click', () => {
-        const divider = chatMessagesList.querySelector('.unread-bookmark-divider');
-        if (divider) {
-          divider.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        } else {
-          chatMessagesList.scrollTo({ top: chatMessagesList.scrollHeight, behavior: 'smooth' });
-        }
+        chatMessagesList.scrollTo({ top: chatMessagesList.scrollHeight, behavior: 'smooth' });
         dismissJumpBar();
       });
     }
@@ -7589,17 +7598,8 @@
     chatMessagesList.addEventListener('scroll', () => {
       const jumpBar = document.getElementById('unread-jump-bar');
       if (jumpBar && jumpBar.classList.contains('active')) {
-        const divider = chatMessagesList.querySelector('.unread-bookmark-divider');
-        if (divider) {
-          const dividerRect = divider.getBoundingClientRect();
-          const containerRect = chatMessagesList.getBoundingClientRect();
-          if (dividerRect.top < containerRect.bottom - 40) {
-            dismissJumpBar();
-          }
-        } else {
-          if (chatMessagesList.scrollHeight - chatMessagesList.scrollTop - chatMessagesList.clientHeight < 50) {
-            dismissJumpBar();
-          }
+        if (chatMessagesList.scrollHeight - chatMessagesList.scrollTop - chatMessagesList.clientHeight < 50) {
+          dismissJumpBar();
         }
       }
     });
