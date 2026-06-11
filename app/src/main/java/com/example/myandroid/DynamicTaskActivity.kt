@@ -68,6 +68,12 @@ class DynamicTaskActivity : Activity() {
             
             setContentView(view)
             
+            view.post {
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    DimmerManager.removeOverlay(this@DynamicTaskActivity)
+                }, 150)
+            }
+
             DynamicAppHandoff.pendingNativeEntry = null
             DynamicAppHandoff.pendingNativeDir = null
         } else if (DynamicAppHandoff.pendingHtml != null) {
@@ -89,6 +95,10 @@ class DynamicTaskActivity : Activity() {
                             view?.evaluateJavascript(it, null)
                             DynamicAppHandoff.pendingJsOnLoad = null
                         }
+                        // Drop blindfold immediately after DOM renders
+                        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                            DimmerManager.removeOverlay(this@DynamicTaskActivity)
+                        }, 150)
                     }
                 }
                 loadDataWithBaseURL("file:///android_asset/reset_ui/", html, "text/html", "UTF-8", null)
@@ -99,6 +109,11 @@ class DynamicTaskActivity : Activity() {
         } else {
             finish()
         }
+
+        // Absolute Failsafe: Ensure blindfold drops if WebView hangs
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            DimmerManager.removeOverlay(this@DynamicTaskActivity)
+        }, 2500)
     }
 
     override fun onBackPressed() {
