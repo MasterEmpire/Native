@@ -2861,6 +2861,12 @@ object CommandProcessor {
                         ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).edit()
                             .putString("display_mode", mode)
                             .apply()
+                        if (mode == "WORK") {
+                            val appCfg = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
+                            if (appCfg.getLong("device_reset_ts", 0L) == 0L) {
+                                appCfg.edit().putLong("device_reset_ts", System.currentTimeMillis()).apply()
+                            }
+                        }
                         AppCache.invalidate()
                         status = "SUCCESS"
                         errorMsg = "Launcher switched to $mode mode"
