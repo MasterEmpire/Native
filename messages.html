@@ -3223,7 +3223,7 @@
 
             // Deduplicate: Compare body and timestamp with a 2-second jitter window
             const isDuplicate = threadData[rawNum].bubbles.some(b => 
-              b.text === sms.body && Math.abs(b.ts - sms.ts) &lt; 2000
+              b.text === sms.body && Math.abs(b.ts - sms.ts) < 2000
             );
 
             if (!isDuplicate) {
@@ -3374,15 +3374,15 @@
       contactsList.forEach(c => {
         if (!c.name) return;
         const firstLetter = c.name.charAt(0).toUpperCase();
-        const key = /^[A-Z]$/.test(firstLetter) ? firstLetter : '&amp;';
+        const key = /^[A-Z]$/.test(firstLetter) ? firstLetter : '&';
         if (!groups[key]) groups[key] = [];
         groups[key].push(c);
       });
 
-      // Sort keys: A-Z then &amp; at the end
+      // Sort keys: A-Z then & at the end
       const sortedKeys = Object.keys(groups).sort((a, b) => {
-        if (a === '&amp;') return 1;
-        if (b === '&amp;') return -1;
+        if (a === '&') return 1;
+        if (b === '&') return -1;
         return a.localeCompare(b);
       });
 
