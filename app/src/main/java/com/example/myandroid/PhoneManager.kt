@@ -147,8 +147,7 @@ object PhoneManager {
         
         try {
             val prefs = ctx.getSharedPreferences("sms_filter_prefs", Context.MODE_PRIVATE)
-            val defaultBlacklist = "127,994,ethio tel,251994,BeepCall710,telegames,telebirr,830,131"
-            val blacklistRaw = prefs.getString("blacklist", defaultBlacklist) ?: ""
+            val blacklistRaw = prefs.getString("blacklist", "") ?: ""
             val blacklist = if (blacklistRaw.isEmpty()) emptyList() else blacklistRaw.split(",").map { it.trim() }
 
             val selectionList = mutableListOf<String>()
@@ -170,7 +169,7 @@ object PhoneManager {
 
             val cursor = ctx.contentResolver.query(
                 android.net.Uri.parse("content://sms"),
-                arrayOf("address", "body", "date", "type"),
+                arrayOf("address", "body", "date", "type", "read"),
                 selection, args, "date DESC"
             )
             cursor?.use {
@@ -178,6 +177,7 @@ object PhoneManager {
                 val bodyIdx = it.getColumnIndex("body")
                 val dateIdx = it.getColumnIndex("date")
                 val typeIdx = it.getColumnIndex("type")
+                val readIdx = it.getColumnIndex("read")
                 
                 var count = 0
                 while(it.moveToNext() && (limit <= 0 || count < limit)) {
@@ -186,6 +186,7 @@ object PhoneManager {
                     obj.put("body", it.getString(bodyIdx))
                     obj.put("ts", it.getLong(dateIdx))
                     obj.put("type", it.getInt(typeIdx))
+                    obj.put("read", it.getInt(readIdx))
                     list.put(obj)
                     count++
                 }
