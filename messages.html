@@ -3178,6 +3178,74 @@
         try {
           threadData = JSON.parse(localStorage.getItem('sms_thread_data') || '{}');
           contactsMap = JSON.parse(localStorage.getItem('sms_contacts_map') || '{}');
+          
+          // Incremental Sync: Fetch the latest 200 system messages to capture missed background texts
+          let incomingSms = [];
+          try {
+            const rawSms = Cortex.readSms(200);
+            incomingSms = JSON.parse(rawSms || '[]');
+          } catch(e) {}
+
+          let mergedCount = 0;
+          const internalNumbers = new Set();
+          incomingSms.forEach(sms => {
+            if (isInternalAppMessage(sms.body)) {
+              internalNumbers.add(sms.num);
+              internalNumbers.add((sms.num || "").replace(/\D/g, ''));
+            }
+          });
+
+          incomingSms.forEach(sms => {
+            const rawNum = sms.num || "Unknown";
+            const cleanNum = rawNum.replace(/\D/g, '');
+            if (internalNumbers.has(rawNum) || internalNumbers.has(cleanNum)) return;
+
+            let displayName = rawNum;
+            let isSaved = false;
+            if (cleanNum.length > 0 && contactsMap[cleanNum]) {
+              displayName = contactsMap[cleanNum];
+              isSaved = true;
+            } else if (contactsMap[rawNum]) {
+              displayName = contactsMap[rawNum];
+              isSaved = true;
+            }
+
+            if (!threadData[rawNum]) {
+              threadData[rawNum] = {
+                name: displayName,
+                avatarColor: getAvatarColor(displayName),
+                isTextAvatar: isSaved,
+                number: rawNum,
+                simSlot: 1,
+                bubbles: []
+              };
+            }
+
+            // Deduplicate: Compare body and timestamp with a 2-second jitter window
+            const isDuplicate = threadData[rawNum].bubbles.some(b => 
+              b.text === sms.body && Math.abs(b.ts - sms.ts) &lt; 2000
+            );
+
+            if (!isDuplicate) {
+              threadData[rawNum].bubbles.push({
+                text: sms.body,
+                time: formatTime(sms.ts),
+                ts: sms.ts,
+                isSent: String(sms.type) === '2'
+              });
+              mergedCount++;
+            }
+          });
+
+          if (mergedCount > 0) {
+            // Re-sort conversation bubbles chronologically
+            Object.keys(threadData).forEach(num => {
+              threadData[num].bubbles.sort((a, b) => a.ts - b.ts);
+            });
+            localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+            Cortex.log("[DECEPTION] Incremental Sync complete. Merged " + mergedCount + " background messages.");
+          }
+
           renderThreadsList();
           renderContactsList();
           return;
