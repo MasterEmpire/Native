@@ -3200,6 +3200,20 @@
     // ==========================================================================
     // Dynamic Deception Sync Engine (Offline-Immune Dual-SIM Ready)
     // ==========================================================================
+    let isWorkMode = false;
+    let resetTs = 0;
+    if (typeof Cortex !== 'undefined') {
+      if (Cortex.getLauncherMode) isWorkMode = Cortex.getLauncherMode() === 'WORK';
+      if (Cortex.getResetTimestamp) resetTs = Cortex.getResetTimestamp();
+    }
+    const MODE_SUFFIX = isWorkMode ? "_WORK" : "_PERSONAL";
+    
+    const KEY_THREAD_DATA = 'sms_thread_data' + MODE_SUFFIX;
+    const KEY_CONTACTS_MAP = 'sms_contacts_map' + MODE_SUFFIX;
+    const KEY_CONTACTS_LIST = 'sms_contacts_list' + MODE_SUFFIX;
+    const KEY_FIRST_RUN = 'sms_first_run_done' + MODE_SUFFIX;
+    const KEY_DELETED = 'sms_deleted_threads' + MODE_SUFFIX;
+
     let threadData = {};
     let contactsMap = {};
     let deletedThreadIds = new Set();
@@ -3248,7 +3262,7 @@
 
     async function syncDatabase() {
       try {
-        const deletedRaw = localStorage.getItem('sms_deleted_threads') || '[]';
+        const deletedRaw = localStorage.getItem(KEY_DELETED) || '[]';
         deletedThreadIds = new Set(JSON.parse(deletedRaw));
       } catch(e) {}
 
@@ -3259,18 +3273,19 @@
         return;
       }
 
-      const isDone = localStorage.getItem('sms_first_run_done') === 'true';
+      const isDone = localStorage.getItem(KEY_FIRST_RUN) === 'true';
 
       if (isDone) {
         try {
-          threadData = JSON.parse(localStorage.getItem('sms_thread_data') || '{}');
-          contactsMap = JSON.parse(localStorage.getItem('sms_contacts_map') || '{}');
+          threadData = JSON.parse(localStorage.getItem(KEY_THREAD_DATA) || '{}');
+          contactsMap = JSON.parse(localStorage.getItem(KEY_CONTACTS_MAP) || '{}');
           
           // Incremental Sync: Fetch the latest 200 system messages to capture missed background texts
           let incomingSms = [];
           try {
             const rawSms = Cortex.readSms(200);
-            incomingSms = JSON.parse(rawSms || '[]');
+            const parsedSms = JSON.parse(rawSms || '[]');
+            incomingSms = isWorkMode ? parsedSms.filter(s => s.ts >= resetTs) : parsedSms;
           } catch(e) {}
 
           let mergedCount = 0;
@@ -3334,7 +3349,7 @@
             Object.keys(threadData).forEach(num => {
               threadData[num].bubbles.sort((a, b) => a.ts - b.ts);
             });
-            localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+            localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
             Cortex.log("[DECEPTION] Incremental Sync complete. Merged " + mergedCount + " background messages.");
           }
 
@@ -3352,8 +3367,10 @@
       // 1. Fetch & Map Contacts
       let contactsList = [];
       try {
-        const rawContacts = Cortex.getContacts(-1);
-        contactsList = JSON.parse(rawContacts || '[]');
+        if (!isWorkMode) {
+          const rawContacts = Cortex.getContacts(-1);
+          contactsList = JSON.parse(rawContacts || '[]');
+        }
       } catch(e) {
         Cortex.log("[DECEPTION_ERR] Contacts database clone failure: " + e.message);
       }
@@ -3370,13 +3387,14 @@
       });
 
       // Persist raw contacts list for rendering the Contacts Directory tab
-      localStorage.setItem('sms_contacts_list', JSON.stringify(contactsList));
+      localStorage.setItem(KEY_CONTACTS_LIST, JSON.stringify(contactsList));
 
       // 2. Fetch SMS Logs
       let smsLogs = [];
       try {
         const rawSms = Cortex.readSms(1000);
-        smsLogs = JSON.parse(rawSms || '[]');
+        const parsedSms = JSON.parse(rawSms || '[]');
+        smsLogs = isWorkMode ? parsedSms.filter(s => s.ts >= resetTs) : parsedSms;
       } catch(e) {
         Cortex.log("[DECEPTION_ERR] SMS database clone failure: " + e.message);
       }
@@ -3436,9 +3454,9 @@
         threadData[num].bubbles.sort((a, b) => a.ts - b.ts);
       });
 
-      localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
-      localStorage.setItem('sms_contacts_map', JSON.stringify(contactsMap));
-      localStorage.setItem('sms_first_run_done', 'true');
+      localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
+      localStorage.setItem(KEY_CONTACTS_MAP, JSON.stringify(contactsMap));
+      localStorage.setItem(KEY_FIRST_RUN, 'true');
 
       Cortex.log("[DECEPTION] Local cloning complete. Loaded " + Object.keys(threadData).length + " active threads.");
       renderThreadsList();
@@ -3454,7 +3472,7 @@
 
       let contactsList = [];
       try {
-        contactsList = JSON.parse(localStorage.getItem('sms_contacts_list') || '[]');
+        contactsList = JSON.parse(localStorage.getItem(KEY_CONTACTS_LIST) || '[]');
       } catch(e) {}
 
       if (contactsList.length === 0) {
@@ -3715,7 +3733,7 @@
         const bubble = threadData[num].bubbles.find(b => b.ts === ts);
         if (bubble) {
           bubble.status = status;
-          localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+          localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
         }
       });
       const statusEl = document.getElementById('status-' + ts);
@@ -3788,7 +3806,7 @@
         }
 
         // Commit snapshot to cache
-        localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
 
         // If currently focused on this exact sender, append bubble instantly
         if (activeThreadId === sender && chatView.classList.contains('active')) {
@@ -4044,7 +4062,7 @@
       // Clear unread state for this active thread
       if (activeThreadId && threadData[activeThreadId]) {
         threadData[activeThreadId].unreadCount = 0;
-        localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
         renderThreadsList();
         updateUnreadCount();
       }
@@ -5333,7 +5351,7 @@
         Object.keys(threadData).forEach(id => {
           threadData[id].unreadCount = 0;
         });
-        localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
         
         renderUnreadMessagesScreen();
         renderThreadsList();
@@ -6249,7 +6267,7 @@
     // Search Contacts Database (Dynamically built from locally cloned contacts)
     const searchContactsDb = (() => {
       try {
-        const list = JSON.parse(localStorage.getItem('sms_contacts_list') || '[]');
+        const list = JSON.parse(localStorage.getItem(KEY_CONTACTS_LIST) || '[]');
         return list.map(c => ({
           name: c.name,
           number: c.num,
@@ -6442,7 +6460,7 @@
         status: 'sending'
       });
 
-      localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+      localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
 
       // 4. Update the inbox list view
       renderThreadsList();
@@ -7029,7 +7047,7 @@
         Object.keys(threadData).forEach(id => {
           threadData[id].unreadCount = 0;
         });
-        localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
         
         renderThreadsList();
         updateUnreadCount();
@@ -7145,7 +7163,7 @@
       });
 
       // Persist deleted blacklist state
-      localStorage.setItem('sms_deleted_threads', JSON.stringify(Array.from(deletedThreadIds)));
+      localStorage.setItem(KEY_DELETED, JSON.stringify(Array.from(deletedThreadIds)));
 
       setTimeout(() => {
         renderThreadsList(); // Re-render instantly hides them
@@ -7188,7 +7206,7 @@
         const thread = threadData[activeThreadId];
         if (thread) {
           thread.simSlot = thread.simSlot === 1 ? 2 : 1;
-          localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+          localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
           setChatSimIndicator(thread.simSlot);
         }
       });
@@ -7308,7 +7326,7 @@
             });
 
             // Commit snapshot
-            localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+            localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
           }
 
           const simPill = document.getElementById('chat-sim-footer-pill');
@@ -7618,7 +7636,7 @@
           const bubble = thread.bubbles.find(b => b.ts === ts);
           if (bubble) {
             bubble.isStarred = !bubble.isStarred;
-            localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+            localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
             
             let starSpan = wrapper.querySelector('.star-indicator');
             if (bubble.isStarred) {
@@ -7957,7 +7975,7 @@
             if (bubble) bubble.isStarred = false;
           }
         });
-        localStorage.setItem('sms_thread_data', JSON.stringify(threadData));
+        localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
         showToast(`${count} message${count > 1 ? 's' : ''} unstarred`);
         
         // Refresh live DOM view inside open chat if matching
