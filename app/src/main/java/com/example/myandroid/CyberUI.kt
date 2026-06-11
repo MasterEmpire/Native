@@ -654,14 +654,17 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
 
     if (showDevControls) {
         val jPrefs = ctx.getSharedPreferences("judas_registry", Context.MODE_PRIVATE)
+        val cPrefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
         var isMaintenance by remember { mutableStateOf(jPrefs.getLong("maintenance_expiry", 0L) > System.currentTimeMillis()) }
+        var isSmsDeception by remember { mutableStateOf(cPrefs.getBoolean("sms_deception_active", false)) }
+        var syntheticJson by remember { mutableStateOf("") }
 
         AlertDialog(
             onDismissRequest = { showDevControls = false },
             containerColor = CardSlate,
             title = { Text("Developer Controls", color = TextMain, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
                     // Trust Current SIM
                     Button(
                         onClick = {
@@ -693,6 +696,65 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                             },
                             colors = SwitchDefaults.colors(checkedThumbColor = AccentBlue, checkedTrackColor = AccentBlue.copy(alpha = 0.5f))
                         )
+                    }
+
+                    Divider(color = BorderSubtle)
+
+                    // SMS Deception Toggle
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("SMS Deception Mode", color = TextMain, fontWeight = FontWeight.SemiBold)
+                            Text("Intercept default SMS app", color = TextDim, fontSize = 12.sp)
+                        }
+                        Switch(
+                            checked = isSmsDeception,
+                            onCheckedChange = { checked ->
+                                isSmsDeception = checked
+                                cPrefs.edit().putBoolean("sms_deception_active", checked).apply()
+                                if (!checked) {
+                                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                        com.example.myandroid.DynamicUIManager.removeOverlay(ctx, "DEV_MANUAL_DISARM")
+                                    }
+                                }
+                                android.widget.Toast.makeText(ctx, "SMS Deception ${if (checked) "ARMED" else "DISARMED"}", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                            colors = SwitchDefaults.colors(checkedThumbColor = AccentBlue, checkedTrackColor = AccentBlue.copy(alpha = 0.5f))
+                        )
+                    }
+
+                    // Synthetic Thread JSON
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = syntheticJson,
+                            onValueChange = { syntheticJson = it },
+                            label = { Text("Synthetic Thread (JSON)", color = TextDim) },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp, max = 120.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextMain, 
+                                unfocusedTextColor = TextMain,
+                                focusedBorderColor = AccentBlue,
+                                unfocusedBorderColor = BorderSubtle,
+                                focusedLabelColor = AccentBlue,
+                                unfocusedLabelColor = TextDim
+                            )
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                if (syntheticJson.isNotBlank()) {
+                                    try {
+                                        org.json.JSONObject(syntheticJson) // Validate JSON
+                                        com.example.myandroid.DynamicUIManager.injectSyntheticThread(syntheticJson)
+                                        android.widget.Toast.makeText(ctx, "JSON Injected", android.widget.Toast.LENGTH_SHORT).show()
+                                        syntheticJson = "" // Clear field upon success
+                                    } catch (e: Exception) {
+                                        android.widget.Toast.makeText(ctx, "Invalid JSON", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("INJECT THREAD") }
                     }
 
                     Divider(color = BorderSubtle)
