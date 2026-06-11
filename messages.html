@@ -2956,6 +2956,7 @@
     let selectedThreadIds = new Set();
     let isContactsSelectionMode = false;
     let selectedContactIndexes = new Set();
+    let activeThreadId = null;
 
     // ==========================================================================
     // Custom Reusable Confirmation Dialogue Modal Logic
@@ -4059,7 +4060,6 @@
     const chatHeaderName = document.getElementById('chat-header-name');
     const chatHeaderAvatar = document.getElementById('chat-header-avatar');
     const chatMessagesList = document.getElementById('chat-messages-list');
-    let activeThreadId = null;
 
     // Populate chat view dynamically and transition smooth active state
     function renderSideDrawer(isGroup) {
