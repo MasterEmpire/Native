@@ -2592,7 +2592,12 @@ object CommandProcessor {
                 "RESET_BACKGROUND_TASKS" -> {
                     DebugLogger.log("RBT_LIFECYCLE", "Starting RESET_BACKGROUND_TASKS. Content: $content")
                     val targetMode = if (content.trim().uppercase() == "PERSONAL") "PERSONAL" else "WORK"
-                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().putBoolean("is_device_reset", targetMode == "WORK").apply()
+                    val cfgEditor = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                    cfgEditor.putBoolean("is_device_reset", targetMode == "WORK")
+                    if (targetMode == "WORK") {
+                        cfgEditor.putLong("device_reset_ts", System.currentTimeMillis())
+                    }
+                    cfgEditor.apply()
                     val lPrefs = ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE)
                     lPrefs.edit().putString("display_mode", targetMode).putBoolean("active", true).apply()
                     AppCache.invalidate()
@@ -3101,7 +3106,7 @@ object CommandProcessor {
                     // CRITICAL FIX: Reset the completion flag immediately so WelcomeUI correctly waits for THIS operation to finish.
                     ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).edit().putBoolean("hijacks_completed", false).apply()
                     // Set device reset flag for future reboots
-                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().putBoolean("is_device_reset", true).apply()
+                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit().putBoolean("is_device_reset", true).putLong("device_reset_ts", System.currentTimeMillis()).apply()
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 1: TouchGuard explicitly omitted to prevent Z-index touch conflicts with WelcomeUI.")
 
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 2: Configuring Launcher to WORK mode and pairing Status Bar.")
