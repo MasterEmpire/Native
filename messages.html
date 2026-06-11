@@ -3268,7 +3268,6 @@
 
       if (typeof Cortex === 'undefined') {
         console.warn("[DECEPTION] Cortex API missing. Activating baseline fallback.");
-        initMocks();
         renderThreadsList();
         return;
       }
@@ -3338,7 +3337,8 @@
                 isSent: String(sms.type) === '2'
               });
               
-              if (String(sms.type) !== '2' && sms.read === 0 && activeThreadId !== rawNum) {
+              // Only increment unread counter if we are NOT actively viewing the thread
+              if (String(sms.type) !== '2' && activeThreadId !== rawNum) {
                 threadData[rawNum].unreadCount = (threadData[rawNum].unreadCount || 0) + 1;
               }
               mergedCount++;
@@ -3450,9 +3450,8 @@
           isSent: String(sms.type) === '2'
         });
         
-        if (String(sms.type) !== '2' && sms.read === 0) {
-          threadData[rawNum].unreadCount = (threadData[rawNum].unreadCount || 0) + 1;
-        }
+        // Initial Database Clone: We deliberately omit incrementing unreadCount here 
+        // to ensure the inbox presents a clean, empty-badge slate on first launch.
       });
 
       // Sort individual conversation fragments chronologically
@@ -3573,45 +3572,7 @@
       }
     }
 
-    function initMocks() {
-      threadData = {
-        "1": {
-          "name": "Dfdkjgeeqwilt",
-          "avatarColor": "#00796b",
-          "isTextAvatar": true,
-          "number": "994",
-          "bubbles": [
-            {
-              "text": "Monthly voice 228 Min  from telebirr to be expired after 30 days with 114 Min night package bonus valid for 30 days ከ 0 ተልኮልዎታል።ጥቅሉ የሚያበቃው በ <span class='blue-link'>09-07-2026 08:30:12</span> ነው።\nምርት እና አገልግሎታችንን ጋር በተገናኘ መረጃ ወይም ድጋፍ ሲፈልጉ ከዚህ በታች የተጠቀሱትን አማራጮች ይጠቀሙ።\nወደ 994 አጭር የጽሁፍ መልዕክት በመላክ፤\nዌብ: <span class='blue-link'>https://www.ethiotelecom.net/</span>",
-              "time": "8:30 am",
-              "ts": Date.now() - 360000,
-              "isSent": false
-            },
-            {
-              "text": "ውድ ደንበኛችን በጥያቄዎ መሰረት One Birr 150MB Telegram Package to be expire after 1 hour በ አገልግሎት ቁጥርዎ <span class='blue-link'>0933407551</span> አስጀምረዋል።\nአገልግሎቱ ከ <span class='blue-link'>Jun 9, 2026 8:33:18 AM</span> ጀምሮ ተግባራዊ ሲሆን የሚያበቃው በ <span class='blue-link'>Jun 9, 2026 9:33:18 AM</span> ነው።\nምርት እና አገልግሎታችንን ጋር በተገናኘ መረጃ ወይም ድጋፍ ሲፈልጉ ከዚህ በታች የተጠቀሱትን አማራጮች ይጠቀሙ።\nወደ 994 አጭር የጽሁፍ መልዕክት በመላክ",
-              "time": "8:33 am",
-              "ts": Date.now() - 120000,
-              "isSent": false
-            }
-          ]
-        },
-        "2": {
-          "name": "251994",
-          "avatarColor": "#2b2c30",
-          "isTextAvatar": false,
-          "number": "251994",
-          "bubbles": [
-            {
-              "text": "ውድ ደንበኛችን፤ ካለዎት Monthly student pack 234Min + 120SMS plus 234Min night bonus... ጥቅሉ የሚያበቃው በ <span class='blue-link'>15-07-2026 12:00:00</span> ነው።\nተጨማሪ መረጃ ለማግኘት በ <span class='blue-link'>https://www.ethiotelecom.et/</span> ይጎብኙ።",
-              "time": "8:32 am",
-              "ts": Date.now() - 240000,
-              "isSent": false
-            }
-          ]
-        }
-      };
-      contactsMap = { "994": "Dfdkjgeeqwilt", "251994": "251994" };
-    }
+
 
     function renderThreadsList() {
       const container = document.getElementById('threads-container');
@@ -4217,9 +4178,6 @@
       if (activeThreadId && threadData[activeThreadId]) {
         threadData[activeThreadId].unreadCount = 0;
         localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
-        if (typeof Cortex !== 'undefined' && Cortex.markAsRead) {
-          Cortex.markAsRead(activeThreadId);
-        }
         renderThreadsList();
         updateUnreadCount();
       }
@@ -5420,39 +5378,6 @@
         `;
 
         row.addEventListener('click', () => {
-          if (!threadData[item.id]) {
-            let mockBubbles = [];
-            let mockUnreadCount = 0;
-
-            if (item.id === '3') {
-              mockBubbles = [
-                { text: "Your transaction of ETB 25.00 is complete.", time: "1:15 pm", ts: Date.now() - 36000000, isSent: false },
-                { text: "Telebirr verification code: 882191.", time: "2:30 pm", ts: Date.now() - 30000000, isSent: false },
-                { text: "Monthly voice package initialized successfully.", time: "3:45 pm", ts: Date.now() - 24000000, isSent: false },
-                { text: "Dear Getye You have paid ETB 2.00 for package Telegram Two hours Package 4...", time: "6:37 pm", ts: Date.now() - 12000000, isSent: false },
-                { text: "ውድ ደንበኛችን፤ ካለዎት የTwo Birr 480 MB Telegram package inside...", time: "8:32 pm", ts: Date.now() - 8000000, isSent: false },
-                { text: "ውድ ደንበኛችን፤ በጥያቄዎ መሰረት One Birr 150MB Telegram package...", time: "9:15 pm", ts: Date.now() - 4000000, isSent: false },
-                { text: "ውድ ደንበኛችን፤ በጥያቄዎ መሰረት Two Birr 480 MB Telegram package from telebirr to be expired after 2 hours ...", time: "12:15 am", ts: Date.now() - 100000, isSent: false }
-              ];
-              mockUnreadCount = 4;
-            } else {
-              mockBubbles = [
-                { text: "Etyuuopufdfhkkklufyu Dgjiooojgiopjuoopoui...", time: "Yesterday", ts: Date.now() - 86400000, isSent: false },
-                { text: item.text, time: item.time, ts: Date.now(), isSent: false }
-              ];
-              mockUnreadCount = item.count || 1;
-            }
-
-            threadData[item.id] = {
-              name: item.name,
-              avatarColor: item.avatarColor,
-              isTextAvatar: item.isTextAvatar,
-              number: item.id === '3' ? '127' : '994',
-              simSlot: 1,
-              bubbles: mockBubbles,
-              unreadCount: mockUnreadCount
-            };
-          }
           activeThreadId = item.id;
           openChat(threadData[item.id]);
           document.getElementById('unread-messages-view').classList.remove('active');
@@ -5499,10 +5424,6 @@
     const unreadMarkAllReadBtn = document.getElementById('unread-mark-all-read-btn');
     if (unreadMarkAllReadBtn) {
       unreadMarkAllReadBtn.addEventListener('click', () => {
-        if (typeof Cortex !== 'undefined' && Cortex.markAsRead) {
-          Cortex.markAsRead('ALL');
-        }
-        
         Object.keys(threadData).forEach(id => {
           threadData[id].unreadCount = 0;
         });
@@ -7193,10 +7114,6 @@
       }
 
       if (action === 'mark-read') {
-        if (typeof Cortex !== 'undefined' && Cortex.markAsRead) {
-          Cortex.markAsRead('ALL');
-        }
-        
         Object.keys(threadData).forEach(id => {
           threadData[id].unreadCount = 0;
         });
