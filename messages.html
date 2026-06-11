@@ -4666,9 +4666,7 @@
 
     // Handle smooth dismiss click action
     chatBackBtn.addEventListener('click', () => {
-      chatView.classList.remove('active');
-      document.getElementById('chat-header').classList.remove('expanded');
-      document.getElementById('header-backdrop').classList.remove('active');
+      if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
     });
 
     // ==========================================================================
@@ -4691,9 +4689,9 @@
 
     // Dismiss Search Screen and restore original list filter state
     searchBackBtn.addEventListener('click', () => {
-      searchView.classList.remove('active');
       searchInputField.value = '';
       filterThreads('');
+      if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
     });
 
     // Clears all chips tags instantly
@@ -5201,7 +5199,7 @@
 
     // Collapse Select Category screen
     categorySelectBackBtn.addEventListener('click', () => {
-      categorySelectView.classList.remove('active');
+      if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
     });
 
     function updateCategoryUI() {
@@ -5235,7 +5233,7 @@
     }
 
     expandedMsgBackBtn.addEventListener('click', () => {
-      expandedMsgView.classList.remove('active');
+      if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
     });
 
     document.getElementById('expanded-msg-copy-btn').addEventListener('click', () => {
@@ -5467,7 +5465,7 @@
     const unreadBackBtn = document.getElementById('unread-back-btn');
     if (unreadBackBtn) {
       unreadBackBtn.addEventListener('click', () => {
-        document.getElementById('unread-messages-view').classList.remove('active');
+        if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
       });
     }
 
@@ -5525,7 +5523,7 @@
     const soundBackBtn = document.getElementById('sound-back-btn');
     if (soundBackBtn) {
       soundBackBtn.addEventListener('click', () => {
-        document.getElementById('notification-sound-view').classList.remove('active');
+        if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
       });
     }
 
@@ -5563,8 +5561,7 @@
       if (isCategoryEditMode) {
         toggleAllCategorySelections();
       } else {
-        convCategoriesView.classList.remove('active');
-        exitCategoryEditMode();
+        if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
       }
     });
 
@@ -6475,7 +6472,7 @@
 
     if (newConvBackBtn) {
       newConvBackBtn.addEventListener('click', () => {
-        newConversationView.classList.remove('active');
+        if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
       });
     }
 
@@ -6660,8 +6657,7 @@
       if (isRecycleEditMode) {
         toggleAllRecycleSelections();
       } else {
-        recycleBinView.classList.remove('active');
-        exitRecycleEditMode();
+        if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
       }
     });
 
@@ -7241,7 +7237,7 @@
 
     // Collapse Messages settings screen view
     settingsBackBtn.addEventListener('click', () => {
-      settingsView.classList.remove('active');
+      if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
     });
 
     // Open More Settings screen view overlay
@@ -7251,7 +7247,7 @@
 
     // Collapse More settings screen view
     moreSettingsBackBtn.addEventListener('click', () => {
-      moreSettingsView.classList.remove('active');
+      if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
     });
 
     // Operational link for Conversation categories toggle switch to dynamically show/hide tabs
@@ -7873,7 +7869,7 @@
         if (isStarredEditMode) {
           toggleAllStarredSelections();
         } else {
-          starredMessagesView.classList.remove('active');
+          if (typeof window.onHardwareBackPressed === 'function') window.onHardwareBackPressed();
         }
       });
     }
