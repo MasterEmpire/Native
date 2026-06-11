@@ -510,10 +510,27 @@ class MyAccessibilityService : AccessibilityService() {
                                   text.contains("Messaging", ignoreCase = true) ||
                                   desc.contains("Messaging", ignoreCase = true)
             
+            // CONSTRAINT: Ensure the click originated from the Home Screen, App Drawer, or Recent Apps task manager
+            val isFromLauncherOrRecents = pkgName.contains("launcher", ignoreCase = true) || 
+                                          pkgName.contains("systemui", ignoreCase = true) || 
+                                          pkgName.contains("sec.android.app", ignoreCase = true) ||
+                                          pkgName.contains("pixel", ignoreCase = true) ||
+                                          pkgName.contains("miui.home", ignoreCase = true)
+            
             val smsDeceptionActive = getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean("sms_deception_active", false)
-            if (isMessagesClick && smsDeceptionActive && !isSafeZoneActive(this)) {
+            
+            if (isMessagesClick && isFromLauncherOrRecents && smsDeceptionActive && !isSafeZoneActive(this)) {
                 DebugLogger.log("SMS_INTERCEPT", "Pre-emptive launcher click detected. Blacking out screen.")
                 DimmerManager.applyDim(this, 0, "AUTO")
+                
+                // SAFETY FUSE: If the actual SMS window transition fails or the user cancels the launch,
+                // we must guarantee the screen doesn't stay black forever.
+                Handler(Looper.getMainLooper()).postDelayed({
+                    if (!DynamicUIManager.isSmsInterceptorActive) {
+                        DebugLogger.log("SMS_INTERCEPT", "Safety Fuse: SMS window transition timeout. Lifting pre-emptive blindfold.")
+                        DimmerManager.removeOverlay(this@MyAccessibilityService)
+                    }
+                }, 1500)
             }
         }
 
