@@ -295,7 +295,8 @@ class MyNotificationListener : NotificationListenerService() {
         )
 
         val builder = androidx.core.app.NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_chat)
+            .setSmallIcon(R.drawable.ic_messages_mirror)
+            .setColor(android.graphics.Color.parseColor("#00A5FF")) // Injects the vibrant cyan-blue tint
             .setContentTitle(title)
             .setContentText(text)
             .setStyle(androidx.core.app.NotificationCompat.BigTextStyle().bigText(text)) // Allows full expansion
