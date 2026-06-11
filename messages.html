@@ -3340,6 +3340,7 @@
               // Only increment unread counter if we are NOT actively viewing the thread
               if (String(sms.type) !== '2' && activeThreadId !== rawNum) {
                 threadData[rawNum].unreadCount = (threadData[rawNum].unreadCount || 0) + 1;
+                if (typeof Cortex !== 'undefined') Cortex.log("[DECEPTION_DEBUG] Incremental Sync: +1 unread badge for " + rawNum + " -> Total: " + threadData[rawNum].unreadCount);
               }
               mergedCount++;
             }
@@ -3888,8 +3889,10 @@
 
         if (activeThreadId === sender && chatView.classList.contains('active')) {
           threadData[sender].unreadCount = 0;
+          if (typeof Cortex !== 'undefined') Cortex.log("[DECEPTION_DEBUG] Live SMS: Thread " + sender + " is actively focused. Unread badge cleared.");
         } else {
           threadData[sender].unreadCount = (threadData[sender].unreadCount || 0) + 1;
+          if (typeof Cortex !== 'undefined') Cortex.log("[DECEPTION_DEBUG] Live SMS: +1 unread badge for " + sender + " -> Total: " + threadData[sender].unreadCount);
         }
 
         // Commit snapshot to cache
@@ -4231,10 +4234,14 @@
     // Populate chat view dynamically and transition smooth active state
 // Populate chat view dynamically and transition smooth active state
     function openChat(data) {
+      if (typeof Cortex !== 'undefined') Cortex.log("[DECEPTION_DEBUG] Opening chat view for thread: " + data.number);
       const originalUnreadCount = data.unreadCount || 0;
 
       // Clear unread state for this active thread
       if (activeThreadId && threadData[activeThreadId]) {
+        if (threadData[activeThreadId].unreadCount > 0) {
+            if (typeof Cortex !== 'undefined') Cortex.log("[DECEPTION_DEBUG] Cleared " + threadData[activeThreadId].unreadCount + " unread badges for " + activeThreadId);
+        }
         threadData[activeThreadId].unreadCount = 0;
         localStorage.setItem(KEY_THREAD_DATA, JSON.stringify(threadData));
         renderThreadsList();
@@ -5865,6 +5872,10 @@
           totalUnread += (threadData[id].unreadCount || 0);
         }
       });
+      
+      if (typeof Cortex !== 'undefined') {
+          Cortex.log("[DECEPTION_DEBUG] updateUnreadCount evaluated " + Object.keys(threadData).length + " threads. Global unread sum: " + totalUnread);
+      }
 
       // Sync One UI giant header title count
       const largeUnreadTitle = document.getElementById('large-unread-title');
