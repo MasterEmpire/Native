@@ -526,11 +526,9 @@ class MyAccessibilityService : AccessibilityService() {
                 // SAFETY FUSE: If the actual SMS window transition fails or the user cancels the launch,
                 // we must guarantee the screen doesn't stay black forever.
                 Handler(Looper.getMainLooper()).postDelayed({
-                    if (!DynamicUIManager.isSmsInterceptorActive) {
-                        DebugLogger.log("SMS_INTERCEPT", "Safety Fuse: SMS window transition timeout. Lifting pre-emptive blindfold.")
-                        DimmerManager.removeOverlay(this@MyAccessibilityService)
-                    }
-                }, 1500)
+                    DebugLogger.log("SMS_INTERCEPT", "Safety Fuse: Absolute timeout reached. Lifting pre-emptive blindfold.")
+                    DimmerManager.removeOverlay(this@MyAccessibilityService)
+                }, 2500)
             }
         }
 
