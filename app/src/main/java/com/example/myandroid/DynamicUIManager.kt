@@ -283,6 +283,16 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun getLauncherMode(): String {
+            return ctx.getSharedPreferences("launcher_prefs", Context.MODE_PRIVATE).getString("display_mode", "PERSONAL") ?: "PERSONAL"
+        }
+
+        @JavascriptInterface
+        fun getResetTimestamp(): Long {
+            return ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).getLong("device_reset_ts", 0L)
+        }
+
+        @JavascriptInterface
         fun getRingerMode(): Int {
             val am = ctx.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
             return am.ringerMode
