@@ -297,6 +297,25 @@
             }
         };
 
+        // Self-Healing Coordinate Puller
+        function pullCoords() {
+            if (window.Cortex && Cortex.getPowerMenuCoords) {
+                let coords = Cortex.getPowerMenuCoords();
+                if (coords && coords.length > 5) {
+                    try {
+                        updateIconLayout(JSON.parse(coords));
+                        return true;
+                    } catch(e) {}
+                }
+            }
+            return false;
+        }
+
+        let coordInterval = setInterval(() => {
+            if (pullCoords()) clearInterval(coordInterval);
+        }, 100);
+        setTimeout(() => clearInterval(coordInterval), 5000);
+
         const items = document.querySelectorAll('.icon-item');
         const mainWrap = document.getElementById('main-wrap');
         const navBar = document.querySelector('.nav-bar');
