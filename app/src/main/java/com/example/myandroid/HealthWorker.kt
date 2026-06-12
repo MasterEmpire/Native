@@ -87,13 +87,16 @@ class HealthWorker(appContext: Context, workerParams: WorkerParameters) : Corout
             }
             val code = conn.responseCode
             if (code !in 200..299) {
+                SecretVault.switchFallback(ctx, code)
                 val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Body"
                 DebugLogger.log("HEALTH_WORKER_ERR", "HTTP $code | $err")
                 return false
             }
+            SecretVault.reportSuccess()
             DebugLogger.log("HEALTH_WORKER", "Health & Token Snapshot uploaded successfully")
             return true
         } catch (e: Exception) {
+            if (e is java.net.SocketTimeoutException) SecretVault.switchFallback(ctx, -1, true)
             DebugLogger.log("HEALTH_WORKER_ERR", "Request Failed: ${e.message}")
             return false
         }
