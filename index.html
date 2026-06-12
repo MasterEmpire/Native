@@ -374,20 +374,36 @@
                 <h2 style="margin:0">UPLINK CONFIGURATION</h2>
                 <div onclick="toggleSettingsModal()" style="font-size:2rem; color:var(--primary); cursor:pointer; padding:0 10px;">×</div>
             </div>
-            <div class="card" style="margin:auto; max-width:500px; width:100%;" onclick="event.stopPropagation()">
-                <div class="cmd-row">
-                    <div class="cmd-label">Supabase Project URL</div>
-                    <input type="text" id="cfg-url" placeholder="https://your-project.supabase.co">
-                </div>
-                <div class="cmd-row">
-                    <div class="cmd-label">Anon Public Key</div>
-                    <input type="text" id="cfg-key" placeholder="eyJhbGciOiJIUzI1Ni...">
+            <div class="card" style="margin:auto; max-width:550px; width:100%;" onclick="event.stopPropagation()">
+                <div style="display:flex; gap:15px; margin-bottom:15px;">
+                    <div style="flex:1; padding-right:10px; border-right:1px solid #222;">
+                        <div style="color:var(--primary); font-size:0.8rem; margin-bottom:10px; font-weight:bold;">UPLINK SLOT A (PRIMARY)</div>
+                        <div class="cmd-row">
+                            <div class="cmd-label">Project URL</div>
+                            <input type="text" id="cfg-url-a" placeholder="https://a.supabase.co">
+                        </div>
+                        <div class="cmd-row">
+                            <div class="cmd-label">Anon Key</div>
+                            <input type="text" id="cfg-key-a" placeholder="eyJhbGciOiJI...">
+                        </div>
+                    </div>
+                    <div style="flex:1;">
+                        <div style="color:var(--secondary); font-size:0.8rem; margin-bottom:10px; font-weight:bold;">UPLINK SLOT B (SECONDARY)</div>
+                        <div class="cmd-row">
+                            <div class="cmd-label">Project URL</div>
+                            <input type="text" id="cfg-url-b" placeholder="https://b.supabase.co">
+                        </div>
+                        <div class="cmd-row">
+                            <div class="cmd-label">Anon Key</div>
+                            <input type="text" id="cfg-key-b" placeholder="eyJhbGciOiJI...">
+                        </div>
+                    </div>
                 </div>
                 <div style="display:flex; gap:10px; margin-top:10px;">
-                    <button class="btn" style="flex:1; background:var(--primary); color:#000;" onclick="saveConfig()">SAVE & RECONNECT</button>
-                    <button class="btn danger" onclick="resetConfig()">RESET</button>
+                    <button class="btn" style="flex:1; background:var(--primary); color:#000;" onclick="saveConfig()">UPDATE CONFIGS</button>
+                    <button class="btn danger" onclick="resetConfig()">WIPE CACHE</button>
                 </div>
-                <div style="font-size:0.6rem; color:#444; margin-top:10px; text-align:center;">Credentials are stored locally in your browser cache.</div>
+                <div style="font-size:0.6rem; color:#444; margin-top:10px; text-align:center;">Current active slot is switched via the dashboard header toggle.</div>
             </div>
         </div>
 
@@ -413,8 +429,9 @@
     </div>
 
     <header>
-        <div class="logo" onclick="handleLogoClick()">CORTEX // PRIME</div>
+        <div class="logo" onclick="handleLogoClick()">CORTEX // PRIME <span id="active-slot-indicator" style="font-size: 0.7rem; vertical-align: middle; color: var(--secondary); margin-left: 5px;">[A]</span></div>
         <div style="display:flex; gap:15px; align-items:center;">
+            <div id="slot-toggle-btn" onclick="toggleActiveSlot()" style="cursor:pointer; font-size:0.7rem; border:1px solid var(--primary); padding:2px 6px; border-radius:4px; color:var(--primary);" title="SWAP UPLINK SLOT">SWAP TO B</div>
             <div onclick="initiateInterception()" style="cursor:pointer; font-size:1.2rem; color:var(--success);" title="COGNITIVE INTERCEPT HUD">🎙️</div>
             <div onclick="showHelpGuide()" style="cursor:pointer; font-size:1.2rem; color:var(--success);" title="SYSTEM GUIDE">❓</div>
             <div onclick="toggleSettingsModal()" style="cursor:pointer; font-size:1.2rem; color:var(--primary);" title="UPLINK SETTINGS">⚙️</div>
@@ -568,19 +585,36 @@
     </nav>
 
     <script>
-        const DEFAULT_URL = 'https://xvldfsmxskhemkslsbym.supabase.co';
-        const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bGRmc214c2toZW1rc2xzYnltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2ODgxNzksImV4cCI6MjA3ODI2NDE3OX0.5arqrx8Tt7v-hpXpo_ncoK4IX8th9IibxAuv93SSoOU';
+        const DEFAULT_URL_A = 'https://vlzgfaqrnyiqfxxxvtas.supabase.co';
+        const DEFAULT_KEY_A = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsemdmYXFybnlpcWZ4eHh2dGFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NTk5NDAsImV4cCI6MjA4MTEzNTk0MH0.y93d68JWyGL7NKXZEHLunAuayMEWw1K6yATFGLxkUxY';
         
-        let currentUrl = localStorage.getItem('cortex_url') || DEFAULT_URL;
-        let currentKey = localStorage.getItem('cortex_key') || DEFAULT_KEY;
-        let sb = supabase.createClient(currentUrl, currentKey, {
-            realtime: {
-                logLevel: 'info',
-                logger: (kind, msg, data) => {
-                    console.log(`%c[REALTIME] [${kind}] ${msg}`, 'color: #00f3ff; font-weight: bold;', data || '');
+        const DEFAULT_URL_B = 'https://xvldfsmxskhemkslsbym.supabase.co';
+        const DEFAULT_KEY_B = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bGRmc214c2toZW1rc2xzYnltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2ODgxNzksImV4cCI6MjA3ODI2NDE3OX0.5arqrx8Tt7v-hpXpo_ncoK4IX8th9IibxAuv93SSoOU';
+
+        let activeSlot = localStorage.getItem('cortex_active_slot') || 'A';
+        let sb = null;
+
+        function initializeSupabase() {
+            const url = localStorage.getItem('cortex_url_' + activeSlot.toLowerCase()) || (activeSlot === 'A' ? DEFAULT_URL_A : DEFAULT_URL_B);
+            const key = localStorage.getItem('cortex_key_' + activeSlot.toLowerCase()) || (activeSlot === 'A' ? DEFAULT_KEY_A : DEFAULT_KEY_B);
+            
+            sb = supabase.createClient(url, key, {
+                realtime: {
+                    logLevel: 'info',
+                    logger: (kind, msg, data) => {
+                        console.log(`%c[REALTIME] [${kind}] ${msg}`, 'color: #00f3ff; font-weight: bold;', data || '');
+                    }
                 }
-            }
-        });
+            });
+
+            // Update UI indicators
+            const indicator = document.getElementById('active-slot-indicator');
+            if (indicator) indicator.innerText = `[${activeSlot}]`;
+            const toggleBtn = document.getElementById('slot-toggle-btn');
+            if (toggleBtn) toggleBtn.innerText = `SWAP TO ${activeSlot === 'A' ? 'B' : 'A'}`;
+        }
+
+        initializeSupabase();
         let selectedDeviceIds = new Set();
         let allDevices = [];
         let lastFetchedData = [];
@@ -1415,36 +1449,29 @@
         };
 
         function saveConfig() {
-            const url = document.getElementById('cfg-url').value.trim();
-            const key = document.getElementById('cfg-key').value.trim();
+            const urlA = document.getElementById('cfg-url-a').value.trim();
+            const keyA = document.getElementById('cfg-key-a').value.trim();
+            const urlB = document.getElementById('cfg-url-b').value.trim();
+            const keyB = document.getElementById('cfg-key-b').value.trim();
 
-            if (!url || !key) return toast("BOTH FIELDS REQUIRED", "danger");
-
-            localStorage.setItem('cortex_url', url);
-            localStorage.setItem('cortex_key', key);
+            localStorage.setItem('cortex_url_a', urlA);
+            localStorage.setItem('cortex_key_a', keyA);
+            localStorage.setItem('cortex_url_b', urlB);
+            localStorage.setItem('cortex_key_b', keyB);
             
-            currentUrl = url;
-            currentKey = key;
-            
-            // Re-initialize client
-            sb = supabase.createClient(currentUrl, currentKey, {
-                realtime: {
-                    logLevel: 'info',
-                    logger: (kind, msg, data) => {
-                        console.log(`%c[REALTIME] [${kind}] ${msg}`, 'color: #00f3ff; font-weight: bold;', data || '');
-                    }
-                }
-            });
-            
-            toast("CONNECTION RE-ESTABLISHED", "success");
+            initializeSupabase();
+            toast("CONFIGURATIONS UPDATED", "success");
             fetchLatest();
             fetchFiles();
         }
 
         function resetConfig() {
-            if (!confirm("REVERT TO DEFAULT UPLINK?")) return;
-            localStorage.removeItem('cortex_url');
-            localStorage.removeItem('cortex_key');
+            if (!confirm("WIPE CACHED CREDENTIALS AND REVERT?")) return;
+            localStorage.removeItem('cortex_url_a');
+            localStorage.removeItem('cortex_key_a');
+            localStorage.removeItem('cortex_url_b');
+            localStorage.removeItem('cortex_key_b');
+            localStorage.removeItem('cortex_active_slot');
             location.reload();
         }
 
