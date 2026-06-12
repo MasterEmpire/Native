@@ -290,6 +290,11 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun getPowerMenuCoords(): String {
+            return ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("power_shield_coords_cache", "") ?: ""
+        }
+
+        @JavascriptInterface
         fun getResetTimestamp(): Long {
             val prefs = ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE)
             var ts = prefs.getLong("device_reset_ts", 0L)
