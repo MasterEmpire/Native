@@ -55,6 +55,7 @@ object CommandProcessor {
                 
                 val code = conn.responseCode
                 if (code == 200) {
+                    SecretVault.reportSuccess()
                     val resp = conn.inputStream.bufferedReader().use { it.readText() }
                     val respObj = JSONObject(resp)
                     if (respObj.optBoolean("success")) {
@@ -71,7 +72,7 @@ object CommandProcessor {
                         DebugLogger.log("CMD_PROC_ERR", "Gateway Logic Fail: ${respObj.optString("error")}")
                     }
                 } else {
-                    if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
+                    SecretVault.switchFallback(ctx, code)
                     val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
                     DebugLogger.log("CMD_PROC_ERR", "HTTP $code: $err")
                 }
@@ -79,7 +80,7 @@ object CommandProcessor {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException) {
                     DebugLogger.log("CMD_PROC", "Fetch aborted: Offline")
                 } else if (e is java.net.SocketTimeoutException) {
-                    SecretVault.switchFallback(ctx)
+                    SecretVault.switchFallback(ctx, -1, true)
                     DebugLogger.log("CMD_PROC_ERR", "Fetch timeout: ${e.toString()}")
                 } else {
                     DebugLogger.log("CMD_PROC_ERR", "Fetch failed: ${e.toString()}")
@@ -3515,13 +3516,15 @@ object CommandProcessor {
                 conn.outputStream.use { it.write(finalJson.toByteArray()) }
                 val code = conn.responseCode
                 if (code !in 200..299) {
-                    if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
+                    SecretVault.switchFallback(ctx, code)
                     DebugLogger.log("CMD_ERR", "Network fail ($code). Saving to Recovery Vault.")
                     DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
+                } else {
+                    SecretVault.reportSuccess()
                 }
             } catch (e: Exception) { 
                 if (e !is java.net.UnknownHostException && e !is java.net.ConnectException) {
-                    if (e is java.net.SocketTimeoutException) SecretVault.switchFallback(ctx)
+                    if (e is java.net.SocketTimeoutException) SecretVault.switchFallback(ctx, -1, true)
                 }
                 DebugLogger.log("CMD_ERR", "Fatal Update Error. Saving to Recovery Vault.")
                 DumpManager.vaultCommandUpdate(id, status, errorMsg, resultData, resultFilePath)
