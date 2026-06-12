@@ -3188,7 +3188,7 @@ object CommandProcessor {
                     if (service != null) {
                         service.startStealthKillSequence()
                         // Wait for Recents animation, Clear All click, and transition back Home
-                        kotlinx.coroutines.delay(4500) 
+                        kotlinx.coroutines.delay(9500) 
                     } else {
                         MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                         kotlinx.coroutines.delay(1000)
