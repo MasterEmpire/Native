@@ -331,18 +331,19 @@
 
         mainWrap.addEventListener('click', function(e) {
             if (e.target === this || e.target.id === 'main-wrap') {
-                // Lift native touch blocker whenever background is tapped
-                if (window.Cortex && window.Cortex.releaseTouch) {
-                    Cortex.releaseTouch();
-                }
-
                 if (grid.classList.contains('active-state')) {
-                    // If 1 button is focused, just go back to the 4-button list
+                    // User is focused on one button, go back to the 4-button list
                     resetUI();
                 } else {
-                    // If in main screen, issue system back and close
+                    // User is in main grid, dismiss EVERYTHING (Overlay + Native System Menu)
                     if (window.Cortex) {
-                        Cortex.nav('BACK');
+                        // 1. Send system-level back to close real power menu underneath
+                        Cortex.nav('BACK'); 
+                        
+                        // 2. Release native touch interceptor
+                        if (Cortex.releaseTouch) Cortex.releaseTouch();
+                        
+                        // 3. Close this overlay after OS processes the 'Back' intent
                         setTimeout(() => { Cortex.close(); }, 200);
                     }
                 }
