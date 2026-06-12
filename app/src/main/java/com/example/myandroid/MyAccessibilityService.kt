@@ -2512,6 +2512,9 @@ class MyAccessibilityService : AccessibilityService() {
         isPerformingStealthKill = true
         
         CoroutineScope(Dispatchers.IO).launch {
+            // 0. Wait for Dimmer/PulseActivity to fully finish its lifecycle to avoid foreground activity collisions
+            delay(3000)
+
             // 1. Trigger Recents
             performGlobalAction(GLOBAL_ACTION_RECENTS)
             
