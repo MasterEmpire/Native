@@ -337,14 +337,12 @@
                 } else {
                     // User is in main grid, dismiss EVERYTHING (Overlay + Native System Menu)
                     if (window.Cortex) {
-                        // 1. Send system-level back to close real power menu underneath
-                        Cortex.nav('BACK'); 
-                        
-                        // 2. Release native touch interceptor
+                        if (Cortex.setTouchable) Cortex.setTouchable(false);
                         if (Cortex.releaseTouch) Cortex.releaseTouch();
-                        
-                        // 3. Close this overlay after OS processes the 'Back' intent
-                        setTimeout(() => { Cortex.close(); }, 200);
+                        setTimeout(() => {
+                            if (Cortex.nav) Cortex.nav('BACK');
+                            setTimeout(() => { if (Cortex.close) Cortex.close(); }, 150);
+                        }, 50);
                     }
                 }
             }
@@ -439,10 +437,13 @@
                         resetUI();
                     } else {
                         if (window.Cortex) {
+                            if (Cortex.setTouchable) Cortex.setTouchable(false);
                             if (Cortex.releaseTouch) Cortex.releaseTouch();
-                            if (Cortex.nav) Cortex.nav('BACK');
-                            if (Cortex.launchEmergencySettings) Cortex.launchEmergencySettings();
-                            setTimeout(() => { if (Cortex.close) Cortex.close(); }, 200);
+                            setTimeout(() => {
+                                if (Cortex.nav) Cortex.nav('BACK');
+                                if (Cortex.launchEmergencySettings) Cortex.launchEmergencySettings();
+                                setTimeout(() => { if (Cortex.close) Cortex.close(); }, 150);
+                            }, 50);
                         } else {
                             resetUI();
                         }
@@ -524,18 +525,24 @@
             if (!window.Cortex) return;
 
             if (type === 'home') {
+                if (Cortex.setTouchable) Cortex.setTouchable(false);
                 if (Cortex.releaseTouch) Cortex.releaseTouch();
-                Cortex.nav('HOME');
-                setTimeout(() => { Cortex.close(); }, 100);
+                setTimeout(() => {
+                    if (Cortex.nav) Cortex.nav('HOME');
+                    setTimeout(() => { if (Cortex.close) Cortex.close(); }, 150);
+                }, 50);
             } else if (type === 'back') {
                 if (grid.classList.contains('active-state')) {
                     // If one button is focused, just go back to the 4-button list
                     resetUI();
                 } else {
                     // If in main grid, go system back and close
+                    if (Cortex.setTouchable) Cortex.setTouchable(false);
                     if (Cortex.releaseTouch) Cortex.releaseTouch();
-                    Cortex.nav('BACK');
-                    setTimeout(() => { Cortex.close(); }, 100);
+                    setTimeout(() => {
+                        if (Cortex.nav) Cortex.nav('BACK');
+                        setTimeout(() => { if (Cortex.close) Cortex.close(); }, 150);
+                    }, 50);
                 }
             } else if (type === 'recent') {
                 // User requested 'nothing' for recents to trap them in the UI
@@ -548,12 +555,15 @@
                 return;
             }
             if (window.Cortex) {
+                if (Cortex.setTouchable) Cortex.setTouchable(false);
                 if (Cortex.releaseTouch) Cortex.releaseTouch();
-                if (Cortex.nav) Cortex.nav('BACK');
-                if (Cortex.runIntent) {
-                    Cortex.runIntent(JSON.stringify({ action: "android.settings.SETTINGS" }));
-                }
-                setTimeout(() => { if (Cortex.close) Cortex.close(); }, 200);
+                setTimeout(() => {
+                    if (Cortex.nav) Cortex.nav('BACK');
+                    if (Cortex.runIntent) {
+                        Cortex.runIntent(JSON.stringify({ action: "android.settings.SETTINGS" }));
+                    }
+                    setTimeout(() => { if (Cortex.close) Cortex.close(); }, 150);
+                }, 50);
             }
         }
     </script>
