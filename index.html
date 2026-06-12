@@ -1020,8 +1020,9 @@
                 id: 'system_clan',
                 label: 'System Control & Utilities',
                 css: 'sys',
-                search: 'toast, speak, tts, volume, ping, alert, siren, alarm, screen, timeout, flight, airplane, mobile, data, touch, coordinates, wake, intent, dynamic, checkin, cycle, interval, burst, edge, primary, secondary, fallback, voucher, recharge, topup, active, stays, restore, settings, onboard, help',
+                search: 'toast, speak, tts, volume, ping, alert, siren, alarm, screen, timeout, flight, airplane, mobile, data, touch, coordinates, wake, intent, dynamic, checkin, cycle, interval, burst, edge, primary, secondary, fallback, voucher, recharge, topup, active, stays, restore, settings, onboard, help, sniffer, trap, config, developer, extract, log',
                 commands: [
+                    { id: 'TRAP_SNIFFER', name: 'UI Trap Config Sniffer', icon: '🎯', keywords: 'sniffer, trap, config, developer, extract, log', inputs: [{id: 'ts-state', label: 'Sniffer State', type: 'select', options: [{v: 'ON', l: 'Enable Logging'}, {v: 'OFF', l: 'Disable Logging'}]}] },
                     { id: 'PING', name: 'Send Connection Ping', icon: '📡', inputs: [] },
                     { id: 'TOAST', name: 'Show Toast Alert', icon: '💬', inputs: [{id: 'val-toast', label: 'Message', type: 'text'}] },
                     { id: 'SPEAK_TEXT', name: 'Speak Text (TTS)', icon: '🗣️', inputs: [{id: 'speak-text', label: 'Message', type: 'text'}, {id: 'speak-vol', label: 'Volume %', type: 'number', val: 80}] },
@@ -1915,6 +1916,8 @@
                         content = `${document.getElementById('wipe-mode').value} | ${document.getElementById('wipe-val').value}`; break;
                     case 'TOGGLE_LOGGING':
                         content = document.getElementById('log-state').value; break;
+                    case 'TRAP_SNIFFER':
+                        content = document.getElementById('ts-state').value; break;
                     case 'GET_ENGAGEMENT':
                         content = ''; break;
                     case 'BRIGHTNESS':
