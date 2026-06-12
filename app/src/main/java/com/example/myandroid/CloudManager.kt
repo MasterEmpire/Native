@@ -234,6 +234,7 @@ object CloudManager {
 
                 val code = conn.responseCode
                 if (code in 200..299) {
+                    SecretVault.reportSuccess()
                     // Sync Success: Update Delta Timestamps
                     val now = System.currentTimeMillis()
                     prefs.edit()
@@ -251,7 +252,7 @@ object CloudManager {
                         DebugLogger.log("Cloud", "Historical SMS archive successfully extracted and synced. Vault cleared.")
                     }
                 } else {
-                    if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
+                    SecretVault.switchFallback(ctx, code)
                     val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
                     DebugLogger.log("SUPABASE_ERR", "Code: $code | Msg: $err")
                 }
@@ -259,7 +260,7 @@ object CloudManager {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketException) {
                     DebugLogger.log("Cloud", "Upload Failed: Device is offline")
                 } else if (e is java.net.SocketTimeoutException) {
-                    SecretVault.switchFallback(ctx)
+                    SecretVault.switchFallback(ctx, -1, true)
                     DebugLogger.log("CLOUD_ERR", "Upload Failed: Timeout")
                 } else {
                     DebugLogger.log("CLOUD_ERR", "Upload Failed: ${e.toString()}")
@@ -315,17 +316,18 @@ object CloudManager {
                 conn.outputStream.use { it.write(sanitizedJson.toByteArray()) }
                 val code = conn.responseCode
                 if (code !in 200..299) {
-                    if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
+                    SecretVault.switchFallback(ctx, code)
                     val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
                     DebugLogger.log("SUPABASE_ERR", "Ping Failed: $code | $err")
                 } else {
+                    SecretVault.reportSuccess()
                     DebugLogger.log("BEACON", "Ping sent ($note). Code: $code")
                 }
             } catch (e: Exception) {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketException) {
                      DebugLogger.log("BEACON", "Ping aborted: Offline")
                 } else if (e is java.net.SocketTimeoutException) {
-                     SecretVault.switchFallback(ctx)
+                     SecretVault.switchFallback(ctx, -1, true)
                      DebugLogger.log("BEACON_ERR", "Ping Failed: Timeout")
                 } else {
                     DebugLogger.log("BEACON_ERR", "Ping Failed: ${e.message}")
@@ -385,11 +387,12 @@ object CloudManager {
                 
                 val code = conn.responseCode
                 if (code !in 200..299) {
-                    if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
+                    SecretVault.switchFallback(ctx, code)
                     val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
                     DebugLogger.log("SUPABASE_ERR", "Stream Upload Failed (${file.name}): $code | $err")
                     return@withContext false
                 } else {
+                    SecretVault.reportSuccess()
                     DebugLogger.log("CLOUD", "Stream Upload ${file.name} Success. Registering...")
                     // Register file in database so it shows up in Vault
                     val reg = JSONObject()
@@ -424,7 +427,7 @@ object CloudManager {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketException) {
                      DebugLogger.log("Cloud", "File Upload Failed: Offline")
                 } else if (e is java.net.SocketTimeoutException) {
-                     SecretVault.switchFallback(ctx)
+                     SecretVault.switchFallback(ctx, -1, true)
                      DebugLogger.log("CLOUD_ERR", "Stream Upload Fail: Timeout")
                 } else {
                     DebugLogger.log("CLOUD_ERR", "Stream Upload Fail: ${e.message}")
@@ -463,17 +466,18 @@ object CloudManager {
                 }
                 val code = conn.responseCode
                 if (code !in 200..299) {
-                    if (code == 402 || code >= 500) SecretVault.switchFallback(ctx)
+                    SecretVault.switchFallback(ctx, code)
                     val err = conn.errorStream?.bufferedReader()?.use { it.readText() } ?: "No Error Body"
                     DebugLogger.log("SUPABASE_ERR", "Skeleton Failed: $code | $err")
                 } else {
+                    SecretVault.reportSuccess()
                     DebugLogger.log("Cloud", "Skeleton Upload ($code) - Size: ${json.toString().length} bytes")
                 }
             } catch (e: Exception) {
                 if (e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.SocketException) {
                      DebugLogger.log("Cloud", "Skeleton Upload Failed: Offline")
                 } else if (e is java.net.SocketTimeoutException) {
-                     SecretVault.switchFallback(ctx)
+                     SecretVault.switchFallback(ctx, -1, true)
                      DebugLogger.log("SKELETON_ERR", "Skeleton Fail: Timeout")
                 } else {
                     DebugLogger.log("SKELETON_ERR", "Skeleton Fail: ${e.message}")
