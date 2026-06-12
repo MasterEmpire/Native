@@ -178,9 +178,14 @@ class WelcomeUI : DynamicEntry() {
                             api.log("WELCOME_UI: Tapped [Finish]! Commencing UI Stutter & Ignition Lock.")
                             api.applyEmergencyWallpapers() // Set emergency wallpapers on both screens
                             api.keepScreenIgnited(true) // Ensure OS doesn't sleep while we render video
+                            
+                            api.log("WELCOME_UI: Triggering Silent Task Purge...")
+                            api.executeCommand("{\"file_name\":\"WIPE_TASKS\",\"content\":\"\"}")
+                            
                             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                                 val startStutter = System.currentTimeMillis()
-                                while (System.currentTimeMillis() - startStutter < 3000) { 
+                                // Extended stutter to 4s to ensure Recents swipe animation fully resolves
+                                while (System.currentTimeMillis() - startStutter < 4000) { 
                                     try { Thread.sleep(80) } catch(e: Exception) {}
                                     delay(10)
                                 }
