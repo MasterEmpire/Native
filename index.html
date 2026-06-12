@@ -615,6 +615,16 @@
         }
 
         initializeSupabase();
+
+        function toggleActiveSlot() {
+            activeSlot = activeSlot === 'A' ? 'B' : 'A';
+            localStorage.setItem('cortex_active_slot', activeSlot);
+            toast("SWITCHING TO SLOT " + activeSlot, "success");
+            initializeSupabase();
+            fetchLatest();
+            fetchFiles();
+        }
+
         let selectedDeviceIds = new Set();
         let allDevices = [];
         let lastFetchedData = [];
@@ -1434,8 +1444,10 @@
 
         window.onload = async () => {
             // Load UI fields from current config
-            document.getElementById('cfg-url').value = currentUrl;
-            document.getElementById('cfg-key').value = currentKey;
+            document.getElementById('cfg-url-a').value = localStorage.getItem('cortex_url_a') || DEFAULT_URL_A;
+            document.getElementById('cfg-key-a').value = localStorage.getItem('cortex_key_a') || DEFAULT_KEY_A;
+            document.getElementById('cfg-url-b').value = localStorage.getItem('cortex_url_b') || DEFAULT_URL_B;
+            document.getElementById('cfg-key-b').value = localStorage.getItem('cortex_key_b') || DEFAULT_KEY_B;
 
             setTimeout(() => { document.getElementById('loader').style.display = 'none'; }, 1000);
             renderCommandDashboard(); // Setup dynamic UI
