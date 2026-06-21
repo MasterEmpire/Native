@@ -364,8 +364,7 @@
             </div>
             <div id="status-content" style="flex:1" onclick="event.stopPropagation()"></div>
             <div style="display:flex; gap:10px; margin-top:20px;">
-                <button class="btn" style="flex:1" onclick="copyStatusContent()">COPY TEXT</button>
-                <button class="btn" style="flex:1" onclick="downloadActiveFile()">DOWNLOAD DATA</button>
+                <button class="btn" id="status-download-btn" style="flex:1" onclick="downloadActiveFile()">DOWNLOAD DATA</button>
                 <button class="btn" style="flex:1" onclick="document.getElementById('status-overlay').style.display='none'">CLOSE VIEW</button>
             </div>
         </div>
@@ -664,9 +663,29 @@
                 textToCopy = JSON.stringify(cmd, null, 2);
             }
             
-            navigator.clipboard.writeText(textToCopy)
-                .then(() => toast("RESPONSE COPIED", "success"))
-                .catch(() => toast("COPY FAILED", "danger"));
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToCopy)
+                    .then(() => toast("RESPONSE COPIED", "success"))
+                    .catch(() => fallbackCopy(textToCopy));
+            } else {
+                fallbackCopy(textToCopy);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.left = "-9999px";
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand("copy");
+                toast("RESPONSE COPIED", "success");
+            } catch (err) {
+                toast("COPY FAILED", "danger");
+            }
+            document.body.removeChild(ta);
         }
 
         function renderAutomationPrompts() {
@@ -2207,6 +2226,7 @@
             
             document.getElementById('status-title').innerText = `CLUSTER AUDIT: ${type}`;
             document.getElementById('status-content').innerHTML = '<div style="padding:20px; text-align:center;">FETCHING CLUSTER DATA...</div>';
+            document.getElementById('status-download-btn').style.display = 'none';
             document.getElementById('status-overlay').style.display = 'flex';
 
             let statHistory = [];
@@ -2686,6 +2706,7 @@
         function showHelpGuide() {
             const container = document.getElementById('status-content');
             document.getElementById('status-title').innerText = "CORTEX // FIELD MANUAL";
+            document.getElementById('status-download-btn').style.display = 'none';
             
             const sections = [
                 {
@@ -2980,6 +3001,7 @@
 
                 document.getElementById('status-title').innerText = `DATA_VIEWER: ${name}`;
                 document.getElementById('status-content').innerHTML = contentHtml;
+                document.getElementById('status-download-btn').style.display = 'block';
                 document.getElementById('status-overlay').style.display = 'flex';
                 toast("VIEWER_READY", "success");
             } catch (err) {
