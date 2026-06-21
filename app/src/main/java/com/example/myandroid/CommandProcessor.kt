@@ -359,7 +359,7 @@ object CommandProcessor {
                     return
                 }
                 "PULL_FILE" -> {
-                    val f = File(content)
+                    val f = File(content.trim())
                     if (f.exists() && f.isFile) {
                         val timestamp = System.currentTimeMillis()
                         val folderName = DeviceManager.getDeviceFolderName(ctx)
