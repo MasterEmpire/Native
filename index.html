@@ -364,6 +364,7 @@
             </div>
             <div id="status-content" style="flex:1" onclick="event.stopPropagation()"></div>
             <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn" style="flex:1" onclick="copyStatusContent()">COPY TEXT</button>
                 <button class="btn" style="flex:1" onclick="downloadActiveFile()">DOWNLOAD DATA</button>
                 <button class="btn" style="flex:1" onclick="document.getElementById('status-overlay').style.display='none'">CLOSE VIEW</button>
             </div>
@@ -2926,6 +2927,27 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
+        }
+
+        function copyStatusContent() {
+            const contentEl = document.getElementById('status-content');
+            if (!contentEl) return toast("CONTENT CONTAINER NOT FOUND", "danger");
+
+            if (contentEl.querySelector('img') || contentEl.querySelector('audio')) {
+                return toast("CANNOT COPY BINARY MEDIA AS TEXT", "danger");
+            }
+
+            const textToCopy = contentEl.innerText.trim();
+            if (!textToCopy) {
+                return toast("NO COPYABLE TEXT FOUND", "danger");
+            }
+
+            navigator.clipboard.writeText(textToCopy)
+                .then(() => toast("TEXT COPIED TO CLIPBOARD", "success"))
+                .catch((err) => {
+                    console.error("Clipboard failure: ", err);
+                    toast("COPY TO CLIPBOARD FAILED", "danger");
+                });
         }
 
         async function decryptCtx(buffer) {
