@@ -2892,19 +2892,48 @@
                 activeBlob = new Blob([buffer]);
                 activeFileName = workingName;
                 
+                const imageExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'ico'];
+                const audioExts = ['m4a', 'mp3', 'wav', 'aac', 'ogg', 'flac', 'opus'];
+                const videoExts = ['mp4', 'webm', 'mkv', 'avi', 'mov', '3gp'];
+                const binaryExts = ['apk', 'zip', 'gz', 'dex', 'bin', 'tar', 'pdf', 'exe', 'jar'];
+
                 let contentHtml = "";
                 if (effectiveExt === 'ctx') {
                     const processedData = await decryptCtx(buffer);
                     contentHtml = renderIntelligence(processedData);
-                } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(effectiveExt)) {
+                } else if (imageExts.includes(effectiveExt)) {
                     const url = URL.createObjectURL(activeBlob);
-                    contentHtml = `<img src="${url}" class="viewer-media" style="display:block; margin:auto;">`;
-                } else if (['m4a', 'mp3', 'wav', 'aac'].includes(ext)) {
+                    contentHtml = `<img src="${url}" class="viewer-media" style="display:block; margin:auto; max-height:450px;">`;
+                } else if (audioExts.includes(effectiveExt)) {
                     const url = URL.createObjectURL(activeBlob);
                     contentHtml = `<audio controls src="${url}" class="viewer-media" style="width:100%"></audio>`;
+                } else if (videoExts.includes(effectiveExt)) {
+                    const url = URL.createObjectURL(activeBlob);
+                    contentHtml = `<video controls src="${url}" class="viewer-media" style="width:100%; max-height:400px; display:block; margin:auto;"></video>`;
+                } else if (binaryExts.includes(effectiveExt)) {
+                    contentHtml = `
+                        <div style="text-align:center; padding:40px; border:1px dashed var(--primary); background:rgba(0,0,0,0.3); font-family:'Share Tech Mono', monospace; width:100%;">
+                            <div style="font-size:3rem; margin-bottom:15px;">📦</div>
+                            <div style="font-size:1rem; color:#fff; font-weight:bold; margin-bottom:5px;">BINARY FILE: ${workingName.toUpperCase()}</div>
+                            <div style="font-size:0.75rem; color:#666; margin-bottom:20px;">Direct terminal viewing is disabled for safety.</div>
+                            <button class="btn" onclick="downloadActiveFile()">DOWNLOAD FILE (${formatBytes(activeBlob.size)})</button>
+                        </div>
+                    `;
                 } else {
                     const text = new TextDecoder().decode(buffer);
-                    if (isJsonOrNdjson(text)) {
+                    // Active binary detection (checks for null bytes or a high ratio of non-printable bytes)
+                    const isBinary = text.includes('\u0000') || (text.slice(0, 1000).replace(/[\x09\x0A\x0D\x20-\x7E]/g, '').length / Math.min(text.length, 1000) > 0.3);
+
+                    if (isBinary) {
+                        contentHtml = `
+                            <div style="text-align:center; padding:40px; border:1px dashed var(--primary); background:rgba(0,0,0,0.3); font-family:'Share Tech Mono', monospace; width:100%;">
+                                <div style="font-size:3rem; margin-bottom:15px;">📦</div>
+                                <div style="font-size:1rem; color:#fff; font-weight:bold; margin-bottom:5px;">BINARY FILE DETECTED</div>
+                                <div style="font-size:0.75rem; color:#666; margin-bottom:20px;">File structure contains non-textual raw binary data.</div>
+                                <button class="btn" onclick="downloadActiveFile()">DOWNLOAD FILE (${formatBytes(activeBlob.size)})</button>
+                            </div>
+                        `;
+                    } else if (isJsonOrNdjson(text)) {
                         contentHtml = renderBeautifulJson(text);
                     } else {
                         contentHtml = `<pre style="color:var(--primary); font-size:0.7rem; white-space:pre-wrap;">${text}</pre>`;
