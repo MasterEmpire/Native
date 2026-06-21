@@ -1519,10 +1519,40 @@
 
         async function fetchLatest() { 
             const { data } = await sb.from('device_stats').select('*').order('created_at', { ascending: false }).limit(50);
+            
+            // Fetch command updates to isolate device activity triggers
+            const { data: cmdData } = await sb.from('file_commands')
+                .select('device_id, updated_at, status')
+                .neq('status', 'PENDING')
+                .order('updated_at', { ascending: false })
+                .limit(100);
+
             if (data) {
                 lastFetchedData = data;
-                // Group by Unique Device ID, but merge historical data fields so telemetry never blanks
                 const uniqueMap = new Map();
+                const latestContactMap = new Map();
+
+                // 1. Process stats timestamps
+                data.forEach(stat => {
+                    const devId = stat.device_id;
+                    const statTime = new Date(stat.created_at);
+                    if (!latestContactMap.has(devId) || statTime > latestContactMap.get(devId)) {
+                        latestContactMap.set(devId, statTime);
+                    }
+                });
+
+                // 2. Process active command executions (excluding PENDING operator inputs)
+                if (cmdData) {
+                    cmdData.forEach(cmd => {
+                        const devId = cmd.device_id;
+                        if (cmd.updated_at) {
+                            const cmdTime = new Date(cmd.updated_at);
+                            if (!latestContactMap.has(devId) || cmdTime > latestContactMap.get(devId)) {
+                                latestContactMap.set(devId, cmdTime);
+                            }
+                        }
+                    });
+                }
                 
                 // Iterate oldest to newest so newer non-null fields overwrite older ones
                 const reversedData = [...data].reverse();
@@ -1554,12 +1584,20 @@
                     }
                 });
 
-                allDevices = Array.from(uniqueMap.values());
+                // Attach consolidated last seen contact window
+                allDevices = Array.from(uniqueMap.values()).map(dev => {
+                    const latestContact = latestContactMap.get(dev.device_id) || new Date(dev.created_at);
+                    return {
+                        ...dev,
+                        last_contact: latestContact.toISOString()
+                    };
+                });
+
                 renderDeviceList();
                 
                 // Handle Connection Status Dot (Global)
                 const dot = document.getElementById('connectionStatus');
-                const isAnyOnline = allDevices.some(d => (new Date() - new Date(d.created_at)) < 90000);
+                const isAnyOnline = allDevices.some(d => (new Date() - new Date(d.last_contact)) < 90000);
                 dot.className = 'status-dot ' + (isAnyOnline ? 'online' : '');
 
                 // Update Feed for the first selected device or latest overall
@@ -1626,7 +1664,7 @@
                 radarTargets.innerHTML = allDevices.map((dev) => {
                     const coords = getDeviceCoords(dev.device_id);
                     const isSelected = selectedDeviceIds.has(dev.device_id);
-                    const diffSec = Math.floor((new Date() - new Date(dev.created_at)) / 1000);
+                    const diffSec = Math.floor((new Date() - new Date(dev.last_contact || dev.created_at)) / 1000);
                     const isOnline = diffSec < 90;
                     const dotColor = isOnline ? 'var(--success)' : 'var(--danger)';
                     const borderCol = isSelected ? 'var(--primary)' : 'transparent';
@@ -1645,9 +1683,9 @@
 
             container.innerHTML = allDevices.map(dev => {
                 const isSelected = selectedDeviceIds.has(dev.device_id);
-                const diffSec = Math.floor((new Date() - new Date(dev.created_at)) / 1000);
+                const diffSec = Math.floor((new Date() - new Date(dev.last_contact || dev.created_at)) / 1000);
                 const isOnline = diffSec < 90;
-                const friendlyStatus = formatLastSeen(dev.created_at);
+                const friendlyStatus = formatLastSeen(dev.last_contact || dev.created_at);
                 
                 return `
                     <div class="device-row ${isSelected ? 'selected' : ''}" onclick="toggleDevice('${dev.device_id}')">
