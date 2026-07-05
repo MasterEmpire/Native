@@ -4,4 +4,8 @@ compatibility_date = "2026-05-20"
 
 [[migrations]]
 tag = "v1"
+new_classes = ["GeminiLiveAgent"]
+
+[[migrations]]
+tag = "v2"
 deleted_classes = ["GeminiLiveAgent"]
