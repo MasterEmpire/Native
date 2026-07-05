@@ -1,3 +1,7 @@
 name = "gemini-live-proxy"
 main = "src/index.js"
 compatibility_date = "2026-05-20"
+
+[[migrations]]
+tag = "v1"
+deleted_classes = ["GeminiLiveAgent"]
