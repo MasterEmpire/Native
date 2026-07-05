@@ -30,6 +30,9 @@ export default {
           "Content-Type": "application/json",
           "apikey": serviceRoleKey,
           "Authorization": `Bearer ${serviceRoleKey}`
+        },
+        cf: {
+          dns: "public"
         }
       });
 
