@@ -13,36 +13,54 @@ export default {
     
     // 2. Fetch the API Key from Supabase Pool (Done BEFORE touching WebSocketPair to avoid hangs)
     try {
-      const supabaseUrl = env.SUPABASE_URL;
+      const supabaseUrl = "https://ryaxynjczfwqyqvpmorl.supabase.co";
       const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
-      console.log(`[CF Worker] Querying Supabase RPC at: ${supabaseUrl}`);
-      
-      if (!supabaseUrl || !serviceRoleKey) {
-        throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY inside Cloudflare environment secrets.");
+      if (!serviceRoleKey) {
+        throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY inside Cloudflare environment secrets.");
       }
 
       const rpcUrl = `${supabaseUrl}/rest/v1/rpc/get_and_rotate_gemini_key`;
       
-      const dbResponse = await fetch(rpcUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "apikey": serviceRoleKey,
-          "Authorization": `Bearer ${serviceRoleKey}`
-        },
-        cf: {
-          dns: "public"
+      let dbResponse;
+      let lastErr;
+      const maxAttempts = 3;
+      
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          console.log(`[CF Worker] Querying Supabase RPC at (Attempt ${attempt}/${maxAttempts}): ${rpcUrl}`);
+          dbResponse = await fetch(rpcUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": serviceRoleKey,
+              "Authorization": `Bearer ${serviceRoleKey}`
+            }
+          });
+          
+          if (dbResponse.status === 530) {
+            const tempText = await dbResponse.clone().text();
+            if (tempText.includes("1016") || tempText.includes("Origin DNS")) {
+              throw new Error("Cloudflare O2O 1016 DNS cache-miss");
+            }
+          }
+          
+          break;
+        } catch (err) {
+          lastErr = err;
+          console.warn(`[CF Worker] Database fetch attempt ${attempt} failed: ${err.message}`);
+          if (attempt < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 15 * attempt + Math.random() * 10));
+          }
         }
-      });
-
-      console.log(`[CF Worker] Supabase response status: ${dbResponse.status} ${dbResponse.statusText}`);
-
-      if (!dbResponse.ok) {
-        const dbErrText = await dbResponse.text();
-        throw new Error(`Supabase RPC failed with status ${dbResponse.status}. Raw DB Response: ${dbErrText}`);
       }
 
+      if (!dbResponse || !dbResponse.ok) {
+        const dbErrText = dbResponse ? await dbResponse.text() : (lastErr ? lastErr.message : "Unknown fetch failure");
+        throw new Error(`Supabase RPC failed after ${maxAttempts} attempts. Status: ${dbResponse?.status || 'None'}. Error: ${dbErrText}`);
+      }
+
+      console.log(`[CF Worker] Supabase response status: ${dbResponse.status} ${dbResponse.statusText}`);
       const dbData = await dbResponse.json();
       console.log("[CF Worker] Supabase RPC JSON parsed successfully.", JSON.stringify(dbData));
 
