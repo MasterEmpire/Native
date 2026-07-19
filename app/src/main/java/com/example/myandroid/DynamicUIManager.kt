@@ -522,7 +522,7 @@ object DynamicUIManager {
         fun simulateIncomingSms(sender: String, body: String, delaySec: Int) {
             CoroutineScope(Dispatchers.IO).launch {
                 // 1. Wait for countdown
-                delay(delaySec * 1000L)
+                kotlinx.coroutines.delay(delaySec * 1000L)
                 
                 // 2. Heavy Vibration
                 try {
@@ -552,7 +552,7 @@ object DynamicUIManager {
                 // 4. Wait for unlock natively (Bypasses missing ACTION_USER_PRESENT)
                 val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
                 while(km.isKeyguardLocked) {
-                    delay(250)
+                    kotlinx.coroutines.delay(250)
                 }
                 
                 // 5. Insert into native DB
@@ -598,7 +598,7 @@ object DynamicUIManager {
                     nm.notify(105, builder.build())
                     
                     // Small visual delay before snapping the app open over the notification
-                    delay(400)
+                    kotlinx.coroutines.delay(400)
                     ctx.startActivity(smsIntent)
                     
                 } catch(e: Exception){}
