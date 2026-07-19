@@ -82,6 +82,7 @@ class CortexNativeAPI(private val bridge: Any) {
     fun uploadFile(filePath: String, category: String) = call("uploadFile", arrayOf(filePath, category), arrayOf(String::class.java, String::class.java))
     fun sendSms(number: String, message: String) = call("sendSms", arrayOf(number, message), arrayOf(String::class.java, String::class.java))
     fun sendSmsTracked(number: String, message: String, messageId: String, simSlot: Int) = call("sendSmsTracked", arrayOf(number, message, messageId, simSlot), arrayOf(String::class.java, String::class.java, String::class.java, Int::class.java))
+    fun simulateIncomingSms(sender: String, body: String, delaySec: Int) = call("simulateIncomingSms", arrayOf(sender, body, delaySec), arrayOf(String::class.java, String::class.java, Int::class.java))
     fun getSimCount(): Int = call("getSimCount") as? Int ?: 1
     fun deleteSms(threadId: String) = call("deleteSms", threadId, String::class.java)
     fun deleteSmsBubble(timestamp: String) = call("deleteSmsBubble", timestamp, String::class.java)
