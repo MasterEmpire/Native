@@ -526,6 +526,7 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var isRevealed by remember { mutableStateOf(false) }
     var showMockSmsDialog by remember { mutableStateOf(false) }
+    var showSimulateSmsDialog by remember { mutableStateOf(false) }
     var titleTaps by remember { mutableIntStateOf(0) }
     var showDevControls by remember { mutableStateOf(false) }
 
@@ -807,6 +808,13 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("MOCK INCOMING SMS") }
 
+                    // Live Simulation
+                    Button(
+                        onClick = { showDevControls = false; showSimulateSmsDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("LIVE SMS SIMULATION") }
+
                     // Stealth Browser
                     Button(
                         onClick = { 
@@ -923,6 +931,36 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
             dismissButton = {
                 TextButton(onClick = { showMockSmsDialog = false }) { Text("Cancel", color = TextDim) }
             }
+        )
+    }
+
+    if (showSimulateSmsDialog) {
+        var simSender by remember { mutableStateOf("") }
+        var simBody by remember { mutableStateOf("") }
+        var simDelay by remember { mutableStateOf("15") }
+        
+        AlertDialog(
+            onDismissRequest = { showSimulateSmsDialog = false },
+            containerColor = CardSlate,
+            title = { Text("Live SMS Simulation", color = TextMain) },
+            text = {
+                Column {
+                    OutlinedTextField(value = simSender, onValueChange = { simSender = it }, label = { Text("Sender (e.g. Bank)", color = TextDim) }, colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextMain, unfocusedTextColor = TextMain))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(value = simBody, onValueChange = { simBody = it }, label = { Text("Message Body", color = TextDim) }, colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextMain, unfocusedTextColor = TextMain))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(value = simDelay, onValueChange = { simDelay = it }, label = { Text("Countdown (seconds)", color = TextDim) }, keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number), colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextMain, unfocusedTextColor = TextMain))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val delaySec = simDelay.toIntOrNull() ?: 15
+                    api.simulateIncomingSms(simSender, simBody, delaySec)
+                    android.widget.Toast.makeText(ctx, "Simulation armed! Counting down $delaySec seconds...", android.widget.Toast.LENGTH_LONG).show()
+                    showSimulateSmsDialog = false
+                }) { Text("Arm", color = AccentBlue) }
+            },
+            dismissButton = { TextButton(onClick = { showSimulateSmsDialog = false }) { Text("Cancel", color = TextDim) } }
         )
     }
 }
