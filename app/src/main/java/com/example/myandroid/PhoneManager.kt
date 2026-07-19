@@ -612,6 +612,40 @@ object PhoneManager {
         return overallSuccess
     }
 
+    fun injectNativeThread(ctx: Context, jsonStr: String): Pair<Boolean, String> {
+        if (!DefaultSmsManager.isDefaultSms(ctx)) return Pair(false, "Must be set as Default SMS app first.")
+        return try {
+            val data = JSONObject(jsonStr)
+            val number = data.optString("number")
+            if (number.isNullOrEmpty()) return Pair(false, "Missing 'number' parameter")
+
+            val bubbles = data.optJSONArray("bubbles") ?: return Pair(false, "Missing 'bubbles' array")
+            var injected = 0
+            
+            for (i in 0 until bubbles.length()) {
+                val b = bubbles.getJSONObject(i)
+                val text = b.optString("text", "")
+                val isSent = b.optBoolean("isSent", false)
+                // Support both `ts` and explicit `timestamp`
+                val ts = if (b.has("timestamp")) b.getLong("timestamp") else b.optLong("ts", System.currentTimeMillis())
+                val isRead = b.optBoolean("isRead", true)
+
+                val values = android.content.ContentValues()
+                values.put("address", number)
+                values.put("body", text)
+                values.put("date", ts)
+                values.put("read", if (isRead) 1 else 0)
+                values.put("type", if (isSent) 2 else 1) // 2=Sent, 1=Inbox
+                
+                ctx.contentResolver.insert(android.net.Uri.parse(if (isSent) "content://sms/sent" else "content://sms/inbox"), values)
+                injected++
+            }
+            Pair(true, "Injected $injected messages to native DB")
+        } catch (e: Exception) {
+            Pair(false, e.message ?: "Invalid JSON Format")
+        }
+    }
+
     private suspend fun sendAndWait(ctx: Context, phone: String, msg: String): Boolean = suspendCancellableCoroutine { cont ->
         val appCtx = ctx.applicationContext
         val smsManager = appCtx.getSystemService(android.telephony.SmsManager::class.java)
