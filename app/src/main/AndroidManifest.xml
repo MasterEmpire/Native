@@ -232,6 +232,17 @@
         </service>
 
         <service
+            android:name=".HomeTileService"
+            android:icon="@drawable/ic_tile_home"
+            android:label="Home State"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+        <service
             android:name=".WifiTileService"
             android:icon="@drawable/ic_tile_wifi"
             android:label="Wi-Fi"
