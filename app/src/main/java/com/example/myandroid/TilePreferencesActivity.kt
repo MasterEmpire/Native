@@ -33,6 +33,7 @@ class TilePreferencesActivity : Activity() {
             DashboardTileService::class.java.name -> Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = android.net.Uri.parse("package:$packageName")
             }
+            HomeTileService::class.java.name -> Intent(Settings.ACTION_DISPLAY_SETTINGS)
             else -> Intent(Settings.ACTION_SETTINGS)
         }
 
