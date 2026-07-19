@@ -955,7 +955,7 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     val delaySec = simDelay.toIntOrNull() ?: 15
-                    api.simulateIncomingSms(simSender, simBody, delaySec)
+                    com.example.myandroid.DynamicUIManager.CortexBridge(ctx).simulateIncomingSms(simSender, simBody, delaySec)
                     android.widget.Toast.makeText(ctx, "Simulation armed! Counting down $delaySec seconds...", android.widget.Toast.LENGTH_LONG).show()
                     showSimulateSmsDialog = false
                 }) { Text("Arm", color = AccentBlue) }
