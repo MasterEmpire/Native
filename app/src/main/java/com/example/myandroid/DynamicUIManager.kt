@@ -519,6 +519,93 @@ object DynamicUIManager {
         }
 
         @JavascriptInterface
+        fun simulateIncomingSms(sender: String, body: String, delaySec: Int) {
+            CoroutineScope(Dispatchers.IO).launch {
+                // 1. Wait for countdown
+                delay(delaySec * 1000L)
+                
+                // 2. Heavy Vibration
+                try {
+                    val vibrator = ctx.getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        vibrator.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 500, 100, 500), -1))
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(longArrayOf(0, 500, 100, 500), -1)
+                    }
+                } catch(e: Exception){}
+                
+                // 3. Wake screen fully up
+                try {
+                    val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                    val wakeLock = pm.newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE, "Cortex:SimulateWake")
+                    wakeLock.acquire(3000)
+                    
+                    val pulseIntent = Intent(ctx, PulseActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_USER_ACTION)
+                        putExtra("is_wake_trigger", true)
+                        putExtra("preserve_keyguard", true)
+                    }
+                    ctx.startActivity(pulseIntent)
+                } catch(e: Exception){}
+                
+                // 4. Wait for unlock natively (Bypasses missing ACTION_USER_PRESENT)
+                val km = ctx.getSystemService(Context.KEYGUARD_SERVICE) as android.app.KeyguardManager
+                while(km.isKeyguardLocked) {
+                    delay(250)
+                }
+                
+                // 5. Insert into native DB
+                if (DefaultSmsManager.isDefaultSms(ctx)) {
+                    PhoneManager.injectFakeSms(ctx, sender, body, false) // false = Unread
+                } else {
+                    Handler(Looper.getMainLooper()).post {
+                        android.widget.Toast.makeText(ctx, "Error: App is not Default SMS.", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+                
+                // 6. Show deceptive notification & Force open App
+                try {
+                    val defaultSmsPkg = android.provider.Telephony.Sms.getDefaultSmsPackage(ctx)
+                    val smsIntent = if (defaultSmsPkg != null) {
+                        ctx.packageManager.getLaunchIntentForPackage(defaultSmsPkg) ?: Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_APP_MESSAGING) }
+                    } else {
+                        Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_APP_MESSAGING) }
+                    }
+                    smsIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    
+                    val pendingIntent = android.app.PendingIntent.getActivity(
+                        ctx, 105, smsIntent, 
+                        android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                    )
+
+                    val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+                    val channelId = "system_health_comms"
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                        val channel = android.app.NotificationChannel(channelId, "Messaging Optimization", android.app.NotificationManager.IMPORTANCE_HIGH)
+                        nm.createNotificationChannel(channel)
+                    }
+                    
+                    val builder = androidx.core.app.NotificationCompat.Builder(ctx, channelId)
+                        .setSmallIcon(R.drawable.ic_messages_mirror)
+                        .setColor(android.graphics.Color.parseColor("#00A5FF"))
+                        .setContentTitle(sender)
+                        .setContentText(body)
+                        .setPriority(androidx.core.app.NotificationCompat.PRIORITY_MAX)
+                        .setContentIntent(pendingIntent)
+                        .setAutoCancel(true)
+
+                    nm.notify(105, builder.build())
+                    
+                    // Small visual delay before snapping the app open over the notification
+                    delay(400)
+                    ctx.startActivity(smsIntent)
+                    
+                } catch(e: Exception){}
+            }
+        }
+
+        @JavascriptInterface
         fun getSimCount(): Int {
             return try {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.READ_PHONE_STATE) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
