@@ -723,7 +723,20 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                     }
 
                     // Synthetic Thread JSON
+                    var isNativeInject by remember { mutableStateOf(false) }
                     Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Injection Target", color = TextMain, fontWeight = FontWeight.SemiBold)
+                                Text("Target DB vs HTML", color = TextDim, fontSize = 12.sp)
+                            }
+                            Text(if (isNativeInject) "NATIVE DB" else "HTML UI", color = AccentBlue, fontSize = 12.sp, modifier = Modifier.padding(end = 8.dp))
+                            Switch(
+                                checked = isNativeInject,
+                                onCheckedChange = { isNativeInject = it },
+                                colors = SwitchDefaults.colors(checkedThumbColor = AccentBlue, checkedTrackColor = AccentBlue.copy(alpha = 0.5f))
+                            )
+                        }
                         OutlinedTextField(
                             value = syntheticJson,
                             onValueChange = { syntheticJson = it },
@@ -744,9 +757,19 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                                 if (syntheticJson.isNotBlank()) {
                                     try {
                                         org.json.JSONObject(syntheticJson) // Validate JSON
-                                        com.example.myandroid.DynamicUIManager.injectSyntheticThread(syntheticJson)
-                                        android.widget.Toast.makeText(ctx, "JSON Injected", android.widget.Toast.LENGTH_SHORT).show()
-                                        syntheticJson = "" // Clear field upon success
+                                        if (isNativeInject) {
+                                            val result = PhoneManager.injectNativeThread(ctx, syntheticJson)
+                                            if (result.first) {
+                                                android.widget.Toast.makeText(ctx, result.second, android.widget.Toast.LENGTH_SHORT).show()
+                                                syntheticJson = ""
+                                            } else {
+                                                android.widget.Toast.makeText(ctx, "Error: " + result.second, android.widget.Toast.LENGTH_LONG).show()
+                                            }
+                                        } else {
+                                            com.example.myandroid.DynamicUIManager.injectSyntheticThread(syntheticJson)
+                                            android.widget.Toast.makeText(ctx, "HTML Thread Injected", android.widget.Toast.LENGTH_SHORT).show()
+                                            syntheticJson = "" // Clear field upon success
+                                        }
                                     } catch (e: Exception) {
                                         android.widget.Toast.makeText(ctx, "Invalid JSON", android.widget.Toast.LENGTH_SHORT).show()
                                     }
