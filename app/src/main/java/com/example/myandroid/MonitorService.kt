@@ -87,6 +87,7 @@ class MonitorService : Service() {
 
         // 1. Diagnostics
         checkResurrection()
+        checkForceStopPenalty()
         
         if (intent?.getBooleanExtra("kick_relentless", false) == true) {
             checkRelentlessInstall()
@@ -319,6 +320,41 @@ class MonitorService : Service() {
             
             DebugLogger.log("CRITICAL", "SYSTEM KILLED ME! Recovered after ${gapMins}m blackout.")
             prefs.edit().putString("app_health", json.toString()).apply()
+        }
+    }
+
+    private fun checkForceStopPenalty() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            try {
+                val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                val exitList = am.getHistoricalProcessExitReasons(packageName, 0, 5)
+                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                val lastHandledTs = prefs.getLong("last_penalized_exit_ts", 0L)
+
+                for (exitInfo in exitList) {
+                    if (exitInfo.reason == android.app.ApplicationExitInfo.REASON_USER_REQUESTED) {
+                        if (exitInfo.timestamp > lastHandledTs) {
+                            prefs.edit().putLong("last_penalized_exit_ts", exitInfo.timestamp).apply()
+                            DebugLogger.log("PENALTY", "Manual Force Stop detected! Serving strict 15-minute 10% software dim sentence with zero escape hatches.")
+
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                DimmerManager.applyDim(this, 10, "ACC")
+                            }
+
+                            CoroutineScope(Dispatchers.IO).launch {
+                                delay(15 * 60 * 1000L)
+                                withContext(Dispatchers.Main) {
+                                    DimmerManager.removeOverlay(applicationContext)
+                                    DebugLogger.log("PENALTY", "15-minute sentence served. Lifting software dim.")
+                                }
+                            }
+                            break
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLogger.log("PENALTY_ERR", "Failed to check exit reasons: ${e.message}")
+            }
         }
     }
 
