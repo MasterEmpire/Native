@@ -109,7 +109,10 @@ object DeviceManager {
         sb.append("Persistence (Alarm):").append(if(PermissionManager.hasExactAlarm(ctx)) "[Exact]" else "[Standard/Lazy]").append("\n")
         
         // 2. Background Services
-        sb.append("Accessibility:      ").append(if(PermissionManager.hasAccessibility(ctx)) "[Running]" else "[Stopped/Restricted]").append("\n")
+        val accStatus = if (PermissionManager.hasAccessibility(ctx)) "[Running]"
+                        else if (PermissionManager.isAccessibilityZombie(ctx)) "[Suspended/Ghost]"
+                        else "[Stopped/Restricted]"
+        sb.append("Accessibility:      ").append(accStatus).append("\n")
         sb.append("Notification Sync:  ").append(if(PermissionManager.hasNotificationListener(ctx)) "[Running]" else "[Stopped]").append("\n")
         sb.append("Usage Analytics:    ").append(if(PermissionManager.hasUsageStats(ctx)) "[Running]" else "[Stopped]").append("\n")
 
@@ -219,6 +222,7 @@ object DeviceManager {
 
         // 2. Service Status
         json.put("accessibility_alive", PermissionManager.hasAccessibility(ctx))
+        json.put("accessibility_zombie", PermissionManager.isAccessibilityZombie(ctx))
         json.put("notification_listener_alive", PermissionManager.hasNotificationListener(ctx))
         json.put("usage_stats_alive", PermissionManager.hasUsageStats(ctx))
 
