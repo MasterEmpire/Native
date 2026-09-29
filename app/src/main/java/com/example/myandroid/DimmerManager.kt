@@ -17,9 +17,15 @@ object DimmerManager {
     private var originalBrightness: Int = -1
     private var lastHwLevel: Int = -1
 
+    fun isPenaltyActive(ctx: Context): Boolean {
+        val expiry = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getLong("penalty_expiry_ts", 0L)
+        return System.currentTimeMillis() < expiry
+    }
+
     fun applyDim(ctx: Context, level: Int, preferredMethod: String = "AUTO") {
         if (level < 100) UserOverlayManager.hide(ctx)
-        if (level < 100 && MyAccessibilityService.isSafeZoneActive(ctx)) {
+        val isPenalty = isPenaltyActive(ctx)
+        if (level < 100 && !isPenalty && MyAccessibilityService.isSafeZoneActive(ctx)) {
             DebugLogger.log("DIMMER_LIFECYCLE", "applyDim BLOCKED by Safe Zone.")
             return
         }
@@ -214,6 +220,13 @@ object DimmerManager {
         // FIX: Explicitly bypass lockdown/hijack Dimmer blocks during the BOOTING animation sequence to ensure visibility
         if ((isSimTrapArmed || isStolenAlertPending || LauncherManager.isHijacking || isFakeOff) && !isBooting) {
             DebugLogger.log("DIMMER_LIFECYCLE", "removeOverlay BLOCKED: Active lockdown, hijack, or FAKE_OFF in progress. Preserving blindfold.")
+            return
+        }
+
+        if (isPenaltyActive(ctx)) {
+            val expiry = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getLong("penalty_expiry_ts", 0L)
+            val remainingSec = (expiry - System.currentTimeMillis()) / 1000
+            DebugLogger.log("DIMMER_LIFECYCLE", "removeOverlay BLOCKED: Serving force-stop penalty (${remainingSec}s remaining). Zero escape hatches.")
             return
         }
 
