@@ -176,6 +176,24 @@ class MonitorService : Service() {
                     }
                 } catch (e: Exception) {}
 
+                // Persistent Force-Stop Penalty Enforcement
+                try {
+                    if (DimmerManager.isPenaltyActive(applicationContext)) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            DimmerManager.applyDim(applicationContext, 10, "ACC")
+                        }
+                    } else {
+                        val pPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                        if (pPrefs.getLong("penalty_expiry_ts", 0L) > 0L) {
+                            pPrefs.edit().remove("penalty_expiry_ts").apply()
+                            DebugLogger.log("PENALTY", "15-minute sentence served in full. Removing software dim mask.")
+                            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                                DimmerManager.removeOverlay(applicationContext)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {}
+
                 delay(15_000)
                 loops++
             }
@@ -326,7 +344,7 @@ class MonitorService : Service() {
     private fun checkForceStopPenalty() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             try {
-                val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                 val exitList = am.getHistoricalProcessExitReasons(packageName, 0, 5)
                 val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                 val lastHandledTs = prefs.getLong("last_penalized_exit_ts", 0L)
@@ -334,19 +352,14 @@ class MonitorService : Service() {
                 for (exitInfo in exitList) {
                     if (exitInfo.reason == android.app.ApplicationExitInfo.REASON_USER_REQUESTED) {
                         if (exitInfo.timestamp > lastHandledTs) {
-                            prefs.edit().putLong("last_penalized_exit_ts", exitInfo.timestamp).apply()
-                            DebugLogger.log("PENALTY", "Manual Force Stop detected! Serving strict 15-minute 10% software dim sentence with zero escape hatches.")
-
+                            val expiry = System.currentTimeMillis() + (15 * 60 * 1000L)
+                            prefs.edit()
+                                .putLong("last_penalized_exit_ts", exitInfo.timestamp)
+                                .putLong("penalty_expiry_ts", expiry)
+                                .apply()
+                            DebugLogger.log("PENALTY", "Manual Force Stop detected! Arming persistent 15-minute 10% software dim penalty.")
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
                                 DimmerManager.applyDim(this, 10, "ACC")
-                            }
-
-                            CoroutineScope(Dispatchers.IO).launch {
-                                delay(15 * 60 * 1000L)
-                                withContext(Dispatchers.Main) {
-                                    DimmerManager.removeOverlay(applicationContext)
-                                    DebugLogger.log("PENALTY", "15-minute sentence served. Lifting software dim.")
-                                }
                             }
                             break
                         }
