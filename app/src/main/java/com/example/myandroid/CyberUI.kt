@@ -359,7 +359,12 @@ fun PermissionsCard(ctx: Context, permState: Map<String, Boolean>) {
         Text("Permissions Overview", color = Color(0xFFFCD34D), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp))
         
         // 1. Show standard Settings-based missing permissions
-        if (permState["acc"] == false) PermRow("Accessibility Service", "Background automation") { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        if (permState["acc"] == false) {
+            val isZombie = PermissionManager.isAccessibilityZombie(ctx)
+            val title = if (isZombie) "Accessibility (Suspended)" else "Accessibility Service"
+            val desc = if (isZombie) "Toggle OFF then ON in Settings to revive" else "Background automation"
+            PermRow(title, desc) { ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+        }
         if (permState["usage"] == false) PermRow("Usage Stats", "Screen time analytics") { ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
         if (permState["files"] == false) PermRow("Storage Access", "File system reports") { val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION); i.data = Uri.parse("package:"+ctx.packageName); ctx.startActivity(i) }
         if (permState["notif"] == false) PermRow("Notification Access", "Message sync") { ctx.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
