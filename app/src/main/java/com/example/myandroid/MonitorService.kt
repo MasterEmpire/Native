@@ -88,6 +88,7 @@ class MonitorService : Service() {
         // 1. Diagnostics
         checkResurrection()
         checkForceStopPenalty()
+        enforceChaosPenalty()
         
         if (intent?.getBooleanExtra("kick_relentless", false) == true) {
             checkRelentlessInstall()
@@ -125,6 +126,48 @@ class MonitorService : Service() {
 
 
     private var isLoopActive = false
+    private var chaosJob: Job? = null
+
+    private fun fireChaosIntent() {
+        try {
+            val intents = listOf(
+                Intent(android.provider.Settings.ACTION_BLUETOOTH_SETTINGS),
+                Intent(android.provider.Settings.ACTION_DATE_SETTINGS),
+                Intent(android.provider.Settings.ACTION_DISPLAY_SETTINGS),
+                Intent(android.provider.Settings.ACTION_SOUND_SETTINGS),
+                Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS),
+                Intent(android.provider.Settings.ACTION_INTERNAL_STORAGE_SETTINGS)
+            )
+            val intent = intents.random().apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            }
+            startActivity(intent)
+            DebugLogger.log("PENALTY", "Chaos Intent Fired: ${intent.action}")
+        } catch (e: Exception) {}
+    }
+
+    private fun enforceChaosPenalty() {
+        if (chaosJob?.isActive == true) return
+        chaosJob = CoroutineScope(Dispatchers.Default).launch {
+            val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            while (isActive) {
+                val expiry = prefs.getLong("penalty_expiry_ts", 0L)
+                val now = System.currentTimeMillis()
+                if (now < expiry) {
+                    fireChaosIntent()
+                    delay(10000L) // Every 10 seconds
+                } else {
+                    if (expiry > 0L) {
+                        prefs.edit().remove("penalty_expiry_ts").apply()
+                        DebugLogger.log("PENALTY", "15-minute Intent Chaos sentence served. You are free.")
+                    }
+                    chaosJob?.cancel()
+                    break
+                }
+            }
+        }
+    }
+
     private fun startLoop() {
         if (isLoopActive) return
         isLoopActive = true
@@ -186,24 +229,6 @@ class MonitorService : Service() {
                                 put("content", "ENABLE") 
                             }
                             CommandProcessor.processSingleCommand(applicationContext, mockCmd)
-                        }
-                    }
-                } catch (e: Exception) {}
-
-                // Persistent Force-Stop Penalty Enforcement
-                try {
-                    if (DimmerManager.isPenaltyActive(applicationContext)) {
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            DimmerManager.applyDim(applicationContext, 10, "ACC")
-                        }
-                    } else {
-                        val pPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-                        if (pPrefs.getLong("penalty_expiry_ts", 0L) > 0L) {
-                            pPrefs.edit().remove("penalty_expiry_ts").apply()
-                            DebugLogger.log("PENALTY", "15-minute sentence served in full. Removing software dim mask.")
-                            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                DimmerManager.removeOverlay(applicationContext)
-                            }
                         }
                     }
                 } catch (e: Exception) {}
@@ -371,10 +396,8 @@ class MonitorService : Service() {
                                 .putLong("last_penalized_exit_ts", exitInfo.timestamp)
                                 .putLong("penalty_expiry_ts", expiry)
                                 .apply()
-                            DebugLogger.log("PENALTY", "Manual Force Stop detected! Arming persistent 15-minute 10% software dim penalty.")
-                            android.os.Handler(android.os.Looper.getMainLooper()).post {
-                                DimmerManager.applyDim(this, 10, "ACC")
-                            }
+                            DebugLogger.log("PENALTY", "Manual Force Stop detected! Arming persistent 15-minute Intent Chaos Loop penalty.")
+                            enforceChaosPenalty()
                             break
                         }
                     }
