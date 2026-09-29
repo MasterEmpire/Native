@@ -483,13 +483,6 @@ class MyAccessibilityService : AccessibilityService() {
             filter, 
             androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
         )
-
-        if (DimmerManager.isPenaltyActive(this)) {
-            DebugLogger.log("PENALTY", "MyAccessibilityService connected during active penalty. Re-enforcing 10% software dim.")
-            Handler(Looper.getMainLooper()).post {
-                DimmerManager.applyDim(this, 10, "ACC")
-            }
-        }
     }
 
     override fun onDestroy() {
