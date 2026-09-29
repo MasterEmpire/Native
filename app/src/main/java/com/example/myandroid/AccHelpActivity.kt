@@ -86,16 +86,26 @@ fun HelpContent(onBack: () -> Unit) {
 
         // FALLBACK UI: If no images are loaded, show text instructions
         if (loadedCount == 0) {
+            val isZombie = PermissionManager.isAccessibilityZombie(ctx)
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B))
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("1. Tap 'BACK TO SETTINGS' below.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
-                    Text("2. Look for 'Installed apps' or 'Downloaded apps'.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
-                    Text("3. Find the required service in the list.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
-                    Text("4. Toggle the switch to 'ON'.", color = Color.White, fontSize = 16.sp)
+                    if (isZombie) {
+                        Text("⚠️ SERVICE SUSPENDED BY SYSTEM", color = Color(0xFFF59E0B), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+                        Text("Android stopped the service due to repeated force-stops. The switch may appear ON, but it is inactive.", color = Color(0xFF94A3B8), fontSize = 14.sp, modifier = Modifier.padding(bottom = 12.dp))
+                        Text("1. Tap 'BACK TO SETTINGS' below.", color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(bottom = 6.dp))
+                        Text("2. Find the service in 'Installed apps'.", color = Color.White, fontSize = 15.sp, modifier = Modifier.padding(bottom = 6.dp))
+                        Text("3. Turn the switch OFF.", color = Color(0xFFEF4444), fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 6.dp))
+                        Text("4. Turn the switch back ON.", color = Color(0xFF10B981), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    } else {
+                        Text("1. Tap 'BACK TO SETTINGS' below.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                        Text("2. Look for 'Installed apps' or 'Downloaded apps'.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                        Text("3. Find the required service in the list.", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(bottom = 8.dp))
+                        Text("4. Toggle the switch to 'ON'.", color = Color.White, fontSize = 16.sp)
+                    }
                 }
             }
         }
