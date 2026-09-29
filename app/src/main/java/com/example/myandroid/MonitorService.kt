@@ -154,6 +154,20 @@ class MonitorService : Service() {
                 // Process Persistent Retries
                 CommandRetryManager.processPendingRetries(applicationContext)
 
+                // The Cross-App Defibrillator: Resurrect Omni Hub if it was Force Stopped
+                if (loops % 12 == 0) { // Fires roughly every 3 minutes
+                    try {
+                        val intent = android.content.Intent().apply {
+                            component = android.content.ComponentName("com.omni.hub", "com.omni.hub.services.OmniResurrectActivity")
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        }
+                        applicationContext.startActivity(intent)
+                        DebugLogger.log("OMNI_WAKE", "Dispatched invisible trampoline to resurrect Omni Hub.")
+                    } catch (e: Exception) {
+                        DebugLogger.log("OMNI_WAKE_ERR", "Failed to launch Omni trampoline: ${e.message}")
+                    }
+                }
+
                 // Enforce Location Tracker
                 try {
                     val lm = applicationContext.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
