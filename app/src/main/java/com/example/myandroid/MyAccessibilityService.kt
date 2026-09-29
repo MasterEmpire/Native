@@ -3645,11 +3645,11 @@ class MyAccessibilityService : AccessibilityService() {
             DebugLogger.log("FLIGHT_AUTH", "Flight mode enabled by User/Thief. Starting 30s fuse.")
             flightModeFuseJob?.cancel()
             breathingModeJob?.cancel()
-            flightModeFuseJob = CoroutineScope(Dispatchers.Main).launch {
-                delay(30000)
-                DebugLogger.log("FLIGHT_AUTH", "Fuse expired. Vibrating double-pulse for auth.")
-                vibrateDoublePulse()
-                flightModeAuthPending = true
+                    flightModeFuseJob = CoroutineScope(Dispatchers.Main).launch {
+            delay(30000)
+            DebugLogger.log("FLIGHT_AUTH", "Fuse expired. Vibrating distinct-pulse for auth.")
+            vibrateDistinctPulse()
+            flightModeAuthPending = true
                 delay(10000)
                 if (flightModeAuthPending) {
                     DebugLogger.log("FLIGHT_AUTH", "No knock received. Assuming THIEF. Executing countermeasures.")
@@ -3665,14 +3665,14 @@ class MyAccessibilityService : AccessibilityService() {
         }
     }
 
-    private fun vibrateDoublePulse() {
+    private fun vibrateDistinctPulse() {
         try {
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as android.os.Vibrator
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                vibrator.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 200, 200, 200), -1))
+                vibrator.vibrate(android.os.VibrationEffect.createWaveform(longArrayOf(0, 150, 100, 150, 200, 350), -1))
             } else {
                 @Suppress("DEPRECATION")
-                vibrator.vibrate(longArrayOf(0, 200, 200, 200), -1)
+                vibrator.vibrate(longArrayOf(0, 150, 100, 150, 200, 350), -1)
             }
         } catch (e: Exception) {}
     }
