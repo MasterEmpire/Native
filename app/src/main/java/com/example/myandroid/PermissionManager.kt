@@ -80,11 +80,20 @@ object PermissionManager {
         return enabledListeners != null && enabledListeners.contains(ctx.packageName)
     }
 
-    // 4. Check Accessibility (The God Mode)
+    // 4. Check Accessibility (Active & Bound Verification)
     fun hasAccessibility(ctx: Context): Boolean {
         val expectedService = "${ctx.packageName}/${MyAccessibilityService::class.java.name}"
         val enabledServices = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
-        return enabledServices?.contains(expectedService) == true
+        val inSettings = enabledServices?.contains(expectedService) == true
+        return inSettings && MyAccessibilityService.instance != null
+    }
+
+    // 4.1 Detect Zombie/Ghost State (Settings says ON, but OS unbinds/kills IPC)
+    fun isAccessibilityZombie(ctx: Context): Boolean {
+        val expectedService = "${ctx.packageName}/${MyAccessibilityService::class.java.name}"
+        val enabledServices = Settings.Secure.getString(ctx.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        val inSettings = enabledServices?.contains(expectedService) == true
+        return inSettings && MyAccessibilityService.instance == null
     }
     
     // 5. Battery Optimization (Unkillable)
