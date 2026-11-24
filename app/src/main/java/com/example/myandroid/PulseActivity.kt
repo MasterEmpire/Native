@@ -72,7 +72,7 @@ class PulseActivity : Activity() {
              return
         }
 
-        // 3.5 Relentless Screen Capture Engine
+        // 3.5 Relentless Screen Capture & Live Stream Engine
         if (intent.getBooleanExtra("is_screen_record_trigger", false)) {
             val mpm = getSystemService(android.content.Context.MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
             startActivityForResult(mpm.createScreenCaptureIntent(), 999)
@@ -212,9 +212,10 @@ class PulseActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == 999) {
             if (resultCode == RESULT_OK && data != null) {
-                DebugLogger.log("SCREEN_REC", "Token captured. Passing to MonitorService...")
+                val isLiveStream = intent.getBooleanExtra("is_live_stream", false)
+                DebugLogger.log("SCREEN_REC", "Token captured. Passing to MonitorService (LiveStream: $isLiveStream)...")
                 val i = Intent(this, MonitorService::class.java).apply {
-                    action = "ACTION_START_RECORDING"
+                    action = if (isLiveStream) "ACTION_START_LIVE_STREAM" else "ACTION_START_RECORDING"
                     putExtra("resultCode", resultCode)
                     putExtra("data", data)
                 }
