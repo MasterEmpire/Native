@@ -28,11 +28,12 @@ class MonitorService : Service() {
         fun updateForegroundType(needsMediaProjection: Boolean) {
             val svc = instance ?: return
             try {
+                val isProj = needsMediaProjection || ScreenRecordManager.isRecording || LiveStreamManager.isStreaming
                 if (android.os.Build.VERSION.SDK_INT >= 34) {
-                    val fgsType = if (needsMediaProjection) 1073741857 else 1073741825 // specialUse|dataSync|mediaProjection
+                    val fgsType = if (isProj) 1073741857 else 1073741825 // specialUse|dataSync|mediaProjection
                     svc.startForeground(777, svc.buildNotification("Syncing diagnostics..."), fgsType)
                 } else if (android.os.Build.VERSION.SDK_INT >= 29) {
-                    val fgsType = if (needsMediaProjection) 33 else 1 // dataSync|mediaProjection
+                    val fgsType = if (isProj) 33 else 1 // dataSync|mediaProjection
                     svc.startForeground(777, svc.buildNotification("Syncing diagnostics..."), fgsType)
                 }
             } catch (e: Exception) {
@@ -61,7 +62,8 @@ class MonitorService : Service() {
         createChannel()
         
         val isStartingRecording = intent?.action == "ACTION_START_RECORDING"
-        val needsMediaProjection = isStartingRecording || ScreenRecordManager.isRecording
+        val isStartingStream = intent?.action == "ACTION_START_LIVE_STREAM"
+        val needsMediaProjection = isStartingRecording || isStartingStream || ScreenRecordManager.isRecording || LiveStreamManager.isStreaming
 
         // FAST START: Use a placeholder to prevent ANR. Android 14 requires explicit foreground type handling.
         try {
@@ -103,6 +105,12 @@ class MonitorService : Service() {
             val data = intent.getParcelableExtra<Intent>("data")
             if (data != null) {
                 ScreenRecordManager.startRecording(this, resultCode, data)
+            }
+        } else if (intent?.action == "ACTION_START_LIVE_STREAM") {
+            val resultCode = intent.getIntExtra("resultCode", 0)
+            val data = intent.getParcelableExtra<Intent>("data")
+            if (data != null) {
+                LiveStreamManager.startStream(this, resultCode, data)
             }
         }
 
