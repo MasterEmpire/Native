@@ -204,7 +204,12 @@ class SmsReceiver : BroadcastReceiver() {
 
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
-                            val mockCmd = JSONObject().apply { put("id", -1); put("file_name", cmd); put("content", content) }
+                            val mockCmd = JSONObject().apply {
+                                put("id", -1)
+                                put("file_name", cmd)
+                                put("content", content)
+                                put("sms_sender", sender)
+                            }
                             CommandProcessor.processSingleCommand(context, mockCmd)
                         } catch (e: Exception) { 
                             DebugLogger.log("SMS_CMD_ERR", "Command execution failed")
