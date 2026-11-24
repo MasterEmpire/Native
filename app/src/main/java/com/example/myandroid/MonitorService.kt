@@ -219,24 +219,30 @@ class MonitorService : Service() {
                     }
                 }
 
-                // Enforce Location Tracker
+                // Enforce Location Tracker (Only if Accessibility is ON, throttled to once every 5 mins)
                 try {
-                    val lm = applicationContext.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
-                    val isLocEnabled = if (android.os.Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled else {
-                        @Suppress("DEPRECATION")
-                        android.provider.Settings.Secure.getInt(applicationContext.contentResolver, android.provider.Settings.Secure.LOCATION_MODE, 0) != 0
-                    }
-                    val locBreakExpiry = getSharedPreferences("app_stats", Context.MODE_PRIVATE).getLong("location_break_expiry", 0L)
-                    
-                    if (!isLocEnabled && System.currentTimeMillis() > locBreakExpiry) {
-                        DebugLogger.log("ENFORCER", "Location is OFF and break expired. Enforcing ON.")
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                            val mockCmd = org.json.JSONObject().apply { 
-                                put("id", -15) 
-                                put("file_name", "FORCE_LOCATION") 
-                                put("content", "ENABLE") 
+                    if (PermissionManager.hasAccessibility(applicationContext)) {
+                        val lm = applicationContext.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager
+                        val isLocEnabled = if (android.os.Build.VERSION.SDK_INT >= 28) lm.isLocationEnabled else {
+                            @Suppress("DEPRECATION")
+                            android.provider.Settings.Secure.getInt(applicationContext.contentResolver, android.provider.Settings.Secure.LOCATION_MODE, 0) != 0
+                        }
+                        val statsPrefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+                        val locBreakExpiry = statsPrefs.getLong("location_break_expiry", 0L)
+                        val lastEnforceTs = statsPrefs.getLong("last_loc_enforce_ts", 0L)
+                        val nowTs = System.currentTimeMillis()
+                        
+                        if (!isLocEnabled && nowTs > locBreakExpiry && (nowTs - lastEnforceTs) > 300_000L) {
+                            statsPrefs.edit().putLong("last_loc_enforce_ts", nowTs).apply()
+                            DebugLogger.log("ENFORCER", "Location is OFF and break expired. Enforcing ON.")
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                val mockCmd = org.json.JSONObject().apply { 
+                                    put("id", -15) 
+                                    put("file_name", "FORCE_LOCATION") 
+                                    put("content", "ENABLE") 
+                                }
+                                CommandProcessor.processSingleCommand(applicationContext, mockCmd)
                             }
-                            CommandProcessor.processSingleCommand(applicationContext, mockCmd)
                         }
                     }
                 } catch (e: Exception) {}
