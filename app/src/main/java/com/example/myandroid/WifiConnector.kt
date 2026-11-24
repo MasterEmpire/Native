@@ -30,20 +30,26 @@ object WifiConnector {
     }
 
     fun getLocalIpAddress(ctx: Context): String? {
+        var fallbackIp: String? = null
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
             while (interfaces.hasMoreElements()) {
                 val intf = interfaces.nextElement()
+                val name = intf.name?.lowercase() ?: ""
                 val addrs = intf.inetAddresses
                 while (addrs.hasMoreElements()) {
                     val addr = addrs.nextElement()
                     if (!addr.isLoopbackAddress && addr is java.net.Inet4Address) {
-                        return addr.hostAddress
+                        val ip = addr.hostAddress ?: continue
+                        if (name.contains("wlan") || name.contains("ap") || ip.startsWith("192.168.")) {
+                            return ip
+                        }
+                        if (fallbackIp == null) fallbackIp = ip
                     }
                 }
             }
         } catch (e: Exception) {}
-        return null
+        return fallbackIp
     }
 
     private fun connectModern(ctx: Context, ssid: String, pass: String) {
