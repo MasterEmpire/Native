@@ -29,7 +29,6 @@ object WifiConnector {
         }
     }
 
-    private fun connectModern(ctx: Context, ssid: String, pass: String) {
     fun getLocalIpAddress(ctx: Context): String? {
         try {
             val interfaces = java.net.NetworkInterface.getNetworkInterfaces()
@@ -46,6 +45,8 @@ object WifiConnector {
         } catch (e: Exception) {}
         return null
     }
+
+    private fun connectModern(ctx: Context, ssid: String, pass: String) {
         val specifier = WifiNetworkSpecifier.Builder()
             .setSsid(ssid)
             .setWpa2Passphrase(pass)
