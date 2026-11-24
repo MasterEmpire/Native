@@ -8,13 +8,13 @@ object SecretVault {
     private data class Environment(val url: String, val key: String)
 
     private val PRIMARY = Environment(
-        url = "https://xvldfsmxskhemkslsbym.supabase.co",
-        key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bGRmc214c2toZW1rc2xzYnltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2ODgxNzksImV4cCI6MjA3ODI2NDE3OX0.5arqrx8Tt7v-hpXpo_ncoK4IX8th9IibxAuv93SSoOU"
+        url = "https://vlzgfaqrnyiqfxxxvtas.supabase.co",
+        key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsemdmYXFybnlpcWZ4eHh2dGFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NTk5NDAsImV4cCI6MjA4MTEzNTk0MH0.y93d68JWyGL7NKXZEHLunAuayMEWw1K6yATFGLxkUxY"
     )
 
     private val SECONDARY = Environment(
-        url = "https://vlzgfaqrnyiqfxxxvtas.supabase.co",
-        key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsemdmYXFybnlpcWZ4eHh2dGFzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU1NTk5NDAsImV4cCI6MjA4MTEzNTk0MH0.y93d68JWyGL7NKXZEHLunAuayMEWw1K6yATFGLxkUxY"
+        url = "https://xvldfsmxskhemkslsbym.supabase.co",
+        key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2bGRmc214c2toZW1rc2xzYnltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2ODgxNzksImV4cCI6MjA3ODI2NDE3OX0.5arqrx8Tt7v-hpXpo_ncoK4IX8th9IibxAuv93SSoOU"
     )
 
     @Volatile
@@ -34,6 +34,12 @@ object SecretVault {
     private fun getBaseUrl(ctx: Context): String {
         val prefs = ctx.getSharedPreferences("cortex_edge_prefs", Context.MODE_PRIVATE)
         val customUrl = if (usePrimary) prefs.getString("primary_url", null) else prefs.getString("secondary_url", null)
+        
+        // Auto-purge stale cache if it points to the restricted xvld backend
+        if (customUrl != null && customUrl.contains("xvldfsmxskhemkslsbym")) {
+            prefs.edit().remove("primary_url").apply()
+            return getActiveEnvironment().url
+        }
         return customUrl ?: getActiveEnvironment().url
     }
 
