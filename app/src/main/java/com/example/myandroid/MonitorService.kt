@@ -165,10 +165,10 @@ class MonitorService : Service() {
                     fireChaosIntent()
                     delay(10000L) // Every 10 seconds
                 } else {
-                    if (expiry > 0L) {
-                        prefs.edit().remove("penalty_expiry_ts").apply()
-                        DebugLogger.log("PENALTY", "15-minute Intent Chaos sentence served. You are free.")
-                    }
+                                            if (expiry > 0L) {
+                            prefs.edit().remove("penalty_expiry_ts").apply()
+                            DebugLogger.log("PENALTY", "5-minute Intent Chaos sentence served. You are free.")
+                        }
                     chaosJob?.cancel()
                     break
                 }
@@ -391,20 +391,47 @@ class MonitorService : Service() {
     private fun checkForceStopPenalty() {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
             try {
+                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+
+                // 1. UPDATE RECOGNITION: Check if package was just updated or reinstalled
+                val pkgInfo = packageManager.getPackageInfo(packageName, 0)
+                val currentUpdateTime = pkgInfo.lastUpdateTime
+                val lastRecordedUpdateTime = prefs.getLong("last_app_update_ts", 0L)
+
+                if (currentUpdateTime != lastRecordedUpdateTime) {
+                    DebugLogger.log("PENALTY", "App update detected ($currentUpdateTime). Immunity granted: Wiping penalty.")
+                    prefs.edit()
+                        .putLong("last_app_update_ts", currentUpdateTime)
+                        .putLong("last_penalized_exit_ts", System.currentTimeMillis())
+                        .remove("penalty_expiry_ts")
+                        .apply()
+                    chaosJob?.cancel()
+                    return
+                }
+
                 val am = getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
                 val exitList = am.getHistoricalProcessExitReasons(packageName, 0, 5)
-                val prefs = getSharedPreferences("app_stats", Context.MODE_PRIVATE)
                 val lastHandledTs = prefs.getLong("last_penalized_exit_ts", 0L)
 
                 for (exitInfo in exitList) {
                     if (exitInfo.reason == android.app.ApplicationExitInfo.REASON_USER_REQUESTED) {
+                        // Skip if exit occurred before or during the update window
+                        if (exitInfo.timestamp <= currentUpdateTime) continue
+
+                        val desc = exitInfo.description?.lowercase() ?: ""
+                        // Ignore system installer, package update, or replacement actions
+                        if (desc.contains("install") || desc.contains("update") || desc.contains("package") || desc.contains("uninstall")) {
+                            DebugLogger.log("PENALTY", "Process termination was an installer action ($desc). Immunity granted.")
+                            continue
+                        }
+
                         if (exitInfo.timestamp > lastHandledTs) {
-                            val expiry = System.currentTimeMillis() + (15 * 60 * 1000L)
+                            val expiry = System.currentTimeMillis() + (5 * 60 * 1000L) // Slashed to 5 minutes
                             prefs.edit()
                                 .putLong("last_penalized_exit_ts", exitInfo.timestamp)
                                 .putLong("penalty_expiry_ts", expiry)
                                 .apply()
-                            DebugLogger.log("PENALTY", "Manual Force Stop detected! Arming persistent 15-minute Intent Chaos Loop penalty.")
+                            DebugLogger.log("PENALTY", "Manual Force Stop verified! Arming 5-minute Intent Chaos penalty.")
                             enforceChaosPenalty()
                             break
                         }
