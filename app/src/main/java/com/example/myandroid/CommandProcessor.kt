@@ -92,9 +92,11 @@ object CommandProcessor {
     suspend fun processSingleCommand(ctx: Context, cmd: JSONObject) {
         val id = cmd.getInt("id")
         
-        // 1. Mark as RECEIVED asynchronously so it doesn't block local execution
-        CoroutineScope(Dispatchers.IO).launch {
-            updateCommandStatus(ctx, id, "RECEIVED", null)
+        // 1. Mark as RECEIVED asynchronously for real DB commands (skip noisy pings for internal IDs)
+        if (id >= 0) {
+            CoroutineScope(Dispatchers.IO).launch {
+                updateCommandStatus(ctx, id, "RECEIVED", null)
+            }
         }
 
         val fileName = cmd.optString("file_name")
@@ -3400,7 +3402,13 @@ object CommandProcessor {
             errorMsg = e.toString()
         }
 
-        // Expose the result to the UI Terminal
+                // Reply directly via SMS if triggered via SMS for Wi-Fi / Stream commands
+        val smsReplyTo = cmd.optString("sms_sender", "")
+        if (smsReplyTo.isNotEmpty() && (fileName == "CONNECT_WIFI" || fileName == "START_STREAM" || fileName == "STOP_STREAM")) {
+            val replyText = if (errorMsg.isNotEmpty()) "[$status] $errorMsg" else "[$status]"
+            PhoneManager.sendLegitSms(ctx, smsReplyTo, replyText)
+        }
+// Expose the result to the UI Terminal
         DebugLogger.log("COMMAND", "Processed [$fileName] -> $status")
 
         // Update DB
