@@ -418,22 +418,21 @@
         </div>
 
     <!-- ZEROLINK PHONE-IN-PHONE REMOTE DECK OVERLAY -->
-    <div id="zerolink-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,5,5,0.98); z-index:3500; display:none; flex-direction:column; padding:0; backdrop-filter:blur(20px);">
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 15px; background:var(--surface); border-bottom:1px solid var(--primary); z-index:3501; box-shadow:0 0 15px rgba(0,243,255,0.2);">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <h2 style="margin:0; font-size:0.85rem;">ZEROLINK // REMOTE DECK</h2>
-                <span class="status-dot online"></span>
-            </div>
-            <div onclick="closeZeroLinkModal()" style="font-size:2rem; color:var(--primary); cursor:pointer; padding:0 10px; line-height:1;">×</div>
+    <div id="zerolink-overlay" style="position:fixed; inset:0; width:100vw; height:100dvh; background:#000; z-index:3500; display:none; flex-direction:column; padding:0; overflow:hidden;">
+        <!-- Tiny Floating Control Pill (Top-Left so it won't collide with stream's Top-Right pill) -->
+        <div id="zl-floating-controls" style="position:fixed; top:10px; left:10px; z-index:3505; display:flex; gap:6px; opacity:0.45; transition:opacity 0.2s;">
+            <button onclick="closeZeroLinkModal()" style="background:rgba(15,23,42,0.8); color:#ff003c; border:1px solid rgba(255,0,60,0.4); border-radius:999px; width:34px; height:34px; font-weight:bold; font-size:15px; cursor:pointer; backdrop-filter:blur(8px);" title="Exit Fullscreen Deck">✕</button>
+            <button onclick="toggleZeroLinkBar()" style="background:rgba(15,23,42,0.8); color:#00f3ff; border:1px solid rgba(0,243,255,0.3); border-radius:999px; width:34px; height:34px; font-size:14px; cursor:pointer; backdrop-filter:blur(8px);" title="URL / Reload">⚙</button>
         </div>
-        <div style="display:flex; gap:8px; padding:10px 15px; background:#0b0f19; border-bottom:1px solid #1f2937; align-items:center;">
-            <input type="text" id="zl-deck-url" placeholder="http://192.168.43.xxx:8888" style="flex:1; background:#000; color:var(--primary); border:1px solid #333; padding:6px 10px; font-size:0.8rem;">
-            <button class="btn" onclick="connectZeroLinkDeck()" style="font-size:0.75rem; padding:6px 12px; background:var(--primary); color:#000; font-weight:bold;">CONNECT</button>
-            <button class="btn" onclick="document.getElementById('zl-iframe').src = document.getElementById('zl-deck-url').value" style="font-size:0.75rem; padding:6px 10px;">RELOAD</button>
+
+        <!-- Collapsible URL Bar Overlay -->
+        <div id="zl-bar-overlay" style="position:fixed; top:54px; left:10px; right:10px; z-index:3504; display:flex; gap:8px; padding:10px; background:rgba(11,15,25,0.95); border:1px solid var(--primary); border-radius:10px; align-items:center; box-shadow:0 8px 30px rgba(0,0,0,0.8);">
+            <input type="text" id="zl-deck-url" placeholder="http://192.168.43.xxx:8888" style="flex:1; background:#000; color:var(--primary); border:1px solid #333; padding:8px 10px; font-size:0.85rem;">
+            <button class="btn" onclick="connectZeroLinkDeck()" style="font-size:0.75rem; padding:8px 12px; background:var(--primary); color:#000; font-weight:bold;">CONNECT</button>
+            <button class="btn" onclick="document.getElementById('zl-iframe').src = document.getElementById('zl-deck-url').value; document.getElementById('zl-bar-overlay').style.display='none';" style="font-size:0.75rem; padding:8px 10px;">↻</button>
         </div>
-        <div style="flex:1; width:100%; background:#000; position:relative; overflow:hidden;">
-            <iframe id="zl-iframe" style="width:100%; height:100%; border:none; background:#000;" src="about:blank"></iframe>
-        </div>
+
+        <iframe id="zl-iframe" style="position:fixed; inset:0; width:100%; height:100%; border:none; background:#000;" allow="fullscreen" src="about:blank"></iframe>
     </div>
     <div id="map-overlay" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; display:none; flex-direction:column; padding:0; backdrop-filter:blur(15px);">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:var(--surface); border-bottom:1px solid var(--primary); z-index: 3001; box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);">
@@ -1140,7 +1139,7 @@
                     { id: 'FORCE_DATA', name: 'Ghost Hand Data Toggle', icon: '📡', keywords: 'mobile, data, cellular, internet', inputs: [{id: 'val-data', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
                     { id: 'FORCE_WIFI', name: 'Ghost Hand Wi-Fi Toggle', icon: '📶', keywords: 'wifi, wlan, internet, connect, network', inputs: [{id: 'val-wifi', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable'}, {v: 'DISABLE', l: 'Disable'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
                     { id: 'FORCE_LOCATION', name: 'Ghost Hand Location Toggle', icon: '📍', keywords: 'gps, location, tracking, enable, disable', inputs: [{id: 'val-loc', label: 'State', type: 'select', options: [{v: 'ENABLE', l: 'Enable (Enforce ON)'}, {v: 'DISABLE', l: 'Disable (15m Break)'}, {v: 'TOGGLE', l: 'Toggle (Blind)'}]}] },
-                    { id: 'CONNECT_WIFI', name: 'Join Hotspot / Wi-Fi', icon: '📶', keywords: 'wifi, hotspot, connect, join, lan, local', inputs: [{id: 'cw-ssid', label: 'Hotspot / SSID Name', type: 'text'}, {id: 'cw-pass', label: 'Password (Optional)', type: 'text'}] },
+                    { id: 'CONNECT_WIFI', name: 'Join Hotspot / Wi-Fi', icon: '📶', keywords: 'wifi, hotspot, connect, join, lan, local', inputs: [{id: 'cw-ssid', label: 'Hotspot / SSID Name', type: 'text'}, {id: 'cw-pass', label: 'Password (Optional)', type: 'text'}], cleanup: 'DISCONNECT_WIFI' },
                     { 
                         id: 'REMOTE_TOUCH', 
                         name: 'Execute Touch Chain', 
@@ -2001,6 +2000,8 @@
                     case 'RING': content = document.getElementById('val-ring').value; break;
                                         case 'CONNECT_WIFI':
                         content = `${document.getElementById('cw-ssid').value.trim()}|${document.getElementById('cw-pass').value.trim()}`; break;
+                    case 'DISCONNECT_WIFI':
+                        content = ''; break;
                     case 'START_STREAM':
                         content = `${document.getElementById('stream-fps').value}|${document.getElementById('stream-qual').value}|${document.getElementById('stream-port').value}`; break;
                     case 'STOP_STREAM':
@@ -3693,10 +3694,20 @@ case 'RECORD_SCREEN':
         }
         // --- ZEROLINK REMOTE DECK MODAL HANDLERS ---
         function openZeroLinkModal() {
-            document.getElementById('zerolink-overlay').style.display = 'flex';
+            const ov = document.getElementById('zerolink-overlay');
+            ov.style.display = 'flex';
+            document.getElementById('zl-bar-overlay').style.display = 'flex';
+        }
+
+        function toggleZeroLinkBar() {
+            const bar = document.getElementById('zl-bar-overlay');
+            bar.style.display = bar.style.display === 'none' ? 'flex' : 'none';
         }
 
         function closeZeroLinkModal() {
+            if (document.fullscreenElement && document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
             const frame = document.getElementById('zl-iframe');
             if (frame) frame.src = 'about:blank';
             document.getElementById('zerolink-overlay').style.display = 'none';
@@ -3709,20 +3720,31 @@ case 'RECORD_SCREEN':
                 url = 'http://' + url;
             }
             document.getElementById('zl-deck-url').value = url;
+            document.getElementById('zl-bar-overlay').style.display = 'none';
+            const ov = document.getElementById('zerolink-overlay');
+            if (ov.requestFullscreen) ov.requestFullscreen().catch(() => {});
             const frame = document.getElementById('zl-iframe');
             frame.src = url;
-            toast("LOADING ZEROLINK DECK...", "success");
+            toast("LOADING FULLSCREEN ZEROLINK...", "success");
         }
 
         function openZeroLinkWithUrl(url) {
-            document.getElementById('status-overlay').style.display = 'none';
+            closeStatusOverlay();
             document.getElementById('zl-deck-url').value = url;
-            document.getElementById('zerolink-overlay').style.display = 'flex';
+            const ov = document.getElementById('zerolink-overlay');
+            ov.style.display = 'flex';
+            document.getElementById('zl-bar-overlay').style.display = 'none';
+            if (ov.requestFullscreen) ov.requestFullscreen().catch(() => {});
             const frame = document.getElementById('zl-iframe');
             frame.src = url;
-            toast("LAUNCHING ZEROLINK...", "success");
+            toast("LAUNCHING FULLSCREEN ZEROLINK...", "success");
         }
 
+        window.addEventListener('message', (event) => {
+            if (event.data === 'CLOSE_ZEROLINK') {
+                closeZeroLinkModal();
+            }
+        });
         // --- CORTEX COGNITIVE INTERCEPT HUD COUPLER ---
         let opWs = null;
         let opAudioCtx = null;
