@@ -33,6 +33,7 @@ object LiveStreamManager {
     private var serverJob: Job? = null
 
     @Volatile private var latestJpeg: ByteArray? = null
+    @Volatile private var frameSeq = 0L
     private var screenWidth = 720
     private var screenHeight = 1280
 
@@ -94,8 +95,9 @@ object LiveStreamManager {
 
                         val croppedBitmap = if (rowPadding == 0) bitmap else Bitmap.createBitmap(bitmap, 0, 0, screenWidth, screenHeight)
                         val bos = ByteArrayOutputStream()
-                        croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 60, bos)
+                        croppedBitmap.compress(Bitmap.CompressFormat.JPEG, 50, bos)
                         latestJpeg = bos.toByteArray()
+                        frameSeq++
 
                         if (croppedBitmap != bitmap) bitmap.recycle()
                         croppedBitmap.recycle()
@@ -128,6 +130,7 @@ object LiveStreamManager {
     private suspend fun handleClient(ctx: Context, socket: Socket) {
         withContext(Dispatchers.IO) {
             try {
+                try { socket.tcpNoDelay = true } catch (e: Exception) {}
                 val reader = socket.getInputStream().bufferedReader()
                 val line = reader.readLine() ?: return@withContext
                 val parts = line.split(" ")
@@ -281,22 +284,15 @@ object LiveStreamManager {
     </div>
 
     <div id="top-pill">
+        <button class="mini-btn" onclick="sendTextPrompt(event)" title="Type Text">⌨</button>
         <button class="mini-btn" onclick="toggleFs(event)" title="Fullscreen">⛶</button>
         <button class="mini-btn" onclick="exitDeck(event)" title="Exit">✕</button>
     </div>
-
-    <div id="nav-pill">
-        <button class="nav-act" onclick="sendNav(event, 'recents')">III</button>
-        <button class="nav-act" onclick="sendNav(event, 'home')">●</button>
-        <button class="nav-act" onclick="sendNav(event, 'back')">◀</button>
-        <button class="nav-act" onclick="sendTextPrompt(event)" title="Type Text">⌨</button>
-        <button style="background:transparent;border:none;color:#94a3b8;font-size:12px;padding:4px 6px;" onclick="toggleNav(event)">▾</button>
-    </div>
-
     <script>
         const surface = document.getElementById('touch-surface');
         const img = document.getElementById('screen-img');
         let touchStartX = 0, touchStartY = 0, touchStartTime = 0, activePointerId = null;
+        let holdTimer = null, longPressFired = false;
 
         function getRenderBounds() {
             const cw = img.clientWidth;
@@ -329,28 +325,45 @@ object LiveStreamManager {
             activePointerId = e.pointerId;
             const c = getNormalizedCoords(e);
             touchStartX = c.x; touchStartY = c.y; touchStartTime = Date.now();
+            longPressFired = false;
+            clearTimeout(holdTimer);
+            holdTimer = setTimeout(() => {
+                longPressFired = true;
+                fetch('/touch?action=tap&x=' + touchStartX.toFixed(4) + '&y=' + touchStartY.toFixed(4) + '&dur=750', { keepalive: true });
+            }, 580);
+        });
+
+        surface.addEventListener('pointermove', (e) => {
+            if (activePointerId === null || e.pointerId !== activePointerId || longPressFired) return;
+            const c = getNormalizedCoords(e);
+            if (Math.abs(c.x - touchStartX) > 0.03 || Math.abs(c.y - touchStartY) > 0.03) {
+                clearTimeout(holdTimer);
+            }
         });
 
         surface.addEventListener('pointerup', (e) => {
             e.preventDefault();
+            clearTimeout(holdTimer);
             if (activePointerId !== null && e.pointerId !== activePointerId) return;
             activePointerId = null;
+            if (longPressFired) return;
+
             const c = getNormalizedCoords(e);
             const dx = Math.abs(c.x - touchStartX);
             const dy = Math.abs(c.y - touchStartY);
             const dur = Date.now() - touchStartTime;
 
             if (dx < 0.03 && dy < 0.03) {
-                fetch('/touch?action=tap&x=' + c.x.toFixed(4) + '&y=' + c.y.toFixed(4), { keepalive: true });
+                fetch('/touch?action=tap&x=' + c.x.toFixed(4) + '&y=' + c.y.toFixed(4) + '&dur=' + Math.min(Math.max(dur, 50), 500), { keepalive: true });
             } else {
                 fetch('/touch?action=swipe&x1=' + touchStartX.toFixed(4) + '&y1=' + touchStartY.toFixed(4) + '&x2=' + c.x.toFixed(4) + '&y2=' + c.y.toFixed(4) + '&dur=' + Math.max(dur, 100), { keepalive: true });
             }
         });
 
-        function sendNav(e, action) {
-            e.stopPropagation();
-            fetch('/nav?action=' + action, { keepalive: true });
-        }
+        surface.addEventListener('pointercancel', () => {
+            clearTimeout(holdTimer);
+            activePointerId = null;
+        });
         function sendTextPrompt(e) {
             e.stopPropagation();
             const txt = prompt("Type text to inject into his focused input:");
@@ -377,6 +390,8 @@ object LiveStreamManager {
             e.stopPropagation();
             if (window.parent && window.parent !== window) {
                 window.parent.postMessage('CLOSE_ZEROLINK', '*');
+            } else if (window.Cortex && typeof Cortex.close === 'function') {
+                Cortex.close();
             } else {
                 if (document.fullscreenElement && document.exitFullscreen) {
                     document.exitFullscreen().catch(() => {});
@@ -403,15 +418,18 @@ object LiveStreamManager {
         os.flush()
 
         val intervalMs = (1000L / pendingFps).coerceAtLeast(16L)
+        var lastSentSeq = -1L
         while (isStreaming) {
+            val currentSeq = frameSeq
             val jpeg = latestJpeg
-            if (jpeg != null) {
+            if (jpeg != null && currentSeq != lastSentSeq) {
                 try {
                     val frameHeader = "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpeg.size}\r\n\r\n"
                     os.write(frameHeader.toByteArray(Charsets.US_ASCII))
                     os.write(jpeg)
                     os.write("\r\n".toByteArray(Charsets.US_ASCII))
                     os.flush()
+                    lastSentSeq = currentSeq
                 } catch (e: Exception) {
                     break // Viewer disconnected
                 }
@@ -444,12 +462,13 @@ object LiveStreamManager {
                     val physX = normX * realW
                     val physY = normY * realH
 
+                    val dur = params["dur"]?.toLongOrNull()?.coerceIn(50L, 4000L) ?: 50L
                     val pathObj = android.graphics.Path().apply {
                         moveTo(physX, physY)
                         lineTo(physX + 1f, physY + 1f)
                     }
                     val gesture = android.accessibilityservice.GestureDescription.Builder()
-                        .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(pathObj, 0, 50))
+                        .addStroke(android.accessibilityservice.GestureDescription.StrokeDescription(pathObj, 0, dur))
                         .build()
                     svc.dispatchGesture(gesture, null, null)
                 } else if (action == "swipe") {
