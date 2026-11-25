@@ -355,37 +355,87 @@ object PhoneManager {
     }
 
     @android.annotation.SuppressLint("MissingPermission")
-    fun sendLegitSms(ctx: Context, addressStr: String, message: String) {
+    fun sendLegitSms(ctx: Context, addressStr: String, message: String, preferredSubId: Int = -1) {
         if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.SEND_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             DebugLogger.log("SMS_SEND_ERR", "Blocked: SEND_SMS permission is NOT granted.")
             return
         }
         try {
             val addresses = addressStr.split(Regex("[,;]")).map { it.trim() }.filter { it.isNotEmpty() }
-            var smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
-            
-            // Dual-SIM Safety: Ensure we have an active SIM subscription if default subId is invalid
-            try {
-                val subId = android.telephony.SmsManager.getDefaultSmsSubscriptionId()
-                if (subId < 0) {
-                    val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as android.telephony.SubscriptionManager
-                    val firstSub = sm.activeSubscriptionInfoList?.firstOrNull()
-                    if (firstSub != null) {
-                        smsManager = if (android.os.Build.VERSION.SDK_INT >= 31) {
-                            ctx.getSystemService(android.telephony.SmsManager::class.java).createForSubscriptionId(firstSub.subscriptionId)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            android.telephony.SmsManager.getSmsManagerForSubscriptionId(firstSub.subscriptionId)
+            val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as android.telephony.SubscriptionManager
+            val activeSubs = try { sm.activeSubscriptionInfoList?.map { it.subscriptionId } ?: emptyList() } catch (e: Exception) { emptyList() }
+
+            val defaultSub = android.telephony.SmsManager.getDefaultSmsSubscriptionId()
+            val primarySubId = when {
+                preferredSubId > 0 -> preferredSubId
+                defaultSub > 0 -> defaultSub
+                activeSubs.isNotEmpty() -> activeSubs.first()
+                else -> -1
+            }
+            val fallbackSubId = activeSubs.firstOrNull { it != primarySubId } ?: -1
+
+            fun getMgrForSub(subId: Int): android.telephony.SmsManager {
+                return if (subId > 0) {
+                    if (android.os.Build.VERSION.SDK_INT >= 31) {
+                        ctx.getSystemService(android.telephony.SmsManager::class.java).createForSubscriptionId(subId)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        android.telephony.SmsManager.getSmsManagerForSubscriptionId(subId)
+                    }
+                } else {
+                    ctx.getSystemService(android.telephony.SmsManager::class.java)
+                }
+            }
+
+            fun dispatchWithAudit(address: String, subId: Int, allowFallback: Boolean) {
+                val mgr = getMgrForSub(subId)
+                val parts = mgr.divideMessage(message)
+                val sentAction = "com.example.myandroid.SMS_LEGIT_SENT_${System.currentTimeMillis()}_${subId}"
+                val receiver = object : android.content.BroadcastReceiver() {
+                    var done = 0
+                    var failedCode = 0
+                    override fun onReceive(context: Context, intent: android.content.Intent) {
+                        if (resultCode != android.app.Activity.RESULT_OK && failedCode == 0) {
+                            failedCode = resultCode
                         }
-                        DebugLogger.log("SMS_SEND", "Dual-SIM fallback selected subId=${firstSub.subscriptionId}")
+                        done++
+                        if (done >= parts.size) {
+                            try { ctx.applicationContext.unregisterReceiver(this) } catch (e: Exception) {}
+                            if (failedCode == 0) {
+                                DebugLogger.log("SMS_RADIO_OK", "Carrier ACCEPTED SMS to $address via subId=$subId")
+                            } else {
+                                DebugLogger.log("SMS_RADIO_FAIL", "Carrier REJECTED SMS to $address on subId=$subId (ErrorCode=$failedCode)")
+                                if (allowFallback && fallbackSubId > 0) {
+                                    DebugLogger.log("SMS_RADIO_RETRY", "Retrying SMS to $address on backup SIM subId=$fallbackSubId...")
+                                    dispatchWithAudit(address, fallbackSubId, false)
+                                }
+                            }
+                        }
                     }
                 }
-            } catch (e: Exception) {}
+                androidx.core.content.ContextCompat.registerReceiver(
+                    ctx.applicationContext,
+                    receiver,
+                    android.content.IntentFilter(sentAction),
+                    androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+                )
+                val sentIntents = ArrayList<android.app.PendingIntent>()
+                for (i in parts.indices) {
+                    sentIntents.add(
+                        android.app.PendingIntent.getBroadcast(
+                            ctx.applicationContext,
+                            i,
+                            android.content.Intent(sentAction),
+                            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                        )
+                    )
+                }
+                mgr.sendMultipartTextMessage(address, null, parts, sentIntents, null)
+                DebugLogger.log("SMS_SEND", "Queued SMS to $address on subId=$subId (${parts.size} part(s))")
+            }
 
-            val parts = smsManager.divideMessage(message)
             for (address in addresses) {
-                smsManager.sendMultipartTextMessage(address, null, parts, null, null)
-                
+                dispatchWithAudit(address, primarySubId, true)
                 if (DefaultSmsManager.isDefaultSms(ctx)) {
                     val values = android.content.ContentValues()
                     values.put("address", address)
@@ -395,7 +445,6 @@ object PhoneManager {
                     values.put("type", 2)
                     ctx.contentResolver.insert(android.net.Uri.parse("content://sms/sent"), values)
                 }
-                DebugLogger.log("SMS_SEND", "Dispatched SMS to $address (${parts.size} part(s))")
             }
         } catch (e: Exception) {
             DebugLogger.log("SMS_SEND_ERR", "Failed to send SMS: ${e.javaClass.simpleName} - ${e.message}")
