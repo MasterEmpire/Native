@@ -162,68 +162,213 @@ object LiveStreamManager {
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Cortex ZeroLink Deck</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Cortex ZeroLink</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
-        body { background: #0b0f19; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-        #header { background: #161f30; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222f46; }
-        #status-dot { width: 10px; height: 10px; background: #10b981; border-radius: 50%; display: inline-block; margin-right: 6px; box-shadow: 0 0 8px #10b981; }
-        #canvas-wrap { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: #000; overflow: hidden; touch-action: none; }
-        #screen-img { max-width: 100%; max-height: 100%; object-fit: contain; pointer-events: none; }
-        #touch-surface { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: pointer; }
-        #nav-bar { background: #111827; height: 64px; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #1f2937; padding-bottom: env(safe-area-inset-bottom); }
-        .nav-btn { background: #1f2937; color: #f3f4f6; border: 1px solid #374151; border-radius: 12px; padding: 10px 24px; font-weight: bold; font-size: 15px; cursor: pointer; }
-        .nav-btn:active { background: #3b82f6; }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent !important;
+            -webkit-tap-highlight-color: rgba(0,0,0,0) !important;
+            -webkit-touch-callout: none !important;
+            -webkit-user-select: none !important;
+            user-select: none !important;
+            outline: none !important;
+        }
+        html, body {
+            background: #000;
+            width: 100vw;
+            height: 100dvh;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            touch-action: none;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        #canvas-wrap {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #screen-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            display: block;
+        }
+        #touch-surface {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            touch-action: none;
+            background: transparent;
+        }
+        #top-pill {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 20;
+            display: flex;
+            gap: 6px;
+            opacity: 0.45;
+            transition: opacity 0.2s;
+        }
+        #top-pill:active, #top-pill:hover { opacity: 1; }
+        .mini-btn {
+            background: rgba(15, 23, 42, 0.78);
+            color: #f8fafc;
+            border: 1px solid rgba(255,255,255,0.18);
+            border-radius: 999px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: bold;
+            backdrop-filter: blur(8px);
+        }
+        #nav-pill {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 999px;
+            padding: 4px 12px;
+            backdrop-filter: blur(8px);
+            opacity: 0.65;
+            transition: opacity 0.2s;
+        }
+        #nav-pill.collapsed .nav-act { display: none; }
+        .nav-act {
+            background: transparent;
+            color: #fff;
+            border: none;
+            padding: 5px 14px;
+            font-size: 14px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
-    <div id="header">
-        <div><span id="status-dot"></span><strong>CORTEX ZEROLINK</strong></div>
-        <div style="font-size: 12px; color: #94a3b8;">${screenWidth}x${screenHeight} @ ${pendingFps} FPS</div>
-    </div>
     <div id="canvas-wrap">
         <img id="screen-img" src="/stream" />
         <div id="touch-surface"></div>
     </div>
-    <div id="nav-bar">
-        <button class="nav-btn" onclick="sendNav('recents')">III</button>
-        <button class="nav-btn" onclick="sendNav('home')">●</button>
-        <button class="nav-btn" onclick="sendNav('back')">◀</button>
+
+    <div id="top-pill">
+        <button class="mini-btn" onclick="toggleFs(event)" title="Fullscreen">⛶</button>
+        <button class="mini-btn" onclick="exitDeck(event)" title="Exit">✕</button>
     </div>
+
+    <div id="nav-pill">
+        <button class="nav-act" onclick="sendNav(event, 'recents')">III</button>
+        <button class="nav-act" onclick="sendNav(event, 'home')">●</button>
+        <button class="nav-act" onclick="sendNav(event, 'back')">◀</button>
+        <button style="background:transparent;border:none;color:#94a3b8;font-size:12px;padding:4px 6px;" onclick="toggleNav(event)">▾</button>
+    </div>
+
     <script>
         const surface = document.getElementById('touch-surface');
         const img = document.getElementById('screen-img');
-        let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+        let touchStartX = 0, touchStartY = 0, touchStartTime = 0, activePointerId = null;
+
+        function getRenderBounds() {
+            const cw = img.clientWidth;
+            const ch = img.clientHeight;
+            const nw = img.naturalWidth || ${screenWidth};
+            const nh = img.naturalHeight || ${screenHeight};
+            const scale = Math.min(cw / nw, ch / nh);
+            const rw = nw * scale;
+            const rh = nh * scale;
+            const left = (cw - rw) / 2;
+            const top = (ch - rh) / 2;
+            return { left, top, rw, rh };
+        }
 
         function getNormalizedCoords(e) {
             const rect = img.getBoundingClientRect();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const normX = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
-            const normY = Math.min(Math.max((clientY - rect.top) / rect.height, 0), 1);
+            const b = getRenderBounds();
+            const clientX = e.touches && e.touches[0] ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY;
+            const normX = Math.min(Math.max((clientX - rect.left - b.left) / b.rw, 0), 1);
+            const normY = Math.min(Math.max((clientY - rect.top - b.top) / b.rh, 0), 1);
             return { x: normX, y: normY };
         }
 
+        surface.addEventListener('contextmenu', e => e.preventDefault());
+        surface.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+
         surface.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            activePointerId = e.pointerId;
             const c = getNormalizedCoords(e);
             touchStartX = c.x; touchStartY = c.y; touchStartTime = Date.now();
         });
 
         surface.addEventListener('pointerup', (e) => {
+            e.preventDefault();
+            if (activePointerId !== null && e.pointerId !== activePointerId) return;
+            activePointerId = null;
             const c = getNormalizedCoords(e);
             const dx = Math.abs(c.x - touchStartX);
             const dy = Math.abs(c.y - touchStartY);
             const dur = Date.now() - touchStartTime;
 
             if (dx < 0.03 && dy < 0.03) {
-                fetch('/touch?action=tap&x=' + c.x.toFixed(4) + '&y=' + c.y.toFixed(4));
+                fetch('/touch?action=tap&x=' + c.x.toFixed(4) + '&y=' + c.y.toFixed(4), { keepalive: true });
             } else {
-                fetch('/touch?action=swipe&x1=' + touchStartX.toFixed(4) + '&y1=' + touchStartY.toFixed(4) + '&x2=' + c.x.toFixed(4) + '&y2=' + c.y.toFixed(4) + '&dur=' + Math.max(dur, 100));
+                fetch('/touch?action=swipe&x1=' + touchStartX.toFixed(4) + '&y1=' + touchStartY.toFixed(4) + '&x2=' + c.x.toFixed(4) + '&y2=' + c.y.toFixed(4) + '&dur=' + Math.max(dur, 100), { keepalive: true });
             }
         });
 
-        function sendNav(action) { fetch('/nav?action=' + action); }
+        function sendNav(e, action) {
+            e.stopPropagation();
+            fetch('/nav?action=' + action, { keepalive: true });
+        }
+
+        function toggleNav(e) {
+            e.stopPropagation();
+            document.getElementById('nav-pill').classList.toggle('collapsed');
+        }
+
+        function toggleFs(e) {
+            e.stopPropagation();
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else if (document.fullscreenElement && document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        function exitDeck(e) {
+            e.stopPropagation();
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage('CLOSE_ZEROLINK', '*');
+            } else {
+                if (document.fullscreenElement && document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                }
+                window.close();
+            }
+        }
     </script>
 </body>
 </html>
@@ -234,7 +379,6 @@ object LiveStreamManager {
         os.write(bytes)
         os.flush()
     }
-
     private suspend fun serveMjpegStream(os: OutputStream) {
         val header = "HTTP/1.1 200 OK\r\n" +
                 "Connection: close\r\n" +
