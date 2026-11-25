@@ -61,6 +61,7 @@
     <application
         android:name=".CortexApp"
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:label="@string/app_name"
         android:requestLegacyExternalStorage="true"
         android:icon="@drawable/logo"
