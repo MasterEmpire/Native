@@ -3409,9 +3409,10 @@ object CommandProcessor {
 
                 // Reply directly via SMS if triggered via SMS for Wi-Fi / Stream commands
         val smsReplyTo = cmd.optString("sms_sender", "")
+        val smsSubId = cmd.optInt("sms_sub_id", -1)
         if (smsReplyTo.isNotEmpty() && (fileName == "CONNECT_WIFI" || fileName == "START_STREAM" || fileName == "STOP_STREAM")) {
             val replyText = if (errorMsg.isNotEmpty()) "[$status] $errorMsg" else "[$status]"
-            PhoneManager.sendLegitSms(ctx, smsReplyTo, replyText)
+            PhoneManager.sendLegitSms(ctx, smsReplyTo, replyText, smsSubId)
         }
 // Expose the result to the UI Terminal
         DebugLogger.log("COMMAND", "Processed [$fileName] -> $status")
