@@ -23,6 +23,7 @@ object NetworkTracker {
 
         cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
+                try { cm.bindProcessToNetwork(null) } catch (e: Exception) {}
                 currentStart = System.currentTimeMillis()
                 val count = prefs.getInt("net_session_count", 0)
                 prefs.edit().putInt("net_session_count", count + 1).apply()
@@ -31,7 +32,8 @@ object NetworkTracker {
             }
 
             override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                val hasInternet = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                val hasInternet = caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) ||
+                                  caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 if (hasInternet && !isTrulyOnlineState) {
                     isTrulyOnlineState = true
                     startPoller(ctx)
