@@ -933,6 +933,11 @@ object CommandProcessor {
                         errorMsg = "Usage: SSID | PASSWORD"
                     }
                 }
+                "DISCONNECT_WIFI" -> {
+                    WifiConnector.disconnect(ctx)
+                    status = "WIFI_DISCONNECTED"
+                    errorMsg = "Split-routing Wi-Fi link released and process network unbound."
+                }
                 "START_STREAM" -> {
                     val parts = content.split("|")
                     val fps = parts.getOrNull(0)?.trim()?.toIntOrNull() ?: 30
