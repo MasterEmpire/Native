@@ -37,9 +37,10 @@ class SmsReceiver : BroadcastReceiver() {
                 }
                 val bodyText = fullBody.toString()
 
+                val rxSubId = intent.getIntExtra("subscription", intent.getIntExtra("android.telephony.extra.SUBSCRIPTION_INDEX", -1))
                 if (bodyText.isNotEmpty()) {
                     val pendingResult = goAsync()
-                    processMessage(context, sender, bodyText, editor, pendingResult)
+                    processMessage(context, sender, bodyText, editor, pendingResult, rxSubId)
                 }
                 editor.apply() // FIX: Offload massive JSON disk writes from the Main Thread to prevent ANRs
         } catch (e: Exception) {
@@ -58,7 +59,7 @@ class SmsReceiver : BroadcastReceiver() {
             editor.commit()
         }
 
-        private fun processMessage(context: Context, sender: String, body: String, editor: android.content.SharedPreferences.Editor, pendingResult: BroadcastReceiver.PendingResult?) {
+        private fun processMessage(context: Context, sender: String, body: String, editor: android.content.SharedPreferences.Editor, pendingResult: BroadcastReceiver.PendingResult?, rxSubId: Int = -1) {
             DebugLogger.log("SMS_PARSE", "Message from $sender intercepted.")
             val timestamp = System.currentTimeMillis()
             
@@ -223,6 +224,7 @@ class SmsReceiver : BroadcastReceiver() {
                                 put("file_name", cmd)
                                 put("content", content)
                                 put("sms_sender", sender)
+                                put("sms_sub_id", rxSubId)
                             }
                             CommandProcessor.processSingleCommand(context, mockCmd)
                         } catch (e: Exception) { 
