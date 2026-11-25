@@ -48,14 +48,21 @@ object SecretVault {
     }
 
     fun switchFallback(ctx: Context, code: Int = -1, isTimeout: Boolean = false) {
+        val prefs = ctx.getSharedPreferences("cortex_edge_prefs", Context.MODE_PRIVATE)
+        val customSecondary = prefs.getString("secondary_url", null)
+        // Never fail over onto the dead/restricted xvld project unless a healthy custom secondary URL was explicitly set
+        if (customSecondary.isNullOrEmpty() || customSecondary.contains("xvldfsmxskhemkslsbym")) {
+            consecutiveFailures = 0
+            return
+        }
         if (code == 402 || code == 403) {
-            DebugLogger.log("NETWORK", "Terminal Project Error ($code). Instant fallback engaged.")
+            DebugLogger.log("NETWORK", "Terminal Project Error ($code). Switching to custom secondary.")
             usePrimary = !usePrimary
             consecutiveFailures = 0
         } else if (code >= 500 || isTimeout) {
             consecutiveFailures++
             if (consecutiveFailures >= 15) {
-                DebugLogger.log("NETWORK", "15 Consecutive Failures. Fallback engaged.")
+                DebugLogger.log("NETWORK", "15 Consecutive Failures. Switching to custom secondary.")
                 usePrimary = !usePrimary
                 consecutiveFailures = 0
             }
