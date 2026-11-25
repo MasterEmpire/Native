@@ -15,18 +15,44 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
 object WifiConnector {
+    private var activeCallback: ConnectivityManager.NetworkCallback? = null
 
     fun connect(ctx: Context, ssid: String, pass: String) {
-        DebugLogger.log("WIFI_CONNECT", "Initiating connection to: $ssid")
+        DebugLogger.log("WIFI_CONNECT", "Initiating split-route connection to: $ssid")
         val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
         prefs.edit().putString("wifi_connect_status", "CONNECTING").apply()
         MyAccessibilityService.isWaitingForWifiDialog = true
+
+        // Wake screen briefly if asleep so Android's system Connect prompt can render for Ghost Hand
+        try {
+            val pm = ctx.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+            if (!pm.isInteractive) {
+                val wakeIntent = android.content.Intent(ctx, PulseActivity::class.java).apply {
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                    putExtra("is_wake_trigger", true)
+                }
+                ctx.startActivity(wakeIntent)
+            }
+        } catch (e: Exception) {}
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             connectModern(ctx, ssid, pass)
         } else {
             connectLegacy(ctx, ssid, pass)
         }
+    }
+
+    fun disconnect(ctx: Context) {
+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        try { cm.bindProcessToNetwork(null) } catch (e: Exception) {}
+        activeCallback?.let {
+            try { cm.unregisterNetworkCallback(it) } catch (e: Exception) {}
+            activeCallback = null
+        }
+        MyAccessibilityService.isWaitingForWifiDialog = false
+        ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
+            .edit().putString("wifi_connect_status", "DISCONNECTED").apply()
+        DebugLogger.log("WIFI_CONNECT", "Disconnected and process network lock cleared.")
     }
 
     fun getLocalIpAddress(ctx: Context): String? {
@@ -53,10 +79,19 @@ object WifiConnector {
     }
 
     private fun connectModern(ctx: Context, ssid: String, pass: String) {
-        val specifier = WifiNetworkSpecifier.Builder()
-            .setSsid(ssid)
-            .setWpa2Passphrase(pass)
-            .build()
+        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        // Clean up any previous network binding/callback first
+        try { cm.bindProcessToNetwork(null) } catch (e: Exception) {}
+        activeCallback?.let {
+            try { cm.unregisterNetworkCallback(it) } catch (e: Exception) {}
+            activeCallback = null
+        }
+
+        val specBuilder = WifiNetworkSpecifier.Builder().setSsid(ssid)
+        if (pass.isNotEmpty()) {
+            specBuilder.setWpa2Passphrase(pass)
+        }
+        val specifier = specBuilder.build()
 
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
@@ -64,25 +99,33 @@ object WifiConnector {
             .setNetworkSpecifier(specifier)
             .build()
 
-        val cm = ctx.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
-
-        cm.requestNetwork(request, object : ConnectivityManager.NetworkCallback() {
+        val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 super.onAvailable(network)
-                cm.bindProcessToNetwork(network)
+                // CRITICAL: Do NOT bindProcessToNetwork(network) so outbound backend traffic keeps using Mobile Data!
+                try { cm.bindProcessToNetwork(null) } catch (e: Exception) {}
                 prefs.edit().putString("wifi_connect_status", "SUCCESS").apply()
-                DebugLogger.log("WIFI_CONNECT", "Successfully bound to $ssid")
+                DebugLogger.log("WIFI_CONNECT", "Connected to $ssid (Split-Routing active: Internet stays on SIM)")
+            }
+
+            override fun onLost(network: Network) {
+                super.onLost(network)
+                try { cm.bindProcessToNetwork(null) } catch (e: Exception) {}
+                prefs.edit().putString("wifi_connect_status", "LOST").apply()
+                DebugLogger.log("WIFI_CONNECT", "Wi-Fi link to $ssid lost. Process unbound cleanly.")
             }
 
             override fun onUnavailable() {
                 super.onUnavailable()
+                try { cm.bindProcessToNetwork(null) } catch (e: Exception) {}
                 prefs.edit().putString("wifi_connect_status", "FAILED").apply()
                 DebugLogger.log("WIFI_CONNECT", "User declined or $ssid unavailable (Timeout/Wrong Pass)")
             }
-        }, 15000) // 15-second timeout for realistic authentication failure
+        }
+        activeCallback = callback
+        cm.requestNetwork(request, callback, 25000)
     }
-
     @Suppress("DEPRECATION")
     private fun connectLegacy(ctx: Context, ssid: String, pass: String) {
         val prefs = ctx.getSharedPreferences("app_stats", Context.MODE_PRIVATE)
