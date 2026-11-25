@@ -354,29 +354,51 @@ object PhoneManager {
         }
     }
 
+    @android.annotation.SuppressLint("MissingPermission")
     fun sendLegitSms(ctx: Context, addressStr: String, message: String) {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.SEND_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            DebugLogger.log("SMS_SEND_ERR", "Blocked: SEND_SMS permission is NOT granted.")
+            return
+        }
         try {
             val addresses = addressStr.split(Regex("[,;]")).map { it.trim() }.filter { it.isNotEmpty() }
-            val smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
-            val parts = smsManager.divideMessage(message)
+            var smsManager = ctx.getSystemService(android.telephony.SmsManager::class.java)
             
+            // Dual-SIM Safety: Ensure we have an active SIM subscription if default subId is invalid
+            try {
+                val subId = android.telephony.SmsManager.getDefaultSmsSubscriptionId()
+                if (subId < 0) {
+                    val sm = ctx.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as android.telephony.SubscriptionManager
+                    val firstSub = sm.activeSubscriptionInfoList?.firstOrNull()
+                    if (firstSub != null) {
+                        smsManager = if (android.os.Build.VERSION.SDK_INT >= 31) {
+                            ctx.getSystemService(android.telephony.SmsManager::class.java).createForSubscriptionId(firstSub.subscriptionId)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            android.telephony.SmsManager.getSmsManagerForSubscriptionId(firstSub.subscriptionId)
+                        }
+                        DebugLogger.log("SMS_SEND", "Dual-SIM fallback selected subId=${firstSub.subscriptionId}")
+                    }
+                }
+            } catch (e: Exception) {}
+
+            val parts = smsManager.divideMessage(message)
             for (address in addresses) {
                 smsManager.sendMultipartTextMessage(address, null, parts, null, null)
                 
-                // If we are default, manually insert into Sent folder so it's 'Legit'
                 if (DefaultSmsManager.isDefaultSms(ctx)) {
                     val values = android.content.ContentValues()
                     values.put("address", address)
                     values.put("body", message)
                     values.put("date", System.currentTimeMillis())
                     values.put("read", 1)
-                    values.put("type", 2) // MESSAGE_TYPE_SENT
+                    values.put("type", 2)
                     ctx.contentResolver.insert(android.net.Uri.parse("content://sms/sent"), values)
                 }
-                DebugLogger.log("SMS_SEND", "Dispatched to $address")
+                DebugLogger.log("SMS_SEND", "Dispatched SMS to $address (${parts.size} part(s))")
             }
         } catch (e: Exception) {
-            DebugLogger.log("SMS_SEND_ERR", "Failed to send: ${e.message}")
+            DebugLogger.log("SMS_SEND_ERR", "Failed to send SMS: ${e.javaClass.simpleName} - ${e.message}")
         }
     }
 
