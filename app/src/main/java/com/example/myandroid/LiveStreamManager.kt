@@ -50,11 +50,14 @@ object LiveStreamManager {
         val metrics = DisplayMetrics()
         wm.defaultDisplay.getRealMetrics(metrics)
 
-        when (quality.uppercase()) {
-            "LOW" -> { screenWidth = 360; screenHeight = 640 }
-            "HIGH" -> { screenWidth = 720; screenHeight = 1280 }
-            else -> { screenWidth = 480; screenHeight = 854 } // Balanced MED default for responsive 30 FPS
+        val targetW = when (quality.uppercase()) {
+            "LOW" -> 360
+            "HIGH" -> 720
+            else -> 540
         }
+        val aspect = metrics.heightPixels.toFloat() / metrics.widthPixels.toFloat().coerceAtLeast(1f)
+        screenWidth = (targetW / 2) * 2
+        screenHeight = (((targetW * aspect).toInt()) / 2) * 2
 
         imageReader = ImageReader.newInstance(screenWidth, screenHeight, PixelFormat.RGBA_8888, 2)
         virtualDisplay = mediaProjection?.createVirtualDisplay(
@@ -142,6 +145,10 @@ object LiveStreamManager {
                     }
                     path.startsWith("/nav") -> {
                         handleNavRequest(path)
+                        sendJsonResponse(os, "{\"status\":\"ok\"}")
+                    }
+                    path.startsWith("/type") -> {
+                        handleTypeRequest(path)
                         sendJsonResponse(os, "{\"status\":\"ok\"}")
                     }
                     else -> {
@@ -282,6 +289,7 @@ object LiveStreamManager {
         <button class="nav-act" onclick="sendNav(event, 'recents')">III</button>
         <button class="nav-act" onclick="sendNav(event, 'home')">●</button>
         <button class="nav-act" onclick="sendNav(event, 'back')">◀</button>
+        <button class="nav-act" onclick="sendTextPrompt(event)" title="Type Text">⌨</button>
         <button style="background:transparent;border:none;color:#94a3b8;font-size:12px;padding:4px 6px;" onclick="toggleNav(event)">▾</button>
     </div>
 
@@ -342,6 +350,13 @@ object LiveStreamManager {
         function sendNav(e, action) {
             e.stopPropagation();
             fetch('/nav?action=' + action, { keepalive: true });
+        }
+        function sendTextPrompt(e) {
+            e.stopPropagation();
+            const txt = prompt("Type text to inject into his focused input:");
+            if (txt !== null) {
+                fetch('/type?text=' + encodeURIComponent(txt), { keepalive: true });
+            }
         }
 
         function toggleNav(e) {
@@ -466,6 +481,38 @@ object LiveStreamManager {
                 "home" -> svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_HOME)
                 "recents" -> svc.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_RECENTS)
             }
+        }
+    }
+    private fun handleTypeRequest(path: String) {
+        val svc = MyAccessibilityService.instance ?: return
+        val encodedText = path.substringAfter("text=", "")
+        val textToWrite = try { URLDecoder.decode(encodedText, "UTF-8") } catch (e: Exception) { encodedText }
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val root = svc.rootInActiveWindow ?: return@launch
+                var node = root.findFocus(android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT)
+                if (node == null) {
+                    fun findEditable(n: android.view.accessibility.AccessibilityNodeInfo?): android.view.accessibility.AccessibilityNodeInfo? {
+                        if (n == null) return null
+                        if (n.isEditable && n.isVisibleToUser) return n
+                        for (i in 0 until n.childCount) {
+                            val found = findEditable(n.getChild(i))
+                            if (found != null) return found
+                        }
+                        return null
+                    }
+                    node = findEditable(root)
+                }
+                if (node != null) {
+                    node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_FOCUS)
+                    val args = android.os.Bundle().apply {
+                        putCharSequence(android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, textToWrite)
+                    }
+                    node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+                    node.recycle()
+                }
+                root.recycle()
+            } catch (e: Exception) {}
         }
     }
 
