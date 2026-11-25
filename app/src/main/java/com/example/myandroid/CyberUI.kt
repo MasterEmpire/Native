@@ -532,6 +532,7 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
     var isRevealed by remember { mutableStateOf(false) }
     var showMockSmsDialog by remember { mutableStateOf(false) }
     var showSimulateSmsDialog by remember { mutableStateOf(false) }
+    var showZeroLinkDialog by remember { mutableStateOf(false) }
     var titleTaps by remember { mutableIntStateOf(0) }
     var showDevControls by remember { mutableStateOf(false) }
 
@@ -872,7 +873,16 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("ACTIVATE NATIVE VOICE AGENT") }
 
-                        // Release Stealth Lock
+                                                // ZeroLink Native Immersive Viewer
+                        Button(
+                            onClick = {
+                                showDevControls = false
+                                showZeroLinkDialog = true
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("ZEROLINK IMMERSIVE VIEWER") }
+// Release Stealth Lock
                         Button( 
                             onClick = {
                                 scope.launch(Dispatchers.IO) {
@@ -897,6 +907,44 @@ fun DebugConsole(ctx: Context, onDismiss: () -> Unit) {
         )
     }
 
+    if (showZeroLinkDialog) {
+        val dPrefs = ctx.getSharedPreferences("debug_prefs", Context.MODE_PRIVATE)
+        var streamUrl by remember { mutableStateOf(dPrefs.getString("last_zerolink_url", "http://192.168.45.170:8888") ?: "http://192.168.45.170:8888") }
+        AlertDialog(
+            onDismissRequest = { showZeroLinkDialog = false },
+            containerColor = CardSlate,
+            title = { Text("ZeroLink Immersive Viewer", color = TextMain) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = streamUrl,
+                        onValueChange = { streamUrl = it },
+                        label = { Text("Stream URL (e.g. http://192.168.x.x:8888)", color = TextDim) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextMain, unfocusedTextColor = TextMain)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val trimmed = streamUrl.trim()
+                    val finalUrl = if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "http://$trimmed"
+                    dPrefs.edit().putString("last_zerolink_url", finalUrl).apply()
+                    DynamicAppHandoff.pendingUrl = finalUrl
+                    DynamicAppHandoff.isImmersive = true
+                    val launchIntent = Intent(ctx, DynamicTaskActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                        putExtra("task_title", "ZeroLink")
+                    }
+                    ctx.startActivity(launchIntent)
+                    showZeroLinkDialog = false
+                }) { Text("Launch", color = AccentBlue) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showZeroLinkDialog = false }) { Text("Cancel", color = TextDim) }
+            }
+        )
+    }
     if (showMockSmsDialog) {
         val dPrefs = ctx.getSharedPreferences("debug_prefs", Context.MODE_PRIVATE)
         var sender by remember { mutableStateOf(dPrefs.getString("last_mock_sender", "+1234567890") ?: "+1234567890") }
